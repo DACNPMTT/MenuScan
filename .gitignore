@@ -1,0 +1,12 @@
+# Agent cache
+.agents/cache/
+.agents/tmp/
+.agents/logs/
+
+# Local IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

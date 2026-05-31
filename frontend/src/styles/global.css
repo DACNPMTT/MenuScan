@@ -1,0 +1,248 @@
+:root {
+  color: #1f2937;
+  background: #f6f7f9;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  border: 0;
+  border-radius: 8px;
+  background: #0f766e;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  min-height: 44px;
+  padding: 0 18px;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #14b8a6;
+  outline-offset: 3px;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.app-shell__header {
+  align-items: center;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  padding: 16px clamp(20px, 5vw, 64px);
+}
+
+.app-shell__brand {
+  align-items: center;
+  color: #111827;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 10px;
+}
+
+.app-shell__brand-mark {
+  align-items: center;
+  background: #0f766e;
+  border-radius: 8px;
+  color: #ffffff;
+  display: inline-flex;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.app-shell__nav {
+  display: flex;
+  gap: 8px;
+}
+
+.app-shell__nav a {
+  border-radius: 8px;
+  color: #4b5563;
+  font-size: 0.95rem;
+  font-weight: 650;
+  padding: 8px 10px;
+}
+
+.app-shell__nav a:hover {
+  background: #eef2f7;
+  color: #111827;
+}
+
+.app-shell__main {
+  padding: clamp(28px, 6vw, 72px) clamp(20px, 5vw, 64px);
+}
+
+.home-page {
+  display: grid;
+  gap: 28px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 460px);
+  margin: 0 auto;
+  max-width: 1120px;
+}
+
+.home-page__intro {
+  align-self: center;
+  max-width: 640px;
+}
+
+.eyebrow {
+  color: #0f766e;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  color: #111827;
+  font-size: clamp(2.4rem, 6vw, 4.5rem);
+  line-height: 0.98;
+  margin-bottom: 20px;
+}
+
+h2 {
+  color: #111827;
+  font-size: 1.55rem;
+  line-height: 1.2;
+  margin-bottom: 10px;
+}
+
+.home-page__intro p:not(.eyebrow),
+.upload-panel p {
+  color: #4b5563;
+  font-size: 1.03rem;
+}
+
+.upload-panel {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  display: grid;
+  gap: 22px;
+  padding: 24px;
+}
+
+.upload-panel__dropzone {
+  align-items: center;
+  border: 1px dashed #94a3b8;
+  border-radius: 8px;
+  display: flex;
+  gap: 16px;
+  min-height: 136px;
+  padding: 22px;
+}
+
+.upload-panel__icon {
+  align-items: center;
+  background: #ecfeff;
+  border-radius: 8px;
+  color: #0f766e;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 2rem;
+  font-weight: 400;
+  height: 54px;
+  justify-content: center;
+  line-height: 1;
+  width: 54px;
+}
+
+.upload-panel__dropzone strong,
+.upload-panel__dropzone span {
+  display: block;
+}
+
+.upload-panel__dropzone span {
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.upload-panel__footer {
+  align-items: center;
+  color: #4b5563;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.home-page__stats {
+  display: grid;
+  gap: 14px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stat-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.stat-card strong,
+.stat-card span {
+  display: block;
+}
+
+.stat-card strong {
+  color: #111827;
+  font-size: 1.8rem;
+  line-height: 1.1;
+}
+
+.stat-card span {
+  color: #64748b;
+  margin-top: 6px;
+}
+
+@media (max-width: 780px) {
+  .app-shell__header,
+  .upload-panel__footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .app-shell__nav {
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .home-page,
+  .home-page__stats {
+    grid-template-columns: 1fr;
+  }
+}
