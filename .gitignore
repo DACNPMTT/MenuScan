@@ -10,3 +10,49 @@
 # OS
 .DS_Store
 Thumbs.db
+
+# ========================
+# Environment Variables
+# ========================
+.env
+.env.local
+.env.*.local
+
+# ========================
+# Python / Backend
+# ========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+*.log
+
+# ========================
+# Node / Frontend
+# ========================
+node_modules/
+dist/
+build/
+.next/
+*.local
+
+# ========================
+# Docker
+# ========================
+*.env.prod
+
+# ========================
+# Uploads (ảnh do user upload)
+# ========================
+app/uploads/
+uploads/
