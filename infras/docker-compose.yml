@@ -1,0 +1,67 @@
+# ============================================
+#  MenuScan — Docker Compose (Development)
+#  Chạy lệnh: docker compose up --build
+# ============================================
+
+services:
+  # ─────────────────────────────────────
+  # PostgreSQL Database
+  # ─────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: menuscan-db
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-menuscan}
+      POSTGRES_USER: ${POSTGRES_USER:-menuscan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-menuscan123}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-menuscan}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────
+  # Backend — Python 3.12 + FastAPI
+  # ─────────────────────────────────────
+  backend:
+    build:
+      context: ../app
+      dockerfile: Dockerfile.dev
+    container_name: menuscan-backend
+    restart: unless-stopped
+    ports:
+      - "${BE_PORT:-8000}:8000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-menuscan}:${POSTGRES_PASSWORD:-menuscan123}@db:5432/${POSTGRES_DB:-menuscan}
+    volumes:
+      - ../app:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ─────────────────────────────────────
+  # Frontend — React 19 + Vite 8
+  # ─────────────────────────────────────
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.dev
+    container_name: menuscan-frontend
+    restart: unless-stopped
+    ports:
+      - "${FE_PORT:-5173}:5173"
+    environment:
+      VITE_API_URL: http://localhost:${BE_PORT:-8000}
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
