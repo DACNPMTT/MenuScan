@@ -201,66 +201,60 @@ MenuScan/
 
 Make sure you have the following installed:
 
-- Node.js 20+
-- npm 10+
-- Python 3.12+
-- uv
+- Docker Desktop for the recommended setup.
+- Node.js 20.19+ or 22.12+, npm, Python 3.12+, and uv for local debugging without Docker.
 
 ## Installation
 
 Clone the repository:
 
 ```bash
-git clone https://github.com/your-username/MenuScan.git
+git clone https://github.com/DACNPMTT/MenuScan.git
 cd MenuScan
 ```
 
-Install frontend dependencies:
+For the recommended Docker setup, create the local environment file:
+
+```bash
+cd infras
+cp .env.example .env
+docker compose up --build
+```
+
+Open `http://localhost:5173`. The backend health check is available at
+`http://localhost:8000/health`.
+
+For local debugging without Docker, install dependencies separately:
 
 ```bash
 cd frontend
 npm install
-```
 
-Install backend dependencies:
-
-```bash
 cd ../app
 uv sync
 ```
 
-## Environment Setup
-
-Create environment files as needed:
-
-```bash
-cp app/.env.example app/.env
-cp frontend/.env.example frontend/.env
-```
-
-Example backend environment variables:
+The Compose environment file is `infras/.env`. Start from
+`infras/.env.example`; it contains the local development defaults:
 
 ```env
-APP_ENV=development
-API_HOST=127.0.0.1
-API_PORT=8000
-AI_PROVIDER=openai
-AI_API_KEY=your_api_key_here
-```
-
-Example frontend environment variables:
-
-```env
-VITE_API_BASE_URL=http://127.0.0.1:8000
+POSTGRES_DB=menuscan
+POSTGRES_USER=menuscan
+POSTGRES_PASSWORD=menuscan123
+DB_PORT=5432
+BE_PORT=8000
+DATABASE_URL=postgresql://menuscan:menuscan123@db:5432/menuscan
+FE_PORT=5173
+VITE_API_URL=http://localhost:8000
 ```
 
 ## Running the Project
 
-Start the backend:
+Start the backend locally:
 
 ```bash
 cd app
-uv run python main.py
+uv run uvicorn main:app --reload
 ```
 
 Start the frontend:
