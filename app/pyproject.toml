@@ -5,7 +5,7 @@ description = "MenuScan Backend API"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.115.0",
+    "fastapi>=0.136.3",
     "uvicorn[standard]>=0.30.0",
     "psycopg2-binary>=2.9.0",
     "sqlalchemy>=2.0.0",
