@@ -17,11 +17,11 @@ Sprint board: `https://github.com/orgs/DACNPMTT/projects/1`
 
 MenuScan là web app gồm ba service:
 
-| Service | Công nghệ | Thư mục | Cổng mặc định |
-| :--- | :--- | :--- | :--- |
-| Frontend | React, TypeScript, Vite | `frontend/` | `5173` |
-| Backend API | Python 3.12, FastAPI | `app/` | `8000` |
-| Database | PostgreSQL 16 | Docker volume | `5432` |
+| Service     | Công nghệ               | Thư mục       | Cổng mặc định |
+| :---------- | :---------------------- | :------------ | :------------ |
+| Frontend    | React, TypeScript, Vite | `frontend/`   | `5173`        |
+| Backend API | Python 3.12, FastAPI    | `app/`        | `8000`        |
+| Database    | PostgreSQL 16           | Docker volume | `5432`        |
 
 Cấu trúc chính:
 
@@ -82,17 +82,17 @@ docker compose up --build
 
 Sau khi khởi động:
 
-| Thành phần | URL |
-| :--- | :--- |
-| Frontend | `http://localhost:5173` |
-| Backend API | `http://localhost:8000` |
+| Thành phần   | URL                            |
+| :----------- | :----------------------------- |
+| Frontend     | `http://localhost:5173`        |
+| Backend API  | `http://localhost:8000`        |
 | Health check | `http://localhost:8000/health` |
-| PostgreSQL | `localhost:5432` |
+| PostgreSQL   | `localhost:5432`               |
 
 Health check hợp lệ:
 
 ```json
-{"status":"ok"}
+{ "status": "ok" }
 ```
 
 Dừng hệ thống:
@@ -189,14 +189,14 @@ Quy tắc commit:
 <loại>(<phạm-vi>): <mô-tả-ngắn>
 ```
 
-| Loại | Mục đích | Ví dụ |
-| :--- | :--- | :--- |
-| `feat` | Thêm tính năng | `feat(auth): thêm API login` |
-| `fix` | Sửa lỗi | `fix(upload): validate file png` |
-| `docs` | Cập nhật tài liệu | `docs(api): thêm ví dụ response` |
-| `test` | Thêm hoặc sửa test | `test(auth): thêm case sai password` |
+| Loại       | Mục đích                         | Ví dụ                                |
+| :--------- | :------------------------------- | :----------------------------------- |
+| `feat`     | Thêm tính năng                   | `feat(auth): thêm API login`         |
+| `fix`      | Sửa lỗi                          | `fix(upload): validate file png`     |
+| `docs`     | Cập nhật tài liệu                | `docs(api): thêm ví dụ response`     |
+| `test`     | Thêm hoặc sửa test               | `test(auth): thêm case sai password` |
 | `refactor` | Cải tiến code, không đổi hành vi | `refactor(ocr): tách parser service` |
-| `style` | Chỉnh giao diện | `style(card): chỉnh spacing` |
+| `style`    | Chỉnh giao diện                  | `style(card): chỉnh spacing`         |
 
 ## 7. Push và tạo Pull Request
 
