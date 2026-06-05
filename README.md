@@ -54,6 +54,14 @@ The result is structured menu data that can be reviewed, stored, searched, publi
 
 ---
 
+# Contributors
+
+<a href="https://github.com/DACNPMTT/MenuScan/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=DACNPMTT/MenuScan" />
+</a>
+
+---
+
 # System Workflow
 
 ```text
