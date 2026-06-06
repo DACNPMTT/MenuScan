@@ -2,11 +2,70 @@ name: CI
 
 on:
   push:
-    branches: [main, dev]
+    branches: [dev]
   pull_request:
-    branches: [main, dev]
+    branches: [dev]
 
 jobs:
+  database:
+    name: Database Schema Check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: menuscan_test
+          POSTGRES_USER: menuscan
+          POSTGRES_PASSWORD: menuscan123
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U menuscan -d menuscan_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Apply schema
+        env:
+          PGPASSWORD: menuscan123
+        run: psql -h localhost -U menuscan -d menuscan_test -v ON_ERROR_STOP=1 -f DB/schema.sql
+
+      - name: Verify required tables
+        env:
+          PGPASSWORD: menuscan123
+        run: |
+          psql -h localhost -U menuscan -d menuscan_test -v ON_ERROR_STOP=1 -c "
+            DO \$\$
+            DECLARE
+              missing_tables text;
+            BEGIN
+              SELECT string_agg(required.name, ', ')
+              INTO missing_tables
+              FROM (VALUES
+                ('users'),
+                ('menus'),
+                ('food_items'),
+                ('scan_sessions')
+              ) AS required(name)
+              WHERE NOT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                  AND table_name = required.name
+              );
+
+              IF missing_tables IS NOT NULL THEN
+                RAISE EXCEPTION 'Missing required tables: %', missing_tables;
+              END IF;
+            END
+            \$\$;
+          "
+
   backend:
     name: Backend Check
     runs-on: ubuntu-latest
@@ -22,7 +81,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install uv && uv sync --locked --dev
+        run: pip install uv && uv sync --locked --all-groups
 
       - name: Lint
         run: uv run ruff check .
