@@ -7,6 +7,7 @@ Tài liệu này định nghĩa cấu trúc Response Wrapper chuẩn chuyên ngh
 ## 1. Cấu trúc Response Wrapper chung
 
 ### 1.1. Success Response (Trả về thành công)
+
 ```json
 {
   "success": true,
@@ -17,6 +18,7 @@ Tài liệu này định nghĩa cấu trúc Response Wrapper chuẩn chuyên ngh
 ```
 
 ### 1.2. Error Response (Trả về lỗi)
+
 ```json
 {
   "success": false,
@@ -33,15 +35,15 @@ Tài liệu này định nghĩa cấu trúc Response Wrapper chuẩn chuyên ngh
 
 ## 2. Bảng định nghĩa HTTP Status Codes
 
-| Mã HTTP | Trạng thái | Trường hợp sử dụng trong MenuScan |
-| :--- | :--- | :--- |
-| **200** | OK | Lấy thông tin thành công (Xem menu, danh sách món ăn, profile cá nhân, kết quả OCR). |
-| **201** | Created | Khởi tạo thành công tài nguyên mới (Đăng ký tài khoản, tạo phiên quét mới, tạo giỏ hàng/đơn hàng). |
-| **400** | Bad Request | Dữ liệu gửi lên không đúng định dạng, lỗi validation (Email sai định dạng, thiếu mật khẩu, dữ liệu gửi lên bị trống). |
-| **401** | Unauthorized | Người dùng chưa đăng nhập, token hết hạn, hoặc thông tin đăng nhập (email/password) không chính xác. |
-| **403** | Forbidden | Người dùng đã đăng nhập nhưng không có quyền hạn truy cập tài nguyên (ví dụ: User thường truy cập API Admin). |
-| **404** | Not Found | Tài nguyên truy cập không tồn tại (Không tìm thấy Menu ID, User ID hoặc Scan Session ID). |
-| **500** | Internal Error | Lỗi hệ thống server (Dịch vụ OCR bên ngoài bị sập, lỗi kết nối cơ sở dữ liệu PostgreSQL). |
+| Mã HTTP | Trạng thái     | Trường hợp sử dụng trong MenuScan                                                                                     |
+| :------ | :------------- | :-------------------------------------------------------------------------------------------------------------------- |
+| **200** | OK             | Lấy thông tin thành công (Xem menu, danh sách món ăn, profile cá nhân, kết quả OCR).                                  |
+| **201** | Created        | Khởi tạo thành công tài nguyên mới (Đăng ký tài khoản, tạo phiên quét mới, tạo giỏ hàng/đơn hàng).                    |
+| **400** | Bad Request    | Dữ liệu gửi lên không đúng định dạng, lỗi validation (Email sai định dạng, thiếu mật khẩu, dữ liệu gửi lên bị trống). |
+| **401** | Unauthorized   | Người dùng chưa đăng nhập, token hết hạn, hoặc thông tin đăng nhập (email/password) không chính xác.                  |
+| **403** | Forbidden      | Người dùng đã đăng nhập nhưng không có quyền hạn truy cập tài nguyên (ví dụ: User thường truy cập API Admin).         |
+| **404** | Not Found      | Tài nguyên truy cập không tồn tại (Không tìm thấy Menu ID, User ID hoặc Scan Session ID).                             |
+| **500** | Internal Error | Lỗi hệ thống server (Dịch vụ OCR bên ngoài bị sập, lỗi kết nối cơ sở dữ liệu PostgreSQL).                             |
 
 ---
 
@@ -50,6 +52,7 @@ Tài liệu này định nghĩa cấu trúc Response Wrapper chuẩn chuyên ngh
 ### 3.1. Xác thực và Phân quyền người dùng (POST `/api/v1/auth/login`)
 
 - **Request Body:**
+
 ```json
 {
   "email": "an.nguyen@example.com",
@@ -58,6 +61,7 @@ Tài liệu này định nghĩa cấu trúc Response Wrapper chuẩn chuyên ngh
 ```
 
 - **Success Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -76,6 +80,7 @@ Tài liệu này định nghĩa cấu trúc Response Wrapper chuẩn chuyên ngh
 ```
 
 - **Error Response (401 Unauthorized - Sai tài khoản/mật khẩu):**
+
 ```json
 {
   "success": false,
@@ -89,6 +94,7 @@ Tài liệu này định nghĩa cấu trúc Response Wrapper chuẩn chuyên ngh
 ```
 
 - **Error Response (403 Forbidden - Truy cập API Admin bằng tài khoản thường):**
+
 ```json
 {
   "success": false,
@@ -104,6 +110,7 @@ Tài liệu này định nghĩa cấu trúc Response Wrapper chuẩn chuyên ngh
 ### 3.2. Số hóa Menu / Lấy kết quả quét (GET `/api/v1/scans/{id}/result`)
 
 - **Success Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -121,7 +128,7 @@ Tài liệu này định nghĩa cấu trúc Response Wrapper chuẩn chuyên ngh
         "id": "a2f20df8-5570-411d-aad6-59308a295f65",
         "original_name": "Beef noodle soup",
         "translated_name": "Phở bò",
-        "price": 60000.00,
+        "price": 60000.0,
         "currency": "VND",
         "allergen_warnings": ["soy", "fish_sauce"]
       }
@@ -131,6 +138,7 @@ Tài liệu này định nghĩa cấu trúc Response Wrapper chuẩn chuyên ngh
 ```
 
 - **Error Response (404 Not Found):**
+
 ```json
 {
   "success": false,
