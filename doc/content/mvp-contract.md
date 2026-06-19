@@ -78,11 +78,14 @@ Magic Link
 - API luôn trả thông báo chung để không làm lộ email đã tồn tại hay chưa.
 - Link có hiệu lực 15 phút, dùng một lần và bị vô hiệu sau khi xác minh.
 - Một email chỉ được yêu cầu gửi lại sau 60 giây.
+- Yêu cầu link mới làm vô hiệu các link chưa dùng trước đó của cùng email.
 - Chỉ lưu hash của token Magic Link và refresh token.
 - Lần xác minh đầu tiên tự động tạo user ở trạng thái `ACTIVE`.
 - Access token có hiệu lực 15 phút.
 - Refresh token có hiệu lực 30 ngày, được rotate sau mỗi lần refresh và lưu
   trong cookie `HttpOnly`, `Secure`, `SameSite=Lax`.
+- Nếu phát hiện refresh token cũ bị tái sử dụng, toàn bộ session family liên
+  quan phải bị thu hồi.
 
 ### 5.2 Auth endpoints
 
@@ -277,4 +280,3 @@ Các màn hình MVP phải map theo contract:
 - [ ] Database xác nhận user không có password và token chỉ lưu hash.
 - [ ] QA xác nhận upload matrix và acceptance cases.
 - [ ] Designer cập nhật màn hình Login/Register cũ thành Magic Link.
-
