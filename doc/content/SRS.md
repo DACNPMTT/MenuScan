@@ -1,209 +1,119 @@
-# Software Requirements Specification - MenuScan
+# Software Requirements Specification - MenuScan MVP
 
-## 1. Giới thiệu
+> Nguồn nghiệp vụ chuẩn: [MenuScan MVP Contract](./mvp-contract.md)
 
-### 1.1 Mục đích tài liệu
+## 1. Mục tiêu
 
-Tài liệu SRS này mô tả các yêu cầu phần mềm cho hệ thống **AI-Powered Smart Menu Digitization and Translation System for Travelers**.  
-Hệ thống hỗ trợ khách du lịch scan hoặc upload ảnh menu bằng tiếng nước ngoài, sau đó sử dụng OCR và AI để nhận diện, phân tích, dịch nội dung menu và hiển thị danh sách món ăn dưới dạng Food Cards dễ hiểu.
+MenuScan giúp người dùng chuyển ảnh hoặc PDF menu thành dữ liệu món ăn có cấu
+trúc. Người dùng đăng nhập bằng Magic Link, upload menu, theo dõi xử lý và xem
+file gốc cạnh kết quả OCR/phân tích/dịch trước khi xác nhận lưu.
 
-### 1.2 Đối tượng sử dụng
+## 2. Đối tượng sử dụng
 
-Hệ thống hướng đến các nhóm người dùng chính:
+- Người dùng cần số hóa menu từ ảnh hoặc PDF.
+- Người dùng cần hiểu menu tiếng Việt hoặc tiếng Anh.
+- Thành viên dự án triển khai frontend, backend, OCR, database và QA.
 
-- Khách du lịch nước ngoài
-- Người dùng không hiểu ngôn ngữ trên menu
-- Người dùng muốn xem nhanh tên món, mô tả món, giá và bản dịch
+## 3. Phạm vi
 
-### 1.3 Mục tiêu hệ thống
+### 3.1 In scope
 
-Hệ thống giúp người dùng:
+- Magic Link và quản lý phiên bằng access/refresh token.
+- Dashboard entry cho user đã đăng nhập.
+- Upload một file JPG, JPEG, PNG, WEBP hoặc PDF tối đa 10 MB.
+- PDF tối đa 5 trang.
+- OCR, nhận diện ngôn ngữ, phân tích món và dịch Việt-Anh.
+- Hiển thị file menu gốc cùng dữ liệu có cấu trúc.
+- Xác nhận lưu menu.
 
-- Chụp hoặc tải ảnh menu lên hệ thống
-- Nhận dạng chữ trên menu bằng OCR
-- Dịch tên món và mô tả món ăn sang ngôn ngữ người dùng
-- Hiển thị món ăn dưới dạng Food Cards
-- Xem lại lịch sử scan menu
-- Tìm kiếm món ăn trong kết quả đã scan
+### 3.2 Out of scope
 
----
+- Email/password, đăng ký riêng và khôi phục mật khẩu.
+- Guest scan.
+- Social login.
+- Camera, chỉnh sửa OCR, tìm kiếm/lọc và dashboard analytics trong Sprint 1.
+- Chọn món, phụ phí, chia bill, hóa đơn điện tử và thanh toán trong Sprint 1.
+- Tìm kiếm hoặc sinh ảnh riêng cho từng món.
 
-## 2. Phạm vi hệ thống
+## 4. Yêu cầu chức năng
 
-### 2.1 Chức năng chính
+| ID | Yêu cầu | Mức ưu tiên |
+| --- | --- | --- |
+| FR-01 | User nhập email để yêu cầu Magic Link. | Must |
+| FR-02 | Hệ thống xác minh link một lần và tự tạo user ở lần đầu. | Must |
+| FR-03 | Hệ thống cấp access token, rotate refresh token và cho phép logout. | Must |
+| FR-04 | Chỉ user đã đăng nhập được tạo phiên scan. | Must |
+| FR-05 | User upload đúng một file theo quy tắc MVP. | Must |
+| FR-06 | Hệ thống lưu file gốc an toàn và tạo phiên scan. | Must |
+| FR-07 | Hệ thống OCR, nhận diện ngôn ngữ, phân tích và dịch menu. | Must |
+| FR-08 | User theo dõi trạng thái xử lý. | Must |
+| FR-09 | Kết quả gồm file gốc, tên món, mô tả, giá, tiền tệ và độ tin cậy khi có. | Must |
+| FR-10 | User xác nhận lưu menu. | Must |
+| FR-11 | Hệ thống hiển thị lỗi có thể hiểu và cho phép thử lại. | Must |
+| FR-12 | Camera, chỉnh sửa kết quả, search/filter và bill splitting được mở rộng trong Sprint 2. | Should |
 
-Hệ thống bao gồm các chức năng chính sau:
+## 5. Yêu cầu phi chức năng
 
-- Đăng ký và đăng nhập tài khoản
-- Upload hoặc chụp ảnh menu
-- Kiểm tra ảnh menu hợp lệ
-- OCR nhận dạng chữ trong ảnh menu
-- Phân tích nội dung menu thành danh sách món ăn
-- Dịch tên món và mô tả món ăn
-- Hiển thị Food Cards
-- Xem chi tiết món ăn
-- Lưu và xem lịch sử scan
-- Tìm kiếm món ăn
+| ID | Yêu cầu |
+| --- | --- |
+| NFR-01 | Ảnh một trang kỳ vọng hoàn tất trong 30 giây; PDF tối đa 5 trang trong 60 giây khi dịch vụ bình thường. |
+| NFR-02 | Giao diện responsive và có trạng thái loading, empty, error rõ ràng. |
+| NFR-03 | File gốc và lịch sử chỉ user sở hữu được truy cập. |
+| NFR-04 | Magic Link token và refresh token chỉ lưu dạng hash. |
+| NFR-05 | Backend xác thực MIME từ nội dung file và không tin extension từ client. |
+| NFR-06 | API dùng response/error wrapper thống nhất và có `request_id`. |
+| NFR-07 | Mã nguồn chia module Auth, Scan, OCR, Menu, Storage và Shared. |
+| NFR-08 | Không trả stack trace, token hoặc thông tin provider trong lỗi. |
 
-### 2.2 Ngoài phạm vi
+## 6. Luồng chính
 
-Trong phiên bản đầu tiên, hệ thống chưa hỗ trợ:
+1. Guest mở Landing Page và chọn Login hoặc Scan Now.
+2. Guest nhập email và yêu cầu Magic Link.
+3. User mở link trong 15 phút; hệ thống xác minh và tạo phiên.
+4. User vào Dashboard và chọn upload menu.
+5. Client kiểm tra sơ bộ file; backend kiểm tra lại MIME, kích thước và PDF.
+6. Backend lưu file gốc, tạo scan và bắt đầu xử lý bất đồng bộ.
+7. Frontend poll trạng thái đến `COMPLETED` hoặc `FAILED`.
+8. Khi thành công, frontend hiển thị file gốc cạnh dữ liệu món.
+9. User xác nhận lưu menu hoặc scan file khác.
 
-- Đặt món trực tiếp tại nhà hàng
-- Thanh toán online
-- Đánh giá nhà hàng
-- Gợi ý món ăn theo sức khỏe hoặc dị ứng
-- Chat trực tiếp với nhà hàng
+## 7. Luồng lỗi
 
----
+- Magic Link sai, hết hạn hoặc đã dùng: yêu cầu gửi link mới.
+- File sai loại hoặc quá 10 MB: từ chối trước khi tạo scan.
+- PDF quá 5 trang hoặc có mật khẩu: từ chối với lỗi validation.
+- Không nhận diện được menu: scan chuyển `FAILED` với `UNREADABLE_MENU`.
+- OCR/provider tạm lỗi: trả lỗi có thể retry, không làm mất phiên scan.
+- Access token hết hạn: frontend gọi refresh một lần rồi retry request.
+- Refresh session hết hạn: xóa trạng thái đăng nhập và quay về Magic Link.
 
-## 3. Yêu cầu chức năng
+## 8. Quy tắc nghiệp vụ
 
-| ID | Tên yêu cầu | Mô tả | Mức ưu tiên |
-|---|---|---|---|
-| FR-01 | Đăng ký tài khoản | Người dùng có thể tạo tài khoản bằng email, mật khẩu và tên hiển thị. | Must |
-| FR-02 | Đăng nhập | Người dùng có thể đăng nhập vào hệ thống bằng email và mật khẩu. | Must |
-| FR-03 | Đăng xuất | Người dùng có thể đăng xuất khỏi hệ thống. | Must |
-| FR-04 | Upload ảnh menu | Người dùng có thể upload ảnh menu từ thiết bị. | Must |
-| FR-05 | Chụp ảnh menu | Người dùng có thể chụp ảnh menu trực tiếp bằng camera. | Should |
-| FR-06 | Kiểm tra ảnh hợp lệ | Hệ thống kiểm tra ảnh có đúng định dạng, dung lượng và có thể xử lý được hay không. | Must |
-| FR-07 | Tiền xử lý ảnh | Hệ thống có thể xử lý ảnh trước khi OCR như xoay ảnh, làm rõ chữ, cắt vùng menu. | Should |
-| FR-08 | OCR nhận dạng chữ | Hệ thống sử dụng OCR để nhận dạng chữ từ ảnh menu. | Must |
-| FR-09 | Xử lý lỗi OCR | Nếu OCR thất bại, hệ thống hiển thị thông báo lỗi và yêu cầu người dùng thử lại. | Must |
-| FR-10 | Phân tích menu | Hệ thống phân tích nội dung OCR để tách tên món, mô tả, giá và loại món ăn. | Must |
-| FR-11 | Dịch nội dung menu | Hệ thống dịch tên món và mô tả món ăn sang ngôn ngữ người dùng chọn. | Must |
-| FR-12 | Hiển thị Food Cards | Hệ thống hiển thị các món ăn dưới dạng Food Cards gồm tên món, bản dịch, mô tả và giá. | Must |
-| FR-13 | Xem chi tiết món ăn | Người dùng có thể chọn một Food Card để xem chi tiết món ăn. | Must |
-| FR-14 | Lưu lịch sử scan | Hệ thống lưu lại lịch sử các lần scan menu của người dùng. | Should |
-| FR-15 | Xem lịch sử scan | Người dùng có thể xem lại danh sách các menu đã scan trước đó. | Should |
-| FR-16 | Xem chi tiết lịch sử | Người dùng có thể chọn một lịch sử scan để xem lại kết quả chi tiết. | Should |
-| FR-17 | Tìm kiếm món ăn | Người dùng có thể tìm kiếm món ăn theo tên món hoặc từ khóa. | Should |
-| FR-18 | Lọc món ăn | Người dùng có thể lọc món ăn theo loại món hoặc khoảng giá. | Could |
-| FR-19 | Đổi ngôn ngữ dịch | Người dùng có thể chọn ngôn ngữ muốn dịch sang. | Should |
-| FR-20 | Quản lý hồ sơ cá nhân | Người dùng có thể cập nhật tên hiển thị và ngôn ngữ ưu tiên. | Could |
+| ID | Quy tắc |
+| --- | --- |
+| BR-01 | Guest không được scan hoặc xem lịch sử. |
+| BR-02 | Magic Link sống 15 phút, dùng một lần; resend cooldown 60 giây. |
+| BR-03 | Mỗi scan nhận đúng một file tối đa 10 MB. |
+| BR-04 | MIME hỗ trợ: JPEG, PNG, WEBP và PDF; PDF tối đa 5 trang. |
+| BR-05 | Source language tự nhận diện; target language chỉ `vi` hoặc `en`. |
+| BR-06 | Chỉ `COMPLETED` mới có result; `FAILED` phải có error code. |
+| BR-07 | Result phải có đường dẫn truy cập file menu gốc. |
+| BR-08 | MVP không tạo hoặc tìm ảnh riêng cho món ăn. |
+| BR-09 | Menu chỉ vào lịch sử đã lưu sau khi user xác nhận. |
 
----
+## 9. Dữ liệu cốt lõi
 
-## 4. Yêu cầu phi chức năng
+- `User`: id, email, display_name, preferred_language, role, status, timestamps.
+- `MagicLinkToken`: user/email, token_hash, expires_at, consumed_at.
+- `UserSession`: user_id, refresh_token_hash, expires_at, revoked_at.
+- `ScanSession`: user_id, source metadata, target_language, status, error, timestamps.
+- `OcrResult`: raw_text, detected_language, confidence, provider metadata.
+- `Menu`: scan_session_id, title, currency, is_saved.
+- `FoodItem`: tên gốc/dịch, mô tả, giá, tiền tệ, category, confidence, sort_order.
 
-| ID | Tên yêu cầu | Mô tả | Mức ưu tiên |
-|---|---|---|---|
-| NFR-01 | Hiệu năng xử lý | Hệ thống nên trả kết quả scan và dịch menu trong thời gian hợp lý, khoảng dưới 10 giây với ảnh rõ. | Must |
-| NFR-02 | Tính dễ sử dụng | Giao diện phải đơn giản, dễ thao tác với khách du lịch. | Must |
-| NFR-03 | Tính tương thích | Hệ thống có thể sử dụng trên trình duyệt web và thiết bị di động. | Must |
-| NFR-04 | Bảo mật tài khoản | Mật khẩu người dùng phải được mã hóa trước khi lưu vào cơ sở dữ liệu. | Must |
-| NFR-05 | Bảo mật dữ liệu | Ảnh menu và lịch sử scan của người dùng không được truy cập trái phép. | Must |
-| NFR-06 | Độ tin cậy | Hệ thống cần xử lý được các trường hợp lỗi như ảnh mờ, ảnh sai định dạng hoặc OCR thất bại. | Must |
-| NFR-07 | Khả năng mở rộng | Hệ thống có thể mở rộng thêm nhiều ngôn ngữ và nhiều loại menu khác nhau trong tương lai. | Should |
-| NFR-08 | Khả năng bảo trì | Mã nguồn cần được chia thành các module rõ ràng như OCR, Translation, Menu Analysis, History. | Should |
-| NFR-09 | Giao diện phản hồi | Khi hệ thống đang xử lý OCR hoặc dịch, giao diện cần hiển thị trạng thái loading. | Should |
-| NFR-10 | Tính chính xác | Kết quả OCR và dịch thuật cần đủ rõ để người dùng hiểu được nội dung menu. | Must |
-| NFR-11 | Khả năng phục hồi lỗi | Khi xảy ra lỗi, hệ thống cần hiển thị thông báo dễ hiểu thay vì bị treo hoặc trắng màn hình. | Must |
-| NFR-12 | Tính nhất quán giao diện | Các màn hình như đăng nhập, upload, Food Cards, lịch sử cần có giao diện thống nhất. | Should |
+## 10. Tài liệu liên quan
 
----
-
-## 5. Mô tả luồng nghiệp vụ chính
-
-### 5.1 Luồng scan menu thành công
-
-1. Người dùng mở ứng dụng.
-2. Người dùng chọn chức năng Scan Menu.
-3. Người dùng upload hoặc chụp ảnh menu.
-4. Hệ thống kiểm tra ảnh hợp lệ.
-5. Hệ thống tiền xử lý ảnh.
-6. Hệ thống thực hiện OCR để nhận dạng chữ.
-7. Hệ thống phân tích nội dung menu.
-8. Hệ thống dịch tên món và mô tả món ăn.
-9. Hệ thống tạo danh sách Food Cards.
-10. Người dùng xem danh sách món ăn.
-11. Người dùng chọn món để xem chi tiết.
-
-### 5.2 Luồng lỗi ảnh không hợp lệ
-
-1. Người dùng upload ảnh menu.
-2. Hệ thống kiểm tra ảnh.
-3. Nếu ảnh sai định dạng, quá dung lượng hoặc không đọc được, hệ thống hiển thị thông báo lỗi.
-4. Người dùng upload hoặc chụp lại ảnh khác.
-
-### 5.3 Luồng lỗi OCR thất bại
-
-1. Người dùng upload ảnh menu hợp lệ.
-2. Hệ thống thực hiện OCR.
-3. Nếu OCR không nhận dạng được chữ, hệ thống hiển thị thông báo lỗi.
-4. Người dùng được yêu cầu thử lại với ảnh rõ hơn.
-
----
-
-## 6. Yêu cầu dữ liệu
-
-### 6.1 User
-
-Thông tin người dùng bao gồm:
-
-- id
-- fullName
-- email
-- passwordHash
-- preferredLanguage
-- role
-- createdAt
-
-### 6.2 ScanSession
-
-Thông tin phiên scan bao gồm:
-
-- id
-- userId
-- imageUrl
-- originalText
-- targetLanguage
-- status
-- createdAt
-- completedAt
-
-### 6.3 Menu
-
-Thông tin menu bao gồm:
-
-- id
-- scanSessionId
-- title
-- sourceLanguage
-- targetLanguage
-- createdAt
-
-### 6.4 FoodItem
-
-Thông tin món ăn bao gồm:
-
-- id
-- menuId
-- originalName
-- translatedName
-- originalDescription
-- translatedDescription
-- price
-- currency
-- category
-- imageUrl
-
----
-
-## 7. Quy tắc nghiệp vụ
-
-| ID | Quy tắc | Mô tả |
-|---|---|---|
-| BR-01 | Kiểm tra định dạng ảnh | Hệ thống chỉ chấp nhận các định dạng ảnh phổ biến như JPG, PNG, JPEG. |
-| BR-02 | Kiểm tra dung lượng ảnh | Ảnh upload không được vượt quá giới hạn dung lượng hệ thống quy định. |
-| BR-03 | Xử lý OCR thất bại | Nếu OCR thất bại, hệ thống không tạo Food Cards và yêu cầu người dùng thử lại. |
-| BR-04 | Lưu lịch sử | Chỉ người dùng đã đăng nhập mới có thể lưu và xem lịch sử scan. |
-| BR-05 | Hiển thị Food Cards | Chỉ hiển thị Food Cards khi hệ thống phân tích được ít nhất một món ăn. |
-
----
-
-## 8. Kết luận
-
-Tài liệu SRS này mô tả các yêu cầu chính của hệ thống AI-Powered Smart Menu Digitization and Translation System for Travelers.  
-Hệ thống tập trung vào việc hỗ trợ khách du lịch hiểu menu nước ngoài thông qua OCR, AI Translation và giao diện Food Cards trực quan.  
-Các yêu cầu được phân loại theo mức độ ưu tiên Must, Should và Could để hỗ trợ nhóm phát triển xác định phạm vi triển khai phù hợp trong từng giai đoạn.
+- API: [api-endpoints.md](./api-endpoints.md)
+- Database: [specification/database.md](./specification/database.md)
+- Response wrapper: [specification/api-response-template.md](./specification/api-response-template.md)
+- Use case: [specification/usecase.md](./specification/usecase.md)

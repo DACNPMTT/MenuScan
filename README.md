@@ -30,6 +30,9 @@ Restaurant menus often exist as photos, scans, PDFs, or printed material. Turnin
 
 The result is structured menu data that can be reviewed, stored, searched, published, or integrated into ordering systems, POS tools, websites, and internal dashboards.
 
+The agreed MVP scope and business rules are documented in
+[MenuScan MVP Contract](doc/content/mvp-contract.md).
+
 ---
 
 # Features
@@ -285,58 +288,36 @@ http://127.0.0.1:5173
 ## Upload Menu Image
 
 ```http
-POST /api/menus/scan
+POST /api/v1/scans
 Content-Type: multipart/form-data
+Authorization: Bearer <access_token>
 ```
 
 ### Example Request
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/menus/scan \
-  -F "file=@menu.jpg"
+curl -X POST http://127.0.0.1:8000/api/v1/scans \
+  -H "Authorization: Bearer <access_token>" \
+  -F "file=@menu.jpg" \
+  -F "target_language=en"
 ```
 
 ### Example Response
 
 ```json
 {
-  "id": "menu_01HZQ8K4Z6K7N5V4R9K2P3X1A7",
-  "status": "completed",
-  "source": {
-    "filename": "menu.jpg",
-    "content_type": "image/jpeg"
+  "success": true,
+  "data": {
+    "id": "71151f64-39c7-4419-810a-c0835bafe341",
+    "status": "PENDING",
+    "source": {
+      "file_name": "menu.jpg",
+      "mime_type": "image/jpeg",
+      "file_size": 2458912
+    },
+    "target_language": "en"
   },
-  "menu": {
-    "restaurant_name": "Northline Bistro",
-    "currency": "USD",
-    "sections": [
-      {
-        "name": "Appetizers",
-        "items": [
-          {
-            "name": "Crispy Calamari",
-            "description": "Served with lemon aioli and marinara sauce.",
-            "price": 14.5
-          },
-          {
-            "name": "Roasted Beet Salad",
-            "description": "Goat cheese, arugula, walnuts, and citrus vinaigrette.",
-            "price": 12.0
-          }
-        ]
-      },
-      {
-        "name": "Mains",
-        "items": [
-          {
-            "name": "Grilled Salmon",
-            "description": "Seasonal vegetables, herb butter, and wild rice.",
-            "price": 26.0
-          }
-        ]
-      }
-    ]
-  }
+  "meta": null
 }
 ```
 
@@ -348,7 +329,7 @@ curl -X POST http://127.0.0.1:8000/api/menus/scan \
 - Support batch menu processing.
 - Add human review and correction workflow.
 - Store scan history and versioned menu records.
-- Add authentication and restaurant workspace management.
+- Add restaurant workspace management.
 - Export structured menus to CSV, JSON, and POS-friendly formats.
 - Add confidence scores for extracted fields.
 - Support multilingual menus.
