@@ -1,8 +1,8 @@
 # MenuScan Database Context
 
 > Chỉ đọc cho task model/table/repository/transaction/ownership/migration/cache.
-> Schema source of truth: `doc/content/specification/database.md`.
-> `DB/schema.sql` là schema Sprint 0 cũ, không dùng cho implementation MVP.
+> Business specification: `doc/content/specification/database.md`.
+> Schema thực thi và lịch sử thay đổi nằm trong `app/alembic/versions/`.
 
 PostgreSQL 16 là source of truth và chỉ backend truy cập. Redis chỉ cache hoặc
 coordination; frontend/provider không kết nối trực tiếp database/cache.

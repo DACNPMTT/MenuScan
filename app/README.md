@@ -83,10 +83,14 @@ Từ thư mục `app/`, cần DB đang chạy (`docker compose up db -d`):
 ```bash
 uv sync
 $env:DATABASE_URL = "postgresql://menuscan:localdev@localhost:54320/menuscan"
+uv run alembic upgrade head
 uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
 uv run ruff check .
 uv run pytest
 ```
+
+Alembic migration là nguồn schema duy nhất. Không gọi `Base.metadata.create_all()`
+trong startup; mỗi môi trường truyền `DATABASE_URL` trước khi chạy migration.
 
 - API: `http://localhost:8000`
 - Health: `GET /health`

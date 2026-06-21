@@ -1,0 +1,1 @@
+"""MenuScan backend package."""

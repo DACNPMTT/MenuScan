@@ -1,8 +1,9 @@
 # MenuScan MVP Database Specification
 
 > Nguồn nghiệp vụ chuẩn: [MenuScan MVP Contract](../mvp-contract.md)
-> Đây là specification cho task database/migration; `DB/schema.sql` cũ chưa
-> phải schema MVP đã chốt.
+> Schema thực thi hiện hành nằm trong Alembic revision
+> `app/alembic/versions/001_create_mvp_schema.py`. Migration là nguồn sự thật
+> duy nhất; không duy trì schema SQL thủ công song song.
 
 ## 1. Quy ước
 
