@@ -1,0 +1,170 @@
+import enum
+import uuid
+from datetime import datetime
+from ipaddress import IPv4Address, IPv6Address
+
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    func,
+)
+from sqlalchemy.dialects.postgresql import INET, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from src.core.database import Base
+
+
+class UserRole(str, enum.Enum):
+    USER = "USER"
+    ADMIN = "ADMIN"
+
+
+class UserStatus(str, enum.Enum):
+    ACTIVE = "ACTIVE"
+    LOCKED = "LOCKED"
+    DISABLED = "DISABLED"
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[str | None] = mapped_column(String(150))
+    preferred_language: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        server_default="vi",
+    )
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole, name="user_role"),
+        nullable=False,
+        server_default=UserRole.USER.value,
+    )
+    status: Mapped[UserStatus] = mapped_column(
+        Enum(UserStatus, name="user_status"),
+        nullable=False,
+        server_default=UserStatus.ACTIVE.value,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    magic_link_tokens: Mapped[list["MagicLinkToken"]] = relationship(
+        back_populates="user"
+    )
+    sessions: Mapped[list["UserSession"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "preferred_language IN ('vi', 'en')",
+            name="preferred_language",
+        ),
+        Index("uq_users_email_lower", func.lower(email), unique=True),
+    )
+
+
+class MagicLinkToken(Base):
+    __tablename__ = "magic_link_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", name="fk_magic_link_tokens_user_id_users"),
+    )
+    token_hash: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        unique=True,
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    user: Mapped[User | None] = relationship(back_populates="magic_link_tokens")
+
+    __table_args__ = (
+        Index(
+            "ix_magic_link_tokens_email_created_at",
+            email,
+            created_at.desc(),
+        ),
+    )
+
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "users.id",
+            name="fk_user_sessions_user_id_users",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+    refresh_token_hash: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        unique=True,
+    )
+    user_agent: Mapped[str | None] = mapped_column(Text)
+    ip_address: Mapped[IPv4Address | IPv6Address | None] = mapped_column(INET)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    last_rotated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    user: Mapped[User] = relationship(back_populates="sessions")
+
+    __table_args__ = (Index("ix_user_sessions_user_id", user_id),)

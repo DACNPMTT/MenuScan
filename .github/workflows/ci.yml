@@ -6,14 +6,14 @@ on:
     paths:
       - 'app/**'
       - 'frontend/**'
-      - 'DB/**'
+      - 'doc/diagrams/**'
       - '.github/workflows/ci.yml'
   pull_request:
     branches: [dev]
     paths:
       - 'app/**'
       - 'frontend/**'
-      - 'DB/**'
+      - 'doc/diagrams/**'
       - '.github/workflows/ci.yml'
 
 jobs:
@@ -99,9 +99,15 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked --all-groups
 
+      - name: Apply migrations
+        env:
+          DATABASE_URL: postgresql://menuscan:testpass@localhost:5432/menuscan_test
+        run: uv run alembic upgrade head
+
       - name: Test
         env:
           DATABASE_URL: postgresql://menuscan:testpass@localhost:5432/menuscan_test
+          RUN_DATABASE_TESTS: '1'
         run: uv run pytest --tb=short
 
   # ─────────────────────────────────────
@@ -131,13 +137,14 @@ jobs:
         run: npm run build
 
   # ─────────────────────────────────────
-  # Database: schema validation
-  # Lưu ý: dùng DB/schema.sql (Sprint 0).
-  # Sẽ chuyển sang Alembic migration khi sẵn sàng.
+  # Database: Alembic migration validation
   # ─────────────────────────────────────
   database:
-    name: Database Schema Check
+    name: Database Migration Check
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./app
     services:
       postgres:
         image: postgres:16-alpine
@@ -155,41 +162,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
-      - name: Apply schema
-        env:
-          PGPASSWORD: testpass
-        run: psql -h localhost -U menuscan -d menuscan_test -v ON_ERROR_STOP=1 -f DB/schema.sql
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'app/uv.lock'
 
-      - name: Verify required tables
+      - name: Install dependencies
+        run: uv sync --locked --all-groups
+
+      - name: Apply migrations
         env:
-          PGPASSWORD: testpass
+          DATABASE_URL: postgresql://menuscan:testpass@localhost:5432/menuscan_test
+        run: uv run alembic upgrade head
+
+      - name: Check model and migration consistency
+        env:
+          DATABASE_URL: postgresql://menuscan:testpass@localhost:5432/menuscan_test
+        run: uv run alembic check
+
+      - name: Run database integration tests
+        env:
+          DATABASE_URL: postgresql://menuscan:testpass@localhost:5432/menuscan_test
+          RUN_DATABASE_TESTS: '1'
+        run: uv run pytest tests/test_database_integration.py --tb=short
+
+      - name: Verify rollback and clean re-upgrade
+        env:
+          DATABASE_URL: postgresql://menuscan:testpass@localhost:5432/menuscan_test
         run: |
-          psql -h localhost -U menuscan -d menuscan_test -v ON_ERROR_STOP=1 -c "
-            DO \$\$
-            DECLARE
-              missing_tables text;
-            BEGIN
-              SELECT string_agg(required.name, ', ')
-              INTO missing_tables
-              FROM (VALUES
-                ('users'),
-                ('menus'),
-                ('food_items'),
-                ('scan_sessions')
-              ) AS required(name)
-              WHERE NOT EXISTS (
-                SELECT 1
-                FROM information_schema.tables
-                WHERE table_schema = 'public'
-                  AND table_name = required.name
-              );
-
-              IF missing_tables IS NOT NULL THEN
-                RAISE EXCEPTION 'Missing required tables: %', missing_tables;
-              END IF;
-            END
-            \$\$;
-          "
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+          uv run alembic check
