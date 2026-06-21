@@ -1,10 +1,12 @@
 # ============================================
-#  ⚠️  DEPRECATED — dùng docker-compose.yml ở root
-#  Chạy từ thư mục gốc: docker compose up --build
-# ============================================
-#
 #  MenuScan — Docker Compose (Development)
-#  File này giữ lại để tham khảo.
+#
+#  git clone → docker compose up --build → xong
+#  Không cần .env, không cần cài gì ngoài Docker.
+#
+#  Secret thật (OCR key, email key, ...) đặt trong
+#  .env.local (gitignored) — compose tự load nếu có.
+# ============================================
 
 services:
   # ─────────────────────────────────────
@@ -15,15 +17,15 @@ services:
     container_name: menuscan-db
     restart: unless-stopped
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "54320:5432"            # port lệch tránh conflict PG local
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-menuscan}
-      POSTGRES_USER: ${POSTGRES_USER:-menuscan}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-menuscan123}
+      POSTGRES_DB: menuscan
+      POSTGRES_USER: menuscan
+      POSTGRES_PASSWORD: localdev
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-menuscan}"]
+      test: ["CMD-SHELL", "pg_isready -U menuscan"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -33,16 +35,19 @@ services:
   # ─────────────────────────────────────
   backend:
     build:
-      context: ../app
+      context: ./app
       dockerfile: Dockerfile.dev
     container_name: menuscan-backend
     restart: unless-stopped
     ports:
-      - "${BE_PORT:-8000}:8000"
+      - "8000:8000"
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-menuscan}:${POSTGRES_PASSWORD:-menuscan123}@db:5432/${POSTGRES_DB:-menuscan}}
+      DATABASE_URL: postgresql://menuscan:localdev@db:5432/menuscan
+    env_file:                   # secret thật khi cần, optional
+      - path: .env.local
+        required: false
     volumes:
-      - ../app:/app
+      - ./app:/app
       - /app/.venv
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -58,16 +63,16 @@ services:
   # ─────────────────────────────────────
   frontend:
     build:
-      context: ../frontend
+      context: ./frontend
       dockerfile: Dockerfile.dev
     container_name: menuscan-frontend
     restart: unless-stopped
     ports:
-      - "${FE_PORT:-5173}:5173"
+      - "5173:5173"
     environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:${BE_PORT:-8000}}
+      VITE_API_URL: http://localhost:8000
     volumes:
-      - ../frontend:/app
+      - ./frontend:/app
       - /app/node_modules
     depends_on:
       backend:

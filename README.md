@@ -171,6 +171,7 @@ MenuScan/
 │   ├── main.py
 │   ├── pyproject.toml
 │   ├── uv.lock
+│   ├── Dockerfile.dev
 │   └── README.md
 │
 ├── frontend/
@@ -189,6 +190,7 @@ MenuScan/
 │   │   │   └── lib/
 │   │   └── styles/
 │   ├── package.json
+│   ├── Dockerfile.dev
 │   ├── vite.config.ts
 │   └── README.md
 │
@@ -200,6 +202,9 @@ MenuScan/
 │
 ├── infras/
 ├── .github/
+├── docker-compose.yml      ← Docker dev environment
+├── dev.ps1                 ← Task runner (PowerShell)
+├── .env.local.example      ← Secret template (khi cần)
 ├── .gitignore
 └── README.md
 ```
@@ -210,75 +215,70 @@ MenuScan/
 
 ## Prerequisites
 
-Make sure you have the following installed:
+- **Docker Desktop** — chỉ cần cài Docker, không cần Python, Node, hay bất kỳ tool nào khác.
 
-- Docker Desktop for the recommended setup.
-- Node.js 20.19+ or 22.12+, npm, Python 3.12+, and uv for local debugging without Docker.
-
-## Installation
-
-Clone the repository:
+## Quick Start
 
 ```bash
 git clone https://github.com/DACNPMTT/MenuScan.git
 cd MenuScan
-```
-
-For the recommended Docker setup, create the local environment file:
-
-```bash
-cd infras
-cp .env.example .env
 docker compose up --build
 ```
 
-Open `http://localhost:5173`. The backend health check is available at
-`http://localhost:8000/health`.
+Xong. Mở trình duyệt:
 
-For local debugging without Docker, install dependencies separately:
+| Service  | URL                          |
+| -------- | ---------------------------- |
+| Frontend | `http://localhost:5173`      |
+| Backend  | `http://localhost:8000`      |
+| Health   | `http://localhost:8000/health` |
+| Database | `localhost:54320` (pgAdmin/DBeaver) |
+
+## Dev Commands
+
+Dùng `dev.ps1` để chạy các tác vụ thường dùng (cần PowerShell):
+
+```powershell
+.\dev.ps1 up         # Build & start all services
+.\dev.ps1 down       # Stop all services
+.\dev.ps1 reset      # Wipe DB + rebuild (fresh start)
+.\dev.ps1 logs       # Tail logs
+.\dev.ps1 test       # Run backend tests
+.\dev.ps1 lint       # Lint backend + frontend
+.\dev.ps1 shell-be   # Shell into backend container
+.\dev.ps1 shell-db   # psql console
+.\dev.ps1             # Show all commands
+```
+
+## Hot-reload on Windows
+
+Docker Desktop trên Windows dùng volume mount có thể chậm hot-reload.
+Nếu cần hot-reload nhanh hơn:
+
+1. Bật **WSL2** trong Docker Desktop settings.
+2. Clone repo trong WSL filesystem (`~/MenuScan`, không phải `/mnt/d/...`).
+3. Mở VS Code từ WSL: `code .`
+
+## Local Debugging (không dùng Docker)
+
+Nếu cần debug native (breakpoint, profiler), cài thêm:
+- Python 3.12+ và [uv](https://docs.astral.sh/uv/)
+- Node.js 22+ và npm
 
 ```bash
+# Chỉ start DB qua Docker
+docker compose up db -d
+
+# Backend native
+cd app
+uv sync
+$env:DATABASE_URL = "postgresql://menuscan:localdev@localhost:54320/menuscan"
+uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# Frontend native (terminal khác)
 cd frontend
 npm install
-
-cd ../app
-uv sync
-```
-
-The Compose environment file is `infras/.env`. Start from
-`infras/.env.example`; it contains the local development defaults:
-
-```env
-POSTGRES_DB=menuscan
-POSTGRES_USER=menuscan
-POSTGRES_PASSWORD=menuscan123
-DB_PORT=5432
-BE_PORT=8000
-DATABASE_URL=postgresql://menuscan:menuscan123@db:5432/menuscan
-FE_PORT=5173
-VITE_API_URL=http://localhost:8000
-```
-
-## Running the Project
-
-Start the backend locally:
-
-```bash
-cd app
-uv run uvicorn main:app --reload
-```
-
-Start the frontend:
-
-```bash
-cd frontend
 npm run dev
-```
-
-Open the application:
-
-```text
-http://127.0.0.1:5173
 ```
 
 ---

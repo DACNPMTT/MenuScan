@@ -65,19 +65,27 @@ rõ ràng.
 
 ## Local commands
 
-Từ thư mục `app/`:
+### Qua Docker (khuyến nghị)
+
+Từ thư mục gốc project:
+
+```bash
+docker compose up --build          # start toàn bộ stack
+.\dev.ps1 test                     # chạy pytest trong container
+.\dev.ps1 lint-be                  # chạy ruff trong container
+.\dev.ps1 shell-be                 # shell vào backend container
+```
+
+### Native (để debug)
+
+Từ thư mục `app/`, cần DB đang chạy (`docker compose up db -d`):
 
 ```bash
 uv sync
+$env:DATABASE_URL = "postgresql://menuscan:localdev@localhost:54320/menuscan"
 uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
 uv run ruff check .
 uv run pytest
-```
-
-Hoặc chạy toàn bộ stack từ `infras/`:
-
-```bash
-docker compose up --build
 ```
 
 - API: `http://localhost:8000`

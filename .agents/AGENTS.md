@@ -44,7 +44,7 @@ hoặc `doc/`. Với task code, đọc thêm `.agents/rules/00-core.md` và
 | PostgreSQL, migration, Redis | `.agents/rules/30-data-postgres-redis.md` | `doc/content/specification/database.md`; database context cho ownership/transaction |
 | API, auth, upload, security | `.agents/rules/40-api-security.md` | Section liên quan trong MVP/API docs; response shape ở `doc/content/specification/api-response-template.md` |
 | Test, CI, docs | `.agents/rules/50-testing-docs.md` | `doc/content/TestCases_API.md` hoặc tài liệu trực tiếp bị ảnh hưởng |
-| Docker/infrastructure | Core + backend/data rule liên quan | `infras/docker-compose.yml`, `infras/.env.example`, Dockerfile liên quan |
+| Docker/infrastructure | Core + backend/data rule liên quan | `docker-compose.yml` (root), `infras/.env.example`, Dockerfile liên quan |
 
 Chỉ đọc `doc/ai/architecture.md` khi task ảnh hưởng cấu trúc, dependency, module,
 cross-layer flow hoặc external integration. Chỉ đọc `doc/ai/database.md` khi task
