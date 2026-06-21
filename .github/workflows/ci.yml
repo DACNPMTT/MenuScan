@@ -3,10 +3,138 @@ name: CI
 on:
   push:
     branches: [dev]
+    paths:
+      - 'app/**'
+      - 'frontend/**'
+      - 'DB/**'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches: [dev]
+    paths:
+      - 'app/**'
+      - 'frontend/**'
+      - 'DB/**'
+      - '.github/workflows/ci.yml'
 
 jobs:
+  # ─────────────────────────────────────
+  # Gate: Lint phải pass trước khi chạy test/build
+  # ─────────────────────────────────────
+  lint:
+    name: Lint (Gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Backend lint ──
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'app/uv.lock'
+
+      - name: Backend lint
+        working-directory: ./app
+        run: |
+          uv sync --locked --all-groups
+          uv run ruff check .
+
+      # ── Frontend lint ──
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Frontend lint
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run lint
+
+  # ─────────────────────────────────────
+  # Backend: test với PostgreSQL service
+  # ─────────────────────────────────────
+  test-backend:
+    name: Test Backend
+    needs: lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./app
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: menuscan_test
+          POSTGRES_USER: menuscan
+          POSTGRES_PASSWORD: testpass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U menuscan -d menuscan_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'app/uv.lock'
+
+      - name: Install dependencies
+        run: uv sync --locked --all-groups
+
+      - name: Test
+        env:
+          DATABASE_URL: postgresql://menuscan:testpass@localhost:5432/menuscan_test
+        run: uv run pytest --tb=short
+
+  # ─────────────────────────────────────
+  # Frontend: type-check + build
+  # ─────────────────────────────────────
+  build-frontend:
+    name: Build Frontend
+    needs: lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  # ─────────────────────────────────────
+  # Database: schema validation
+  # Lưu ý: dùng DB/schema.sql (Sprint 0).
+  # Sẽ chuyển sang Alembic migration khi sẵn sàng.
+  # ─────────────────────────────────────
   database:
     name: Database Schema Check
     runs-on: ubuntu-latest
@@ -16,7 +144,7 @@ jobs:
         env:
           POSTGRES_DB: menuscan_test
           POSTGRES_USER: menuscan
-          POSTGRES_PASSWORD: menuscan123
+          POSTGRES_PASSWORD: testpass
         ports:
           - 5432:5432
         options: >-
@@ -32,12 +160,12 @@ jobs:
 
       - name: Apply schema
         env:
-          PGPASSWORD: menuscan123
+          PGPASSWORD: testpass
         run: psql -h localhost -U menuscan -d menuscan_test -v ON_ERROR_STOP=1 -f DB/schema.sql
 
       - name: Verify required tables
         env:
-          PGPASSWORD: menuscan123
+          PGPASSWORD: testpass
         run: |
           psql -h localhost -U menuscan -d menuscan_test -v ON_ERROR_STOP=1 -c "
             DO \$\$
@@ -65,49 +193,3 @@ jobs:
             END
             \$\$;
           "
-
-  backend:
-    name: Backend Check
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./app
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        run: pip install uv && uv sync --locked --all-groups
-
-      - name: Lint
-        run: uv run ruff check .
-
-      - name: Test
-        run: uv run pytest --tb=short
-
-  frontend:
-    name: Frontend Check
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Build
-        run: npm run build
