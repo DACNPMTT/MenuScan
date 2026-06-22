@@ -1,4 +1,4 @@
-<p align="center">
+﻿<p align="center">
   <img src="doc/assets/menuscan-banner.jpg" alt="MenuScan Banner" width="100%" style="border-radius: 16px; border: 1px solid #d9dee7; box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18);" />
 </p>
 
@@ -202,9 +202,9 @@ MenuScan/
 │
 ├── infras/
 ├── .github/
-├── docker-compose.yml      ← Docker dev environment
-├── dev.ps1                 ← Task runner (PowerShell)
-├── .env.local.example      ← Secret template (khi cần)
+├── env/                    ← Local environment templates
+├── docker-compose.yml      ← Local DB/Redis dependencies
+├── Makefile                ← Local task runner
 ├── .gitignore
 └── README.md
 ```
@@ -215,86 +215,75 @@ MenuScan/
 
 ## Prerequisites
 
-- **Docker Desktop** — chỉ cần cài Docker, không cần Python, Node, hay bất kỳ tool nào khác.
+- Docker Desktop for local dependency containers.
+- GNU Make. On Windows, use Git Bash, WSL, or another GNU Make installation.
+- Python 3.12+ and [uv](https://docs.astral.sh/uv/) for the backend.
+- Node.js 22+ and npm for the frontend.
 
 ## Quick Start
 
 ```bash
 git clone https://github.com/DACNPMTT/MenuScan.git
 cd MenuScan
-docker compose up --build
+make env ENV=local
+make install-be
+make install-fe
+make deps ENV=local
 ```
 
-Xong. Mở trình duyệt:
+Run the backend and frontend in separate terminals:
 
-| Service  | URL                          |
-| -------- | ---------------------------- |
-| Frontend | `http://localhost:5173`      |
-| Backend  | `http://localhost:8000`      |
+```bash
+make backend ENV=local
+make frontend ENV=local
+```
+
+Open:
+
+| Service  | URL                            |
+| -------- | ------------------------------ |
+| Frontend | `http://localhost:5173`        |
+| Backend  | `http://localhost:8000`        |
 | Health   | `http://localhost:8000/health` |
-| Database | `localhost:54320` (pgAdmin/DBeaver) |
+| Database | `localhost:54320`              |
+| Redis    | `localhost:63790`              |
 
 ## Dev Commands
 
-Dùng `dev.ps1` để chạy các tác vụ thường dùng (cần PowerShell):
-
-```powershell
-.\dev.ps1 up         # Build & start all services
-.\dev.ps1 down       # Stop all services
-.\dev.ps1 reset      # Wipe DB + rebuild (fresh start)
-.\dev.ps1 logs       # Tail logs
-.\dev.ps1 test       # Run backend tests
-.\dev.ps1 lint       # Lint backend + frontend
-.\dev.ps1 shell-be   # Shell into backend container
-.\dev.ps1 shell-db   # psql console
-.\dev.ps1             # Show all commands
-```
-
-## Hot-reload on Windows
-
-Docker Desktop trên Windows dùng volume mount có thể chậm hot-reload.
-Nếu cần hot-reload nhanh hơn:
-
-1. Bật **WSL2** trong Docker Desktop settings.
-2. Clone repo trong WSL filesystem (`~/MenuScan`, không phải `/mnt/d/...`).
-3. Mở VS Code từ WSL: `code .`
-
-## Local Debugging (không dùng Docker)
-
-Nếu cần debug native (breakpoint, profiler), cài thêm:
-- Python 3.12+ và [uv](https://docs.astral.sh/uv/)
-- Node.js 22+ và npm
+`Makefile` is the canonical local task runner. The root `docker-compose.yml`
+only starts development dependencies; backend and frontend run natively.
 
 ```bash
-# Chỉ start DB qua Docker
-docker compose up db -d
-
-# Backend native
-cd app
+make env ENV=local        # Create env/.env.local from env/.env.local.example
+make deps ENV=local       # Start Postgres and Redis
+make deps-down ENV=local  # Stop local dependency containers
+make deps-reset ENV=local # Recreate dependencies and remove volumes
+make deps-logs ENV=local  # Tail dependency logs
+make deps-ps ENV=local    # Show dependency container status
+make backend ENV=local    # Run migrations, then start FastAPI
+make frontend ENV=local   # Start Vite
+make migrate ENV=local    # Apply Alembic migrations
+make test-be ENV=local    # Run backend tests
+make lint                 # Run backend and frontend lint
 ```
 
-Tren Windows, cai `uv` va mo lai terminal truoc khi chay cac lenh native:
+## Environment Files
 
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-# Hoac neu dung WinGet
-winget install --id=astral-sh.uv -e
-
-uv --version
-```
+Local environment templates live in `env/`. Real env files such as
+`env/.env.local` are gitignored.
 
 ```bash
-uv sync
-$env:DATABASE_URL = "postgresql://menuscan:localdev@localhost:54320/menuscan"
-uv run alembic upgrade head
-uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-# Frontend native (terminal khác)
-cd frontend
-npm install
-npm run dev
+make env ENV=local
 ```
+
+The local defaults point the backend at Postgres on `localhost:54320` and Redis
+on `localhost:63790`.
+
+## Compose and CI/CD
+
+The root `docker-compose.yml` is intentionally limited to local dependency
+containers. The `infras/` directory is reserved for full-container or future
+CI/CD deployment compose configuration.
 
 ---
 

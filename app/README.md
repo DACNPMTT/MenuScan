@@ -1,4 +1,4 @@
-# MenuScan Backend
+﻿# MenuScan Backend
 
 Python 3.12+, FastAPI, SQLAlchemy 2.x và PostgreSQL 16. Backend được tổ chức theo
 **modular layered monolith**, không dùng DDD/Clean Architecture mặc định.
@@ -65,60 +65,46 @@ rõ ràng.
 
 ## Local commands
 
-### Qua Docker (khuyến nghị)
-
-Từ thư mục gốc project:
-
-```bash
-docker compose up --build          # start toàn bộ stack
-.\dev.ps1 test                     # chạy pytest trong container
-.\dev.ps1 lint-be                  # chạy ruff trong container
-.\dev.ps1 shell-be                 # shell vào backend container
-```
-
-### Native (để debug)
-
-Từ thư mục `app/`, cần DB đang chạy (`docker compose up db -d`):
-
-Tren Windows, cai `uv` va mo lai terminal truoc khi chay cac lenh native:
-
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-# Hoac neu dung WinGet
-winget install --id=astral-sh.uv -e
-
-uv --version
-```
+From the repository root, use `Makefile` as the canonical local task runner.
+The root `docker-compose.yml` starts only dependency containers such as
+Postgres and Redis; the backend runs natively.
 
 ```bash
-uv sync
-$env:DATABASE_URL = "postgresql://menuscan:localdev@localhost:54320/menuscan"
+make env ENV=local
+make install-be
+make deps ENV=local
+make migrate ENV=local
+make backend ENV=local
+```
+
+Common backend tasks:
+
+```bash
+make test-be ENV=local
+make lint-be
+```
+
+For direct backend commands from `app/`, load the same values from
+`../env/.env.local` before running `uv` commands:
+
+```bash
+uv sync --locked --all-groups
 uv run alembic upgrade head
 uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
 uv run ruff check .
-uv run pytest
+uv run pytest --tb=short
 ```
 
-Alembic migration là nguồn schema duy nhất. Không gọi `Base.metadata.create_all()`
-trong startup; mỗi môi trường truyền `DATABASE_URL` trước khi chạy migration.
+Alembic migration is the only schema source. Do not call
+`Base.metadata.create_all()` during startup; every environment must provide
+`DATABASE_URL` before migrations run.
 
 - API: `http://localhost:8000`
 - Health: `GET /health`
-- Readiness mục tiêu: `GET /ready`
+- Readiness target: `GET /ready`
 
-`/health` chỉ phản ánh API process; `/ready` mới kiểm tra dependency như database.
-
-## Development startup
-
-Docker development automatically runs `alembic upgrade head` before Uvicorn starts.
-
-For native development from `app/`, run:
-
-```bash
-uv run alembic upgrade head
-uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
+`/health` only reflects the API process; `/ready` should check dependencies
+such as the database.
 
 ## Runtime configuration
 

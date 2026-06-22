@@ -1,86 +1,42 @@
-# ============================================
-#  MenuScan — Docker Compose (Development)
+# MenuScan local development dependencies.
 #
-#  git clone → docker compose up --build → xong
-#  Không cần .env, không cần cài gì ngoài Docker.
-#
-#  Secret thật (OCR key, email key, ...) đặt trong
-#  .env.local (gitignored) — compose tự load nếu có.
-# ============================================
+# The backend and frontend run natively through Makefile targets.
+# This compose file only provides services needed by local development.
 
 services:
-  # ─────────────────────────────────────
-  # PostgreSQL Database
-  # ─────────────────────────────────────
   db:
     image: postgres:16-alpine
     container_name: menuscan-db
     restart: unless-stopped
     ports:
-      - "54320:5432"            # port lệch tránh conflict PG local
+      - "${DB_PORT:-54320}:5432"
     environment:
-      POSTGRES_DB: menuscan
-      POSTGRES_USER: menuscan
-      POSTGRES_PASSWORD: localdev
+      POSTGRES_DB: ${POSTGRES_DB:-menuscan}
+      POSTGRES_USER: ${POSTGRES_USER:-menuscan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdev}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U menuscan"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-menuscan} -d ${POSTGRES_DB:-menuscan}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  # ─────────────────────────────────────
-  # Backend — Python 3.12 + FastAPI
-  # ─────────────────────────────────────
-  backend:
-    build:
-      context: ./app
-      dockerfile: Dockerfile.dev
-    container_name: menuscan-backend
+  redis:
+    image: redis:7-alpine
+    container_name: menuscan-redis
     restart: unless-stopped
     ports:
-      - "8000:8000"
-    environment:
-      DATABASE_URL: postgresql://menuscan:localdev@db:5432/menuscan
-      APP_ENV: development
-      LOG_LEVEL: INFO
-      API_V1_PREFIX: /api/v1
-      CORS_ORIGINS: http://localhost:5173
-    env_file:                   # secret thật khi cần, optional
-      - path: .env.local
-        required: false
+      - "${REDIS_PORT:-63790}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
     volumes:
-      - ./app:/app
-      - /app/.venv
+      - redisdata:/data
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
-    depends_on:
-      db:
-        condition: service_healthy
-
-  # ─────────────────────────────────────
-  # Frontend — React 19 + Vite 8
-  # ─────────────────────────────────────
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.dev
-    container_name: menuscan-frontend
-    restart: unless-stopped
-    ports:
-      - "5173:5173"
-    environment:
-      VITE_API_URL: http://localhost:8000
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    depends_on:
-      backend:
-        condition: service_healthy
 
 volumes:
   pgdata:
+  redisdata:
