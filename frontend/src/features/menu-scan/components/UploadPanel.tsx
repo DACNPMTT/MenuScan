@@ -1,11 +1,13 @@
 import type { MenuScanStatus } from '@/features/menu-scan/types'
+import { Button } from '@/shared/components/Button'
+import { Card } from '@/shared/components/Card'
 
 const allowedFormats = ['PNG', 'JPG', 'PDF']
 const status: MenuScanStatus = 'ready'
 
 export function UploadPanel() {
   return (
-    <section className="upload-panel" aria-labelledby="upload-title">
+    <Card className="upload-panel" aria-labelledby="upload-title">
       <div>
         <p className="eyebrow">Scan workflow</p>
         <h2 id="upload-title">Upload a menu</h2>
@@ -27,8 +29,8 @@ export function UploadPanel() {
 
       <div className="upload-panel__footer">
         <span>Status: {status}</span>
-        <button type="button">Start scan</button>
+        <Button type="button">Start scan</Button>
       </div>
-    </section>
+    </Card>
   )
 }

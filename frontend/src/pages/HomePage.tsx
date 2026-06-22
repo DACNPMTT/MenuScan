@@ -1,5 +1,5 @@
 import { UploadPanel } from '@/features/menu-scan/components/UploadPanel'
-import { AppShell } from '@/layouts/AppShell'
+import { Button } from '@/shared/components/Button'
 import { StatCard } from '@/shared/components/StatCard'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 
@@ -13,25 +13,31 @@ export function HomePage() {
   useDocumentTitle('MenuScan')
 
   return (
-    <AppShell>
-      <section className="home-page" aria-labelledby="home-title">
-        <div className="home-page__intro">
-          <p className="eyebrow">Restaurant menu intelligence</p>
-          <h1 id="home-title">Turn menu photos into structured data.</h1>
-          <p>
-            A clean React foundation for uploading menus, extracting dishes, and
-            reviewing results as the product grows.
-          </p>
+    <section className="home-page" aria-labelledby="home-title">
+      <div className="home-page__intro">
+        <p className="eyebrow">Restaurant menu intelligence</p>
+        <h1 id="home-title">Turn menu photos into structured data.</h1>
+        <p>
+          A clean React foundation for uploading menus, extracting dishes, and
+          reviewing results as the product grows.
+        </p>
+        <div className="home-page__actions">
+          <Button as="link" to="/app/scan">
+            Start scanning
+          </Button>
+          <Button as="link" variant="secondary" to="/auth/verify">
+            View auth route
+          </Button>
         </div>
+      </div>
 
-        <UploadPanel />
+      <UploadPanel />
 
-        <div className="home-page__stats" aria-label="Product stats">
-          {stats.map((stat) => (
-            <StatCard key={stat.label} label={stat.label} value={stat.value} />
-          ))}
-        </div>
-      </section>
-    </AppShell>
+      <div className="home-page__stats" aria-label="Product stats">
+        {stats.map((stat) => (
+          <StatCard key={stat.label} label={stat.label} value={stat.value} />
+        ))}
+      </div>
+    </section>
   )
 }
