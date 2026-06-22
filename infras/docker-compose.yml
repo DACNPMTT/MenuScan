@@ -1,11 +1,7 @@
-# ============================================
-#  ⚠️  DEPRECATED — dùng docker-compose.yml ở root
-#  Chạy từ thư mục gốc: docker compose up --build
-# ============================================
+﻿# MenuScan full-stack compose for infrastructure and future CI/CD use.
 #
-#  MenuScan — Docker Compose (Development)
-#  File này giữ lại để tham khảo.
-
+# Local development uses the root docker-compose.yml for dependencies only
+# and runs backend/frontend natively through Makefile targets.
 services:
   # ─────────────────────────────────────
   # PostgreSQL Database

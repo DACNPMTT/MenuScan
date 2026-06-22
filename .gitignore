@@ -18,6 +18,8 @@ Thumbs.db
 .env.*
 !.env.example
 !.env.local.example
+env/.env.*
+!env/.env.*.example
 .envrc
 
 # Local credentials and private keys
@@ -43,6 +45,7 @@ __pycache__/
 .venv/
 venv/
 env/
+!/env/
 *.egg-info/
 dist/
 build/
