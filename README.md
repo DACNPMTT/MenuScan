@@ -271,8 +271,23 @@ docker compose up db -d
 
 # Backend native
 cd app
+```
+
+Tren Windows, cai `uv` va mo lai terminal truoc khi chay cac lenh native:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Hoac neu dung WinGet
+winget install --id=astral-sh.uv -e
+
+uv --version
+```
+
+```bash
 uv sync
 $env:DATABASE_URL = "postgresql://menuscan:localdev@localhost:54320/menuscan"
+uv run alembic upgrade head
 uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # Frontend native (terminal khác)
