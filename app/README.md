@@ -80,6 +80,17 @@ docker compose up --build          # start toàn bộ stack
 
 Từ thư mục `app/`, cần DB đang chạy (`docker compose up db -d`):
 
+Tren Windows, cai `uv` va mo lai terminal truoc khi chay cac lenh native:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Hoac neu dung WinGet
+winget install --id=astral-sh.uv -e
+
+uv --version
+```
+
 ```bash
 uv sync
 $env:DATABASE_URL = "postgresql://menuscan:localdev@localhost:54320/menuscan"
@@ -97,3 +108,27 @@ trong startup; mỗi môi trường truyền `DATABASE_URL` trước khi chạy 
 - Readiness mục tiêu: `GET /ready`
 
 `/health` chỉ phản ánh API process; `/ready` mới kiểm tra dependency như database.
+
+## Development startup
+
+Docker development automatically runs `alembic upgrade head` before Uvicorn starts.
+
+For native development from `app/`, run:
+
+```bash
+uv run alembic upgrade head
+uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+## Runtime configuration
+
+| Environment variable | Default |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL local development URL |
+| `APP_ENV` | `development` |
+| `LOG_LEVEL` | `INFO` |
+| `API_V1_PREFIX` | `/api/v1` |
+| `CORS_ORIGINS` | `http://localhost:5173` |
+
+`CORS_ORIGINS` is a comma-separated allowlist. Do not combine wildcard origins
+with credentialed CORS requests.

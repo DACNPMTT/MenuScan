@@ -18,4 +18,4 @@ COPY . .
 EXPOSE 8000
 
 # Chạy FastAPI với hot-reload
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["sh", "-c", "uv run alembic upgrade head && exec uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload"]
