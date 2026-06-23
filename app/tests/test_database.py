@@ -44,6 +44,7 @@ def test_models_do_not_define_password_columns() -> None:
     [
         "app/src/modules/identity/models.py",
         "app/alembic/versions/001_create_mvp_schema.py",
+        "DB/schema.sql",
         "doc/diagrams/ERD Diagram.drawio",
     ],
 )
