@@ -1,0 +1,22 @@
+meta {
+  name: Save Menu
+  type: http
+  seq: 1
+}
+
+patch {
+  url: {{base_url}}{{api_prefix}}/menus/{{menu_id}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{access_token}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "is_saved": true
+  }
+}
