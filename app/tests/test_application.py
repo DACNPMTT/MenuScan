@@ -7,20 +7,34 @@ from sqlalchemy.exc import OperationalError
 
 from src.core import application as application_module
 from src.core.application import create_app
-from src.core.config import Settings
+from src.core.config import EmailConfig, Settings
+
+
+def _default_email_config() -> EmailConfig:
+    return EmailConfig(
+        provider="console",
+        from_address="",
+        api_key=None,
+        api_base_url="https://api.resend.com",
+        timeout_seconds=10.0,
+    )
 
 
 def make_settings(
     *,
     api_v1_prefix: str = "/api/v1",
     cors_origins: tuple[str, ...] = ("http://localhost:5173",),
+    magic_link_base_url: str = "http://localhost:5173",
+    email: EmailConfig | None = None,
 ) -> Settings:
     return Settings(
         database_url="postgresql://unused",
+        magic_link_base_url=magic_link_base_url,
         app_env="test",
         log_level="WARNING",
         api_v1_prefix=api_v1_prefix,
         cors_origins=cors_origins,
+        email=email or _default_email_config(),
     )
 
 
@@ -90,7 +104,11 @@ def test_ready_returns_database_status(
     response = make_client().get("/ready")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ready", "database": "ok"}
+    assert response.json() == {
+        "status": "ready",
+        "database": "ok",
+        "email": "ok",
+    }
     database_check.assert_called_once()
 
 

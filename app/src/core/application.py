@@ -97,7 +97,10 @@ def check_database(database_engine: Engine) -> None:
         raise DependencyUnavailableError("database") from error
 
 
-def create_operational_router(database_engine: Engine) -> APIRouter:
+def create_operational_router(
+    database_engine: Engine,
+    application_settings: Settings,
+) -> APIRouter:
     router = APIRouter()
 
     @router.get("/")
@@ -111,7 +114,12 @@ def create_operational_router(database_engine: Engine) -> APIRouter:
     @router.get("/ready")
     def get_readiness() -> dict[str, str]:
         check_database(database_engine)
-        return {"status": "ready", "database": "ok"}
+        email_ready = application_settings.email.is_configured()
+        return {
+            "status": "ready" if email_ready else "degraded",
+            "database": "ok",
+            "email": "ok" if email_ready else "unconfigured",
+        }
 
     return router
 
@@ -181,7 +189,10 @@ def create_app(
         )
 
     application.include_router(
-        create_operational_router(current_database_engine)
+        create_operational_router(
+            current_database_engine,
+            current_settings,
+        )
     )
     application.include_router(
         current_api_router,
