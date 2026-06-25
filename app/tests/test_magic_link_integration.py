@@ -19,14 +19,12 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from src.core.application import create_app
 from src.core.database import get_db
-from src.modules.identity.adapters.email import EmailDeliveryError
 from src.modules.identity.dependencies import get_magic_link_service
 from src.modules.identity.models import (
     MagicLinkToken,
@@ -692,7 +690,6 @@ class TestFullMagicLinkFlow:
             "/api/v1/auth/magic-links/verify", json={"token": raw_token}
         )
         assert r2.status_code == 200
-        access_token = r2.json()["data"]["access_token"]
         refresh_cookie = r2.cookies["refresh_token"]
 
         # 3. Refresh → nhận token mới
