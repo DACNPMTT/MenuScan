@@ -7,9 +7,9 @@ interface RequestOptions extends RequestInit {
 export class ApiError extends Error {
   status: number
   code: string
-  details?: any
+  details?: unknown
 
-  constructor(status: number, code: string, message: string, details?: any) {
+  constructor(status: number, code: string, message: string, details?: unknown) {
     super(message)
     this.name = 'ApiError'
     this.status = status
@@ -18,7 +18,17 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiRequest<T = any>(
+interface ApiResponseEnvelope<T> {
+  success: boolean
+  data?: T
+  error?: {
+    code: string
+    message: string
+    details?: unknown
+  }
+}
+
+export async function apiRequest<T = unknown>(
   path: string,
   options: RequestOptions = {}
 ): Promise<T> {
@@ -47,10 +57,10 @@ export async function apiRequest<T = any>(
     return {} as T
   }
 
-  let body: any
+  let body: ApiResponseEnvelope<T>
   try {
-    body = await response.json()
-  } catch (e) {
+    body = await response.json() as ApiResponseEnvelope<T>
+  } catch {
     throw new ApiError(
       response.status,
       'INVALID_JSON',
@@ -59,12 +69,12 @@ export async function apiRequest<T = any>(
   }
 
   if (!response.ok || !body.success) {
-    const errorDetails = body.error || {}
+    const errorDetails = body.error
     throw new ApiError(
       response.status,
-      errorDetails.code || 'UNKNOWN_ERROR',
-      errorDetails.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.',
-      errorDetails.details
+      errorDetails?.code || 'UNKNOWN_ERROR',
+      errorDetails?.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.',
+      errorDetails?.details
     )
   }
 

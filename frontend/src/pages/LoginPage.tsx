@@ -6,6 +6,12 @@ import { Input } from '@/shared/components/Input'
 import { Button } from '@/shared/components/Button'
 import { Alert } from '@/shared/components/Alert'
 
+interface LocationState {
+  from?: {
+    pathname: string
+  }
+}
+
 export function LoginPage() {
   const { user, login, requestMagicLink } = useAuth()
   const navigate = useNavigate()
@@ -29,7 +35,8 @@ export function LoginPage() {
   // Redirect to app if already logged in
   useEffect(() => {
     if (user) {
-      const origin = (location.state as any)?.from?.pathname || '/app'
+      const state = location.state as LocationState | null
+      const origin = state?.from?.pathname || '/app'
       navigate(origin, { replace: true })
     }
   }, [user, navigate, location])
@@ -61,8 +68,9 @@ export function LoginPage() {
     setError(null)
     try {
       await login(email, password)
-    } catch (err: any) {
-      setError(err.message || 'Email hoặc mật khẩu không chính xác.')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Email hoặc mật khẩu không chính xác.'
+      setError(message)
     } finally {
       setLoading(false)
     }
@@ -82,8 +90,9 @@ export function LoginPage() {
       setIsEmailSent(true)
       setResendCooldown(response.resend_after_seconds || 60)
       setSuccessMessage(response.message || 'Liên kết đăng nhập đã được gửi!')
-    } catch (err: any) {
-      setError(err.message || 'Không thể gửi email. Vui lòng thử lại sau.')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Không thể gửi email. Vui lòng thử lại sau.'
+      setError(message)
     } finally {
       setLoading(false)
     }

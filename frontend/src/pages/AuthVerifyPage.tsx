@@ -15,17 +15,15 @@ export function AuthVerifyPage() {
 
   const token = searchParams.get('token')
 
-  const [verifying, setVerifying] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [verifying, setVerifying] = useState(!!token)
+  const [error, setError] = useState<string | null>(
+    token ? null : 'Mã xác thực (token) không tìm thấy trong URL. Vui lòng kiểm tra lại liên kết trong email.'
+  )
 
   const hasRun = useRef(false)
 
   useEffect(() => {
-    if (!token) {
-      setError('Mã xác thực (token) không tìm thấy trong URL. Vui lòng kiểm tra lại liên kết trong email.')
-      setVerifying(false)
-      return
-    }
+    if (!token) return
 
     if (hasRun.current) return
     hasRun.current = true
@@ -35,8 +33,9 @@ export function AuthVerifyPage() {
         await verifyMagicLink(token)
         // Decoupled transition: navigate to set password page on success
         navigate('/auth/set-password', { replace: true })
-      } catch (err: any) {
-        setError(err.message || 'Liên kết xác thực đã hết hạn hoặc không hợp lệ.')
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Liên kết xác thực đã hết hạn hoặc không hợp lệ.'
+        setError(message)
         setVerifying(false)
       }
     }

@@ -46,8 +46,9 @@ export function SetPasswordPage() {
       await setPassword(password)
       // Navigate to app dashboard on success
       navigate('/app', { replace: true })
-    } catch (err: any) {
-      setPasswordError(err.message || 'Có lỗi xảy ra khi lưu mật khẩu. Vui lòng thử lại.')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Có lỗi xảy ra khi lưu mật khẩu. Vui lòng thử lại.'
+      setPasswordError(message)
     } finally {
       setSavingPassword(false)
     }
