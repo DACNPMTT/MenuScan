@@ -9,3 +9,10 @@ post {
   body: none
   auth: none
 }
+
+script:post-response {
+  if (res.status === 200 && res.body && res.body.success && res.body.data.access_token) {
+    bru.setEnvVar("access_token", res.body.data.access_token);
+  }
+}
+

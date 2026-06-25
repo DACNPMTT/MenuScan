@@ -5,6 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from src.core.config import settings
@@ -14,8 +15,12 @@ from src.modules.identity.adapters.email import (
     EmailSender,
     ResendEmailSender,
 )
-from src.modules.identity.repository import MagicLinkTokenRepository
+from src.modules.identity.exceptions import UnauthorizedError
+from src.modules.identity.models import User, UserStatus
+from src.modules.identity.repository import MagicLinkTokenRepository, UserRepository, UserSessionRepository
 from src.modules.identity.service import MagicLinkService
+
+oauth2_scheme = HTTPBearer(auto_error=False)
 
 
 @lru_cache
@@ -52,4 +57,27 @@ def get_magic_link_service(
         repository=repository,
         email_sender=get_email_sender(),
         base_url=settings.magic_link_base_url,
+        user_repository=UserRepository(),
+        session_repository=UserSessionRepository(),
+        secret_key=settings.secret_key,
     )
+
+
+def get_current_user(
+    token: HTTPAuthorizationCredentials | None = Depends(oauth2_scheme),
+    session: Session = Depends(get_db),
+    service: MagicLinkService = Depends(get_magic_link_service),
+) -> User:
+    """FastAPI dependency to retrieve and validate the current authenticated user."""
+    if token is None or token.scheme.lower() != "bearer":
+        raise UnauthorizedError()
+
+    user_id = service.decode_access_token(token.credentials)
+    user_repo = UserRepository()
+    user = user_repo.get_by_id(session, user_id)
+
+    if user is None or user.status != UserStatus.ACTIVE or user.deleted_at is not None:
+        raise UnauthorizedError()
+
+    return user
+

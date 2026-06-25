@@ -1,34 +1,91 @@
-import { Alert } from '@/shared/components/Alert'
-import { Button } from '@/shared/components/Button'
+import { useEffect, useState, useRef } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useAuth } from '@/app/providers/AuthProvider'
 import { Card } from '@/shared/components/Card'
-import { Input } from '@/shared/components/Input'
+import { Button } from '@/shared/components/Button'
+import { Alert } from '@/shared/components/Alert'
+import { Spinner } from '@/shared/components/Spinner'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 
 export function AuthVerifyPage() {
-  useDocumentTitle('Verify access | MenuScan')
+  useDocumentTitle('Xác thực tài khoản | MenuScan')
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { verifyMagicLink } = useAuth()
+
+  const token = searchParams.get('token')
+
+  const [verifying, setVerifying] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const hasRun = useRef(false)
+
+  useEffect(() => {
+    if (!token) {
+      setError('Mã xác thực (token) không tìm thấy trong URL. Vui lòng kiểm tra lại liên kết trong email.')
+      setVerifying(false)
+      return
+    }
+
+    if (hasRun.current) return
+    hasRun.current = true
+
+    const performVerification = async () => {
+      try {
+        await verifyMagicLink(token)
+        // Decoupled transition: navigate to set password page on success
+        navigate('/auth/set-password', { replace: true })
+      } catch (err: any) {
+        setError(err.message || 'Liên kết xác thực đã hết hạn hoặc không hợp lệ.')
+        setVerifying(false)
+      }
+    }
+
+    performVerification()
+  }, [token, verifyMagicLink, navigate])
+
+  if (verifying) {
+    return (
+      <div className="auth-page-wrapper">
+        <Card className="auth-card auth-card--center">
+          <div className="auth-logo">
+            <span className="auth-logo__mark" style={{ background: '#3F7A1A' }}>MS</span>
+            <span className="auth-logo__text" style={{ color: '#3F7A1A' }}>MenuScan</span>
+          </div>
+          <div style={{ margin: '32px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+            <Spinner />
+            <p style={{ margin: 0, fontWeight: 500, color: 'var(--color-text-main)' }}>
+              Đang xác thực liên kết đăng nhập của bạn...
+            </p>
+          </div>
+        </Card>
+      </div>
+    )
+  }
 
   return (
-    <section className="route-page route-page--narrow" aria-labelledby="auth-title">
-      <p className="eyebrow">Public route</p>
-      <h1 id="auth-title">Magic Link verification</h1>
-      <p>
-        This route is ready for the authenticated flow. Token parsing and API
-        verification will be connected in the auth task.
-      </p>
-      <Card className="route-page__panel">
-        <Alert title="Auth foundation ready">
-          Public auth routes now share the same layout and design tokens as the
-          marketing surface.
+    <div className="auth-page-wrapper">
+      <Card className="auth-card">
+        <div className="auth-logo">
+          <span className="auth-logo__mark">MS</span>
+          <span className="auth-logo__text">MenuScan</span>
+        </div>
+        
+        <h2 className="auth-card__title" style={{ color: '#ea4335', marginTop: '24px' }}>Xác thực thất bại</h2>
+        
+        <Alert variant="error" title="Lỗi xác thực">
+          {error}
         </Alert>
-        <Input
-          disabled
-          helperText="The real token is read from the callback URL later."
-          label="Magic Link token"
-        />
-        <Button disabled type="button">
-          Verify token
+
+        <Button
+          type="button"
+          className="auth-btn auth-btn--primary"
+          style={{ marginTop: '24px' }}
+          onClick={() => navigate('/auth/login')}
+        >
+          Quay lại trang đăng nhập
         </Button>
       </Card>
-    </section>
+    </div>
   )
 }

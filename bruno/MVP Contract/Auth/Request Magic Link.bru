@@ -19,3 +19,9 @@ body:json {
     "email": "{{user_email}}"
   }
 }
+
+vars:pre-request {
+  user_email: nguyentrongduc447@gmail.com
+  base_url: http://localhost:8000
+  api_prefix: /api/v1
+}
