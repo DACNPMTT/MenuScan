@@ -6,12 +6,13 @@ transaction boundary (rule: service owns commit).
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from src.modules.identity.models import MagicLinkToken
+from src.modules.identity.models import MagicLinkToken, User, UserSession
 
 
 class MagicLinkTokenRepository:
@@ -27,6 +28,15 @@ class MagicLinkTokenRepository:
             .order_by(MagicLinkToken.created_at.desc())
             .limit(1)
         )
+        return session.scalars(statement).first()
+
+    def get_token_by_hash(
+        self,
+        session: Session,
+        token_hash: str,
+    ) -> MagicLinkToken | None:
+        """Return the token with the given SHA-256 hash, or ``None``."""
+        statement = select(MagicLinkToken).where(MagicLinkToken.token_hash == token_hash)
         return session.scalars(statement).first()
 
     def invalidate_unused_tokens(
@@ -54,3 +64,34 @@ class MagicLinkTokenRepository:
         """Stage a new token and flush so server defaults populate."""
         session.add(token)
         session.flush()
+
+
+class UserRepository:
+    def get_by_email(self, session: Session, email: str) -> User | None:
+        """Retrieve a user by email, case-insensitively."""
+        statement = select(User).where(func.lower(User.email) == func.lower(email))
+        return session.scalars(statement).first()
+
+    def get_by_id(self, session: Session, user_id: uuid.UUID) -> User | None:
+        """Retrieve a user by their UUID."""
+        statement = select(User).where(User.id == user_id)
+        return session.scalars(statement).first()
+
+    def create(self, session: Session, user: User) -> User:
+        """Stage a new user record and flush so UUID and server defaults populate."""
+        session.add(user)
+        session.flush()
+        return user
+
+
+class UserSessionRepository:
+    def get_by_id(self, session: Session, session_id: uuid.UUID) -> UserSession | None:
+        """Retrieve a session by its UUID."""
+        statement = select(UserSession).where(UserSession.id == session_id)
+        return session.scalars(statement).first()
+
+    def add(self, session: Session, user_session: UserSession) -> None:
+        """Stage a new session record and flush."""
+        session.add(user_session)
+        session.flush()
+

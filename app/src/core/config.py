@@ -49,6 +49,7 @@ class Settings:
     api_v1_prefix: str
     cors_origins: tuple[str, ...]
     email: EmailConfig
+    secret_key: str = "menuscan-default-insecure-secret-key-change-this-in-production"
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -96,6 +97,10 @@ class Settings:
             api_v1_prefix=api_v1_prefix,
             cors_origins=cors_origins,
             email=email,
+            secret_key=os.getenv(
+                "SECRET_KEY",
+                "menuscan-default-insecure-secret-key-change-this-in-production",
+            ),
         )
 
 

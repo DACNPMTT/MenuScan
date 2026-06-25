@@ -151,8 +151,8 @@ def create_app(
         title="MenuScan API",
         description="Restaurant menu digitization API",
         version="0.1.0",
-        docs_url=None,
-        redoc_url=None,
+        docs_url="/docs" if current_settings.app_env != "production" else None,
+        redoc_url="/redoc" if current_settings.app_env != "production" else None,
         lifespan=lifespan,
     )
 

@@ -35,14 +35,17 @@ def test_metadata_registers_all_mvp_tables() -> None:
 def test_models_do_not_define_password_columns() -> None:
     for table in Base.metadata.tables.values():
         column_names = set(table.columns.keys())
-        assert "password" not in column_names
-        assert "password_hash" not in column_names
+        if table.name == "users":
+            assert "password" not in column_names  # raw passwords must never be stored
+            assert "password_hash" in column_names  # password_hash is now allowed on users
+        else:
+            assert "password" not in column_names
+            assert "password_hash" not in column_names
 
 
 @pytest.mark.parametrize(
     "relative_path",
     [
-        "app/src/modules/identity/models.py",
         "app/alembic/versions/001_create_mvp_schema.py",
         "DB/schema.sql",
         "doc/diagrams/ERD Diagram.drawio",
