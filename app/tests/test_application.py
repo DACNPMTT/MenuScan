@@ -7,7 +7,7 @@ from sqlalchemy.exc import OperationalError
 
 from src.core import application as application_module
 from src.core.application import create_app
-from src.core.config import EmailConfig, Settings
+from src.core.config import EmailConfig, Settings, StorageConfig
 
 
 def _default_email_config() -> EmailConfig:
@@ -20,12 +20,27 @@ def _default_email_config() -> EmailConfig:
     )
 
 
+def _default_storage_config() -> StorageConfig:
+    return StorageConfig(
+        provider="local",
+        local_root="storage/objects",
+        bucket_name=None,
+        endpoint_url=None,
+        region="us-east-1",
+        access_key_id=None,
+        secret_access_key=None,
+        session_token=None,
+        signed_url_seconds=300,
+    )
+
+
 def make_settings(
     *,
     api_v1_prefix: str = "/api/v1",
     cors_origins: tuple[str, ...] = ("http://localhost:5173",),
     magic_link_base_url: str = "http://localhost:5173",
     email: EmailConfig | None = None,
+    storage: StorageConfig | None = None,
 ) -> Settings:
     return Settings(
         database_url="postgresql://unused",
@@ -35,6 +50,7 @@ def make_settings(
         api_v1_prefix=api_v1_prefix,
         cors_origins=cors_origins,
         email=email or _default_email_config(),
+        storage=storage or _default_storage_config(),
     )
 
 
@@ -108,6 +124,7 @@ def test_ready_returns_database_status(
         "status": "ready",
         "database": "ok",
         "email": "ok",
+        "storage": "ok",
     }
     database_check.assert_called_once()
 

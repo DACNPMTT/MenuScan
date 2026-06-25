@@ -115,6 +115,16 @@ such as the database.
 | `LOG_LEVEL` | `INFO` |
 | `API_V1_PREFIX` | `/api/v1` |
 | `CORS_ORIGINS` | `http://localhost:5173` |
+| `STORAGE_PROVIDER` | `local` |
+| `STORAGE_LOCAL_ROOT` | `storage/objects` |
+| `STORAGE_SIGNED_URL_SECONDS` | `300` |
 
 `CORS_ORIGINS` is a comma-separated allowlist. Do not combine wildcard origins
 with credentialed CORS requests.
+
+Menu source files use the private object-storage adapter. Local development
+writes to `STORAGE_LOCAL_ROOT`; production can use the S3-compatible adapter by
+setting `STORAGE_PROVIDER=s3`, `STORAGE_BUCKET_NAME`, `STORAGE_ENDPOINT_URL`,
+`STORAGE_REGION`, `STORAGE_ACCESS_KEY_ID` and `STORAGE_SECRET_ACCESS_KEY`.
+Buckets must remain private; source access is authorized by the backend and
+production responses redirect to a short-lived signed URL.

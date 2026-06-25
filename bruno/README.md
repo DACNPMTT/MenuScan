@@ -71,7 +71,26 @@ Các biến environment dùng trong Bruno:
 - `scan_id`: dán scan UUID trả về từ request `Create Scan`.
 - `menu_id`: dán menu UUID trả về từ request `Get Scan Result`.
 
-Với request `Create Scan`, chọn file local cho field multipart `file` trong Bruno trước khi gửi request.
+Với request `Create Scan`, collection đã trỏ sẵn tới fixture
+`bruno/fixtures/sample-menu.pdf`. Nếu Bruno Desktop không resolve được đường dẫn
+tương đối, chọn lại file này trong field multipart `file` trước khi gửi request.
+
+## Test Storage Source Bằng Bruno
+
+Sau khi backend chạy ở `http://localhost:8000`:
+
+1. Chạy `Auth > Request Magic Link`.
+2. Copy token từ log backend vào biến `magic_link_token`.
+3. Chạy `Auth > Verify Magic Link`; request này tự lưu `access_token`.
+4. Chạy `Scans > Create Scan`; request này tự lưu `scan_id`.
+5. Chạy `Scans > Get Scan`.
+6. Chạy `Scans > Get Scan Source`.
+
+Kết quả kỳ vọng:
+
+- `Create Scan`: `202`, response có `data.id`, và Bruno tự set `scan_id`.
+- `Get Scan`: `200`, đúng `scan_id`.
+- `Get Scan Source`: `200` với local storage hoặc `302` khi dùng signed URL production.
 
 ## Test Nhanh API Không Cần Bruno
 
