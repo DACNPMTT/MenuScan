@@ -13,3 +13,9 @@ get {
 headers {
   Authorization: Bearer {{access_token}}
 }
+
+script:post-response {
+  if (res.status !== 200 && res.status !== 302) {
+    throw new Error(`Expected 200 or 302 when reading scan source, got ${res.status}`);
+  }
+}

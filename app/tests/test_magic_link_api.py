@@ -15,7 +15,7 @@ from unittest.mock import Mock
 from fastapi.testclient import TestClient
 
 from src.core.application import create_app
-from src.core.config import EmailConfig, Settings
+from src.core.config import EmailConfig, Settings, StorageConfig
 from src.modules.identity.dependencies import get_magic_link_service
 from src.modules.identity.exceptions import (
     EmailServiceUnavailableError,
@@ -39,6 +39,17 @@ def _settings() -> Settings:
             api_key=None,
             api_base_url="https://api.resend.com",
             timeout_seconds=10.0,
+        ),
+        storage=StorageConfig(
+            provider="local",
+            local_root="storage/objects",
+            bucket_name=None,
+            endpoint_url=None,
+            region="us-east-1",
+            access_key_id=None,
+            secret_access_key=None,
+            session_token=None,
+            signed_url_seconds=300,
         ),
     )
 

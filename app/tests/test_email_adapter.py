@@ -9,7 +9,7 @@ from dataclasses import replace
 import httpx
 import pytest
 
-from src.core.config import EmailConfig, Settings
+from src.core.config import EmailConfig, Settings, StorageConfig
 from src.modules.identity import dependencies as deps
 from src.modules.identity.adapters.email import (
     ConsoleEmailSender,
@@ -32,6 +32,17 @@ def _console_settings() -> Settings:
             api_key=None,
             api_base_url="https://api.resend.com",
             timeout_seconds=10.0,
+        ),
+        storage=StorageConfig(
+            provider="local",
+            local_root="storage/objects",
+            bucket_name=None,
+            endpoint_url=None,
+            region="us-east-1",
+            access_key_id=None,
+            secret_access_key=None,
+            session_token=None,
+            signed_url_seconds=300,
         ),
     )
 

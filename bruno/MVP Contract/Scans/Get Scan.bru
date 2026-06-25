@@ -13,3 +13,17 @@ get {
 headers {
   Authorization: Bearer {{access_token}}
 }
+
+script:post-response {
+  if (res.status !== 200) {
+    throw new Error(`Expected 200 when reading scan, got ${res.status}`);
+  }
+
+  if (!res.body || !res.body.success || !res.body.data) {
+    throw new Error("Get Scan response did not include data");
+  }
+
+  if (res.body.data.id !== bru.getEnvVar("scan_id")) {
+    throw new Error("Get Scan response id did not match scan_id env var");
+  }
+}

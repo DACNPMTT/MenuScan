@@ -115,10 +115,12 @@ def create_operational_router(
     def get_readiness() -> dict[str, str]:
         check_database(database_engine)
         email_ready = application_settings.email.is_configured()
+        storage_ready = application_settings.storage.is_configured()
         return {
-            "status": "ready" if email_ready else "degraded",
+            "status": "ready" if email_ready and storage_ready else "degraded",
             "database": "ok",
             "email": "ok" if email_ready else "unconfigured",
+            "storage": "ok" if storage_ready else "unconfigured",
         }
 
     return router
