@@ -1,0 +1,21 @@
+meta {
+  name: Verify Magic Link
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}{{api_prefix}}/auth/magic-links/verify
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "token": "{{magic_link_token}}"
+  }
+}

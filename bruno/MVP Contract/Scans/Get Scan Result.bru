@@ -1,0 +1,15 @@
+meta {
+  name: Get Scan Result
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{base_url}}{{api_prefix}}/scans/{{scan_id}}/result
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{access_token}}
+}
