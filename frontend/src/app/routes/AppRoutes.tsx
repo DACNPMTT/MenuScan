@@ -1,9 +1,11 @@
 import { Route, Routes } from 'react-router-dom'
 import { AuthenticatedLayout } from '@/layouts/AuthenticatedLayout'
-import { PublicLayout } from '@/layouts/PublicLayout'
-import { AuthVerifyPage } from '@/pages/AuthVerifyPage'
+import { CheckEmailPage } from '@/pages/auth/CheckEmailPage'
+import { LoginPage } from '@/pages/auth/LoginPage'
+import { RegisterPage } from '@/pages/auth/RegisterPage'
+import { VerifyPage } from '@/pages/auth/VerifyPage'
 import { DashboardPage } from '@/pages/DashboardPage'
-import { HomePage } from '@/pages/HomePage'
+import { LandingPage } from '@/pages/LandingPage'
 import { MenusPage } from '@/pages/MenusPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ScanPage } from '@/pages/ScanPage'
@@ -11,10 +13,11 @@ import { ScanPage } from '@/pages/ScanPage'
 export function AppRoutes() {
   return (
     <Routes>
-      <Route element={<PublicLayout />}>
-        <Route index element={<HomePage />} />
-        <Route path="auth/verify" element={<AuthVerifyPage />} />
-      </Route>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="auth/login" element={<LoginPage />} />
+      <Route path="auth/register" element={<RegisterPage />} />
+      <Route path="auth/check-email" element={<CheckEmailPage />} />
+      <Route path="auth/verify" element={<VerifyPage />} />
 
       <Route path="app" element={<AuthenticatedLayout />}>
         <Route index element={<DashboardPage />} />
