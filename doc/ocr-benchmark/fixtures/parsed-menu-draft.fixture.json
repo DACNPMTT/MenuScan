@@ -1,0 +1,50 @@
+{
+  "schema_version": "parsed-menu-draft.v1",
+  "title": "Menu Quán Phở Sen",
+  "source_language": "vi",
+  "target_language": "en",
+  "default_currency": "VND",
+  "confidence": 0.92,
+  "source_document": {
+    "page_index": 0,
+    "block_id": "p0-b0",
+    "line_id": "p0-l0",
+    "word_ids": [],
+    "bounding_box": {
+      "left": 0.04,
+      "top": 0.16,
+      "width": 0.42,
+      "height": 0.06
+    }
+  },
+  "items": [
+    {
+      "original_name": "Phở bò đặc biệt",
+      "base_name": "Phở",
+      "variant_name": "bò đặc biệt",
+      "variant_group": "loại thịt",
+      "original_description": null,
+      "price_text": "60.000đ",
+      "price": "60000.00",
+      "currency": "VND",
+      "category": null,
+      "confidence": 0.93,
+      "source_references": [
+        {
+          "page_index": 0,
+          "block_id": "p0-b0",
+          "line_id": "p0-l0",
+          "word_ids": [],
+          "bounding_box": {
+            "left": 0.04,
+            "top": 0.16,
+            "width": 0.42,
+            "height": 0.06
+          }
+        }
+      ],
+      "sort_order": 1
+    }
+  ],
+  "warnings": []
+}
