@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Voltage Minimalist design tokens (from .agents/voltage-design.md, confirmed
+ * against the MenuScan Figma). Mapped onto the shadcn semantic-token system so
+ * shadcn primitives resolve to Voltage values, with extra Voltage tokens
+ * (--color-ink, --color-surface-muted, ...) exposed for direct use.
+ * Loaded BEFORE global.css; new pages apply Voltage via utility classes so the
+ * legacy McDonald's :root in global.css stays untouched for bespoke pages.
+ */
+:root {
+  --radius: 0.625rem;
+
+  --background: #ffffff; /* canvas */
+  --foreground: #181d15; /* ink */
+  --card: #ffffff;
+  --card-foreground: #181d15;
+  --popover: #ffffff;
+  --popover-foreground: #181d15;
+
+  --primary: #418613; /* Voltage brand green */
+  --primary-foreground: #ffffff;
+  --primary-dark: #2e6b00; /* logo green */
+
+  --secondary: #f1f5e7; /* surface-muted */
+  --secondary-foreground: #181d15;
+  --muted: #f1f5e7;
+  --muted-foreground: #41493a; /* ink-variant */
+  --accent: #f1f5e7;
+  --accent-foreground: #181d15;
+
+  --destructive: #ba1a1a; /* error */
+  --destructive-foreground: #ffffff;
+  --border: #e6e6e6; /* hairline */
+  --input: #e6e6e6; /* underline hairline */
+  --ring: #418613; /* focus ring = primary */
+
+  /* Voltage extras */
+  --ink: #181d15;
+  --ink-variant: #41493a;
+  --placeholder: #c6c6c7;
+  --surface-muted: #f1f5e7;
+  --app-bg: #f7fbed;
+  --success-glow: #a9f779;
+}
+
+@theme inline {
+  --font-sans: "Jost", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-primary-dark: var(--primary-dark);
+  --color-ink: var(--ink);
+  --color-ink-variant: var(--ink-variant);
+  --color-placeholder: var(--placeholder);
+  --color-surface-muted: var(--surface-muted);
+  --color-app-bg: var(--app-bg);
+  --color-success-glow: var(--success-glow);
+  --color-hairline: var(--border);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-pill: 9999px;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+}
