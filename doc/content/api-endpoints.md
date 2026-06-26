@@ -154,7 +154,7 @@ Auth bắt buộc. Content-Type `multipart/form-data`.
 | Field | Bắt buộc | Giá trị |
 | --- | --- | --- |
 | `file` | Có | Một JPG/JPEG/PNG/WEBP/PDF, tối đa 10 MB; PDF tối đa 5 trang |
-| `target_language` | Không | `vi` hoặc `en`; mặc định theo user |
+| `target_language` | Không | `vi` hoặc `en`; mặc định theo user, fallback `en` cho khách nước ngoài |
 
 Response `202 Accepted`:
 

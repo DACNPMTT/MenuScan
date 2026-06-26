@@ -35,8 +35,8 @@ Magic Link
 | Đăng nhập | Chỉ dùng Magic Link. Không có mật khẩu, quên mật khẩu hoặc reset mật khẩu. |
 | File đầu vào | Mỗi phiên scan nhận đúng một file JPG, PNG, WEBP hoặc PDF. |
 | Dung lượng | Tối đa 10 MB/file. PDF tối đa 5 trang. |
-| Ngôn ngữ nguồn | Hệ thống tự nhận diện. MVP ưu tiên menu tiếng Việt và tiếng Anh. |
-| Ngôn ngữ đích | `vi` hoặc `en`; mặc định theo ngôn ngữ ưu tiên của user, fallback `vi`. |
+| Ngôn ngữ nguồn | Hệ thống tự nhận diện. MVP ưu tiên menu tiếng Việt tại Việt Nam; tiếng Anh chỉ là trường hợp phụ khi menu có gloss song ngữ. |
+| Ngôn ngữ đích | `vi` hoặc `en`; mặc định theo ngôn ngữ ưu tiên của user, fallback `en` cho khách nước ngoài. |
 | Thời gian kỳ vọng | Ảnh một trang: tối đa 30 giây; PDF tối đa 5 trang: tối đa 60 giây trong điều kiện dịch vụ bình thường. |
 | Ảnh trong kết quả | Hiển thị file menu gốc cạnh dữ liệu trích xuất. MVP không tìm hoặc sinh ảnh riêng cho từng món. |
 | Lưu menu | Kết quả chỉ vào lịch sử sau khi user xác nhận lưu. File/phiên chưa lưu có thể được dọn theo chính sách lưu trữ. |
@@ -50,7 +50,7 @@ Magic Link
 - Upload một ảnh hoặc PDF menu theo quy tắc đã chốt.
 - Lưu và truy cập an toàn file menu gốc.
 - OCR, nhận diện ngôn ngữ, phân tích tên món, mô tả, giá và tiền tệ.
-- Dịch nội dung giữa tiếng Việt và tiếng Anh.
+- Dịch nội dung menu tiếng Việt sang ngôn ngữ hiển thị của user; MVP hỗ trợ `en` và `vi`.
 - Theo dõi trạng thái `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`.
 - Hiển thị file menu gốc và danh sách món có cấu trúc.
 - Xác nhận lưu menu.
