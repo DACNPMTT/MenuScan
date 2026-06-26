@@ -53,6 +53,14 @@ class OcrWord(BaseModel):
 
 
 class OcrLine(BaseModel):
+    """A logical line of text from OCR output.
+
+    Maps to a Vision 'paragraph' or an Azure 'line'.  One OcrLine may
+    correspond to multiple physical lines when the provider groups them
+    as a single paragraph.  Adapters may split long paragraphs at
+    detected line breaks.
+    """
+
     model_config = ConfigDict(frozen=True)
 
     id: str
@@ -105,6 +113,8 @@ class ParsedMenuItemDraft(BaseModel):
 
     original_name: str
     original_description: str | None = None
+    translated_name: str | None = None
+    translated_description: str | None = None
     base_name: str | None = None
     variant_name: str | None = None
     variant_group: str | None = None
@@ -121,6 +131,7 @@ class ParsedMenuDraft(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     schema_version: str = "parsed-menu-draft.v1"
+    parsing_provider: str | None = None
     title: str | None = None
     source_language: str | None = None
     target_language: str

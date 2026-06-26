@@ -1,5 +1,6 @@
 {
   "schema_version": "parsed-menu-draft.v1",
+  "parsing_provider": "fixture",
   "title": "Menu Quán Phở Sen",
   "source_language": "vi",
   "target_language": "en",
@@ -20,6 +21,8 @@
   "items": [
     {
       "original_name": "Phở bò đặc biệt",
+      "translated_name": "Special beef pho",
+      "translated_description": null,
       "base_name": "Phở",
       "variant_name": "bò đặc biệt",
       "variant_group": "loại thịt",

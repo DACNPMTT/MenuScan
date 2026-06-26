@@ -7,13 +7,14 @@ Scan Orchestrator
   -> OCR adapter: source object key, MIME, page limit
   <- OcrDocument: raw text, pages, blocks, lines, boxes, confidence, safe metadata
 
-Parser
+Parser (LLM or rule-based)
   -> OcrDocument
-  <- ParsedMenuDraft: menu title, item drafts, price text/value, source references
+  <- ParsedMenuDraft: menu title, item drafts with translation,
+     price text/value, source references, parsing_provider
 
 Translation
   -> ParsedMenuDraft items that parser already identified
-  <- translated names/descriptions only
+  <- translated names/descriptions (may be populated by LLM parser in a single call)
 ```
 
 OCR never creates `Menu` or `FoodItem`. Parser owns menu/item extraction.
@@ -32,6 +33,9 @@ Required behavior:
 - Use normalized bounding boxes where `left`, `top`, `width`, and `height` are
   floats from `0..1`.
 - Preserve page/block/line IDs so parser output can cite `OcrSourceReference`.
+- `OcrLine` maps to a Vision 'paragraph' or an Azure 'line'. Adapters may split
+  long Vision paragraphs at detected line breaks. One `OcrLine` represents the
+  smallest logical text unit the parser receives.
 - Keep provider metadata safe: no API keys, access tokens, full provider raw
   payloads, signed URLs, or customer data beyond OCR text already stored in
   `raw_text`.
@@ -62,6 +66,12 @@ Required behavior:
   Vietnamese-first (`vi`), even when a line contains an English gloss.
 - `target_language` is the user's display language after parser output is
   known; OCR adapters do not translate.
+- `translated_name` and `translated_description` carry the translation output.
+  When the parser is an LLM that translates in the same call, these are
+  populated directly. When translation is a separate step, they start as `null`
+  and are filled later.
+- `parsing_provider` identifies who produced the draft (e.g. `gemini-2.5-flash`,
+  `rule-based`, `fixture`) for debug and benchmark traceability.
 - Fixture and benchmark data should preserve Vietnamese diacritics and include
   long menus with at least 20 priced items, because that is the expected
   production shape for many restaurants in Vietnam.
