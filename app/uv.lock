@@ -53,13 +53,9 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "alembic" },
-<<<<<<< HEAD
-=======
     { name = "bcrypt" },
->>>>>>> 8e3ffc0ab76eefce856d544cf59b2eb07e49acca
     { name = "email-validator" },
     { name = "fastapi" },
-    { name = "httpx" },
     { name = "psycopg2-binary" },
     { name = "pyjwt" },
     { name = "python-multipart" },
@@ -77,13 +73,9 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.13.0" },
-<<<<<<< HEAD
-=======
     { name = "bcrypt", specifier = ">=5.0.0" },
->>>>>>> 8e3ffc0ab76eefce856d544cf59b2eb07e49acca
     { name = "email-validator", specifier = ">=2.0.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
-    { name = "httpx", specifier = ">=0.28.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.0" },
     { name = "pyjwt", specifier = ">=2.13.0" },
     { name = "python-multipart", specifier = ">=0.0.20" },

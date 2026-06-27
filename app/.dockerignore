@@ -6,3 +6,6 @@ __pycache__
 .env
 .env.*
 tests
+.coverage
+coverage.xml
+storage
