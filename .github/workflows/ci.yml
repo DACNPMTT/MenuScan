@@ -267,7 +267,7 @@ jobs:
             });
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-report
@@ -345,7 +345,7 @@ jobs:
           done
 
       - name: Upload Trivy HTML reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: trivy-security-reports
