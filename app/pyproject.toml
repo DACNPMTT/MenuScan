@@ -5,7 +5,7 @@ description = "MenuScan Backend API"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "alembic>=1.13.0",
+    "alembic>=1.18.5",
     "email-validator>=2.0.0",
     "fastapi>=0.138.1",
     "uvicorn[standard]>=0.30.0",
