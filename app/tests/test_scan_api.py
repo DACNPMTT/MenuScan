@@ -23,7 +23,6 @@ import uuid
 from collections.abc import Callable
 from unittest.mock import Mock
 
-import pytest
 from fastapi.testclient import TestClient
 
 from src.core.application import create_app
