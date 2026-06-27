@@ -238,7 +238,7 @@ jobs:
         continue-on-error: true
 
       - name: Post coverage comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         if: always() && github.event_name == 'pull_request'
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -355,7 +355,7 @@ jobs:
             trivy-secret.html
 
       - name: Post Trivy security comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         if: always() && github.event_name == 'pull_request'
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -462,7 +462,7 @@ jobs:
         continue-on-error: true
 
       - name: Post SAST comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         if: always() && github.event_name == 'pull_request'
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -519,7 +519,7 @@ jobs:
         continue-on-error: true
 
       - name: Post Docker build comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         if: always() && github.event_name == 'pull_request'
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
