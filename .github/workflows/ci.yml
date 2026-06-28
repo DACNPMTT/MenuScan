@@ -3,40 +3,53 @@ name: CI
 on:
   push:
     branches: [dev]
-    paths:
-      - 'app/**'
-      - 'frontend/**'
-      - 'doc/diagrams/**'
-      - '.github/workflows/ci.yml'
   pull_request:
     branches: [dev]
-    paths:
-      - 'app/**'
-      - 'frontend/**'
-      - 'doc/diagrams/**'
-      - '.github/workflows/ci.yml'
+    types: [opened, synchronize, reopened, edited]
 
 jobs:
-  # ─────────────────────────────────────
-  # Gate: Lint phải pass trước khi chạy test/build
-  # ─────────────────────────────────────
+  pr-title-check:
+    name: PR Title (Semantic Release)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: read
+    steps:
+      - name: Validate PR title follows Conventional Commits
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          requireScope: false
+
   lint:
     name: Lint (Gate)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # ── Backend lint ──
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
-          cache-dependency-glob: 'app/uv.lock'
+          cache-dependency-glob: "app/uv.lock"
 
       - name: Backend lint
         working-directory: ./app
@@ -44,13 +57,12 @@ jobs:
           uv sync --locked --all-groups
           uv run ruff check .
 
-      # ── Frontend lint ──
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: 'frontend/package-lock.json'
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Frontend lint
         working-directory: ./frontend
@@ -58,9 +70,6 @@ jobs:
           npm ci
           npm run lint
 
-  # ─────────────────────────────────────
-  # Backend: test với PostgreSQL service
-  # ─────────────────────────────────────
   test-backend:
     name: Test Backend
     needs: lint
@@ -88,13 +97,13 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
-          cache-dependency-glob: 'app/uv.lock'
+          cache-dependency-glob: "app/uv.lock"
 
       - name: Install dependencies
         run: uv sync --locked --all-groups
@@ -107,12 +116,9 @@ jobs:
       - name: Test
         env:
           DATABASE_URL: postgresql://menuscan:testpass@localhost:5432/menuscan_test
-          RUN_DATABASE_TESTS: '1'
+          RUN_DATABASE_TESTS: "1"
         run: uv run pytest --tb=short
 
-  # ─────────────────────────────────────
-  # Frontend: type-check + build
-  # ─────────────────────────────────────
   build-frontend:
     name: Build Frontend
     needs: lint
@@ -124,11 +130,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: 'frontend/package-lock.json'
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -136,9 +142,6 @@ jobs:
       - name: Build
         run: npm run build
 
-  # ─────────────────────────────────────
-  # Database: Alembic migration validation
-  # ─────────────────────────────────────
   database:
     name: Database Migration Check
     runs-on: ubuntu-latest
@@ -165,13 +168,13 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
-          cache-dependency-glob: 'app/uv.lock'
+          cache-dependency-glob: "app/uv.lock"
 
       - name: Install dependencies
         run: uv sync --locked --all-groups
@@ -189,7 +192,7 @@ jobs:
       - name: Run database integration tests
         env:
           DATABASE_URL: postgresql://menuscan:testpass@localhost:5432/menuscan_test
-          RUN_DATABASE_TESTS: '1'
+          RUN_DATABASE_TESTS: "1"
         run: uv run pytest tests/test_database_integration.py --tb=short
 
       - name: Verify rollback and clean re-upgrade
@@ -199,3 +202,369 @@ jobs:
           uv run alembic downgrade base
           uv run alembic upgrade head
           uv run alembic check
+
+  code-coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: ./app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "app/uv.lock"
+
+      - name: Install dependencies
+        run: uv sync --locked --all-groups
+
+      - name: Run tests with coverage
+        id: pytest
+        run: |
+          set -o pipefail
+          uv run --with pytest-cov pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=70 2>&1 | tee coverage-output.txt
+        continue-on-error: true
+
+      - name: Post coverage comment
+        uses: actions/github-script@v7
+        if: always() && github.event_name == 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('app/coverage-output.txt', 'utf8');
+            const passed = '${{ steps.pytest.outcome }}' === 'success';
+            const icon = passed ? '[PASS]' : '[FAIL]';
+            const status = passed ? 'Passed (>= 70%)' : 'Failed (< 70%)';
+            const body = [
+              `## ${icon} Code Coverage - ${status}`,
+              '',
+              '<details><summary>Coverage Report</summary>',
+              '',
+              '```',
+              output.trim(),
+              '```',
+              '',
+              '</details>',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: app/coverage.xml
+
+      - name: Enforce coverage threshold
+        if: steps.pytest.outcome == 'failure'
+        run: exit 1
+
+  security-trivy:
+    name: Trivy Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Trivy HTML template
+        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -o html.tpl
+
+      - name: Trivy - Dependency Vulnerability Scan
+        id: trivy-vuln
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          format: json
+          output: trivy-vuln.json
+        continue-on-error: true
+
+      - name: Trivy - IaC Configuration Scan
+        id: trivy-iac
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: misconfig
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          format: json
+          output: trivy-iac.json
+          skip-setup-trivy: "true"
+        continue-on-error: true
+
+      - name: Trivy - Secret Detection
+        id: trivy-secret
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret
+          exit-code: "1"
+          format: json
+          output: trivy-secret.json
+          skip-setup-trivy: "true"
+        continue-on-error: true
+
+      - name: Generate HTML and table reports from JSON
+        if: always()
+        run: |
+          TEMPLATE="@$GITHUB_WORKSPACE/html.tpl"
+          for type in vuln iac secret; do
+            json="trivy-${type}.json"
+            if [ -f "$json" ]; then
+              trivy convert --format template --template "$TEMPLATE" --output "trivy-${type}.html" "$json" 2>&1 || true
+              trivy convert --format table "$json" 2>&1 | tee "trivy-${type}.txt" || true
+            else
+              echo "(scan did not produce output)" > "trivy-${type}.txt"
+            fi
+          done
+
+      - name: Upload Trivy HTML reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-security-reports
+          path: |
+            trivy-vuln.html
+            trivy-iac.html
+            trivy-secret.html
+
+      - name: Post Trivy security comment
+        uses: actions/github-script@v7
+        if: always() && github.event_name == 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            const readFile = (path) => {
+              try { return fs.readFileSync(path, 'utf8').trim() || '(no output)'; }
+              catch { return '(no output)'; }
+            };
+
+            const vulnOut = readFile('trivy-vuln.txt');
+            const iacOut = readFile('trivy-iac.txt');
+            const secretOut = readFile('trivy-secret.txt');
+
+            const vulnOk = '${{ steps.trivy-vuln.outcome }}' === 'success';
+            const iacOk = '${{ steps.trivy-iac.outcome }}' === 'success';
+            const secretOk = '${{ steps.trivy-secret.outcome }}' === 'success';
+
+            const icon = (ok) => ok ? '[PASS]' : '[FAIL]';
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+
+            const body = [
+              '## Trivy Security Scan',
+              '',
+              '| Scan Type | Status |',
+              '|-----------|--------|',
+              `| ${icon(vulnOk)} Dependency Vulnerabilities (HIGH/CRITICAL) | ${vulnOk ? 'No issues found' : 'Issues detected'} |`,
+              `| ${icon(iacOk)} IaC Configuration (HIGH/CRITICAL) | ${iacOk ? 'No issues found' : 'Issues detected'} |`,
+              `| ${icon(secretOk)} Secret Detection | ${secretOk ? 'No secrets found' : 'Secrets detected'} |`,
+              '',
+              '<details><summary>Dependency Vulnerability Scan</summary>',
+              '',
+              '```',
+              vulnOut,
+              '```',
+              '',
+              '</details>',
+              '',
+              '<details><summary>IaC Configuration Scan</summary>',
+              '',
+              '```',
+              iacOut,
+              '```',
+              '',
+              '</details>',
+              '',
+              '<details><summary>Secret Detection</summary>',
+              '',
+              '```',
+              secretOut,
+              '```',
+              '',
+              '</details>',
+              '',
+              `HTML reports: [Download from workflow artifacts](${runUrl})`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Fail if security issues found
+        if: |
+          steps.trivy-vuln.outcome == 'failure' ||
+          steps.trivy-iac.outcome == 'failure' ||
+          steps.trivy-secret.outcome == 'failure'
+        run: exit 1
+
+  security-sast:
+    name: SAST (Bandit)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "app/uv.lock"
+
+      - name: Install dependencies
+        working-directory: ./app
+        run: uv sync --locked --all-groups
+
+      - name: Run static security analysis
+        id: bandit
+        working-directory: ./app
+        run: |
+          set -o pipefail
+          uv run --with bandit bandit -r src main.py -ll --skip B201,B104 2>&1 | tee bandit-output.txt
+        continue-on-error: true
+
+      - name: Post SAST comment
+        uses: actions/github-script@v7
+        if: always() && github.event_name == 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('app/bandit-output.txt', 'utf8');
+            const passed = '${{ steps.bandit.outcome }}' === 'success';
+            const icon = passed ? '[PASS]' : '[FAIL]';
+            const status = passed ? 'No issues found' : 'Security issues detected';
+            const body = [
+              `## ${icon} SAST (Bandit) - ${status}`,
+              '',
+              '<details><summary>Analysis Output</summary>',
+              '',
+              '```',
+              output.trim(),
+              '```',
+              '',
+              '</details>',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Fail if issues found
+        if: steps.bandit.outcome == 'failure'
+        run: exit 1
+
+  docker-build:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend Docker image
+        id: docker-backend
+        run: |
+          set -o pipefail
+          docker build -f app/Dockerfile.dev app 2>&1 | tee docker-backend-output.txt
+        continue-on-error: true
+
+      - name: Build frontend Docker image
+        id: docker-frontend
+        run: |
+          set -o pipefail
+          docker build -f frontend/Dockerfile.dev frontend 2>&1 | tee docker-frontend-output.txt
+        continue-on-error: true
+
+      - name: Post Docker build comment
+        uses: actions/github-script@v7
+        if: always() && github.event_name == 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const readFile = (path) => {
+              try { return fs.readFileSync(path, 'utf8').trim() || '(no output)'; }
+              catch { return '(no output)'; }
+            };
+
+            const backendOut = readFile('docker-backend-output.txt');
+            const frontendOut = readFile('docker-frontend-output.txt');
+            const backendOk = '${{ steps.docker-backend.outcome }}' === 'success';
+            const frontendOk = '${{ steps.docker-frontend.outcome }}' === 'success';
+            const passed = backendOk && frontendOk;
+            const icon = passed ? '[PASS]' : '[FAIL]';
+            const status = passed ? 'Images built successfully' : 'Build failed';
+            const body = [
+              `## ${icon} Docker Build Validation - ${status}`,
+              '',
+              '<details><summary>Backend Build Output</summary>',
+              '',
+              '```',
+              backendOut,
+              '```',
+              '',
+              '</details>',
+              '',
+              '<details><summary>Frontend Build Output</summary>',
+              '',
+              '```',
+              frontendOut,
+              '```',
+              '',
+              '</details>',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Fail if build failed
+        if: |
+          steps.docker-backend.outcome == 'failure' ||
+          steps.docker-frontend.outcome == 'failure'
+        run: exit 1

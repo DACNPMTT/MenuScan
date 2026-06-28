@@ -1,16 +1,9 @@
-<<<<<<< HEAD
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 const PREFIX = import.meta.env.VITE_API_V1_PREFIX ?? '/api/v1'
+const API_BASE_URL = BASE.replace(/\/$/, '')
 
-export class ApiError extends Error {
-  readonly status: number
-  readonly body: unknown
-  constructor(status: number, body: unknown) {
-    super(`API request failed with status ${status}`)
-    this.name = 'ApiError'
-    this.status = status
-    this.body = body
-  }
+interface RequestOptions extends RequestInit {
+  token?: string
 }
 
 interface Envelope<T> {
@@ -19,11 +12,47 @@ interface Envelope<T> {
   error?: unknown
 }
 
+interface ApiResponseEnvelope<T> {
+  success: boolean
+  data?: T
+  error?: {
+    code: string
+    message: string
+    details?: unknown
+  }
+}
+
+export class ApiError extends Error {
+  readonly status: number
+  readonly body?: unknown
+  readonly code: string
+  readonly details?: unknown
+
+  constructor(status: number, body: unknown)
+  constructor(status: number, code: string, message: string, details?: unknown)
+  constructor(
+    status: number,
+    bodyOrCode: unknown,
+    message?: string,
+    details?: unknown,
+  ) {
+    if (typeof bodyOrCode === 'string') {
+      super(message ?? bodyOrCode)
+      this.code = bodyOrCode
+      this.details = details
+    } else {
+      super(`API request failed with status ${status}`)
+      this.body = bodyOrCode
+      this.code = 'API_ERROR'
+    }
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
 /**
- * Fetch wrapper for the MenuScan API. The backend always answers with the
- * `{ success, data } | { success, error }` envelope; on any non-OK or
- * `success:false` response it throws `ApiError` carrying the status + raw body
- * so callers can map it to a user-facing message.
+ * Fetch wrapper for endpoints under API_V1_PREFIX. The backend answers with
+ * the `{ success, data } | { success, error }` envelope.
  */
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE}${PREFIX}${path}`, {
@@ -38,40 +67,11 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return json.data as T
-=======
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
-
-interface RequestOptions extends RequestInit {
-  token?: string
-}
-
-export class ApiError extends Error {
-  status: number
-  code: string
-  details?: unknown
-
-  constructor(status: number, code: string, message: string, details?: unknown) {
-    super(message)
-    this.name = 'ApiError'
-    this.status = status
-    this.code = code
-    this.details = details
-  }
-}
-
-interface ApiResponseEnvelope<T> {
-  success: boolean
-  data?: T
-  error?: {
-    code: string
-    message: string
-    details?: unknown
-  }
 }
 
 export async function apiRequest<T = unknown>(
   path: string,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<T> {
   const { token, headers = {}, ...restOptions } = options
 
@@ -90,22 +90,21 @@ export async function apiRequest<T = unknown>(
   const response = await fetch(url, {
     ...restOptions,
     headers: requestHeaders,
-    credentials: 'include', // Important to send/receive HttpOnly refresh cookie
+    credentials: 'include',
   })
 
-  // Handle 204 No Content
   if (response.status === 204) {
     return {} as T
   }
 
   let body: ApiResponseEnvelope<T>
   try {
-    body = await response.json() as ApiResponseEnvelope<T>
+    body = (await response.json()) as ApiResponseEnvelope<T>
   } catch {
     throw new ApiError(
       response.status,
       'INVALID_JSON',
-      'Phản hồi từ server không hợp lệ.'
+      'Server response is not valid JSON.',
     )
   }
 
@@ -114,11 +113,10 @@ export async function apiRequest<T = unknown>(
     throw new ApiError(
       response.status,
       errorDetails?.code || 'UNKNOWN_ERROR',
-      errorDetails?.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.',
-      errorDetails?.details
+      errorDetails?.message || 'Something went wrong. Please try again.',
+      errorDetails?.details,
     )
   }
 
   return body.data as T
->>>>>>> 8e3ffc0ab76eefce856d544cf59b2eb07e49acca
 }
