@@ -238,7 +238,7 @@ class S3ObjectStorage:
             method=method,
         )
         try:
-            with urlopen(request, timeout=30) as response:  # noqa: S310
+            with urlopen(request, timeout=30) as response:  # noqa: S310  # nosec B310
                 return _HttpResponse(
                     data=response.read(),
                     headers={
