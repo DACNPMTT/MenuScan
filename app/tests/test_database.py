@@ -37,7 +37,9 @@ def test_models_do_not_define_password_columns() -> None:
         column_names = set(table.columns.keys())
         if table.name == "users":
             assert "password" not in column_names  # raw passwords must never be stored
-            assert "password_hash" in column_names  # password_hash is now allowed on users
+            assert (
+                "password_hash" in column_names
+            )  # password_hash is now allowed on users
         else:
             assert "password" not in column_names
             assert "password_hash" not in column_names
@@ -72,9 +74,7 @@ def test_price_and_currency_use_exact_database_types() -> None:
 
 def test_user_email_has_case_insensitive_unique_index() -> None:
     index = next(
-        item
-        for item in User.__table__.indexes
-        if item.name == "uq_users_email_lower"
+        item for item in User.__table__.indexes if item.name == "uq_users_email_lower"
     )
 
     assert index.unique

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import base64
-import logging
 from dataclasses import dataclass
 from time import monotonic
 from typing import Any
@@ -24,9 +23,6 @@ from src.modules.menu_scan.ocr.provider import (
 )
 
 
-logger = logging.getLogger(__name__)
-
-
 @dataclass(frozen=True, slots=True)
 class GoogleVisionOcrProvider:
     api_key: str
@@ -42,10 +38,7 @@ class GoogleVisionOcrProvider:
         source_object_key: str,
     ) -> OcrDocument:
         started_at = monotonic()
-        responses = [
-            self._annotate_page(page)
-            for page in pages
-        ]
+        responses = [self._annotate_page(page) for page in pages]
         ocr_pages = [
             _page_from_response(
                 response=response,
@@ -102,51 +95,13 @@ class GoogleVisionOcrProvider:
         if response.status_code >= 500 or response.status_code == 429:
             raise ProviderUnavailableError()
         if response.status_code >= 400:
-            error_status = _error_status(response)
-            logger.warning(
-                "google_vision_request_failed status_code=%s error_status=%s",
-                response.status_code,
-                error_status,
-            )
-            raise ProviderProcessingError(
-                provider="google_vision",
-                status_code=response.status_code,
-                reason=error_status,
-            )
+            raise ProviderProcessingError()
 
         body = response.json()
         result = (body.get("responses") or [{}])[0]
         if "error" in result:
-            error_status = _result_error_status(result)
-            logger.warning(
-                "google_vision_result_failed error_status=%s",
-                error_status,
-            )
-            raise ProviderProcessingError(
-                provider="google_vision",
-                reason=error_status,
-            )
+            raise ProviderProcessingError()
         return result
-
-
-def _error_status(response: httpx.Response) -> str | None:
-    try:
-        body = response.json()
-    except ValueError:
-        return None
-    error = body.get("error")
-    if not isinstance(error, dict):
-        return None
-    status = error.get("status")
-    return status if isinstance(status, str) else None
-
-
-def _result_error_status(result: dict[str, Any]) -> str | None:
-    error = result.get("error")
-    if not isinstance(error, dict):
-        return None
-    status = error.get("status")
-    return status if isinstance(status, str) else None
 
 
 def _page_from_response(
@@ -258,9 +213,7 @@ def _word_from_response(
     page_width: int,
     page_height: int,
 ) -> OcrWord:
-    text = "".join(
-        ((symbol.get("text") or "") for symbol in word.get("symbols") or [])
-    )
+    text = "".join(((symbol.get("text") or "") for symbol in word.get("symbols") or []))
     return OcrWord(
         id=f"p{page_index}-b{block_index}-l{line_index}-w{word_index}",
         text=text,
@@ -308,11 +261,7 @@ def _clamp(value: float) -> float:
 
 
 def _mean_optional(values: object) -> float | None:
-    numeric_values = [
-        float(value)
-        for value in values
-        if value is not None
-    ]
+    numeric_values = [float(value) for value in values if value is not None]
     if not numeric_values:
         return None
     return sum(numeric_values) / len(numeric_values)

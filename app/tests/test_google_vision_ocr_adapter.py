@@ -18,9 +18,7 @@ class FakeResponse:
                         "pages": [
                             {
                                 "property": {
-                                    "detectedLanguages": [
-                                        {"languageCode": "vi"}
-                                    ]
+                                    "detectedLanguages": [{"languageCode": "vi"}]
                                 },
                                 "blocks": [
                                     {

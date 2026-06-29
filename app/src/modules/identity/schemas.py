@@ -50,7 +50,6 @@ class SetPasswordRequest(BaseModel):
     password: str
 
 
-
 class LoginRequest(BaseModel):
     """Request body for traditional email/password login."""
 
@@ -113,4 +112,3 @@ class UserMeResponse(BaseModel):
 
     class Config:
         from_attributes = True
-

@@ -2,9 +2,7 @@ import os
 from dataclasses import dataclass, field
 
 
-DEFAULT_DATABASE_URL = (
-    "postgresql://menuscan:localdev@localhost:54320/menuscan"
-)
+DEFAULT_DATABASE_URL = "postgresql://menuscan:localdev@localhost:54320/menuscan"
 DEFAULT_MAGIC_LINK_BASE_URL = "http://localhost:5173"
 DEFAULT_CORS_ORIGINS = ("http://localhost:5173",)
 
@@ -23,9 +21,15 @@ DEFAULT_OCR_MAX_IMAGE_DIMENSION = "2000"
 DEFAULT_OCR_CONTRAST_FACTOR = "1.1"
 DEFAULT_GOOGLE_VISION_API_BASE_URL = "https://vision.googleapis.com/v1"
 
+DEFAULT_LLM_PROVIDER = "rule_based"
+DEFAULT_LLM_TIMEOUT_SECONDS = "20"
+DEFAULT_LLM_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+DEFAULT_LLM_MODEL = "gemini-2.5-flash"
+
 SUPPORTED_EMAIL_PROVIDERS = ("console", "resend")
 SUPPORTED_STORAGE_PROVIDERS = ("local", "s3")
 SUPPORTED_OCR_PROVIDERS = ("fake", "google_vision")
+SUPPORTED_LLM_PROVIDERS = ("rule_based", "gemini")
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,6 +106,26 @@ class OcrConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class LlmConfig:
+    """LLM parser configuration.
+
+    ``rule_based`` is the dev/test default. ``gemini`` calls the Google Gemini
+    REST API using a key from environment variables; secrets are never logged.
+    """
+
+    provider: str
+    model: str
+    api_key: str | None
+    api_base_url: str
+    timeout_seconds: float
+
+    def is_configured(self) -> bool:
+        if self.provider == "rule_based":
+            return True
+        return bool(self.api_key)
+
+
+@dataclass(frozen=True, slots=True)
 class Settings:
     """Application settings loaded from environment variables."""
 
@@ -113,6 +137,15 @@ class Settings:
     cors_origins: tuple[str, ...]
     email: EmailConfig
     storage: StorageConfig
+    llm: LlmConfig = field(
+        default_factory=lambda: LlmConfig(
+            provider=DEFAULT_LLM_PROVIDER,
+            model=DEFAULT_LLM_MODEL,
+            api_key=None,
+            api_base_url=DEFAULT_LLM_API_BASE_URL,
+            timeout_seconds=float(DEFAULT_LLM_TIMEOUT_SECONDS),
+        )
+    )
     ocr: OcrConfig = field(
         default_factory=lambda: OcrConfig(
             provider=DEFAULT_OCR_PROVIDER,
@@ -130,11 +163,7 @@ class Settings:
     def from_environment(cls) -> "Settings":
         raw_origins = os.getenv("CORS_ORIGINS")
         cors_origins = (
-            tuple(
-                origin.strip()
-                for origin in raw_origins.split(",")
-                if origin.strip()
-            )
+            tuple(origin.strip() for origin in raw_origins.split(",") if origin.strip())
             if raw_origins is not None
             else DEFAULT_CORS_ORIGINS
         )
@@ -183,8 +212,18 @@ class Settings:
             )
         if not ocr.is_configured():
             raise ValueError(
-                f"OCR_PROVIDER={ocr.provider!r} requires "
-                "GOOGLE_VISION_API_KEY"
+                f"OCR_PROVIDER={ocr.provider!r} requires GOOGLE_VISION_API_KEY"
+            )
+
+        llm = _load_llm_config()
+        if llm.provider not in SUPPORTED_LLM_PROVIDERS:
+            raise ValueError(
+                f"LLM_PROVIDER={llm.provider!r} is not supported; "
+                f"choose one of {SUPPORTED_LLM_PROVIDERS}"
+            )
+        if not llm.is_configured():
+            raise ValueError(
+                f"LLM_PROVIDER={llm.provider!r} requires LLM_API_KEY or GEMINI_API_KEY"
             )
 
         return cls(
@@ -198,6 +237,7 @@ class Settings:
             cors_origins=cors_origins,
             email=email,
             storage=storage,
+            llm=llm,
             ocr=ocr,
             secret_key=os.getenv(
                 "SECRET_KEY",
@@ -211,9 +251,9 @@ def _load_email_config() -> EmailConfig:
         provider=os.getenv("EMAIL_PROVIDER", DEFAULT_EMAIL_PROVIDER),
         from_address=os.getenv("EMAIL_FROM_ADDRESS", DEFAULT_EMAIL_FROM_ADDRESS),
         api_key=os.getenv("EMAIL_API_KEY"),
-        api_base_url=os.getenv(
-            "EMAIL_API_BASE_URL", DEFAULT_EMAIL_API_BASE_URL
-        ).rstrip("/"),
+        api_base_url=os.getenv("EMAIL_API_BASE_URL", DEFAULT_EMAIL_API_BASE_URL).rstrip(
+            "/"
+        ),
         timeout_seconds=float(
             os.getenv("EMAIL_TIMEOUT_SECONDS", DEFAULT_EMAIL_TIMEOUT_SECONDS)
         ),
@@ -259,6 +299,21 @@ def _load_ocr_config() -> OcrConfig:
         google_vision_model=os.getenv(
             "GOOGLE_VISION_MODEL",
             "DOCUMENT_TEXT_DETECTION",
+        ),
+    )
+
+
+def _load_llm_config() -> LlmConfig:
+    return LlmConfig(
+        provider=os.getenv("LLM_PROVIDER", DEFAULT_LLM_PROVIDER),
+        model=os.getenv("LLM_MODEL", DEFAULT_LLM_MODEL),
+        api_key=os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY"),
+        api_base_url=os.getenv(
+            "LLM_API_BASE_URL",
+            DEFAULT_LLM_API_BASE_URL,
+        ).rstrip("/"),
+        timeout_seconds=float(
+            os.getenv("LLM_TIMEOUT_SECONDS", DEFAULT_LLM_TIMEOUT_SECONDS)
         ),
     )
 

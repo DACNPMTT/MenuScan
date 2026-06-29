@@ -169,6 +169,37 @@ def test_settings_reject_wildcard_cors_with_credentials(
         Settings.from_environment()
 
 
+def test_settings_loads_gemini_llm_from_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("EMAIL_PROVIDER", "console")
+    monkeypatch.setenv("STORAGE_PROVIDER", "local")
+    monkeypatch.setenv("OCR_PROVIDER", "fake")
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
+    monkeypatch.setenv("LLM_MODEL", "gemini-2.5-flash")
+
+    settings = Settings.from_environment()
+
+    assert settings.llm.provider == "gemini"
+    assert settings.llm.api_key == "test-gemini-key"
+    assert settings.llm.model == "gemini-2.5-flash"
+
+
+def test_settings_requires_key_for_gemini_llm(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("EMAIL_PROVIDER", "console")
+    monkeypatch.setenv("STORAGE_PROVIDER", "local")
+    monkeypatch.setenv("OCR_PROVIDER", "fake")
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+    with pytest.raises(ValueError, match="LLM_API_KEY"):
+        Settings.from_environment()
+
+
 def test_cors_uses_origins_from_settings() -> None:
     client = make_client(
         settings=make_settings(
@@ -185,10 +216,7 @@ def test_cors_uses_origins_from_settings() -> None:
     )
 
     assert response.status_code == 200
-    assert (
-        response.headers["access-control-allow-origin"]
-        == "https://frontend.example"
-    )
+    assert response.headers["access-control-allow-origin"] == "https://frontend.example"
 
 
 def test_validation_error_uses_standard_error_contract() -> None:

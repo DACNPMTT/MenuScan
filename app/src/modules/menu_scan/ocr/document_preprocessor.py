@@ -111,9 +111,7 @@ class DocumentPreprocessor:
             Image.Resampling.LANCZOS,
         )
         if self.contrast_factor != 1:
-            processed = ImageEnhance.Contrast(processed).enhance(
-                self.contrast_factor
-            )
+            processed = ImageEnhance.Contrast(processed).enhance(self.contrast_factor)
 
         output = BytesIO()
         processed.save(output, format="PNG", optimize=True)

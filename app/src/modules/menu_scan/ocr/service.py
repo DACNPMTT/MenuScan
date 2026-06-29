@@ -54,7 +54,7 @@ class OcrService:
         except ProviderUnavailableError as error:
             raise OcrProviderUnavailableError() from error
         except ProviderProcessingError as error:
-            raise OcrProcessingFailedError(details=_provider_error_details(error)) from error
+            raise OcrProcessingFailedError() from error
         except TimeoutError as error:
             raise OcrTimeoutError() from error
         except Exception as error:
@@ -100,8 +100,7 @@ def _normalized_document(
 def _normalize_text(text: str) -> str:
     normalized = text.replace("\r\n", "\n").replace("\r", "\n")
     normalized = "\n".join(
-        _HORIZONTAL_WHITESPACE.sub(" ", line).strip()
-        for line in normalized.split("\n")
+        _HORIZONTAL_WHITESPACE.sub(" ", line).strip() for line in normalized.split("\n")
     )
     return _MULTIPLE_BLANK_LINES.sub("\n\n", normalized).strip()
 
@@ -116,14 +115,3 @@ def _safe_metadata(metadata: dict[str, object]) -> dict[str, object]:
         if isinstance(value, str | int | float | bool) or value is None:
             safe[key] = value
     return safe
-
-
-def _provider_error_details(error: ProviderProcessingError) -> dict[str, object]:
-    details: dict[str, object] = {}
-    if error.provider:
-        details["provider"] = error.provider
-    if error.status_code is not None:
-        details["provider_status_code"] = error.status_code
-    if error.reason:
-        details["provider_error_status"] = error.reason
-    return details

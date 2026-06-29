@@ -6,7 +6,13 @@ from fastapi.testclient import TestClient
 
 from src.core.application import create_app
 from src.core.database import get_db
-from src.modules.identity.models import User, MagicLinkToken, UserSession, UserStatus, UserRole
+from src.modules.identity.models import (
+    User,
+    MagicLinkToken,
+    UserSession,
+    UserStatus,
+    UserRole,
+)
 from src.modules.identity.service import hash_token
 from tests.conftest import FakeClock
 
@@ -79,7 +85,9 @@ def test_magic_link_verification_happy_path(client, db_session, clock):
 
     # Assert: Session created
     session_id_str = cookie_val.split(".")[0]
-    session_rec = db_session.query(UserSession).filter_by(id=uuid.UUID(session_id_str)).first()
+    session_rec = (
+        db_session.query(UserSession).filter_by(id=uuid.UUID(session_id_str)).first()
+    )
     assert session_rec is not None
     assert session_rec.user_id == user.id
     assert session_rec.revoked_at is None
@@ -278,6 +286,7 @@ def test_logout_revokes_session_and_clears_cookie(client, db_session, clock):
 
     # Generate a valid access token to authenticate logout
     from src.modules.identity.dependencies import get_magic_link_service
+
     service = get_magic_link_service(db_session)
     access_token = service.create_access_token(user.id)
 
@@ -291,7 +300,10 @@ def test_logout_revokes_session_and_clears_cookie(client, db_session, clock):
     # Assert: 204 and cookie is cleared (has empty/past expiration value)
     assert response.status_code == 204
     # deleted cookie in FastAPI returns empty string or deleted value in Set-Cookie header
-    assert "refresh_token" not in response.cookies or response.cookies["refresh_token"] == ""
+    assert (
+        "refresh_token" not in response.cookies
+        or response.cookies["refresh_token"] == ""
+    )
 
     # Assert: DB session revoked
     db_session.refresh(user_session)
@@ -319,6 +331,7 @@ def test_logout_is_idempotent(client, db_session, clock):
 
     # Access token
     from src.modules.identity.dependencies import get_magic_link_service
+
     service = get_magic_link_service(db_session)
     access_token = service.create_access_token(user.id)
 
@@ -354,6 +367,7 @@ def test_get_current_user_profile(client, db_session, clock):
 
     # Generate token
     from src.modules.identity.dependencies import get_magic_link_service
+
     service = get_magic_link_service(db_session)
     access_token = service.create_access_token(user.id)
 
@@ -396,6 +410,7 @@ def test_get_profile_fails_if_user_inactive_or_deleted(client, db_session, clock
 
     # Generate token
     from src.modules.identity.dependencies import get_magic_link_service
+
     service = get_magic_link_service(db_session)
     access_token = service.create_access_token(user.id)
 
@@ -448,6 +463,7 @@ def test_magic_link_verification_and_set_password_flow(client, db_session, clock
 
     # Check password is valid
     from src.modules.identity.service import verify_password
+
     assert verify_password("secure_password_123", user.password_hash) is True
 
 
@@ -463,10 +479,10 @@ def test_set_password_fails_if_unauthorized(client):
     assert response.json()["error"]["code"] == "UNAUTHORIZED"
 
 
-
 def test_login_with_password_happy_path(client, db_session, clock):
     # Arrange: Create user with password hash in DB
     from src.modules.identity.service import hash_password
+
     email = "login-pass@example.com"
     password = "secure_password_123"
     user = User(
@@ -502,7 +518,9 @@ def test_login_with_password_happy_path(client, db_session, clock):
 
     # Assert: Session created
     session_id_str = cookie_val.split(".")[0]
-    session_rec = db_session.query(UserSession).filter_by(id=uuid.UUID(session_id_str)).first()
+    session_rec = (
+        db_session.query(UserSession).filter_by(id=uuid.UUID(session_id_str)).first()
+    )
     assert session_rec is not None
     assert session_rec.user_id == user.id
     assert session_rec.revoked_at is None
@@ -511,6 +529,7 @@ def test_login_with_password_happy_path(client, db_session, clock):
 def test_login_with_password_incorrect_credentials(client, db_session, clock):
     # Arrange: Create user with password hash in DB
     from src.modules.identity.service import hash_password
+
     email = "wrong-pass@example.com"
     password = "secure_password_123"
     user = User(
@@ -567,6 +586,7 @@ def test_login_with_password_missing_password_hash(client, db_session, clock):
 def test_login_with_password_inactive_user(client, db_session, clock):
     # Arrange: Create locked user with password hash
     from src.modules.identity.service import hash_password
+
     email = "inactive-pass@example.com"
     password = "secure_password_123"
     user = User(
