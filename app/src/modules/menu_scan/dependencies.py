@@ -9,6 +9,10 @@ from src.modules.menu_scan.adapters.storage import (
     ObjectStorage,
     build_object_storage,
 )
+from src.modules.menu_scan.ocr.adapters.google_vision import GoogleVisionOcrProvider
+from src.modules.menu_scan.ocr.document_preprocessor import DocumentPreprocessor
+from src.modules.menu_scan.ocr.provider import FakeOcrProvider, OcrProvider
+from src.modules.menu_scan.ocr.service import OcrService
 from src.modules.menu_scan.repository import ScanSessionRepository
 from src.modules.menu_scan.service import ScanService
 
@@ -25,4 +29,31 @@ def get_scan_service(
         session=session,
         repository=ScanSessionRepository(),
         storage=get_object_storage(),
+    )
+
+
+def get_ocr_provider() -> OcrProvider:
+    config = settings.ocr
+    if config.provider == "fake":
+        return FakeOcrProvider()
+    if config.provider == "google_vision":
+        assert config.google_vision_api_key is not None  # noqa: S101
+        return GoogleVisionOcrProvider(
+            api_key=config.google_vision_api_key,
+            api_base_url=config.google_vision_api_base_url,
+            timeout_seconds=config.timeout_seconds,
+            feature_type=config.google_vision_model,
+        )
+    raise ValueError(f"Unsupported OCR_PROVIDER={config.provider!r}")
+
+
+def get_ocr_service(
+    provider: OcrProvider = Depends(get_ocr_provider),
+) -> OcrService:
+    return OcrService(
+        preprocessor=DocumentPreprocessor(
+            max_image_dimension=settings.ocr.max_image_dimension,
+            contrast_factor=settings.ocr.contrast_factor,
+        ),
+        provider=provider,
     )

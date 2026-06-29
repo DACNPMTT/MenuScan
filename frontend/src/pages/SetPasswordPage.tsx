@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Check } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
-import { Card } from '@/shared/components/Card'
-import { Input } from '@/shared/components/Input'
-import { Button } from '@/shared/components/Button'
-import { Alert } from '@/shared/components/Alert'
+import { Button } from '@/shared/components/ui/button'
+import { Input } from '@/shared/components/ui/input'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 
 export function SetPasswordPage() {
@@ -12,7 +11,6 @@ export function SetPasswordPage() {
   const navigate = useNavigate()
   const { user, loading, setPassword } = useAuth()
 
-  // Form state
   const [password, setPasswordInput] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [savingPassword, setSavingPassword] = useState(false)
@@ -25,8 +23,8 @@ export function SetPasswordPage() {
     }
   }, [user, loading, navigate])
 
-  const handleSetPassword = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSetPassword = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
     if (!password) {
       setPasswordError('Vui lòng nhập mật khẩu.')
       return
@@ -54,82 +52,76 @@ export function SetPasswordPage() {
     }
   }
 
-  const handleSkipPassword = () => {
-    navigate('/app', { replace: true })
-  }
-
   if (loading || !user) {
     return null // Will redirect in useEffect
   }
 
   return (
-    <div className="auth-page-wrapper">
-      <Card className="auth-card">
-        <div className="auth-logo">
-          <span className="auth-logo__mark" style={{ background: '#3F7A1A' }}>MS</span>
-          <span className="auth-logo__text" style={{ color: '#3F7A1A' }}>MenuScan</span>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', margin: '24px 0' }}>
-          <div className="auth-success-badge">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M20 6L9 17L4 12" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-canvas px-5 py-[75px] font-sans">
+      <div className="flex w-full max-w-[400px] flex-col">
+        <header className="mb-[45px] flex flex-col items-center gap-[18px] text-center">
+          <h1 className="text-[30px] font-bold leading-[34px] tracking-[-0.75px] text-primary-dark">
+            MenuScan
+          </h1>
+          <div className="flex size-16 items-center justify-center rounded-full bg-primary">
+            <Check className="size-8 text-white" aria-hidden />
           </div>
-          <h2 className="auth-card__title" style={{ marginTop: '16px', marginBottom: '8px' }}>Email verified successfully!</h2>
-          <p className="auth-card__text" style={{ fontSize: '0.95rem', opacity: 0.8, maxWidth: '340px' }}>
-            Tài khoản của bạn đã được xác thực thành công. Bạn có thể thiết lập mật khẩu dưới đây để đăng nhập trực tiếp lần sau.
-          </p>
-        </div>
+          <div className="flex flex-col gap-[7px]">
+            <p className="text-[20px] leading-[30px] text-ink">
+              Email verified successfully!
+            </p>
+            <p className="text-[15px] leading-[22px] text-ink-variant">
+              Thiết lập mật khẩu để đăng nhập trực tiếp lần sau.
+            </p>
+          </div>
+        </header>
 
-        {passwordError && (
-          <Alert variant="error" title="Lỗi mật khẩu">
-            {passwordError}
-          </Alert>
-        )}
+        <form onSubmit={handleSetPassword} noValidate className="flex flex-col gap-[30px] pb-4">
+          <label className="flex flex-col gap-[5px]">
+            <span className="text-[14px] leading-[14px] text-ink">New Password</span>
+            <Input
+              type="password"
+              required
+              autoComplete="new-password"
+              value={password}
+              onChange={(event) => setPasswordInput(event.target.value)}
+              placeholder="Minimum 6 characters"
+              aria-label="New Password"
+              disabled={savingPassword}
+              className="rounded-none border-0 border-b border-hairline bg-transparent px-0 py-1 text-[16px] text-ink shadow-none placeholder:text-placeholder focus-visible:border-primary-dark focus-visible:ring-0"
+            />
+          </label>
 
-        <form onSubmit={handleSetPassword} className="auth-form">
-          <Input
-            id="new-password"
-            label="Thiết lập mật khẩu mới"
-            type="password"
-            placeholder="Tối thiểu 6 ký tự"
-            value={password}
-            onChange={(e) => setPasswordInput(e.target.value)}
-            disabled={savingPassword}
-            required
-          />
+          <label className="flex flex-col gap-[5px]">
+            <span className="text-[14px] leading-[14px] text-ink">Confirm Password</span>
+            <Input
+              type="password"
+              required
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              placeholder="Re-enter your password"
+              aria-label="Confirm Password"
+              disabled={savingPassword}
+              className="rounded-none border-0 border-b border-hairline bg-transparent px-0 py-1 text-[16px] text-ink shadow-none placeholder:text-placeholder focus-visible:border-primary-dark focus-visible:ring-0"
+            />
+          </label>
 
-          <Input
-            id="confirm-password"
-            label="Xác nhận mật khẩu mới"
-            type="password"
-            placeholder="Nhập lại mật khẩu"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            disabled={savingPassword}
-            required
-          />
+          {passwordError && (
+            <p role="alert" className="-mt-4 text-[14px] text-destructive">
+              {passwordError}
+            </p>
+          )}
 
           <Button
             type="submit"
-            className="auth-btn auth-btn--primary"
             disabled={savingPassword}
-            style={{ backgroundColor: '#3F7A1A', borderColor: '#2E6930', color: '#fff', marginTop: '16px' }}
+            className="h-12 rounded-full bg-primary text-[17px] font-bold text-white hover:bg-primary/90"
           >
-            {savingPassword ? 'Đang lưu...' : 'Lưu mật khẩu & Vào Dashboard'}
+            {savingPassword ? 'Đang lưu...' : 'Save Password'}
           </Button>
-          
-          <button
-            type="button"
-            className="auth-skip-btn"
-            onClick={handleSkipPassword}
-            disabled={savingPassword}
-          >
-            Bỏ qua thiết lập mật khẩu (Skip)
-          </button>
         </form>
-      </Card>
+      </div>
     </div>
   )
 }

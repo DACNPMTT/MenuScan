@@ -74,3 +74,48 @@ class StorageUnavailableError(ApplicationError):
             code="STORAGE_UNAVAILABLE",
             message="Source file storage is temporarily unavailable.",
         )
+
+
+class OcrUnsupportedDocumentError(ApplicationError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=415,
+            code="OCR_UNSUPPORTED_DOCUMENT",
+            message="The document cannot be processed by OCR.",
+        )
+
+
+class OcrEmptyResultError(ApplicationError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=422,
+            code="OCR_EMPTY_RESULT",
+            message="OCR did not return usable text.",
+        )
+
+
+class OcrTimeoutError(ApplicationError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=504,
+            code="OCR_TIMEOUT",
+            message="OCR processing timed out.",
+        )
+
+
+class OcrProviderUnavailableError(ApplicationError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=503,
+            code="OCR_PROVIDER_UNAVAILABLE",
+            message="OCR provider is temporarily unavailable.",
+        )
+
+
+class OcrProcessingFailedError(ApplicationError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=500,
+            code="OCR_PROCESSING_FAILED",
+            message="OCR processing failed.",
+        )

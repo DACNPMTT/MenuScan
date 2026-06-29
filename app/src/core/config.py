@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 DEFAULT_DATABASE_URL = (
@@ -17,8 +17,15 @@ DEFAULT_STORAGE_PROVIDER = "local"
 DEFAULT_STORAGE_LOCAL_ROOT = "storage/objects"
 DEFAULT_STORAGE_SIGNED_URL_SECONDS = "300"
 
+DEFAULT_OCR_PROVIDER = "fake"
+DEFAULT_OCR_TIMEOUT_SECONDS = "10"
+DEFAULT_OCR_MAX_IMAGE_DIMENSION = "2000"
+DEFAULT_OCR_CONTRAST_FACTOR = "1.1"
+DEFAULT_GOOGLE_VISION_API_BASE_URL = "https://vision.googleapis.com/v1"
+
 SUPPORTED_EMAIL_PROVIDERS = ("console", "resend")
 SUPPORTED_STORAGE_PROVIDERS = ("local", "s3")
+SUPPORTED_OCR_PROVIDERS = ("fake", "google_vision")
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +84,24 @@ class StorageConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class OcrConfig:
+    """OCR provider and preprocessing configuration."""
+
+    provider: str
+    timeout_seconds: float
+    max_image_dimension: int
+    contrast_factor: float
+    google_vision_api_key: str | None
+    google_vision_api_base_url: str
+    google_vision_model: str
+
+    def is_configured(self) -> bool:
+        if self.provider == "fake":
+            return True
+        return bool(self.google_vision_api_key)
+
+
+@dataclass(frozen=True, slots=True)
 class Settings:
     """Application settings loaded from environment variables."""
 
@@ -88,6 +113,17 @@ class Settings:
     cors_origins: tuple[str, ...]
     email: EmailConfig
     storage: StorageConfig
+    ocr: OcrConfig = field(
+        default_factory=lambda: OcrConfig(
+            provider=DEFAULT_OCR_PROVIDER,
+            timeout_seconds=float(DEFAULT_OCR_TIMEOUT_SECONDS),
+            max_image_dimension=int(DEFAULT_OCR_MAX_IMAGE_DIMENSION),
+            contrast_factor=float(DEFAULT_OCR_CONTRAST_FACTOR),
+            google_vision_api_key=None,
+            google_vision_api_base_url=DEFAULT_GOOGLE_VISION_API_BASE_URL,
+            google_vision_model="DOCUMENT_TEXT_DETECTION",
+        )
+    )
     secret_key: str = "menuscan-default-insecure-secret-key-change-this-in-production"
 
     @classmethod
@@ -139,6 +175,18 @@ class Settings:
                 "STORAGE_ACCESS_KEY_ID and STORAGE_SECRET_ACCESS_KEY"
             )
 
+        ocr = _load_ocr_config()
+        if ocr.provider not in SUPPORTED_OCR_PROVIDERS:
+            raise ValueError(
+                f"OCR_PROVIDER={ocr.provider!r} is not supported; "
+                f"choose one of {SUPPORTED_OCR_PROVIDERS}"
+            )
+        if not ocr.is_configured():
+            raise ValueError(
+                f"OCR_PROVIDER={ocr.provider!r} requires "
+                "GOOGLE_VISION_API_KEY"
+            )
+
         return cls(
             database_url=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
             magic_link_base_url=os.getenv(
@@ -150,6 +198,7 @@ class Settings:
             cors_origins=cors_origins,
             email=email,
             storage=storage,
+            ocr=ocr,
             secret_key=os.getenv(
                 "SECRET_KEY",
                 "menuscan-default-insecure-secret-key-change-this-in-production",
@@ -186,6 +235,30 @@ def _load_storage_config() -> StorageConfig:
                 "STORAGE_SIGNED_URL_SECONDS",
                 DEFAULT_STORAGE_SIGNED_URL_SECONDS,
             )
+        ),
+    )
+
+
+def _load_ocr_config() -> OcrConfig:
+    return OcrConfig(
+        provider=os.getenv("OCR_PROVIDER", DEFAULT_OCR_PROVIDER),
+        timeout_seconds=float(
+            os.getenv("OCR_TIMEOUT_SECONDS", DEFAULT_OCR_TIMEOUT_SECONDS)
+        ),
+        max_image_dimension=int(
+            os.getenv("OCR_MAX_IMAGE_DIMENSION", DEFAULT_OCR_MAX_IMAGE_DIMENSION)
+        ),
+        contrast_factor=float(
+            os.getenv("OCR_CONTRAST_FACTOR", DEFAULT_OCR_CONTRAST_FACTOR)
+        ),
+        google_vision_api_key=os.getenv("GOOGLE_VISION_API_KEY"),
+        google_vision_api_base_url=os.getenv(
+            "GOOGLE_VISION_API_BASE_URL",
+            DEFAULT_GOOGLE_VISION_API_BASE_URL,
+        ).rstrip("/"),
+        google_vision_model=os.getenv(
+            "GOOGLE_VISION_MODEL",
+            "DOCUMENT_TEXT_DETECTION",
         ),
     )
 
