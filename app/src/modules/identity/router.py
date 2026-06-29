@@ -2,15 +2,24 @@ from fastapi import APIRouter, Cookie, Depends, Request, Response, status
 
 from src.core.config import settings
 from src.core.responses import success_response
-from src.modules.identity.dependencies import get_current_user, get_magic_link_service
+from src.modules.identity.dependencies import (
+    get_authenticated_user,
+    get_magic_link_service,
+)
 from src.modules.identity.models import User
-from src.modules.identity.schemas import LoginRequest, MagicLinkRequest, MagicLinkVerifyRequest, SetPasswordRequest
+from src.modules.identity.schemas import (
+    LoginRequest,
+    MagicLinkRequest,
+    MagicLinkVerifyRequest,
+    SetPasswordRequest,
+)
 from src.modules.identity.service import MagicLinkService
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+public_router = APIRouter(prefix="/auth", tags=["auth"])
+private_router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/magic-links", status_code=status.HTTP_202_ACCEPTED)
+@public_router.post("/magic-links", status_code=status.HTTP_202_ACCEPTED)
 def request_magic_link(
     payload: MagicLinkRequest,
     service: MagicLinkService = Depends(get_magic_link_service),
@@ -25,7 +34,7 @@ def request_magic_link(
     return success_response(data=data.model_dump())
 
 
-@router.post("/magic-links/verify", status_code=status.HTTP_200_OK)
+@public_router.post("/magic-links/verify", status_code=status.HTTP_200_OK)
 def verify_magic_link(
     payload: MagicLinkVerifyRequest,
     response: Response,
@@ -66,10 +75,10 @@ def verify_magic_link(
     )
 
 
-@router.post("/set-password", status_code=status.HTTP_200_OK)
+@private_router.post("/set-password", status_code=status.HTTP_200_OK)
 def set_password(
     payload: SetPasswordRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_authenticated_user),
     service: MagicLinkService = Depends(get_magic_link_service),
 ) -> dict[str, object]:
     """Set or update password for the currently logged-in user."""
@@ -77,7 +86,7 @@ def set_password(
     return success_response(data={"message": "Mật khẩu đã được thiết lập thành công."})
 
 
-@router.post("/login", status_code=status.HTTP_200_OK)
+@public_router.post("/login", status_code=status.HTTP_200_OK)
 def login(
     payload: LoginRequest,
     response: Response,
@@ -119,7 +128,7 @@ def login(
     )
 
 
-@router.post("/refresh", status_code=status.HTTP_200_OK)
+@public_router.post("/refresh", status_code=status.HTTP_200_OK)
 def refresh_session(
     response: Response,
     request: Request,
@@ -153,11 +162,11 @@ def refresh_session(
     )
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@private_router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
     response: Response,
     refresh_token: str | None = Cookie(default=None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_authenticated_user),
     service: MagicLinkService = Depends(get_magic_link_service),
 ) -> None:
     """Idempotently revoke the current session and clear cookies."""
@@ -171,9 +180,9 @@ def logout(
     )
 
 
-@router.get("/me", status_code=status.HTTP_200_OK)
+@private_router.get("/me", status_code=status.HTTP_200_OK)
 def get_me(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_authenticated_user),
 ) -> dict[str, object]:
     """Retrieve details for the currently authenticated user."""
     return success_response(
@@ -188,3 +197,7 @@ def get_me(
         }
     )
 
+
+router = APIRouter()
+router.include_router(public_router)
+router.include_router(private_router)
