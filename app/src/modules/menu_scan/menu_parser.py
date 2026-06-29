@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections import Counter
+from dataclasses import dataclass
+from typing import Protocol
 
 from src.modules.menu_scan.layout_classifier import LineRole, classify_line_role
 from src.modules.menu_scan.line_item_extractor import split_name_description_price
@@ -29,6 +31,28 @@ _GENERIC_SECTIONS = {
     "nuoc uong",
     "specials",
 }
+
+
+class MenuParser(Protocol):
+    def parse(
+        self,
+        document: OcrDocument,
+        *,
+        target_language: str = "en",
+    ) -> ParsedMenuDraft:
+        """Convert provider-neutral OCR output into a parsed menu draft."""
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class RuleBasedMenuParser:
+    def parse(
+        self,
+        document: OcrDocument,
+        *,
+        target_language: str = "en",
+    ) -> ParsedMenuDraft:
+        return parse_menu(document, target_language=target_language)
 
 
 def parse_menu(document: OcrDocument, *, target_language: str = "en") -> ParsedMenuDraft:
