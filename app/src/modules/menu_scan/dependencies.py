@@ -9,6 +9,8 @@ from src.modules.menu_scan.adapters.storage import (
     ObjectStorage,
     build_object_storage,
 )
+from src.modules.menu_scan.llm_menu_parser import GeminiMenuParser
+from src.modules.menu_scan.menu_parser import MenuParser, RuleBasedMenuParser
 from src.modules.menu_scan.ocr.adapters.google_vision import GoogleVisionOcrProvider
 from src.modules.menu_scan.ocr.document_preprocessor import DocumentPreprocessor
 from src.modules.menu_scan.ocr.provider import FakeOcrProvider, OcrProvider
@@ -57,3 +59,18 @@ def get_ocr_service(
         ),
         provider=provider,
     )
+
+
+def get_menu_parser() -> MenuParser:
+    config = settings.llm
+    if config.provider == "rule_based":
+        return RuleBasedMenuParser()
+    if config.provider == "gemini":
+        assert config.api_key is not None  # noqa: S101
+        return GeminiMenuParser(
+            api_key=config.api_key,
+            api_base_url=config.api_base_url,
+            model=config.model,
+            timeout_seconds=config.timeout_seconds,
+        )
+    raise ValueError(f"Unsupported LLM_PROVIDER={config.provider!r}")

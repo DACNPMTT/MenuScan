@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import base64
-import logging
 from dataclasses import dataclass
 from time import monotonic
 from typing import Any
@@ -22,9 +21,6 @@ from src.modules.menu_scan.ocr.provider import (
     ProviderTimeoutError,
     ProviderUnavailableError,
 )
-
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,51 +98,13 @@ class GoogleVisionOcrProvider:
         if response.status_code >= 500 or response.status_code == 429:
             raise ProviderUnavailableError()
         if response.status_code >= 400:
-            error_status = _error_status(response)
-            logger.warning(
-                "google_vision_request_failed status_code=%s error_status=%s",
-                response.status_code,
-                error_status,
-            )
-            raise ProviderProcessingError(
-                provider="google_vision",
-                status_code=response.status_code,
-                reason=error_status,
-            )
+            raise ProviderProcessingError()
 
         body = response.json()
         result = (body.get("responses") or [{}])[0]
         if "error" in result:
-            error_status = _result_error_status(result)
-            logger.warning(
-                "google_vision_result_failed error_status=%s",
-                error_status,
-            )
-            raise ProviderProcessingError(
-                provider="google_vision",
-                reason=error_status,
-            )
+            raise ProviderProcessingError()
         return result
-
-
-def _error_status(response: httpx.Response) -> str | None:
-    try:
-        body = response.json()
-    except ValueError:
-        return None
-    error = body.get("error")
-    if not isinstance(error, dict):
-        return None
-    status = error.get("status")
-    return status if isinstance(status, str) else None
-
-
-def _result_error_status(result: dict[str, Any]) -> str | None:
-    error = result.get("error")
-    if not isinstance(error, dict):
-        return None
-    status = error.get("status")
-    return status if isinstance(status, str) else None
 
 
 def _page_from_response(

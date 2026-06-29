@@ -118,6 +118,12 @@ such as the database.
 | `STORAGE_PROVIDER` | `local` |
 | `STORAGE_LOCAL_ROOT` | `storage/objects` |
 | `STORAGE_SIGNED_URL_SECONDS` | `300` |
+| `OCR_PROVIDER` | `fake` |
+| `GOOGLE_VISION_API_KEY` | unset |
+| `LLM_PROVIDER` | `rule_based` |
+| `LLM_API_KEY` / `GEMINI_API_KEY` | unset |
+| `LLM_MODEL` | `gemini-2.5-flash` |
+| `LLM_TIMEOUT_SECONDS` | `20` |
 
 `CORS_ORIGINS` is a comma-separated allowlist. Do not combine wildcard origins
 with credentialed CORS requests.
@@ -128,3 +134,7 @@ setting `STORAGE_PROVIDER=s3`, `STORAGE_BUCKET_NAME`, `STORAGE_ENDPOINT_URL`,
 `STORAGE_REGION`, `STORAGE_ACCESS_KEY_ID` and `STORAGE_SECRET_ACCESS_KEY`.
 Buckets must remain private; source access is authorized by the backend and
 production responses redirect to a short-lived signed URL.
+
+The parsed-menu stage uses the rule-based parser by default. To enable Gemini
+for the LLM parser after the Google project has active billing/credits, set
+`LLM_PROVIDER=gemini` and provide either `LLM_API_KEY` or `GEMINI_API_KEY`.
