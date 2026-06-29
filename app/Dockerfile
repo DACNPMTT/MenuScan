@@ -9,10 +9,17 @@ WORKDIR /app
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
+RUN addgroup --system --gid 10001 app \
+    && adduser --system --uid 10001 --ingroup app --home /app --no-create-home app
+
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev
 
 COPY . .
+RUN mkdir -p /app/storage \
+    && chown -R app:app /app
+
+USER app
 
 EXPOSE 8000
 
