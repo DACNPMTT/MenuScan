@@ -11,9 +11,9 @@ from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 # Importing the model modules registers every table on ``Base.metadata`` so
 # ``create_all`` covers the whole schema, not just identity.
@@ -60,6 +60,27 @@ def db_session(db_engine: Engine) -> Iterator[Session]:
         session.close()
         outer.rollback()
         connection.close()
+
+
+@pytest.fixture
+def db_session_factory(db_engine: Engine) -> Iterator[sessionmaker[Session]]:
+    """Session factory for pipeline tests that manage their own sessions.
+
+    Uses a real transaction per session — each test gets a clean slate via
+    table truncation rather than savepoint rollback.
+    """
+    factory = sessionmaker(bind=db_engine, autoflush=False, expire_on_commit=False)
+    yield factory
+    # Cleanup: truncate pipeline-related tables after each test
+    with factory() as session:
+        session.execute(text("DELETE FROM food_items"))
+        session.execute(text("DELETE FROM menus"))
+        session.execute(text("DELETE FROM ocr_results"))
+        session.execute(text("DELETE FROM scan_sessions"))
+        session.execute(text("DELETE FROM user_sessions"))
+        session.execute(text("DELETE FROM magic_link_tokens"))
+        session.execute(text("DELETE FROM users"))
+        session.commit()
 
 
 # --- Test doubles -------------------------------------------------------------

@@ -4,7 +4,9 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from src.core.config import settings
-from src.core.database import get_db
+from src.core.database import SessionLocal, get_db
+from src.modules.menu.repository import MenuRepository
+from src.modules.menu_scan.adapters.gemini_translation import GeminiTranslationProvider
 from src.modules.menu_scan.adapters.storage import (
     ObjectStorage,
     build_object_storage,
@@ -15,8 +17,11 @@ from src.modules.menu_scan.ocr.adapters.google_vision import GoogleVisionOcrProv
 from src.modules.menu_scan.ocr.document_preprocessor import DocumentPreprocessor
 from src.modules.menu_scan.ocr.provider import FakeOcrProvider, OcrProvider
 from src.modules.menu_scan.ocr.service import OcrService
+from src.modules.menu_scan.pipeline import ScanPipeline
 from src.modules.menu_scan.repository import ScanSessionRepository
 from src.modules.menu_scan.service import ScanService
+from src.modules.menu_scan.translation_provider import FakeTranslationProvider
+from src.modules.menu_scan.translation_service import TranslationService
 
 
 @lru_cache
@@ -74,3 +79,30 @@ def get_menu_parser() -> MenuParser:
             timeout_seconds=config.timeout_seconds,
         )
     raise ValueError(f"Unsupported LLM_PROVIDER={config.provider!r}")
+
+
+def get_translation_service() -> TranslationService:
+    config = settings.llm
+    if config.api_key:
+        provider = GeminiTranslationProvider(
+            api_key=config.api_key,
+            api_base_url=config.api_base_url,
+            model=config.model,
+            timeout_seconds=config.timeout_seconds,
+        )
+    else:
+        provider = FakeTranslationProvider()
+    return TranslationService(provider=provider)
+
+
+def get_scan_pipeline() -> ScanPipeline:
+    return ScanPipeline(
+        session_factory=SessionLocal,
+        storage=get_object_storage(),
+        ocr_service=get_ocr_service(get_ocr_provider()),
+        menu_parser=get_menu_parser(),
+        translation_service=get_translation_service(),
+        scan_repository=ScanSessionRepository(),
+        menu_repository=MenuRepository(),
+    )
+

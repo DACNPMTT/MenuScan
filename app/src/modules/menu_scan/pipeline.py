@@ -1,0 +1,393 @@
+"""Pipeline orchestrator for scan processing.
+
+Coordinates: Storage → OCR → Parser → Translation → Persist results.
+Each stage commits its state transition so GET /scans/{id} reflects real progress.
+"""
+from __future__ import annotations
+
+import logging
+import uuid
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
+
+from sqlalchemy.orm import Session, sessionmaker
+
+from src.modules.menu.models import FoodItem, Menu
+from src.modules.menu.repository import MenuRepository
+from src.modules.menu_scan.adapters.storage import (
+    ObjectNotFoundError,
+    ObjectStorage,
+    ObjectStorageError,
+)
+from src.modules.menu_scan.exceptions import (
+    OcrEmptyResultError,
+    OcrProcessingFailedError,
+    OcrProviderUnavailableError,
+    OcrTimeoutError,
+)
+from src.modules.menu_scan.menu_parser import MenuParser
+from src.modules.menu_scan.models import OcrResult, ScanSession, ScanStatus
+from src.modules.menu_scan.ocr.service import OcrService, OcrSource
+from src.modules.menu_scan.ocr_contract import OcrDocument, ParsedMenuDraft
+from src.modules.menu_scan.repository import ScanSessionRepository
+from src.modules.menu_scan.translation_service import TranslationService
+
+logger = logging.getLogger(__name__)
+
+# ── Error code constants ────────────────────────────────────────────
+
+_ERROR_SOURCE_FILE_NOT_FOUND = "SOURCE_FILE_NOT_FOUND"
+_ERROR_STORAGE_UNAVAILABLE = "STORAGE_UNAVAILABLE"
+_ERROR_OCR_TIMEOUT = "OCR_TIMEOUT"
+_ERROR_OCR_PROVIDER_UNAVAILABLE = "OCR_PROVIDER_UNAVAILABLE"
+_ERROR_OCR_EMPTY_RESULT = "OCR_EMPTY_RESULT"
+_ERROR_OCR_PROCESSING_FAILED = "OCR_PROCESSING_FAILED"
+_ERROR_PARSING_FAILED = "PARSING_FAILED"
+_ERROR_PROCESSING_FAILED = "PROCESSING_FAILED"
+
+# ── Stage constants ─────────────────────────────────────────────────
+
+STAGE_OCR = "OCR"
+STAGE_ANALYZING = "ANALYZING"
+STAGE_TRANSLATING = "TRANSLATING"
+STAGE_FINALIZING = "FINALIZING"
+
+
+@dataclass(frozen=True, slots=True)
+class ScanPipeline:
+    session_factory: sessionmaker[Session]
+    storage: ObjectStorage
+    ocr_service: OcrService
+    menu_parser: MenuParser
+    translation_service: TranslationService
+    scan_repository: ScanSessionRepository
+    menu_repository: MenuRepository
+
+    def process(self, scan_id: uuid.UUID) -> None:
+        """Run the full scan pipeline for the given scan_id."""
+        log = logger.bind(scan_id=str(scan_id)) if hasattr(logger, "bind") else logger
+
+        with self.session_factory() as session:
+            scan = self.scan_repository.get_scan_for_processing(
+                session, scan_id=scan_id,
+            )
+            if scan is None:
+                log.warning("pipeline_scan_not_found scan_id=%s", scan_id)
+                return
+
+            if scan.status == ScanStatus.COMPLETED:
+                log.info("pipeline_skip_completed scan_id=%s", scan_id)
+                return
+
+            if scan.status not in {ScanStatus.PENDING, ScanStatus.FAILED}:
+                log.info(
+                    "pipeline_skip_invalid_status scan_id=%s status=%s",
+                    scan_id, scan.status,
+                )
+                return
+
+            # Cleanup existing results for retry idempotency
+            if scan.status == ScanStatus.FAILED:
+                log.info("pipeline_retry_cleanup scan_id=%s", scan_id)
+                self.scan_repository.delete_existing_results(session, scan)
+                session.commit()
+
+            # Transition to PROCESSING
+            _update_scan(
+                scan,
+                status=ScanStatus.PROCESSING,
+                stage=STAGE_OCR,
+                progress=5,
+                started_at=datetime.now(timezone.utc),
+            )
+            session.commit()
+
+        # Run pipeline stages outside the initial session
+        try:
+            ocr_document = self._stage_ocr(scan_id)
+            draft = self._stage_analyze(scan_id, ocr_document)
+            draft = self._stage_translate(scan_id, draft)
+            self._stage_finalize(scan_id, ocr_document, draft)
+        except _PipelineError as error:
+            self._fail_scan(scan_id, error.code, error.message)
+            raise
+        except Exception as error:
+            self._fail_scan(scan_id, _ERROR_PROCESSING_FAILED, str(error))
+            raise
+
+    def _stage_ocr(self, scan_id: uuid.UUID) -> OcrDocument:
+        """Read source file and run OCR."""
+        with self.session_factory() as session:
+            scan = self.scan_repository.get_scan_for_processing(
+                session, scan_id=scan_id,
+            )
+            assert scan is not None  # noqa: S101
+
+            # Read source from storage
+            try:
+                stored = self.storage.read_object(scan.source_object_key)
+            except ObjectNotFoundError as error:
+                raise _PipelineError(
+                    _ERROR_SOURCE_FILE_NOT_FOUND,
+                    "Source file not found in storage.",
+                ) from error
+            except ObjectStorageError as error:
+                raise _PipelineError(
+                    _ERROR_STORAGE_UNAVAILABLE,
+                    "Storage is temporarily unavailable.",
+                ) from error
+
+            source = OcrSource(
+                object_key=scan.source_object_key,
+                data=stored.data,
+                mime_type=scan.source_mime_type,
+            )
+
+        # Run OCR (outside DB session — may be slow)
+        try:
+            ocr_document = self.ocr_service.process(source)
+        except OcrTimeoutError as error:
+            raise _PipelineError(_ERROR_OCR_TIMEOUT, "OCR timed out.") from error
+        except OcrProviderUnavailableError as error:
+            raise _PipelineError(
+                _ERROR_OCR_PROVIDER_UNAVAILABLE,
+                "OCR provider is temporarily unavailable.",
+            ) from error
+        except OcrEmptyResultError as error:
+            raise _PipelineError(
+                _ERROR_OCR_EMPTY_RESULT,
+                "OCR did not return usable text.",
+            ) from error
+        except OcrProcessingFailedError as error:
+            raise _PipelineError(
+                _ERROR_OCR_PROCESSING_FAILED,
+                "OCR processing failed.",
+            ) from error
+        except Exception as error:
+            raise _PipelineError(
+                _ERROR_OCR_PROCESSING_FAILED,
+                "OCR processing failed.",
+            ) from error
+
+        # Save OcrResult + update stage
+        with self.session_factory() as session:
+            scan = self.scan_repository.get_scan_for_processing(
+                session, scan_id=scan_id,
+            )
+            assert scan is not None  # noqa: S101
+
+            ocr_result = OcrResult(
+                scan_session_id=scan.id,
+                raw_text=ocr_document.text,
+                detected_language=ocr_document.detected_language,
+                confidence_score=(
+                    Decimal(str(ocr_document.confidence))
+                    if ocr_document.confidence is not None
+                    else None
+                ),
+                provider=ocr_document.provider,
+                provider_metadata=dict(ocr_document.metadata),
+                processing_time_ms=ocr_document.processing_time_ms,
+            )
+            self.scan_repository.save_ocr_result(session, ocr_result)
+            _update_scan(scan, stage=STAGE_ANALYZING, progress=30)
+            session.commit()
+
+        logger.info("pipeline_ocr_complete scan_id=%s", scan_id)
+        return ocr_document
+
+    def _stage_analyze(
+        self, scan_id: uuid.UUID, ocr_document: OcrDocument,
+    ) -> ParsedMenuDraft:
+        """Parse OCR document into structured menu draft."""
+        with self.session_factory() as session:
+            scan = self.scan_repository.get_scan_for_processing(
+                session, scan_id=scan_id,
+            )
+            assert scan is not None  # noqa: S101
+            target_language = scan.target_language
+
+        try:
+            draft = self.menu_parser.parse(
+                ocr_document, target_language=target_language,
+            )
+        except Exception as error:
+            raise _PipelineError(
+                _ERROR_PARSING_FAILED,
+                "Menu parsing failed.",
+            ) from error
+
+        with self.session_factory() as session:
+            scan = self.scan_repository.get_scan_for_processing(
+                session, scan_id=scan_id,
+            )
+            assert scan is not None  # noqa: S101
+            _update_scan(scan, stage=STAGE_TRANSLATING, progress=55)
+            session.commit()
+
+        logger.info("pipeline_analyze_complete scan_id=%s items=%d", scan_id, len(draft.items))
+        return draft
+
+    def _stage_translate(
+        self, scan_id: uuid.UUID, draft: ParsedMenuDraft,
+    ) -> ParsedMenuDraft:
+        """Translate menu items. Failure is graceful — original content preserved."""
+        try:
+            draft = self.translation_service.translate_draft(draft)
+        except Exception:
+            logger.warning(
+                "pipeline_translation_failed scan_id=%s — continuing with originals",
+                scan_id,
+            )
+
+        with self.session_factory() as session:
+            scan = self.scan_repository.get_scan_for_processing(
+                session, scan_id=scan_id,
+            )
+            assert scan is not None  # noqa: S101
+            _update_scan(scan, stage=STAGE_FINALIZING, progress=80)
+            session.commit()
+
+        logger.info("pipeline_translate_complete scan_id=%s", scan_id)
+        return draft
+
+    def _stage_finalize(
+        self,
+        scan_id: uuid.UUID,
+        ocr_document: OcrDocument,
+        draft: ParsedMenuDraft,
+    ) -> None:
+        """Persist Menu + FoodItems and mark scan COMPLETED."""
+        with self.session_factory() as session:
+            scan = self.scan_repository.get_scan_for_processing(
+                session, scan_id=scan_id,
+            )
+            assert scan is not None  # noqa: S101
+
+            menu = Menu(
+                scan_session_id=scan.id,
+                title=draft.title or scan.source_file_name,
+                source_language=draft.source_language,
+                target_language=draft.target_language,
+                default_currency=_safe_currency(draft.default_currency),
+            )
+
+            food_items = [
+                FoodItem(
+                    original_name=item.original_name[:255],
+                    translated_name=(
+                        item.translated_name[:255]
+                        if item.translated_name
+                        else None
+                    ),
+                    original_description=item.original_description,
+                    translated_description=item.translated_description,
+                    price=_safe_decimal(item.price),
+                    currency=_safe_currency(item.currency),
+                    category=(
+                        item.category[:100] if item.category else None
+                    ),
+                    confidence_score=(
+                        Decimal(str(item.confidence))
+                        if item.confidence is not None
+                        else None
+                    ),
+                    sort_order=item.sort_order,
+                )
+                for item in draft.items
+            ]
+
+            self.menu_repository.save_menu_with_items(session, menu, food_items)
+
+            _update_scan(
+                scan,
+                status=ScanStatus.COMPLETED,
+                stage=None,
+                progress=100,
+                completed_at=datetime.now(timezone.utc),
+            )
+            session.commit()
+
+        logger.info(
+            "pipeline_complete scan_id=%s menu_items=%d",
+            scan_id,
+            len(food_items),
+        )
+
+    def _fail_scan(
+        self, scan_id: uuid.UUID, error_code: str, error_message: str,
+    ) -> None:
+        """Mark scan as FAILED with error details."""
+        try:
+            with self.session_factory() as session:
+                scan = self.scan_repository.get_scan_for_processing(
+                    session, scan_id=scan_id,
+                )
+                if scan is None:
+                    return
+                _update_scan(
+                    scan,
+                    status=ScanStatus.FAILED,
+                    stage=None,
+                    progress=0,
+                    error_code=error_code,
+                    error_message=error_message,
+                    completed_at=datetime.now(timezone.utc),
+                )
+                session.commit()
+        except Exception:
+            logger.exception("pipeline_fail_scan_error scan_id=%s", scan_id)
+
+
+class _PipelineError(Exception):
+    """Internal error with a stable error code for the scan record."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+def _update_scan(
+    scan: ScanSession,
+    *,
+    status: ScanStatus | None = None,
+    stage: str | None = ...,  # type: ignore[assignment]
+    progress: int | None = None,
+    error_code: str | None = None,
+    error_message: str | None = None,
+    started_at: datetime | None = None,
+    completed_at: datetime | None = None,
+) -> None:
+    """Mutate scan fields in-place. Uses sentinel for nullable fields."""
+    if status is not None:
+        scan.status = status
+    if stage is not ...:
+        scan.stage = stage
+    if progress is not None:
+        scan.progress = progress
+    if error_code is not None:
+        scan.error_code = error_code
+    if error_message is not None:
+        scan.error_message = error_message
+    if started_at is not None:
+        scan.started_at = started_at
+    if completed_at is not None:
+        scan.completed_at = completed_at
+
+
+def _safe_decimal(value: str | None) -> Decimal | None:
+    if value is None:
+        return None
+    try:
+        return Decimal(value)
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def _safe_currency(value: str | None) -> str | None:
+    if value is None:
+        return None
+    cleaned = value.strip()[:3]
+    return cleaned if cleaned else None
