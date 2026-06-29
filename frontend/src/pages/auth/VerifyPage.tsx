@@ -1,28 +1,21 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowRight, Check } from 'lucide-react'
-import { api } from '@/shared/lib/api'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Check } from 'lucide-react'
+import { useAuth } from '@/app/providers/AuthProvider'
 import { Button } from '@/shared/components/ui/button'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 
 type VerifyStatus = 'verifying' | 'success' | 'error'
 
+const verificationRequests = new Map<string, Promise<void>>()
+
 export function VerifyPage() {
   useDocumentTitle('Verify | MenuScan')
   const [params] = useSearchParams()
+  const navigate = useNavigate()
+  const { verifyMagicLink } = useAuth()
   const token = params.get('token')
   const [status, setStatus] = useState<VerifyStatus>('verifying')
-  const strippedRef = useRef(false)
-
-  // Strip the token from the URL immediately after reading it (rule: never leave
-  // the raw token in the address bar / history).
-  useEffect(() => {
-    if (strippedRef.current) return
-    strippedRef.current = true
-    const url = new URL(window.location.href)
-    url.searchParams.delete('token')
-    window.history.replaceState(null, '', url.pathname)
-  }, [])
 
   useEffect(() => {
     let active = true
@@ -31,14 +24,28 @@ export function VerifyPage() {
         if (active) setStatus('error')
         return
       }
-      try {
-        // POST /auth/verify is not implemented in the backend yet; this will
-        // resolve to `success` once it exists. Until then it 404s -> error.
-        await api('/auth/verify', {
-          method: 'POST',
-          body: JSON.stringify({ token }),
+
+      const existingRequest = verificationRequests.get(token)
+      const request =
+        existingRequest ??
+        verifyMagicLink(token).then(() => {
+          // Verify tokens are one-time-use. Keep this request shared long enough
+          // for React StrictMode remounts to reuse the successful result.
+          window.setTimeout(() => {
+            verificationRequests.delete(token)
+          }, 5000)
         })
-        if (active) setStatus('success')
+
+      if (!existingRequest) {
+        verificationRequests.set(token, request)
+      }
+
+      try {
+        await request
+        if (active) {
+          setStatus('success')
+          navigate('/auth/set-password', { replace: true })
+        }
       } catch {
         if (active) setStatus('error')
       }
@@ -47,7 +54,7 @@ export function VerifyPage() {
     return () => {
       active = false
     }
-  }, [token])
+  }, [navigate, token, verifyMagicLink])
 
   if (status === 'verifying') {
     return (
@@ -70,14 +77,15 @@ export function VerifyPage() {
           </h1>
           <h2 className="text-[24px] text-ink">Verification isn&apos;t available yet</h2>
           <p className="text-[16px] leading-[22px] text-ink-variant">
-            Xác thực email chưa được bật ở backend. Vui lòng quay lại sau hoặc liên
-            hệ quản trị viên.
+            Liên kết xác thực không hợp lệ, đã hết hạn, hoặc đã được sử dụng.
+            Vui lòng yêu cầu liên kết đăng nhập mới.
           </p>
           <Button
-            asChild
+            type="button"
             className="h-12 rounded-full bg-primary font-bold text-white hover:bg-primary/90"
+            onClick={() => navigate('/auth/login')}
           >
-            <Link to="/auth/login">Back to login</Link>
+            Back to login
           </Button>
         </div>
       </div>
@@ -110,12 +118,11 @@ export function VerifyPage() {
           </div>
 
           <Button
-            asChild
+            type="button"
             className="h-12 rounded-full bg-primary px-[25px] text-[17px] font-bold text-white hover:bg-primary/90"
+            onClick={() => navigate('/auth/set-password', { replace: true })}
           >
-            <Link to="/auth/login">
-              Proceed to Login <ArrowRight className="size-4" aria-hidden />
-            </Link>
+            Continue
           </Button>
         </div>
       </div>

@@ -55,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       await fetchCurrentUser(token)
     }
+    setLoading(false)
   }, [fetchCurrentUser])
 
   // 1. Login with Password
