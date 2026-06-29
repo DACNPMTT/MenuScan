@@ -55,7 +55,9 @@ class RuleBasedMenuParser:
         return parse_menu(document, target_language=target_language)
 
 
-def parse_menu(document: OcrDocument, *, target_language: str = "en") -> ParsedMenuDraft:
+def parse_menu(
+    document: OcrDocument, *, target_language: str = "en"
+) -> ParsedMenuDraft:
     title = _detect_title(document)
     default_currency = _infer_default_currency(document)
     warnings = _collect_warnings(document)
@@ -74,7 +76,9 @@ def parse_menu(document: OcrDocument, *, target_language: str = "en") -> ParsedM
                 if role == LineRole.SECTION_HEADER:
                     section = _normalize_header(line.text)
                     current_section = section
-                    current_base_name = section if _looks_like_variant_base(section) else None
+                    current_base_name = (
+                        section if _looks_like_variant_base(section) else None
+                    )
                     continue
 
                 if role == LineRole.PRICE_ONLY:
@@ -93,7 +97,9 @@ def parse_menu(document: OcrDocument, *, target_language: str = "en") -> ParsedM
                 base_name: str | None = None
                 variant_name: str | None = None
 
-                if current_base_name and _looks_like_variant_name(split.name, current_base_name):
+                if current_base_name and _looks_like_variant_name(
+                    split.name, current_base_name
+                ):
                     variant_name = _lower_first(split.name)
                     base_name = current_base_name
                     original_name = f"{base_name} {variant_name}"
@@ -291,7 +297,9 @@ def _ascii_fold(text: str) -> str:
         "ỹ": "y",
         "đ": "d",
     }
-    return "".join(replacements.get(character.lower(), character.lower()) for character in text)
+    return "".join(
+        replacements.get(character.lower(), character.lower()) for character in text
+    )
 
 
 def _merge_confidence(*values: float | None) -> float | None:

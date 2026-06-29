@@ -14,7 +14,10 @@ from fixtures.menu_parser_fixtures import (
 )
 
 FIXTURE_SAMPLES_PATH = (
-    Path(__file__).resolve().parents[2] / "doc" / "ocr-benchmark" / "fixture_samples.json"
+    Path(__file__).resolve().parents[2]
+    / "doc"
+    / "ocr-benchmark"
+    / "fixture_samples.json"
 )
 
 

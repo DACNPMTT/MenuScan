@@ -51,9 +51,7 @@ def _make_service(
 
 def _tokens_for(session, email: str) -> list[MagicLinkToken]:
     return list(
-        session.scalars(
-            select(MagicLinkToken).where(MagicLinkToken.email == email)
-        )
+        session.scalars(select(MagicLinkToken).where(MagicLinkToken.email == email))
     )
 
 
@@ -83,9 +81,7 @@ def test_request_creates_token_with_hash_and_sends_link(db_session):
     assert raw_token  # non-empty
     assert token.token_hash != raw_token
     # Raw token must not appear anywhere in the persisted row.
-    persisted = "".join(
-        str(getattr(token, col)) for col in ("token_hash", "email")
-    )
+    persisted = "".join(str(getattr(token, col)) for col in ("token_hash", "email"))
     assert raw_token not in persisted
 
 

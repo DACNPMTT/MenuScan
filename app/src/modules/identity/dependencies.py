@@ -17,7 +17,11 @@ from src.modules.identity.adapters.email import (
 )
 from src.modules.identity.exceptions import UnauthorizedError
 from src.modules.identity.models import User, UserStatus
-from src.modules.identity.repository import MagicLinkTokenRepository, UserRepository, UserSessionRepository
+from src.modules.identity.repository import (
+    MagicLinkTokenRepository,
+    UserRepository,
+    UserSessionRepository,
+)
 from src.modules.identity.service import MagicLinkService
 
 oauth2_scheme = HTTPBearer(auto_error=False)
@@ -80,4 +84,3 @@ def get_current_user(
         raise UnauthorizedError()
 
     return user
-

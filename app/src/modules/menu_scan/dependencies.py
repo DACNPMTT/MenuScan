@@ -105,4 +105,3 @@ def get_scan_pipeline() -> ScanPipeline:
         scan_repository=ScanSessionRepository(),
         menu_repository=MenuRepository(),
     )
-

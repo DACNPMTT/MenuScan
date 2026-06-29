@@ -36,7 +36,9 @@ def split_name_description_price(line_text: str) -> NameDescriptionPrice:
     if description is not None:
         description = description.strip(" -–:;,.") or None
 
-    return NameDescriptionPrice(name=name, description=description, price_text=price_text)
+    return NameDescriptionPrice(
+        name=name, description=description, price_text=price_text
+    )
 
 
 def _normalize_spaces(text: str) -> str:

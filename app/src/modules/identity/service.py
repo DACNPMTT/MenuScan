@@ -29,8 +29,18 @@ from src.modules.identity.exceptions import (
     SessionRevokedError,
     UnauthorizedError,
 )
-from src.modules.identity.models import MagicLinkToken, User, UserRole, UserSession, UserStatus
-from src.modules.identity.repository import MagicLinkTokenRepository, UserRepository, UserSessionRepository
+from src.modules.identity.models import (
+    MagicLinkToken,
+    User,
+    UserRole,
+    UserSession,
+    UserStatus,
+)
+from src.modules.identity.repository import (
+    MagicLinkTokenRepository,
+    UserRepository,
+    UserSessionRepository,
+)
 from src.modules.identity.schemas import MagicLinkData
 
 logger = logging.getLogger(__name__)
@@ -64,9 +74,6 @@ def hash_token(token: str) -> str:
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
-
-
-
 
 
 # --- Password hashing and verification helpers --------------------------------
@@ -138,7 +145,7 @@ class MagicLinkService:
             )
             if payload.get("type") != "access":
                 raise UnauthorizedError()
-            
+
             exp = payload.get("exp")
             if exp is None or self._clock().timestamp() > exp:
                 raise UnauthorizedError()
@@ -380,5 +387,3 @@ class MagicLinkService:
         if user_session is not None and user_session.revoked_at is None:
             user_session.revoked_at = now
             self._session.commit()
-
-

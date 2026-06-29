@@ -39,15 +39,7 @@ class FakeClient:
 def test_gemini_translation_posts_correct_batch_request() -> None:
     provider_body = {
         "candidates": [
-            {
-                "content": {
-                    "parts": [
-                        {
-                            "text": json.dumps(["Beef pho", "Spring rolls"])
-                        }
-                    ]
-                }
-            }
+            {"content": {"parts": [{"text": json.dumps(["Beef pho", "Spring rolls"])}]}}
         ]
     }
     client = FakeClient(FakeResponse(200, provider_body))
@@ -67,16 +59,15 @@ def test_gemini_translation_posts_correct_batch_request() -> None:
 
     call = client.calls[0]
     assert call["url"] == (
-        "https://gemini.example.test/v1beta/"
-        "models/gemini-2.5-flash:generateContent"
+        "https://gemini.example.test/v1beta/models/gemini-2.5-flash:generateContent"
     )
     assert call["params"] == {"key": "test-key"}
     assert call["json"]["generationConfig"]["responseMimeType"] == "application/json"
-    
+
     prompt = call["json"]["contents"][0]["parts"][0]["text"]
     assert "Phở bò" in prompt
     assert "Gỏi cuốn" in prompt
-    
+
     assert result == ["Beef pho", "Spring rolls"]
 
 
@@ -99,6 +90,7 @@ def test_gemini_translation_maps_429_to_unavailable() -> None:
 
 def test_gemini_translation_maps_timeout() -> None:
     import httpx
+
     provider = GeminiTranslationProvider(
         api_key="test-key",
         api_base_url="https://gemini.example.test/v1beta",
@@ -117,17 +109,7 @@ def test_gemini_translation_maps_timeout() -> None:
 
 def test_gemini_translation_partial_result_pads_none() -> None:
     provider_body = {
-        "candidates": [
-            {
-                "content": {
-                    "parts": [
-                        {
-                            "text": json.dumps(["Beef pho"])
-                        }
-                    ]
-                }
-            }
-        ]
+        "candidates": [{"content": {"parts": [{"text": json.dumps(["Beef pho"])}]}}]
     }
     client = FakeClient(FakeResponse(200, provider_body))
     provider = GeminiTranslationProvider(

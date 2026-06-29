@@ -56,7 +56,9 @@ def test_detect_zh_from_chinese_text() -> None:
     # since Chinese and Korean share CJK Unified Ideographs. Both are valid
     # CJK detections; the translation provider handles either correctly.
     result = detect_language("宫保鸡丁 麻婆豆腐 回锅肉 鱼香肉丝 红烧排骨 清蒸鲈鱼")
-    assert result in {"zh-cn", "zh-tw", "ko", "ja"}, f"Expected CJK language, got {result}"
+    assert result in {"zh-cn", "zh-tw", "ko", "ja"}, (
+        f"Expected CJK language, got {result}"
+    )
 
 
 def test_detect_th_from_thai_text() -> None:
@@ -70,9 +72,9 @@ def test_skip_when_source_equals_target() -> None:
     provider = FakeTranslationProvider()
     service = TranslationService(provider=provider)
     draft = _draft([("Gỏi cuốn", None)], source_language="vi", target_language="vi")
-    
+
     result = service.translate_draft(draft)
-    
+
     assert result is draft
     assert result.items[0].translated_name is None
 
@@ -81,9 +83,9 @@ def test_skip_when_source_unknown() -> None:
     provider = FakeTranslationProvider()
     service = TranslationService(provider=provider)
     draft = _draft([("12345", None)], source_language="unknown", target_language="en")
-    
+
     result = service.translate_draft(draft)
-    
+
     assert result.items[0].translated_name is None
 
 
@@ -94,19 +96,21 @@ def test_translate_vi_to_en_fills_translated_name() -> None:
     provider = FakeTranslationProvider()
     service = TranslationService(provider=provider)
     draft = _draft([("Phở bò", None)], source_language="vi", target_language="en")
-    
+
     result = service.translate_draft(draft)
-    
+
     assert result.items[0].translated_name == "[EN] Phở bò"
 
 
 def test_translate_preserves_original_fields() -> None:
     provider = FakeTranslationProvider()
     service = TranslationService(provider=provider)
-    draft = _draft([("Phở bò", "Nước dùng đậm đà")], source_language="vi", target_language="en")
-    
+    draft = _draft(
+        [("Phở bò", "Nước dùng đậm đà")], source_language="vi", target_language="en"
+    )
+
     result = service.translate_draft(draft)
-    
+
     assert result.items[0].original_name == "Phở bò"
     assert result.items[0].original_description == "Nước dùng đậm đà"
 
@@ -115,9 +119,9 @@ def test_null_description_stays_null() -> None:
     provider = FakeTranslationProvider()
     service = TranslationService(provider=provider)
     draft = _draft([("Phở bò", None)], source_language="vi", target_language="en")
-    
+
     result = service.translate_draft(draft)
-    
+
     assert result.items[0].translated_name == "[EN] Phở bò"
     assert result.items[0].translated_description is None
 
@@ -140,9 +144,9 @@ def test_timeout_returns_draft_unchanged() -> None:
     provider = FakeTranslationProvider(fail_with="timeout")
     service = TranslationService(provider=provider)
     draft = _draft([("Phở bò", None)], source_language="vi", target_language="en")
-    
+
     result = service.translate_draft(draft)
-    
+
     assert result.items[0].translated_name is None
 
 
@@ -150,19 +154,21 @@ def test_unavailable_returns_draft_unchanged() -> None:
     provider = FakeTranslationProvider(fail_with="unavailable")
     service = TranslationService(provider=provider)
     draft = _draft([("Phở bò", None)], source_language="vi", target_language="en")
-    
+
     result = service.translate_draft(draft)
-    
+
     assert result.items[0].translated_name is None
 
 
 def test_partial_failure_fills_available_translations() -> None:
     provider = FakeTranslationProvider(fail_with="partial")
     service = TranslationService(provider=provider)
-    draft = _draft([("Phở bò", None), ("Bún bò", None)], source_language="vi", target_language="en")
-    
+    draft = _draft(
+        [("Phở bò", None), ("Bún bò", None)], source_language="vi", target_language="en"
+    )
+
     result = service.translate_draft(draft)
-    
+
     assert result.items[0].translated_name is None
     assert result.items[1].translated_name == "[EN] Bún bò"
 
@@ -174,9 +180,9 @@ def test_detect_language_from_draft_when_source_is_none() -> None:
     provider = FakeTranslationProvider()
     service = TranslationService(provider=provider)
     draft = _draft([("Phở bò đặc biệt", None)], target_language="en")
-    
+
     result = service.translate_draft(draft)
-    
+
     assert result.source_language == "vi"
     assert result.items[0].translated_name == "[EN] Phở bò đặc biệt"
 

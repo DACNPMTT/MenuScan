@@ -75,8 +75,7 @@ def test_gemini_parser_posts_structured_json_request() -> None:
 
     call = client.calls[0]
     assert call["url"] == (
-        "https://gemini.example.test/v1beta/"
-        "models/gemini-2.5-flash:generateContent"
+        "https://gemini.example.test/v1beta/models/gemini-2.5-flash:generateContent"
     )
     assert call["params"] == {"key": "test-key"}
     assert call["json"]["generationConfig"]["responseMimeType"] == "application/json"

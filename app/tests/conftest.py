@@ -30,9 +30,7 @@ from src.modules.identity import models as _identity_models  # noqa: F401
 @pytest.fixture(scope="session")
 def db_engine() -> Iterator[Engine]:
     if os.getenv("RUN_DATABASE_TESTS") != "1":
-        pytest.skip(
-            "PostgreSQL integration tests require RUN_DATABASE_TESTS=1"
-        )
+        pytest.skip("PostgreSQL integration tests require RUN_DATABASE_TESTS=1")
     database_url = os.environ["DATABASE_URL"]
     engine = create_engine(database_url, pool_pre_ping=True)
     # Idempotent: no-op when the migration already created the tables. We do NOT
@@ -109,6 +107,4 @@ class FakeEmailSender:
     def send_magic_link(self, *, to_email: str, magic_link_url: str) -> None:
         if self.should_fail:
             raise EmailDeliveryError("fake delivery failure")
-        self.sent.append(
-            {"to_email": to_email, "magic_link_url": magic_link_url}
-        )
+        self.sent.append({"to_email": to_email, "magic_link_url": magic_link_url})

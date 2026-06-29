@@ -2,9 +2,7 @@ import os
 from dataclasses import dataclass, field
 
 
-DEFAULT_DATABASE_URL = (
-    "postgresql://menuscan:localdev@localhost:54320/menuscan"
-)
+DEFAULT_DATABASE_URL = "postgresql://menuscan:localdev@localhost:54320/menuscan"
 DEFAULT_MAGIC_LINK_BASE_URL = "http://localhost:5173"
 DEFAULT_CORS_ORIGINS = ("http://localhost:5173",)
 
@@ -165,11 +163,7 @@ class Settings:
     def from_environment(cls) -> "Settings":
         raw_origins = os.getenv("CORS_ORIGINS")
         cors_origins = (
-            tuple(
-                origin.strip()
-                for origin in raw_origins.split(",")
-                if origin.strip()
-            )
+            tuple(origin.strip() for origin in raw_origins.split(",") if origin.strip())
             if raw_origins is not None
             else DEFAULT_CORS_ORIGINS
         )
@@ -218,8 +212,7 @@ class Settings:
             )
         if not ocr.is_configured():
             raise ValueError(
-                f"OCR_PROVIDER={ocr.provider!r} requires "
-                "GOOGLE_VISION_API_KEY"
+                f"OCR_PROVIDER={ocr.provider!r} requires GOOGLE_VISION_API_KEY"
             )
 
         llm = _load_llm_config()
@@ -230,8 +223,7 @@ class Settings:
             )
         if not llm.is_configured():
             raise ValueError(
-                f"LLM_PROVIDER={llm.provider!r} requires "
-                "LLM_API_KEY or GEMINI_API_KEY"
+                f"LLM_PROVIDER={llm.provider!r} requires LLM_API_KEY or GEMINI_API_KEY"
             )
 
         return cls(
@@ -259,9 +251,9 @@ def _load_email_config() -> EmailConfig:
         provider=os.getenv("EMAIL_PROVIDER", DEFAULT_EMAIL_PROVIDER),
         from_address=os.getenv("EMAIL_FROM_ADDRESS", DEFAULT_EMAIL_FROM_ADDRESS),
         api_key=os.getenv("EMAIL_API_KEY"),
-        api_base_url=os.getenv(
-            "EMAIL_API_BASE_URL", DEFAULT_EMAIL_API_BASE_URL
-        ).rstrip("/"),
+        api_base_url=os.getenv("EMAIL_API_BASE_URL", DEFAULT_EMAIL_API_BASE_URL).rstrip(
+            "/"
+        ),
         timeout_seconds=float(
             os.getenv("EMAIL_TIMEOUT_SECONDS", DEFAULT_EMAIL_TIMEOUT_SECONDS)
         ),

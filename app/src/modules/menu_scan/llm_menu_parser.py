@@ -67,7 +67,9 @@ class GeminiMenuParser:
         except httpx.TimeoutException as error:
             raise LlmMenuParserTimeoutError("gemini parser timed out") from error
         except httpx.HTTPError as error:
-            raise LlmMenuParserUnavailableError("gemini parser request failed") from error
+            raise LlmMenuParserUnavailableError(
+                "gemini parser request failed"
+            ) from error
         finally:
             if owns_client:
                 client.close()

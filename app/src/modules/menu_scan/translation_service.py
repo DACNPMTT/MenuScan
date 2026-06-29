@@ -26,7 +26,7 @@ class TranslationService:
 
         if not source_language or source_language == UNKNOWN:
             return self._update_draft_language(draft, source_language)
-            
+
         if source_language.lower() == draft.target_language.lower():
             return self._update_draft_language(draft, source_language)
 
@@ -38,7 +38,7 @@ class TranslationService:
             if item.original_name:
                 index_map[len(texts_to_translate)] = (i, False)
                 texts_to_translate.append(item.original_name)
-            
+
             if item.original_description:
                 index_map[len(texts_to_translate)] = (i, True)
                 texts_to_translate.append(item.original_description)
@@ -57,23 +57,23 @@ class TranslationService:
             return self._update_draft_language(draft, source_language)
 
         new_items = list(draft.items)
-        
+
         for flat_idx, translated in enumerate(translated_texts):
             if translated is None:
                 continue
-                
+
             if flat_idx not in index_map:
                 continue
-                
+
             item_index, is_description = index_map[flat_idx]
             current_item = new_items[item_index]
-            
+
             update_dict = {}
             if is_description:
                 update_dict["translated_description"] = translated
             else:
                 update_dict["translated_name"] = translated
-                
+
             new_items[item_index] = current_item.model_copy(update=update_dict)
 
         return draft.model_copy(
@@ -90,13 +90,13 @@ class TranslationService:
                 texts.append(item.original_name)
             if item.original_description:
                 texts.append(item.original_description)
-                
+
         if not texts:
             return None
-            
+
         combined_text = "\n".join(texts)
         detected = self.detector(combined_text)
-        
+
         if detected == UNKNOWN:
             return None
         return detected

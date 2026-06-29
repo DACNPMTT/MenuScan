@@ -3,6 +3,7 @@
 Coordinates: Storage → OCR → Parser → Translation → Persist results.
 Each stage commits its state transition so GET /scans/{id} reflects real progress.
 """
+
 from __future__ import annotations
 
 import logging
@@ -70,7 +71,8 @@ class ScanPipeline:
 
         with self.session_factory() as session:
             scan = self.scan_repository.get_scan_for_processing(
-                session, scan_id=scan_id,
+                session,
+                scan_id=scan_id,
             )
             if scan is None:
                 log.warning("pipeline_scan_not_found scan_id=%s", scan_id)
@@ -83,7 +85,8 @@ class ScanPipeline:
             if scan.status not in {ScanStatus.PENDING, ScanStatus.FAILED}:
                 log.info(
                     "pipeline_skip_invalid_status scan_id=%s status=%s",
-                    scan_id, scan.status,
+                    scan_id,
+                    scan.status,
                 )
                 return
 
@@ -120,7 +123,8 @@ class ScanPipeline:
         """Read source file and run OCR."""
         with self.session_factory() as session:
             scan = self.scan_repository.get_scan_for_processing(
-                session, scan_id=scan_id,
+                session,
+                scan_id=scan_id,
             )
             assert scan is not None  # noqa: S101
 
@@ -173,7 +177,8 @@ class ScanPipeline:
         # Save OcrResult + update stage
         with self.session_factory() as session:
             scan = self.scan_repository.get_scan_for_processing(
-                session, scan_id=scan_id,
+                session,
+                scan_id=scan_id,
             )
             assert scan is not None  # noqa: S101
 
@@ -198,19 +203,23 @@ class ScanPipeline:
         return ocr_document
 
     def _stage_analyze(
-        self, scan_id: uuid.UUID, ocr_document: OcrDocument,
+        self,
+        scan_id: uuid.UUID,
+        ocr_document: OcrDocument,
     ) -> ParsedMenuDraft:
         """Parse OCR document into structured menu draft."""
         with self.session_factory() as session:
             scan = self.scan_repository.get_scan_for_processing(
-                session, scan_id=scan_id,
+                session,
+                scan_id=scan_id,
             )
             assert scan is not None  # noqa: S101
             target_language = scan.target_language
 
         try:
             draft = self.menu_parser.parse(
-                ocr_document, target_language=target_language,
+                ocr_document,
+                target_language=target_language,
             )
         except Exception as error:
             raise _PipelineError(
@@ -220,17 +229,22 @@ class ScanPipeline:
 
         with self.session_factory() as session:
             scan = self.scan_repository.get_scan_for_processing(
-                session, scan_id=scan_id,
+                session,
+                scan_id=scan_id,
             )
             assert scan is not None  # noqa: S101
             _update_scan(scan, stage=STAGE_TRANSLATING, progress=55)
             session.commit()
 
-        logger.info("pipeline_analyze_complete scan_id=%s items=%d", scan_id, len(draft.items))
+        logger.info(
+            "pipeline_analyze_complete scan_id=%s items=%d", scan_id, len(draft.items)
+        )
         return draft
 
     def _stage_translate(
-        self, scan_id: uuid.UUID, draft: ParsedMenuDraft,
+        self,
+        scan_id: uuid.UUID,
+        draft: ParsedMenuDraft,
     ) -> ParsedMenuDraft:
         """Translate menu items. Failure is graceful — original content preserved."""
         try:
@@ -243,7 +257,8 @@ class ScanPipeline:
 
         with self.session_factory() as session:
             scan = self.scan_repository.get_scan_for_processing(
-                session, scan_id=scan_id,
+                session,
+                scan_id=scan_id,
             )
             assert scan is not None  # noqa: S101
             _update_scan(scan, stage=STAGE_FINALIZING, progress=80)
@@ -261,7 +276,8 @@ class ScanPipeline:
         """Persist Menu + FoodItems and mark scan COMPLETED."""
         with self.session_factory() as session:
             scan = self.scan_repository.get_scan_for_processing(
-                session, scan_id=scan_id,
+                session,
+                scan_id=scan_id,
             )
             assert scan is not None  # noqa: S101
 
@@ -277,17 +293,13 @@ class ScanPipeline:
                 FoodItem(
                     original_name=item.original_name[:255],
                     translated_name=(
-                        item.translated_name[:255]
-                        if item.translated_name
-                        else None
+                        item.translated_name[:255] if item.translated_name else None
                     ),
                     original_description=item.original_description,
                     translated_description=item.translated_description,
                     price=_safe_decimal(item.price),
                     currency=_safe_currency(item.currency),
-                    category=(
-                        item.category[:100] if item.category else None
-                    ),
+                    category=(item.category[:100] if item.category else None),
                     confidence_score=(
                         Decimal(str(item.confidence))
                         if item.confidence is not None
@@ -316,13 +328,17 @@ class ScanPipeline:
         )
 
     def _fail_scan(
-        self, scan_id: uuid.UUID, error_code: str, error_message: str,
+        self,
+        scan_id: uuid.UUID,
+        error_code: str,
+        error_message: str,
     ) -> None:
         """Mark scan as FAILED with error details."""
         try:
             with self.session_factory() as session:
                 scan = self.scan_repository.get_scan_for_processing(
-                    session, scan_id=scan_id,
+                    session,
+                    scan_id=scan_id,
                 )
                 if scan is None:
                     return

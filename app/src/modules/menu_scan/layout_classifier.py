@@ -47,7 +47,9 @@ def classify_line_role(line_text: str, block: OcrBlock, page: OcrPage) -> LineRo
 
 
 def _is_noise(text: str) -> bool:
-    return bool(re.fullmatch(r"\d+", text) or _URL_RE.search(text) or _FOOTER_RE.search(text))
+    return bool(
+        re.fullmatch(r"\d+", text) or _URL_RE.search(text) or _FOOTER_RE.search(text)
+    )
 
 
 def _is_title_candidate(text: str, block: OcrBlock, page: OcrPage) -> bool:
@@ -66,7 +68,9 @@ def _is_section_header(text: str, block: OcrBlock) -> bool:
         return False
     if "".join(letters).isupper():
         return True
-    words = [word for word in re.split(r"\s+", text) if any(char.isalpha() for char in word)]
+    words = [
+        word for word in re.split(r"\s+", text) if any(char.isalpha() for char in word)
+    ]
     return bool(words) and all(_is_title_word(word) for word in words)
 
 

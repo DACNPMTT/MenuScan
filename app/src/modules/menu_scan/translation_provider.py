@@ -31,6 +31,7 @@ class TranslationProvider(Protocol):
 @dataclass(frozen=True, slots=True)
 class FakeTranslationProvider:
     """Returns '[EN] original' for vi->en, '[VI] original' for en->vi."""
+
     fail_with: str | None = None
 
     def translate_batch(
@@ -44,7 +45,7 @@ class FakeTranslationProvider:
             raise TranslationTimeoutError()
         if self.fail_with == "unavailable":
             raise TranslationUnavailableError()
-        
+
         if self.fail_with == "partial":
             return [
                 f"[{target_language.upper()}] {text}" if i % 2 == 1 else None

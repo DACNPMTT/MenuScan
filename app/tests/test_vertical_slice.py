@@ -161,7 +161,6 @@ def auth_client(db_session, sender, clock, local_storage):
 
 
 class TestVerticalSliceHappyPath:
-
     def test_full_flow_magic_link_to_scan_created(
         self, client_full, db_session, clock, sender
     ):
@@ -174,7 +173,9 @@ class TestVerticalSliceHappyPath:
 
         # 2. Verify Magic Link → nhận access token
         raw_token = sender.sent[0]["magic_link_url"].split("token=")[1]
-        r2 = client_full.post("/api/v1/auth/magic-links/verify", json={"token": raw_token})
+        r2 = client_full.post(
+            "/api/v1/auth/magic-links/verify", json={"token": raw_token}
+        )
         assert r2.status_code == 200
         access_token = r2.json()["data"]["access_token"]
 
@@ -313,7 +314,6 @@ class TestVerticalSliceHappyPath:
 
 
 class TestUploadFailurePaths:
-
     def test_unauthenticated_upload_returns_401(self, db_session, local_storage):
         """Upload không có token → 401 UNAUTHORIZED."""
         app = create_app()
@@ -445,7 +445,6 @@ class TestUploadFailurePaths:
 
 
 class TestNoDependencyOnProductionSecrets:
-
     def test_fake_email_adapter_never_calls_real_smtp(self, sender):
         """FakeEmailSender không gọi SMTP thật — chỉ lưu vào memory."""
         sender.send_magic_link(
@@ -488,7 +487,6 @@ class TestNoDependencyOnProductionSecrets:
 
 
 class TestDemoEvidence:
-
     def test_demo_upload_png_and_check_scan_metadata(self, auth_client):
         """
         Evidence demo: upload PNG → scan PENDING → kiểm tra metadata đầy đủ.
@@ -504,14 +502,14 @@ class TestDemoEvidence:
         data = r.json()["data"]
 
         # Kiểm tra đầy đủ các field cần thiết cho demo
-        assert uuid.UUID(data["id"])               # ID hợp lệ
-        assert data["status"] == "PENDING"         # chưa xử lý OCR
-        assert data["progress"] == 0               # 0%
-        assert data["target_language"] == "vi"     # ngôn ngữ đích
+        assert uuid.UUID(data["id"])  # ID hợp lệ
+        assert data["status"] == "PENDING"  # chưa xử lý OCR
+        assert data["progress"] == 0  # 0%
+        assert data["target_language"] == "vi"  # ngôn ngữ đích
         assert data["source"]["file_name"] == "demo_menu.png"
         assert data["source"]["mime_type"] == "image/png"
         assert data["source"]["file_size"] == len(PNG_BYTES)
-        assert data["created_at"] is not None      # timestamp tạo
+        assert data["created_at"] is not None  # timestamp tạo
 
     def test_demo_source_file_retrievable(self, auth_client):
         """
@@ -543,7 +541,9 @@ class TestDemoEvidence:
 
         # Step 2: Verify → nhận token
         raw_token = sender.sent[0]["magic_link_url"].split("token=")[1]
-        r2 = client_full.post("/api/v1/auth/magic-links/verify", json={"token": raw_token})
+        r2 = client_full.post(
+            "/api/v1/auth/magic-links/verify", json={"token": raw_token}
+        )
         assert r2.status_code == 200
         access_token = r2.json()["data"]["access_token"]
         user_email = r2.json()["data"]["user"]["email"]
@@ -552,7 +552,9 @@ class TestDemoEvidence:
         # Step 3: Dùng token upload menu ngay
         r3 = client_full.post(
             "/api/v1/scans",
-            files={"file": ("restaurant_menu.png", PNG_BYTES, "application/octet-stream")},
+            files={
+                "file": ("restaurant_menu.png", PNG_BYTES, "application/octet-stream")
+            },
             headers={"Authorization": f"Bearer {access_token}"},
         )
         assert r3.status_code == 202

@@ -36,7 +36,9 @@ class MagicLinkTokenRepository:
         token_hash: str,
     ) -> MagicLinkToken | None:
         """Return the token with the given SHA-256 hash, or ``None``."""
-        statement = select(MagicLinkToken).where(MagicLinkToken.token_hash == token_hash)
+        statement = select(MagicLinkToken).where(
+            MagicLinkToken.token_hash == token_hash
+        )
         return session.scalars(statement).first()
 
     def invalidate_unused_tokens(
@@ -94,4 +96,3 @@ class UserSessionRepository:
         """Stage a new session record and flush."""
         session.add(user_session)
         session.flush()
-

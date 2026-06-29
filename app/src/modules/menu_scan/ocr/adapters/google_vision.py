@@ -38,10 +38,7 @@ class GoogleVisionOcrProvider:
         source_object_key: str,
     ) -> OcrDocument:
         started_at = monotonic()
-        responses = [
-            self._annotate_page(page)
-            for page in pages
-        ]
+        responses = [self._annotate_page(page) for page in pages]
         ocr_pages = [
             _page_from_response(
                 response=response,
@@ -216,9 +213,7 @@ def _word_from_response(
     page_width: int,
     page_height: int,
 ) -> OcrWord:
-    text = "".join(
-        ((symbol.get("text") or "") for symbol in word.get("symbols") or [])
-    )
+    text = "".join(((symbol.get("text") or "") for symbol in word.get("symbols") or []))
     return OcrWord(
         id=f"p{page_index}-b{block_index}-l{line_index}-w{word_index}",
         text=text,
@@ -266,11 +261,7 @@ def _clamp(value: float) -> float:
 
 
 def _mean_optional(values: object) -> float | None:
-    numeric_values = [
-        float(value)
-        for value in values
-        if value is not None
-    ]
+    numeric_values = [float(value) for value in values if value is not None]
     if not numeric_values:
         return None
     return sum(numeric_values) / len(numeric_values)

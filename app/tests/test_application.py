@@ -216,10 +216,7 @@ def test_cors_uses_origins_from_settings() -> None:
     )
 
     assert response.status_code == 200
-    assert (
-        response.headers["access-control-allow-origin"]
-        == "https://frontend.example"
-    )
+    assert response.headers["access-control-allow-origin"] == "https://frontend.example"
 
 
 def test_validation_error_uses_standard_error_contract() -> None:

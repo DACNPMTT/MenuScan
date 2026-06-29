@@ -37,9 +37,11 @@ class GeminiTranslationProvider:
             target_language=target_language,
         )
         payload = _extract_json_payload(body)
-        
+
         if not isinstance(payload, list):
-            raise TranslationProviderError("gemini translation returned a non-array payload")
+            raise TranslationProviderError(
+                "gemini translation returned a non-array payload"
+            )
 
         # Pad with None if the result is shorter than the input
         result: list[str | None] = []
@@ -48,7 +50,7 @@ class GeminiTranslationProvider:
                 result.append(payload[i])
             else:
                 result.append(None)
-                
+
         return result
 
     def _generate(
@@ -73,7 +75,9 @@ class GeminiTranslationProvider:
         except httpx.TimeoutException as error:
             raise TranslationTimeoutError("gemini translation timed out") from error
         except httpx.HTTPError as error:
-            raise TranslationUnavailableError("gemini translation request failed") from error
+            raise TranslationUnavailableError(
+                "gemini translation request failed"
+            ) from error
         finally:
             if owns_client:
                 client.close()
@@ -88,7 +92,9 @@ class GeminiTranslationProvider:
         try:
             return response.json()
         except ValueError as error:
-            raise TranslationProviderError("gemini translation returned invalid json") from error
+            raise TranslationProviderError(
+                "gemini translation returned invalid json"
+            ) from error
 
 
 def _model_path(model: str) -> str:
@@ -122,10 +128,7 @@ def _build_request(
         "generationConfig": {
             "temperature": 0,
             "responseMimeType": "application/json",
-            "responseSchema": {
-                "type": "ARRAY",
-                "items": {"type": "STRING"}
-            },
+            "responseSchema": {"type": "ARRAY", "items": {"type": "STRING"}},
         },
     }
 
@@ -161,4 +164,6 @@ def _extract_json_payload(body: dict[str, Any]) -> Any:
     try:
         return json.loads(text)
     except json.JSONDecodeError as error:
-        raise TranslationProviderError("gemini translation returned invalid json content") from error
+        raise TranslationProviderError(
+            "gemini translation returned invalid json content"
+        ) from error

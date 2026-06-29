@@ -1,4 +1,5 @@
 """Integration tests for the scan processing pipeline."""
+
 from __future__ import annotations
 
 import uuid
@@ -49,6 +50,7 @@ class FakeObjectStorage:
     def read_object(self, key: str) -> FakeStoredObject:
         if key not in self._objects:
             from src.modules.menu_scan.adapters.storage import ObjectNotFoundError
+
             raise ObjectNotFoundError(key)
         return FakeStoredObject(data=self._objects[key], content_type="image/png")
 
@@ -78,18 +80,24 @@ _FAKE_OCR_DOCUMENT = OcrDocument(
                 OcrBlock(
                     id="b0",
                     text="MENU\nPhở bò 60.000đ\nBún bò Huế 55.000đ",
-                    bounding_box=OcrBoundingBox(left=0.0, top=0.0, width=1.0, height=1.0),
+                    bounding_box=OcrBoundingBox(
+                        left=0.0, top=0.0, width=1.0, height=1.0
+                    ),
                     lines=[
                         OcrLine(id="l0", text="MENU", bounding_box=_BBOX),
                         OcrLine(
                             id="l1",
                             text="Phở bò 60.000đ",
-                            bounding_box=OcrBoundingBox(left=0.0, top=0.1, width=1.0, height=0.05),
+                            bounding_box=OcrBoundingBox(
+                                left=0.0, top=0.1, width=1.0, height=0.05
+                            ),
                         ),
                         OcrLine(
                             id="l2",
                             text="Bún bò Huế 55.000đ",
-                            bounding_box=OcrBoundingBox(left=0.0, top=0.2, width=1.0, height=0.05),
+                            bounding_box=OcrBoundingBox(
+                                left=0.0, top=0.2, width=1.0, height=0.05
+                            ),
                         ),
                     ],
                 )
@@ -225,7 +233,8 @@ def _build_pipeline(
         storage=storage,
         ocr_service=ocr_service or FakeOcrService(),
         menu_parser=menu_parser or FakeMenuParser(),
-        translation_service=translation_service or TranslationService(
+        translation_service=translation_service
+        or TranslationService(
             provider=FakeTranslationProvider(),
         ),
         scan_repository=ScanSessionRepository(),
@@ -236,7 +245,9 @@ def _build_pipeline(
 # ── Tests ───────────────────────────────────────────────────────────
 
 
-def test_happy_path_pending_to_completed(db_session_factory: sessionmaker[Session]) -> None:
+def test_happy_path_pending_to_completed(
+    db_session_factory: sessionmaker[Session],
+) -> None:
     """Full pipeline: PENDING → COMPLETED with OCR result, menu, and food items."""
     with db_session_factory() as session:
         scan = _create_scan_session(session)
@@ -272,7 +283,9 @@ def test_happy_path_pending_to_completed(db_session_factory: sessionmaker[Sessio
         assert item_0.currency == "VND"
 
 
-def test_ocr_failure_marks_scan_failed(db_session_factory: sessionmaker[Session]) -> None:
+def test_ocr_failure_marks_scan_failed(
+    db_session_factory: sessionmaker[Session],
+) -> None:
     """OCR error → scan FAILED with error code."""
     from src.modules.menu_scan.exceptions import OcrTimeoutError
 
@@ -295,7 +308,9 @@ def test_ocr_failure_marks_scan_failed(db_session_factory: sessionmaker[Session]
         assert scan.error_code == "OCR_TIMEOUT"
 
 
-def test_translation_failure_still_completes(db_session_factory: sessionmaker[Session]) -> None:
+def test_translation_failure_still_completes(
+    db_session_factory: sessionmaker[Session],
+) -> None:
     """Translation failure is graceful — scan still COMPLETED with original content."""
     with db_session_factory() as session:
         scan = _create_scan_session(session)
@@ -320,7 +335,9 @@ def test_translation_failure_still_completes(db_session_factory: sessionmaker[Se
         # but original content is preserved
 
 
-def test_retry_does_not_create_duplicates(db_session_factory: sessionmaker[Session]) -> None:
+def test_retry_does_not_create_duplicates(
+    db_session_factory: sessionmaker[Session],
+) -> None:
     """FAILED scan re-processed: old results cleaned up, no duplicates."""
     with db_session_factory() as session:
         scan = _create_scan_session(session, status=ScanStatus.FAILED)
@@ -366,7 +383,9 @@ def test_skip_already_completed(db_session_factory: sessionmaker[Session]) -> No
     assert ocr.call_count == 0
 
 
-def test_source_file_not_found_marks_failed(db_session_factory: sessionmaker[Session]) -> None:
+def test_source_file_not_found_marks_failed(
+    db_session_factory: sessionmaker[Session],
+) -> None:
     """Missing source file in storage → FAILED with SOURCE_FILE_NOT_FOUND."""
     with db_session_factory() as session:
         scan = _create_scan_session(session, object_key="missing/key")

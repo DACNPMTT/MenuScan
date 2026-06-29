@@ -100,8 +100,7 @@ def _normalized_document(
 def _normalize_text(text: str) -> str:
     normalized = text.replace("\r\n", "\n").replace("\r", "\n")
     normalized = "\n".join(
-        _HORIZONTAL_WHITESPACE.sub(" ", line).strip()
-        for line in normalized.split("\n")
+        _HORIZONTAL_WHITESPACE.sub(" ", line).strip() for line in normalized.split("\n")
     )
     return _MULTIPLE_BLANK_LINES.sub("\n\n", normalized).strip()
 

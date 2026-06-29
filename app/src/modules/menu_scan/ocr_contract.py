@@ -253,4 +253,3 @@ class OcrAdapter:
             When the provider cannot process the file.
         """
         raise NotImplementedError
-

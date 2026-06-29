@@ -51,8 +51,13 @@ def test_ground_truth_dataset_has_required_coverage() -> None:
     assert len(payload["samples"]) >= 22
     assert {sample["language"] for sample in payload["samples"]} == {"vi"}
     assert all("-en-" not in sample["id"] for sample in payload["samples"])
-    assert all(has_vietnamese_accent(sample["expected_text"]) for sample in payload["samples"])
-    assert sum(1 for sample in payload["samples"] if len(sample["expected_prices"]) >= 20) >= 3
+    assert all(
+        has_vietnamese_accent(sample["expected_text"]) for sample in payload["samples"]
+    )
+    assert (
+        sum(1 for sample in payload["samples"] if len(sample["expected_prices"]) >= 20)
+        >= 3
+    )
     item_names = {
         item["name"]
         for sample in payload["samples"]
@@ -65,7 +70,10 @@ def test_ground_truth_dataset_has_required_coverage() -> None:
     ]
     assert len(variant_samples) >= 2
     assert all(
-        any(item.get("base_name") and item.get("variant_name") for item in sample["items"])
+        any(
+            item.get("base_name") and item.get("variant_name")
+            for item in sample["items"]
+        )
         for sample in variant_samples
     )
     tags = {tag for sample in payload["samples"] for tag in sample["tags"]}
