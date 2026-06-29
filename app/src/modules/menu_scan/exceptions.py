@@ -113,9 +113,10 @@ class OcrProviderUnavailableError(ApplicationError):
 
 
 class OcrProcessingFailedError(ApplicationError):
-    def __init__(self) -> None:
+    def __init__(self, details: object | None = None) -> None:
         super().__init__(
             status_code=500,
             code="OCR_PROCESSING_FAILED",
             message="OCR processing failed.",
+            details=details,
         )

@@ -24,6 +24,18 @@ class ProviderUnavailableError(Exception):
 class ProviderProcessingError(Exception):
     """Provider returned an unusable response or failed internally."""
 
+    def __init__(
+        self,
+        *,
+        provider: str | None = None,
+        status_code: int | None = None,
+        reason: str | None = None,
+    ) -> None:
+        super().__init__("Provider returned an unusable response.")
+        self.provider = provider
+        self.status_code = status_code
+        self.reason = reason
+
 
 class OcrProvider(Protocol):
     def extract_document(

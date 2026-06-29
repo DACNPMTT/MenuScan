@@ -66,7 +66,35 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def decode_access_token(
+    *,
+    token: str,
+    secret_key: str,
+    now: datetime | None = None,
+) -> uuid.UUID:
+    """Decode and validate a JWT access token, returning the user_id."""
+    try:
+        payload = jwt.decode(
+            token,
+            secret_key,
+            algorithms=["HS256"],
+            options={"verify_exp": False},
+        )
+        if payload.get("type") != "access":
+            raise UnauthorizedError()
 
+        exp = payload.get("exp")
+        current_time = now or _utcnow()
+        if exp is None or current_time.timestamp() > exp:
+            raise UnauthorizedError()
+
+        sub = payload.get("sub")
+        if not sub:
+            raise UnauthorizedError()
+        return uuid.UUID(sub)
+    except (jwt.InvalidTokenError, ValueError) as error:
+        logger.debug("access_token_validation_failed error=%r", error)
+        raise UnauthorizedError() from error
 
 
 # --- Password hashing and verification helpers --------------------------------
@@ -129,27 +157,11 @@ class MagicLinkService:
 
     def decode_access_token(self, token: str) -> uuid.UUID:
         """Decode and validate a JWT access token, returning the user_id."""
-        try:
-            payload = jwt.decode(
-                token,
-                self._secret_key,
-                algorithms=["HS256"],
-                options={"verify_exp": False},
-            )
-            if payload.get("type") != "access":
-                raise UnauthorizedError()
-            
-            exp = payload.get("exp")
-            if exp is None or self._clock().timestamp() > exp:
-                raise UnauthorizedError()
-
-            sub = payload.get("sub")
-            if not sub:
-                raise UnauthorizedError()
-            return uuid.UUID(sub)
-        except (jwt.InvalidTokenError, ValueError) as error:
-            logger.debug("access_token_validation_failed error=%r", error)
-            raise UnauthorizedError() from error
+        return decode_access_token(
+            token=token,
+            secret_key=self._secret_key,
+            now=self._clock(),
+        )
 
     # --- Magic Link Request ---------------------------------------------------
 
@@ -258,8 +270,9 @@ class MagicLinkService:
     def set_user_password(self, user: User, password: str) -> None:
         """Hash and set the user's password."""
         now = self._clock()
-        user.password_hash = hash_password(password)
-        user.updated_at = now
+        persistent_user = self._session.merge(user)
+        persistent_user.password_hash = hash_password(password)
+        persistent_user.updated_at = now
         self._session.commit()
 
     # --- Traditional Password Login -------------------------------------------
@@ -380,5 +393,3 @@ class MagicLinkService:
         if user_session is not None and user_session.revoked_at is None:
             user_session.revoked_at = now
             self._session.commit()
-
-
