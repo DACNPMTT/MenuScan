@@ -267,7 +267,95 @@ Response `200 OK`:
 Lỗi: `401 UNAUTHORIZED`, `403 FORBIDDEN`, `404 SCAN_NOT_FOUND`,
 `409 SCAN_NOT_READY`.
 
-## 4. Menu
+## 4. Bill
+
+> Nghiệp vụ domain: xem `src/modules/billing/service.py` (issue #127, #128).
+
+### POST `/bills`
+
+Auth bắt buộc. Tạo hóa đơn `DRAFT` rỗng, gắn với menu của chính user.
+
+```json
+{
+  "menu_id": "d837618b-c842-4778-b0bb-d1178dcff634"
+}
+```
+
+Response `201 Created`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "9b2f5e2a-2222-4444-8888-000000000001",
+    "user_id": "0f1a2b3c-...",
+    "menu_id": "d837618b-c842-4778-b0bb-d1178dcff634",
+    "status": "DRAFT",
+    "currency": "VND",
+    "subtotal_amount": "0.00",
+    "adjustment_total": "0.00",
+    "total_amount": "0.00",
+    "note": null,
+    "items": [],
+    "created_at": "2026-06-30T08:30:00Z",
+    "updated_at": "2026-06-30T08:30:00Z",
+    "finalized_at": null
+  },
+  "meta": null
+}
+```
+
+Lỗi: `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`, `404 MENU_NOT_FOUND`.
+
+### GET `/bills/{bill_id}`
+
+Auth bắt buộc. Chỉ owner được truy cập; not-found và not-owned đều trả về
+`404 BILL_NOT_FOUND` để không lộ sự tồn tại của hóa đơn cho người khác.
+
+Response `200 OK`: cùng shape với `POST /bills`, với `items` chứa từng dòng:
+
+```json
+{
+  "id": "a1b2...",
+  "food_item_id": "a2f20df8-5570-411d-aad6-59308a295f65",
+  "name_snapshot": "Beef noodle soup",
+  "unit_price_snapshot": "65000.00",
+  "currency": "VND",
+  "quantity": 2,
+  "line_total": "130000.00",
+  "sort_order": 0
+}
+```
+
+Lỗi: `401 UNAUTHORIZED`, `404 BILL_NOT_FOUND`.
+
+### PATCH `/bills/{bill_id}/items`
+
+Auth bắt buộc. Chỉ owner và chỉ khi bill đang `DRAFT` mới được sửa. Body là
+**trạng thái mong muốn cuối cùng** của toàn bộ danh sách item trên hóa đơn:
+món có mặt trong `items` sẽ được thêm mới hoặc cập nhật số lượng; món hiện có
+trên bill nhưng vắng mặt trong `items` sẽ bị xóa. Mảng rỗng đưa bill về
+subtotal `0`. Client chỉ gửi `food_item_id` và `quantity`; server luôn tự đọc
+giá hiện tại của món trên menu và tính lại `line_total`/`subtotal_amount`/
+`total_amount` -- giá client gửi lên (nếu có) không được tin dùng.
+
+```json
+{
+  "items": [
+    { "food_item_id": "a2f20df8-5570-411d-aad6-59308a295f65", "quantity": 2 },
+    { "food_item_id": "b3f31ef9-6681-522e-bbe7-6a419b3a6076", "quantity": 1 }
+  ]
+}
+```
+
+Response `200 OK`: cùng shape với `GET /bills/{bill_id}`, đã cập nhật totals.
+
+Lỗi: `400 VALIDATION_ERROR` (quantity không phải số nguyên dương),
+`400 CURRENCY_MISMATCH`, `400 FOOD_ITEM_MISSING_PRICE`,
+`401 UNAUTHORIZED`, `404 BILL_NOT_FOUND`, `404 FOOD_ITEM_NOT_FOUND`
+(món không thuộc menu của bill), `409 BILL_ALREADY_FINALIZED`.
+
+## 5. Menu
 
 ### PATCH `/menus/{menu_id}`
 
@@ -296,12 +384,12 @@ Response `200 OK`:
 Lỗi: `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`, `403 FORBIDDEN`,
 `404 MENU_NOT_FOUND`.
 
-## 5. Endpoint nội bộ
+## 6. Endpoint nội bộ
 
 OCR, parser và translation là module nội bộ do Scan service điều phối. MVP
 không công khai endpoint để frontend chọn provider hoặc tự bắt đầu OCR.
 
-## 6. Health
+## 7. Health
 
 - `GET /health`: process API đang chạy, không phụ thuộc database.
 - `GET /ready`: API và database đã sẵn sàng nhận request.

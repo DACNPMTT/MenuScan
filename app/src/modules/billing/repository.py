@@ -74,3 +74,8 @@ class BillRepository:
         session.add(adjustment)
         session.flush()
         return adjustment
+
+    def clear_items(self, session: Session, bill: Bill) -> None:
+        """Delete every existing line item on ``bill`` (cascade delete-orphan)."""
+        bill.items.clear()
+        session.flush()

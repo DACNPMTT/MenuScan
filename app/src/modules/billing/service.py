@@ -98,6 +98,20 @@ class BillingService:
         )
         return self._repository.add(self._session, bill)
 
+    # --- Reads --------------------------------------------------------------
+
+    def get_bill_for_user(self, *, bill_id: uuid.UUID, user_id: uuid.UUID) -> Bill:
+        """Return ``bill_id`` only if it belongs to ``user_id`` (404 otherwise).
+
+        Not-found and not-owned are intentionally indistinguishable to the
+        caller -- both surface as ``BillNotFoundError`` so the API never
+        confirms a bill's existence to a non-owner.
+        """
+        bill = self._repository.get_by_id_for_user(self._session, bill_id, user_id)
+        if bill is None:
+            raise BillNotFoundError()
+        return bill
+
     # --- Line items ---------------------------------------------------------
 
     def add_item(
@@ -146,6 +160,72 @@ class BillingService:
         self._recompute_totals(bill)
         self._session.commit()
         return item
+
+    def replace_items(
+        self,
+        *,
+        bill_id: uuid.UUID,
+        user_id: uuid.UUID,
+        items: list[tuple[uuid.UUID, int]],
+    ) -> Bill:
+        """Replace every line item on the bill with ``items`` and recompute totals.
+
+        ``items`` is the *desired end state*, expressed as
+        ``(food_item_id, quantity)`` pairs: a food item present in the list is
+        added or updated to that quantity, and any existing line whose food
+        item is absent from the list is removed. Duplicate ``food_item_id``
+        entries are merged by summing their quantities so the call is
+        idempotent regardless of how the caller grouped them.
+        """
+        bill = self.get_bill_for_user(bill_id=bill_id, user_id=user_id)
+        self._ensure_mutable(bill)
+
+        merged_quantities: dict[uuid.UUID, int] = {}
+        for food_item_id, quantity in items:
+            merged_quantities[food_item_id] = (
+                merged_quantities.get(food_item_id, 0) + quantity
+            )
+
+        self._repository.clear_items(self._session, bill)
+        new_currency: str | None = None
+
+        for sort_order, (food_item_id, quantity) in enumerate(
+            merged_quantities.items()
+        ):
+            if quantity <= 0:
+                raise InvalidQuantityError()
+
+            food_item = self._session.get(FoodItem, food_item_id)
+            if food_item is None or food_item.menu_id != bill.menu_id:
+                raise FoodItemNotFoundError()
+            if food_item.price is None or food_item.currency is None:
+                raise FoodItemMissingPriceError()
+
+            if new_currency is None:
+                new_currency = food_item.currency
+            elif food_item.currency != new_currency:
+                raise CurrencyMismatchError()
+
+            line_total = _round_money(food_item.price * quantity)
+            item = BillItem(
+                bill_id=bill.id,
+                food_item_id=food_item.id,
+                name_snapshot=food_item.translated_name or food_item.original_name,
+                unit_price_snapshot=food_item.price,
+                currency=food_item.currency,
+                quantity=quantity,
+                line_total=line_total,
+                sort_order=sort_order,
+            )
+            self._repository.add_item(self._session, item)
+            bill.items.append(item)
+
+        if new_currency is not None:
+            bill.currency = new_currency
+
+        self._recompute_totals(bill)
+        self._session.commit()
+        return bill
 
     # --- Adjustments ----------------------------------------------------------
 
