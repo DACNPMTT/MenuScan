@@ -27,9 +27,9 @@ from fastapi.testclient import TestClient
 
 from src.core.application import create_app
 from src.core.config import EmailConfig, Settings, StorageConfig
-from src.modules.identity.dependencies import get_current_user
+from src.modules.identity.dependencies import get_optional_current_user
 from src.modules.identity.models import User
-from src.modules.menu_scan.dependencies import get_scan_service
+from src.modules.menu_scan.dependencies import get_scan_pipeline, get_scan_service
 from src.modules.menu_scan.exceptions import (
     EmptyUploadError,
     FileTooLargeError,
@@ -127,7 +127,7 @@ class StubScanService:
     def create_scan(
         self,
         *,
-        user: User,
+        user: User | None,
         file_name: str | None,
         content: bytes,
         target_language: str | None,
@@ -147,7 +147,15 @@ class StubScanService:
                 content=content,
                 target_language=target_language,
             )
-        return _default_scan_created(user)
+        return _default_scan_created(user or self._user)
+
+
+class StubScanPipeline:
+    def __init__(self) -> None:
+        self.processed: list[uuid.UUID] = []
+
+    def process(self, scan_id: uuid.UUID) -> None:
+        self.processed.append(scan_id)
 
 
 def _make_client(
@@ -161,8 +169,11 @@ def _make_client(
         database_engine=Mock(),
     )
     app.dependency_overrides[get_scan_service] = lambda: stub
+    app.dependency_overrides[get_scan_pipeline] = lambda: StubScanPipeline()
     if authenticated:
-        app.dependency_overrides[get_current_user] = lambda: user
+        app.dependency_overrides[get_optional_current_user] = lambda: user
+    else:
+        app.dependency_overrides[get_optional_current_user] = lambda: None
     return TestClient(app, raise_server_exceptions=False)
 
 
@@ -214,18 +225,16 @@ def test_valid_jpeg_returns_202() -> None:
     assert response.json()["success"] is True
 
 
-def test_unauthenticated_request_returns_401() -> None:
+def test_unauthenticated_request_creates_guest_scan() -> None:
     stub = StubScanService()
     client = _make_client(stub, authenticated=False)
 
     response = _post_scan(client)
 
-    assert response.status_code == 401
+    assert response.status_code == 202
     body = response.json()
-    assert body["success"] is False
-    assert body["error"]["code"] == "UNAUTHORIZED"
-    # Service was never reached.
-    assert stub.calls == []
+    assert body["success"] is True
+    assert stub.calls[0]["user"] is None
 
 
 def test_file_too_large_returns_413() -> None:

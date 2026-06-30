@@ -115,6 +115,25 @@ def test_empty_provider_result_maps_to_ocr_empty_result() -> None:
         )
 
 
+def test_processing_time_is_recorded() -> None:
+    service = _service(
+        FakeOcrProvider(
+            text_by_page=("Phá»Ÿ bÃ²\n60.000Ä‘",),
+            processing_time_ms=123,
+        )
+    )
+
+    document = service.process(
+        OcrSource(
+            object_key="users/u/scans/s/source",
+            data=_png_bytes(),
+            mime_type="image/png",
+        )
+    )
+
+    assert document.processing_time_ms >= 123
+
+
 def test_provider_timeout_maps_to_ocr_timeout() -> None:
     service = _service(FakeOcrProvider(fail_with="timeout"))
 

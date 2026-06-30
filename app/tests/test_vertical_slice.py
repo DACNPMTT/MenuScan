@@ -429,8 +429,8 @@ class TestUploadFailurePaths:
 
         app.dependency_overrides.clear()
 
-        assert r_get.status_code == 404
-        assert r_get.json()["error"]["code"] == "SCAN_NOT_FOUND"
+        assert r_get.status_code == 403
+        assert r_get.json()["error"]["code"] == "FORBIDDEN"
 
     def test_get_source_of_nonexistent_scan_returns_404(self, auth_client):
         """GET source của scan không tồn tại → 404."""

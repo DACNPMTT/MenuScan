@@ -23,12 +23,12 @@ export function AppRoutes() {
       <Route path="auth/check-email" element={<RequireGuest><CheckEmailPage /></RequireGuest>} />
       <Route path="auth/verify" element={<VerifyPage />} />
       <Route path="auth/set-password" element={<SetPasswordPage />} />
+      <Route path="app/scan/camera" element={<CameraScanPage />} />
+      <Route path="app/scans/:scanId" element={<ScanResultPage />} />
+      <Route path="app/scan" element={<ScanPage />} />
 
       <Route path="app" element={<AuthenticatedLayout />}>
         <Route index element={<DashboardPage />} />
-        <Route path="scan/camera" element={<CameraScanPage />} />
-        <Route path="scans/:scanId" element={<ScanResultPage />} />
-        <Route path="scan" element={<ScanPage />} />
         <Route path="menus" element={<MenusPage />} />
       </Route>
 

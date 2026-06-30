@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, UploadFile,
 from fastapi.responses import RedirectResponse, Response
 
 from src.core.responses import success_response
-from src.modules.identity.dependencies import get_current_user
+from src.modules.identity.dependencies import get_optional_current_user
 from src.modules.identity.models import User
 from src.modules.menu_scan.dependencies import get_scan_pipeline, get_scan_service
 from src.modules.menu_scan.pipeline import ScanPipeline
@@ -23,7 +23,7 @@ async def create_scan(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     target_language: str | None = Form(default=None),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_optional_current_user),
     service: ScanService = Depends(get_scan_service),
     pipeline: ScanPipeline = Depends(get_scan_pipeline),
 ) -> dict[str, object]:
@@ -40,7 +40,7 @@ async def create_scan(
 @router.get("/{scan_id}", status_code=status.HTTP_200_OK)
 def get_scan(
     scan_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_optional_current_user),
     service: ScanService = Depends(get_scan_service),
 ) -> dict[str, object]:
     data = service.get_scan(user=current_user, scan_id=scan_id)
@@ -50,7 +50,7 @@ def get_scan(
 @router.get("/{scan_id}/source", status_code=status.HTTP_200_OK)
 def get_scan_source(
     scan_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_optional_current_user),
     service: ScanService = Depends(get_scan_service),
 ) -> Response:
     access = service.get_source_access(user=current_user, scan_id=scan_id)
@@ -68,7 +68,7 @@ def get_scan_source(
 @router.get("/{scan_id}/result", status_code=status.HTTP_200_OK)
 def get_scan_result(
     scan_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_optional_current_user),
     service: ScanService = Depends(get_scan_service),
 ) -> dict[str, object]:
     data = service.get_result(user=current_user, scan_id=scan_id)

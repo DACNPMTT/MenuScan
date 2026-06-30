@@ -84,3 +84,24 @@ def get_current_user(
         raise UnauthorizedError()
 
     return user
+
+
+def get_optional_current_user(
+    token: HTTPAuthorizationCredentials | None = Depends(oauth2_scheme),
+    session: Session = Depends(get_db),
+    service: MagicLinkService = Depends(get_magic_link_service),
+) -> User | None:
+    """Return the user for a valid bearer token, or None for guest requests."""
+    if token is None:
+        return None
+    if token.scheme.lower() != "bearer":
+        raise UnauthorizedError()
+
+    user_id = service.decode_access_token(token.credentials)
+    user_repo = UserRepository()
+    user = user_repo.get_by_id(session, user_id)
+
+    if user is None or user.status != UserStatus.ACTIVE or user.deleted_at is not None:
+        raise UnauthorizedError()
+
+    return user

@@ -161,6 +161,15 @@ class Settings:
 
     @classmethod
     def from_environment(cls) -> "Settings":
+        try:
+            import dotenv
+            from pathlib import Path
+            env_path = Path(__file__).resolve().parents[3] / "env" / ".env.local"
+            if env_path.exists():
+                dotenv.load_dotenv(env_path, override=True)
+        except ImportError:
+            pass
+
         raw_origins = os.getenv("CORS_ORIGINS")
         cors_origins = (
             tuple(origin.strip() for origin in raw_origins.split(",") if origin.strip())

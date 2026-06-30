@@ -41,10 +41,10 @@ class ScanSession(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
-    user_id: Mapped[uuid.UUID] = mapped_column(
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", name="fk_scan_sessions_user_id_users"),
-        nullable=False,
+        nullable=True,
     )
     source_object_key: Mapped[str] = mapped_column(Text, nullable=False)
     source_file_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -104,7 +104,7 @@ class ScanSession(Base):
             name="page_count",
         ),
         CheckConstraint(
-            "target_language IN ('vi', 'en')",
+            "target_language IN ('vi', 'en', 'zh', 'ja', 'ko', 'fr', 'th')",
             name="target_language",
         ),
         CheckConstraint("progress BETWEEN 0 AND 100", name="progress"),
