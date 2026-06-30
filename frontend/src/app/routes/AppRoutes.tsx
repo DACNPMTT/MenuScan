@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom'
 import { AuthenticatedLayout } from '@/layouts/AuthenticatedLayout'
+import { RequireGuest } from '@/app/routes/RequireGuest'
 import { CheckEmailPage } from '@/pages/auth/CheckEmailPage'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterPage } from '@/pages/auth/RegisterPage'
@@ -17,9 +18,9 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="auth/login" element={<LoginPage />} />
-      <Route path="auth/register" element={<RegisterPage />} />
-      <Route path="auth/check-email" element={<CheckEmailPage />} />
+      <Route path="auth/login" element={<RequireGuest><LoginPage /></RequireGuest>} />
+      <Route path="auth/register" element={<RequireGuest><RegisterPage /></RequireGuest>} />
+      <Route path="auth/check-email" element={<RequireGuest><CheckEmailPage /></RequireGuest>} />
       <Route path="auth/verify" element={<VerifyPage />} />
       <Route path="auth/set-password" element={<SetPasswordPage />} />
 

@@ -1,6 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useState, useRef, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import { apiRequest } from '@/shared/lib/api'
+import {
+  setAccessToken as setStoredAccessToken,
+  clearAccessToken as clearStoredAccessToken,
+  refreshAccessToken,
+  setAuthFailureHandler,
+} from '@/shared/lib/auth-token'
 
 export interface User {
   id: string
@@ -28,27 +34,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const isRefreshing = useRef(false)
 
-  // Clear auth state locally
+  // Clear auth state locally. Clear the manager token first so the manager and
+  // React state stay in sync.
   const logoutState = useCallback(() => {
+    clearStoredAccessToken()
     setAccessToken(null)
     setUser(null)
   }, [])
 
-  // Fetch current user details using access token
+  // Fetch current user details using access token. apiRequest auto-refreshes on
+  // 401; if refresh truly failed, the authFailureHandler already cleared state.
+  // A non-auth 5xx must NOT log the user out, so we no longer call logoutState()
+  // here.
   const fetchCurrentUser = useCallback(async (token: string) => {
     try {
       const userData = await apiRequest<User>('/api/v1/auth/me', { token })
       setUser(userData)
     } catch (error) {
       console.error('Failed to fetch user profile', error)
-      logoutState()
     }
-  }, [logoutState])
-
+  }, [])
   // Set auth state after successful login/verify
   const loginState = useCallback(async (token: string, userData?: User) => {
+    setStoredAccessToken(token)
     setAccessToken(token)
     if (userData) {
       setUser(userData)
@@ -111,39 +120,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [accessToken, logoutState])
 
-  // 6. Refresh Session (Silent refresh on reload)
+  // 6. Refresh Session — delegates to the token manager (single-flight, raw
+  // fetch so it never recurses into apiRequest). Kept on the context for
+  // future callers; the mount effect and 401 auto-refresh go through the manager.
   const refreshSession = useCallback(async () => {
-    if (isRefreshing.current) return
-    isRefreshing.current = true
-    try {
-      const data = await apiRequest<{ access_token: string }>('/api/v1/auth/refresh', {
-        method: 'POST',
-      })
-      await loginState(data.access_token)
-    } catch {
-      // Refresh failed (no session or expired), log out silently
+    const token = await refreshAccessToken()
+    if (token) await fetchCurrentUser(token)
+    else {
       logoutState()
-    } finally {
       setLoading(false)
-      isRefreshing.current = false
     }
-  }, [loginState, logoutState])
+  }, [fetchCurrentUser, logoutState])
 
-  // Try to restore session on mount. Skip the silent refresh on the magic-link
+  // Restore session on mount via the token manager. Register the failure
+  // handler so any refresh failure (e.g. expired/missing cookie) clears auth
+  // state and ends the loading state. Skip the silent refresh on the magic-link
   // verify route: VerifyPage exchanges the token and establishes the session
-  // itself. Firing refresh here races verify — the refresh request leaves
-  // before verify's Set-Cookie lands, returns 401, and logoutState() clobbers
-  // the session that verify just created, bouncing the user back to /auth/login.
+  // itself — firing refresh here races verify (the refresh request leaves
+  // before verify's Set-Cookie lands, returns 401, and the failure handler
+  // would clobber the session VerifyPage is building).
   useEffect(() => {
+    setAuthFailureHandler(() => {
+      logoutState()
+      setLoading(false)
+    })
     const isVerifyRoute = window.location.pathname.startsWith('/auth/verify')
-    Promise.resolve().then(() => {
+    // Deferred to a microtask so setLoading runs outside the effect body
+    // (synchronous setState in an effect is flagged by react-hooks rules).
+    void Promise.resolve().then(async () => {
       if (isVerifyRoute) {
         setLoading(false)
         return
       }
-      refreshSession()
+      const token = await refreshAccessToken()
+      if (token) await fetchCurrentUser(token)
+      setLoading(false)
     })
-  }, [refreshSession])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <AuthContext.Provider
