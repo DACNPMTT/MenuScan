@@ -20,6 +20,9 @@ EXPECTED_TABLES = {
     "ocr_results",
     "menus",
     "food_items",
+    "bills",
+    "bill_items",
+    "bill_adjustments",
 }
 
 
