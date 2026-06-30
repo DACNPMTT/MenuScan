@@ -299,7 +299,7 @@ def test_empty_file_returns_400() -> None:
     assert response.status_code == 400
     body = response.json()
     assert body["success"] is False
-    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert body["error"]["code"] == "EMPTY_FILE"
 
 
 def test_invalid_target_language_returns_400() -> None:
