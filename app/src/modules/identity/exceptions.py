@@ -99,4 +99,3 @@ class InvalidCredentialsError(ApplicationError):
             code="INVALID_CREDENTIALS",
             message="Email hoặc mật khẩu không chính xác.",
         )
-

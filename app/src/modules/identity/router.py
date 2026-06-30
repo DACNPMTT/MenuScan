@@ -4,7 +4,12 @@ from src.core.config import settings
 from src.core.responses import success_response
 from src.modules.identity.dependencies import get_current_user, get_magic_link_service
 from src.modules.identity.models import User
-from src.modules.identity.schemas import LoginRequest, MagicLinkRequest, MagicLinkVerifyRequest, SetPasswordRequest
+from src.modules.identity.schemas import (
+    LoginRequest,
+    MagicLinkRequest,
+    MagicLinkVerifyRequest,
+    SetPasswordRequest,
+)
 from src.modules.identity.service import MagicLinkService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -60,7 +65,9 @@ def verify_magic_link(
                 "email": user.email,
                 "display_name": user.display_name,
                 "preferred_language": user.preferred_language,
-                "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+                "role": user.role.value
+                if hasattr(user.role, "value")
+                else str(user.role),
             },
         }
     )
@@ -113,7 +120,9 @@ def login(
                 "email": user.email,
                 "display_name": user.display_name,
                 "preferred_language": user.preferred_language,
-                "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+                "role": user.role.value
+                if hasattr(user.role, "value")
+                else str(user.role),
             },
         }
     )
@@ -182,9 +191,12 @@ def get_me(
             "email": current_user.email,
             "display_name": current_user.display_name,
             "preferred_language": current_user.preferred_language,
-            "role": current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role),
-            "status": current_user.status.value if hasattr(current_user.status, "value") else str(current_user.status),
+            "role": current_user.role.value
+            if hasattr(current_user.role, "value")
+            else str(current_user.role),
+            "status": current_user.status.value
+            if hasattr(current_user.status, "value")
+            else str(current_user.status),
             "created_at": current_user.created_at,
         }
     )
-

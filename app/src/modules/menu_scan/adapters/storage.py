@@ -85,9 +85,7 @@ class LocalObjectStorage:
 
         content_type = None
         try:
-            metadata = json.loads(
-                self._metadata_path(path).read_text(encoding="utf-8")
-            )
+            metadata = json.loads(self._metadata_path(path).read_text(encoding="utf-8"))
             if isinstance(metadata.get("content_type"), str):
                 content_type = metadata["content_type"]
         except (FileNotFoundError, json.JSONDecodeError, OSError):
@@ -103,7 +101,9 @@ class LocalObjectStorage:
             except FileNotFoundError:
                 continue
             except OSError as error:
-                raise ObjectStorageError("local object storage delete failed") from error
+                raise ObjectStorageError(
+                    "local object storage delete failed"
+                ) from error
 
     def create_presigned_get_url(self, key: str) -> str | None:
         return None
@@ -242,8 +242,7 @@ class S3ObjectStorage:
                 return _HttpResponse(
                     data=response.read(),
                     headers={
-                        key.lower(): value
-                        for key, value in response.headers.items()
+                        key.lower(): value for key, value in response.headers.items()
                     },
                 )
         except HTTPError as error:
@@ -310,10 +309,7 @@ class S3ObjectStorage:
 
     def _object_url(self, key: str) -> str:
         encoded_key = "/".join(quote(part, safe="") for part in _key_parts(key))
-        return (
-            f"{self._endpoint_url}/"
-            f"{quote(self._bucket_name, safe='')}/{encoded_key}"
-        )
+        return f"{self._endpoint_url}/{quote(self._bucket_name, safe='')}/{encoded_key}"
 
     def _credential_scope(self, date_stamp: str) -> str:
         return f"{date_stamp}/{self._region}/{self._service}/aws4_request"

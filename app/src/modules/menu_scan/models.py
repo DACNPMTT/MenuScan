@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -23,9 +23,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.database import Base
-
-if TYPE_CHECKING:
-    from src.modules.menu.models import Menu
+from src.modules.menu.models import Menu
 
 
 class ScanStatus(str, enum.Enum):

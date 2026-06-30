@@ -105,7 +105,9 @@ def _default_scan_created(user: User) -> ScanCreatedData:
             file_size=len(PNG_BYTES),
         ),
         target_language="vi",
-        created_at=__import__("datetime").datetime(2026, 1, 1, tzinfo=__import__("datetime").timezone.utc),
+        created_at=__import__("datetime").datetime(
+            2026, 1, 1, tzinfo=__import__("datetime").timezone.utc
+        ),
     )
 
 
@@ -122,7 +124,14 @@ class StubScanService:
         self._effect = effect
         self._user = user or _stub_user()
 
-    def create_scan(self, *, user: User, file_name: str | None, content: bytes, target_language: str | None) -> ScanCreatedData:
+    def create_scan(
+        self,
+        *,
+        user: User,
+        file_name: str | None,
+        content: bytes,
+        target_language: str | None,
+    ) -> ScanCreatedData:
         self.calls.append(
             {
                 "user": user,
@@ -132,7 +141,12 @@ class StubScanService:
             }
         )
         if self._effect is not None:
-            return self._effect(user=user, file_name=file_name, content=content, target_language=target_language)
+            return self._effect(
+                user=user,
+                file_name=file_name,
+                content=content,
+                target_language=target_language,
+            )
         return _default_scan_created(user)
 
 
@@ -239,7 +253,9 @@ def test_unsupported_file_type_returns_415() -> None:
     stub = StubScanService(effect=raise_unsupported)
     client = _make_client(stub)
 
-    response = _post_scan(client, content=b"GIF89a fake gif content", filename="menu.png")
+    response = _post_scan(
+        client, content=b"GIF89a fake gif content", filename="menu.png"
+    )
 
     assert response.status_code == 415
     body = response.json()

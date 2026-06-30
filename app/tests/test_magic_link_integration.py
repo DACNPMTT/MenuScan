@@ -54,6 +54,7 @@ pytestmark = pytest.mark.skipif(
 # Helpers / Fixtures
 # ---------------------------------------------------------------------------
 
+
 def _make_service(
     db_session,
     clock: FakeClock,
@@ -104,7 +105,9 @@ def client_with_fake_email(db_session, sender, clock):
     app.dependency_overrides.clear()
 
 
-def _insert_valid_token(db_session, clock, email: str, raw_token: str) -> MagicLinkToken:
+def _insert_valid_token(
+    db_session, clock, email: str, raw_token: str
+) -> MagicLinkToken:
     ml = MagicLinkToken(
         email=email,
         token_hash=hash_token(raw_token),
@@ -127,7 +130,9 @@ def _insert_active_user(db_session, email: str) -> User:
     return user
 
 
-def _insert_active_session(db_session, clock, user: User, raw_secret: str) -> tuple[uuid.UUID, UserSession]:
+def _insert_active_session(
+    db_session, clock, user: User, raw_secret: str
+) -> tuple[uuid.UUID, UserSession]:
     session_id = uuid.uuid4()
     us = UserSession(
         id=session_id,
@@ -144,6 +149,7 @@ def _insert_active_session(db_session, clock, user: User, raw_secret: str) -> tu
 
 def _access_token_for(db_session, user: User) -> str:
     from src.modules.identity.dependencies import get_magic_link_service
+
     svc = get_magic_link_service(db_session)
     return svc.create_access_token(user.id)
 
@@ -154,7 +160,6 @@ def _access_token_for(db_session, user: User) -> str:
 
 
 class TestRequestMagicLink:
-
     def test_valid_email_returns_202(self, client_with_fake_email, sender):
         """Email hợp lệ → 202, gửi email, response không tiết lộ trạng thái."""
         res = client_with_fake_email.post(
@@ -178,7 +183,9 @@ class TestRequestMagicLink:
         assert res.status_code == 202
         assert sender.sent[0]["to_email"] == "user@example.com"
 
-    def test_invalid_email_returns_400_validation_error(self, client_with_fake_email, sender):
+    def test_invalid_email_returns_400_validation_error(
+        self, client_with_fake_email, sender
+    ):
         """Email sai format → 400 VALIDATION_ERROR, không gọi service."""
         res = client_with_fake_email.post(
             "/api/v1/auth/magic-links",
@@ -191,7 +198,9 @@ class TestRequestMagicLink:
         assert "email" in body["error"]["details"]["fields"]
         assert len(sender.sent) == 0
 
-    def test_raw_token_not_stored_in_db(self, client_with_fake_email, db_session, sender):
+    def test_raw_token_not_stored_in_db(
+        self, client_with_fake_email, db_session, sender
+    ):
         """DB chỉ lưu SHA-256 hash, không lưu raw token."""
         res = client_with_fake_email.post(
             "/api/v1/auth/magic-links",
@@ -213,31 +222,43 @@ class TestRequestMagicLink:
         # Hash đúng là SHA-256
         assert token_row.token_hash == hash_token(raw_token)
 
-    def test_rate_limit_within_60s_returns_429(self, client_with_fake_email, clock, sender):
+    def test_rate_limit_within_60s_returns_429(
+        self, client_with_fake_email, clock, sender
+    ):
         """Gửi 2 request trong 60 giây → lần 2 trả 429 RATE_LIMITED."""
         email = "rl@example.com"
-        r1 = client_with_fake_email.post("/api/v1/auth/magic-links", json={"email": email})
+        r1 = client_with_fake_email.post(
+            "/api/v1/auth/magic-links", json={"email": email}
+        )
         assert r1.status_code == 202
 
         clock.advance(seconds=30)
-        r2 = client_with_fake_email.post("/api/v1/auth/magic-links", json={"email": email})
+        r2 = client_with_fake_email.post(
+            "/api/v1/auth/magic-links", json={"email": email}
+        )
         assert r2.status_code == 429
         body = r2.json()
         assert body["error"]["code"] == "RATE_LIMITED"
         assert body["error"]["details"]["resend_after_seconds"] == 60
         assert len(sender.sent) == 1  # chỉ 1 email được gửi
 
-    def test_resend_after_cooldown_succeeds(self, client_with_fake_email, clock, sender):
+    def test_resend_after_cooldown_succeeds(
+        self, client_with_fake_email, clock, sender
+    ):
         """Gửi lại sau >60 giây → thành công, token cũ bị invalidate."""
         email = "resend-ok@example.com"
         client_with_fake_email.post("/api/v1/auth/magic-links", json={"email": email})
 
         clock.advance(seconds=61)
-        r2 = client_with_fake_email.post("/api/v1/auth/magic-links", json={"email": email})
+        r2 = client_with_fake_email.post(
+            "/api/v1/auth/magic-links", json={"email": email}
+        )
         assert r2.status_code == 202
         assert len(sender.sent) == 2
 
-    def test_new_request_invalidates_prior_unused_token(self, client_with_fake_email, db_session, clock, sender):
+    def test_new_request_invalidates_prior_unused_token(
+        self, client_with_fake_email, db_session, clock, sender
+    ):
         """Request mới vô hiệu hóa token cũ chưa dùng."""
         email = "invalidate@example.com"
         client_with_fake_email.post("/api/v1/auth/magic-links", json={"email": email})
@@ -251,7 +272,9 @@ class TestRequestMagicLink:
         db_session.refresh(old_token)
         assert old_token.consumed_at is not None  # bị mark consumed
 
-    def test_response_identical_for_new_and_existing_email(self, client_with_fake_email):
+    def test_response_identical_for_new_and_existing_email(
+        self, client_with_fake_email
+    ):
         """Response giống nhau dù email đã đăng ký hay chưa → không lộ account."""
         r1 = client_with_fake_email.post(
             "/api/v1/auth/magic-links",
@@ -285,7 +308,6 @@ class TestRequestMagicLink:
 
 
 class TestVerifyMagicLink:
-
     def test_happy_path_new_user(self, client, db_session, clock):
         """Token hợp lệ + email mới → tạo user ACTIVE, tạo session, trả access token."""
         email = "new-user@example.com"
@@ -332,7 +354,9 @@ class TestVerifyMagicLink:
         assert "HttpOnly" in set_cookie or "httponly" in set_cookie.lower()
         assert "samesite=lax" in set_cookie.lower()
 
-    def test_cookie_value_contains_session_id_dot_secret(self, client, db_session, clock):
+    def test_cookie_value_contains_session_id_dot_secret(
+        self, client, db_session, clock
+    ):
         """Cookie value có format <session_id>.<secret>."""
         raw_token = "format-check-token"
         _insert_valid_token(db_session, clock, "format@example.com", raw_token)
@@ -407,7 +431,11 @@ class TestVerifyMagicLink:
         cookie_val = res.cookies["refresh_token"]
         session_id_str, raw_secret = cookie_val.split(".", 1)
 
-        us = db_session.query(UserSession).filter_by(id=uuid.UUID(session_id_str)).first()
+        us = (
+            db_session.query(UserSession)
+            .filter_by(id=uuid.UUID(session_id_str))
+            .first()
+        )
         assert us.refresh_token_hash != raw_secret
         assert us.refresh_token_hash == hash_token(raw_secret)
 
@@ -418,7 +446,6 @@ class TestVerifyMagicLink:
 
 
 class TestRefreshSession:
-
     def test_happy_path_rotates_tokens(self, client, db_session, clock):
         """Refresh hợp lệ → access token mới, refresh cookie mới, token cũ bị revoke."""
         user = _insert_active_user(db_session, "refresh-happy@example.com")
@@ -440,7 +467,9 @@ class TestRefreshSession:
         assert new_cookie is not None
         assert new_cookie != f"{session_id}.{raw_secret}"
 
-    def test_old_refresh_token_no_longer_valid_after_rotation(self, client, db_session, clock):
+    def test_old_refresh_token_no_longer_valid_after_rotation(
+        self, client, db_session, clock
+    ):
         """Sau rotate, dùng lại token cũ → 401 SESSION_REVOKED."""
         user = _insert_active_user(db_session, "rotate-test@example.com")
         raw_secret = "secret-rotate"
@@ -537,8 +566,9 @@ class TestRefreshSession:
 
 
 class TestLogout:
-
-    def test_happy_path_revokes_session_and_clears_cookie(self, client, db_session, clock):
+    def test_happy_path_revokes_session_and_clears_cookie(
+        self, client, db_session, clock
+    ):
         """Logout hợp lệ → 204, session bị revoke, cookie xóa."""
         user = _insert_active_user(db_session, "logout@example.com")
         raw_secret = "secret-logout"
@@ -563,8 +593,12 @@ class TestLogout:
         access_token = _access_token_for(db_session, user)
 
         client.cookies.set("refresh_token", f"{session_id}.{raw_secret}")
-        r1 = client.post("/api/v1/auth/logout", headers={"Authorization": f"Bearer {access_token}"})
-        r2 = client.post("/api/v1/auth/logout", headers={"Authorization": f"Bearer {access_token}"})
+        r1 = client.post(
+            "/api/v1/auth/logout", headers={"Authorization": f"Bearer {access_token}"}
+        )
+        r2 = client.post(
+            "/api/v1/auth/logout", headers={"Authorization": f"Bearer {access_token}"}
+        )
 
         assert r1.status_code == 204
         assert r2.status_code == 204
@@ -590,7 +624,6 @@ class TestLogout:
 
 
 class TestGetMe:
-
     def test_happy_path_returns_user_profile(self, client, db_session, clock):
         """Access token hợp lệ → 200, trả đúng thông tin user."""
         user = User(
@@ -604,7 +637,9 @@ class TestGetMe:
         db_session.commit()
 
         access_token = _access_token_for(db_session, user)
-        res = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token}"})
+        res = client.get(
+            "/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token}"}
+        )
 
         assert res.status_code == 200
         data = res.json()["data"]
@@ -636,7 +671,9 @@ class TestGetMe:
         access_token = _access_token_for(db_session, user)
 
         clock.advance(minutes=16)
-        res = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token}"})
+        res = client.get(
+            "/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token}"}
+        )
         assert res.status_code == 401
         assert res.json()["error"]["code"] == "UNAUTHORIZED"
 
@@ -647,7 +684,9 @@ class TestGetMe:
         db_session.commit()
 
         access_token = _access_token_for(db_session, user)
-        res = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token}"})
+        res = client.get(
+            "/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token}"}
+        )
         assert res.status_code == 401
 
     def test_deleted_user_returns_401(self, client, db_session, clock):
@@ -661,7 +700,9 @@ class TestGetMe:
         db_session.commit()
 
         access_token = _access_token_for(db_session, user)
-        res = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token}"})
+        res = client.get(
+            "/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token}"}
+        )
         assert res.status_code == 401
 
 
@@ -671,7 +712,6 @@ class TestGetMe:
 
 
 class TestFullMagicLinkFlow:
-
     def test_full_flow_request_verify_refresh_me_logout(
         self, client_with_fake_email, db_session, clock, sender
     ):
@@ -735,12 +775,16 @@ class TestFullMagicLinkFlow:
                 f"Endpoint {ep} không được xuất hiện trong luồng Magic Link"
             )
 
-    def test_two_devices_independent_sessions(self, client_with_fake_email, db_session, clock, sender):
+    def test_two_devices_independent_sessions(
+        self, client_with_fake_email, db_session, clock, sender
+    ):
         """2 lần verify tạo ra 2 session độc lập."""
         email = "two-devices@example.com"
 
         for i in range(2):
-            client_with_fake_email.post("/api/v1/auth/magic-links", json={"email": email})
+            client_with_fake_email.post(
+                "/api/v1/auth/magic-links", json={"email": email}
+            )
             raw_token = sender.sent[i]["magic_link_url"].split("token=")[1]
             r = client_with_fake_email.post(
                 "/api/v1/auth/magic-links/verify", json={"token": raw_token}

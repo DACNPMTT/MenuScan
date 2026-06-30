@@ -70,8 +70,7 @@ def configure_logging(log_level: str) -> None:
     handler.addFilter(RequestIdFilter())
     handler.setFormatter(
         logging.Formatter(
-            "%(asctime)s %(levelname)s %(name)s "
-            "request_id=%(request_id)s %(message)s"
+            "%(asctime)s %(levelname)s %(name)s request_id=%(request_id)s %(message)s"
         )
     )
 
