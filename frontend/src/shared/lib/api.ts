@@ -1,3 +1,5 @@
+import { getAccessToken, refreshAccessToken } from './auth-token'
+
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 const PREFIX = import.meta.env.VITE_API_V1_PREFIX ?? '/api/v1'
 const API_BASE_URL = BASE.replace(/\/$/, '')
@@ -83,15 +85,37 @@ export async function apiRequest<T = unknown>(
     requestHeaders.set('Content-Type', 'application/json')
   }
 
-  if (token) {
-    requestHeaders.set('Authorization', `Bearer ${token}`)
+  const resolvedToken = getAccessToken() ?? token ?? null
+  const hadToken = resolvedToken !== null
+  if (resolvedToken) {
+    requestHeaders.set('Authorization', `Bearer ${resolvedToken}`)
   }
 
-  const response = await fetch(url, {
+  let response = await fetch(url, {
     ...restOptions,
     headers: requestHeaders,
     credentials: 'include',
   })
+
+  // Auto-refresh once on a 401 when we had a token. Single-flight: concurrent
+  // 401s share the one in-flight refresh via auth-token; if another call has
+  // already refreshed in the meantime (token changed) we reuse its token and
+  // skip refreshing again — collapsing a burst of 401s to exactly one refresh.
+  // A retry that also 401s falls through to the normal ApiError below — no loop,
+  // since refresh uses raw fetch and never re-enters apiRequest.
+  if (response.status === 401 && hadToken) {
+    const current = getAccessToken()
+    const fresh =
+      current && current !== resolvedToken ? current : await refreshAccessToken()
+    if (fresh) {
+      requestHeaders.set('Authorization', `Bearer ${fresh}`)
+      response = await fetch(url, {
+        ...restOptions,
+        headers: requestHeaders,
+        credentials: 'include',
+      })
+    }
+  }
 
   if (response.status === 204) {
     return {} as T
