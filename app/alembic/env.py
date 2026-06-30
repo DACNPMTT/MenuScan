@@ -8,6 +8,7 @@ from src.core.database import Base
 from src.modules.identity.models import MagicLinkToken, User, UserSession  # noqa: F401
 from src.modules.menu.models import FoodItem, Menu  # noqa: F401
 from src.modules.menu_scan.models import OcrResult, ScanSession  # noqa: F401
+from src.modules.billing.models import Bill, BillAdjustment, BillItem  # noqa: F401
 
 
 config = context.config

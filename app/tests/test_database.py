@@ -13,7 +13,11 @@ from src.modules.identity.models import (  # noqa: F401
 )
 from src.modules.menu.models import FoodItem, Menu  # noqa: F401
 from src.modules.menu_scan.models import OcrResult, ScanSession  # noqa: F401
-
+from src.modules.billing.models import (  # noqa: F401
+    Bill,
+    BillAdjustment,
+    BillItem,
+)
 
 EXPECTED_TABLES = {
     "users",
@@ -23,6 +27,9 @@ EXPECTED_TABLES = {
     "ocr_results",
     "menus",
     "food_items",
+    "bills",
+    "bill_adjustments",
+    "bill_items",
 }
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
