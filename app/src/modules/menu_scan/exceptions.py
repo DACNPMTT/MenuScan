@@ -15,7 +15,7 @@ class EmptyUploadError(ApplicationError):
     def __init__(self) -> None:
         super().__init__(
             status_code=400,
-            code="VALIDATION_ERROR",
+            code="EMPTY_FILE",
             message="The uploaded file is empty.",
             details={"fields": {"file": ["File must not be empty."]}},
         )
