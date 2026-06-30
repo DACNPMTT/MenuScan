@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Spinner } from '@/shared/components/Spinner'
@@ -15,7 +15,6 @@ export function CameraCapture({ onCapture, onFallback }: CameraCaptureProps) {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
   useEffect(() => {
     void startCamera('environment')
@@ -23,12 +22,19 @@ export function CameraCapture({ onCapture, onFallback }: CameraCaptureProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => {
-    if (!preview) { setPreviewUrl(null); return }
-    const url = URL.createObjectURL(preview)
-    setPreviewUrl(url)
-    return () => { URL.revokeObjectURL(url) }
+  // Derive the object URL from the preview File rather than syncing it via
+  // a separate effect + setState (avoids cascading renders). The URL is
+  // revoked whenever `preview` changes or the component unmounts.
+  const previewUrl = useMemo(() => {
+    if (!preview) return null
+    return URL.createObjectURL(preview)
   }, [preview])
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+    }
+  }, [previewUrl])
 
   function handleCapture() {
     const file = capture()
@@ -108,7 +114,7 @@ export function CameraCapture({ onCapture, onFallback }: CameraCaptureProps) {
           </div>
         )}
 
-        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        {/* This is a live, muted, non-captionable camera feed — no captions track applies. */}
         <video
           ref={videoRef}
           className={
