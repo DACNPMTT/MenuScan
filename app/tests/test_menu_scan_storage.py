@@ -14,7 +14,7 @@ from src.modules.menu_scan.adapters.storage import (
     S3ObjectStorage,
 )
 from src.modules.menu_scan.exceptions import (
-    ScanNotFoundError,
+    ScanForbiddenError,
     StorageUnavailableError,
 )
 from src.modules.menu_scan.models import ScanSession
@@ -57,6 +57,14 @@ class FakeScanRepository:
         if scan is None or scan.user_id != user_id:
             return None
         return scan
+
+    def get_by_id(
+        self,
+        session: FakeSession,
+        *,
+        scan_id: uuid.UUID,
+    ) -> ScanSession | None:
+        return self.scans.get(scan_id)
 
 
 class FailingStorage:
@@ -124,7 +132,7 @@ def test_only_owner_can_get_source_url_or_binary(tmp_path: Path) -> None:
         target_language="vi",
     )
 
-    with pytest.raises(ScanNotFoundError):
+    with pytest.raises(ScanForbiddenError):
         service.get_source_access(user=other_user, scan_id=created.id)
 
 

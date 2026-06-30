@@ -161,6 +161,8 @@ class Settings:
 
     @classmethod
     def from_environment(cls) -> "Settings":
+
+
         raw_origins = os.getenv("CORS_ORIGINS")
         cors_origins = (
             tuple(origin.strip() for origin in raw_origins.split(",") if origin.strip())

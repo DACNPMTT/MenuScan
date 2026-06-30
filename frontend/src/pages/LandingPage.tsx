@@ -114,7 +114,7 @@ function Hero() {
             asChild
             className="h-12 rounded-full bg-primary px-8 text-[17px] font-bold text-white hover:bg-primary/90"
           >
-            <Link to="/auth/register">Start scanning</Link>
+            <Link to="/app/scan">Start scanning</Link>
           </Button>
           <Button
             asChild

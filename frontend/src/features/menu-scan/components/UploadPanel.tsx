@@ -10,7 +10,6 @@ import {
   Upload,
   X,
 } from 'lucide-react'
-import { useAuth } from '@/app/providers/AuthProvider'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import {
@@ -58,12 +57,22 @@ const STEPS = [
   { title: 'Kết quả', desc: 'Hiển thị danh sách món.' },
 ] as const
 
+const TARGET_LANGUAGES = [
+  { code: 'vi', label: '🇻🇳 Tiếng Việt' },
+  { code: 'en', label: '🇺🇸 English' },
+  { code: 'zh', label: '🇨🇳 中文' },
+  { code: 'ja', label: '🇯🇵 日本語' },
+  { code: 'ko', label: '🇰🇷 한국어' },
+  { code: 'fr', label: '🇫🇷 Français' },
+  { code: 'th', label: '🇹🇭 ภาษาไทย' },
+] as const
+
 export function UploadPanel() {
   useDocumentTitle('Thêm menu | MenuScan')
   const navigate = useNavigate()
-  const { accessToken } = useAuth()
 
   const [selected, setSelected] = useState<SelectedFile | null>(null)
+  const [targetLanguage, setTargetLanguage] = useState('vi')
   const [isDragging, setIsDragging] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -106,15 +115,15 @@ export function UploadPanel() {
   }
 
   const handleSubmit = async () => {
-    if (!selected || selected.error || !accessToken) return
+    if (!selected || selected.error) return
     setIsSubmitting(true)
     setSubmitError(null)
     const formData = new FormData()
     formData.append('file', selected.file)
+    formData.append('target_language', targetLanguage)
     try {
       const scan = await apiRequest<ScanData>('/api/v1/scans', {
         method: 'POST',
-        token: accessToken,
         body: formData,
       })
       // Hand off to the result page, which polls the scan status and renders
@@ -124,7 +133,7 @@ export function UploadPanel() {
       const message =
         error instanceof ApiError
           ? error.message
-          : 'Không thể tải file lên. Vui lòng thử lại.'
+          : `Lỗi: ${error instanceof Error ? error.message : String(error)}`
       setSubmitError(message)
     } finally {
       setIsSubmitting(false)
@@ -360,6 +369,29 @@ export function UploadPanel() {
               )
             })}
           </ol>
+        </div>
+
+        {/* Ngôn ngữ đích */}
+        <div className="flex flex-col gap-2 rounded-[12px] border border-hairline bg-canvas p-[21px]">
+          <label
+            htmlFor="targetLanguage"
+            className="text-[15px] font-bold text-primary-dark"
+          >
+            Dịch sang ngôn ngữ:
+          </label>
+          <select
+            id="targetLanguage"
+            value={targetLanguage}
+            onChange={(e) => setTargetLanguage(e.target.value)}
+            disabled={isSubmitting}
+            className="h-[44px] w-full rounded-[8px] border border-hairline bg-surface-muted px-3 text-[15px] text-ink outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
+          >
+            {TARGET_LANGUAGES.map((lang) => (
+              <option key={lang.code} value={lang.code}>
+                {lang.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <button

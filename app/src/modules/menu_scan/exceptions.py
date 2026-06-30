@@ -15,7 +15,7 @@ class EmptyUploadError(ApplicationError):
     def __init__(self) -> None:
         super().__init__(
             status_code=400,
-            code="VALIDATION_ERROR",
+            code="EMPTY_FILE",
             message="The uploaded file is empty.",
             details={"fields": {"file": ["File must not be empty."]}},
         )
@@ -45,7 +45,7 @@ class InvalidTargetLanguageError(ApplicationError):
             status_code=400,
             code="VALIDATION_ERROR",
             message="The request data is invalid.",
-            details={"fields": {"target_language": ["Choose 'vi' or 'en'."]}},
+            details={"fields": {"target_language": ["Choose 'vi', 'en', 'zh', 'ja', 'ko', 'fr', or 'th'."]}},
         )
 
 
@@ -55,6 +55,15 @@ class ScanNotFoundError(ApplicationError):
             status_code=404,
             code="SCAN_NOT_FOUND",
             message="Scan was not found.",
+        )
+
+
+class ScanForbiddenError(ApplicationError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=403,
+            code="FORBIDDEN",
+            message="You do not have access to this scan.",
         )
 
 

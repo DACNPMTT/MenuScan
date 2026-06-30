@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AlertCircle, ArrowLeft, Camera, Loader2, RefreshCw } from 'lucide-react'
-import { useAuth } from '@/app/providers/AuthProvider'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import type { ScanData } from '@/features/menu-scan/types'
@@ -11,7 +10,6 @@ type CameraState = 'starting' | 'live' | 'captured' | 'submitting' | 'error'
 export function CameraScanPage() {
   useDocumentTitle('Quét bằng camera | MenuScan')
   const navigate = useNavigate()
-  const { accessToken } = useAuth()
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -98,7 +96,7 @@ export function CameraScanPage() {
 
   const handleSubmit = async () => {
     const blob = capturedBlob.current
-    if (!blob || !accessToken) return
+    if (!blob) return
     setState('submitting')
     const file = new File([blob], `camera-scan-${Date.now()}.jpg`, {
       type: 'image/jpeg',
@@ -108,7 +106,6 @@ export function CameraScanPage() {
     try {
       const scan = await apiRequest<ScanData>('/api/v1/scans', {
         method: 'POST',
-        token: accessToken,
         body: formData,
       })
       navigate(`/app/scans/${scan.id}`)

@@ -134,7 +134,7 @@ def upgrade() -> None:
     op.create_table(
         "user_sessions",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("refresh_token_hash", sa.String(255), nullable=False),
         sa.Column("user_agent", sa.Text(), nullable=True),
         sa.Column("ip_address", postgresql.INET(), nullable=True),

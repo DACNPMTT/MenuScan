@@ -28,6 +28,18 @@ class ScanSessionRepository:
         )
         return session.scalars(statement).first()
 
+    def get_by_id(
+        self,
+        session: Session,
+        *,
+        scan_id: uuid.UUID,
+    ) -> ScanSession | None:
+        statement = select(ScanSession).where(
+            ScanSession.id == scan_id,
+            ScanSession.deleted_at.is_(None),
+        )
+        return session.scalars(statement).first()
+
     def get_scan_for_processing(
         self,
         session: Session,

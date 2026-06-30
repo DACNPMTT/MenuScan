@@ -1,3 +1,4 @@
+import logging
 from functools import lru_cache
 
 from fastapi import Depends
@@ -22,6 +23,32 @@ from src.modules.menu_scan.repository import ScanSessionRepository
 from src.modules.menu_scan.service import ScanService
 from src.modules.menu_scan.translation_provider import FakeTranslationProvider
 from src.modules.menu_scan.translation_service import TranslationService
+
+logger = logging.getLogger(__name__)
+
+
+class _FallbackMenuParser:
+    """Tries the primary parser; falls back to the rule-based parser on unavailability."""
+
+    def __init__(self, primary: MenuParser, fallback: MenuParser) -> None:
+        self._primary = primary
+        self._fallback = fallback
+
+    def parse(
+        self,
+        document: object,
+        *,
+        target_language: str = "en",
+    ) -> object:
+        from src.modules.menu_scan.llm_menu_parser import LlmMenuParserUnavailableError, LlmMenuParserTimeoutError
+        try:
+            return self._primary.parse(document, target_language=target_language)  # type: ignore[arg-type]
+        except (LlmMenuParserUnavailableError, LlmMenuParserTimeoutError) as exc:
+            logger.warning(
+                "menu_parser_primary_unavailable falling_back=rule_based reason=%s",
+                exc,
+            )
+            return self._fallback.parse(document, target_language=target_language)  # type: ignore[arg-type]
 
 
 @lru_cache
@@ -72,12 +99,13 @@ def get_menu_parser() -> MenuParser:
         return RuleBasedMenuParser()
     if config.provider == "gemini":
         assert config.api_key is not None  # noqa: S101
-        return GeminiMenuParser(
+        gemini = GeminiMenuParser(
             api_key=config.api_key,
             api_base_url=config.api_base_url,
             model=config.model,
             timeout_seconds=config.timeout_seconds,
         )
+        return _FallbackMenuParser(primary=gemini, fallback=RuleBasedMenuParser())
     raise ValueError(f"Unsupported LLM_PROVIDER={config.provider!r}")
 
 

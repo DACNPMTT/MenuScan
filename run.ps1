@@ -36,6 +36,20 @@ function Ensure-RunDir {
     New-Item -ItemType Directory -Force -Path $RunDir | Out-Null
 }
 
+function Invoke-LoadEnv {
+    $EnvFile = Join-Path $Root "env\.env.local"
+    if (Test-Path $EnvFile) {
+        Get-Content $EnvFile | ForEach-Object {
+            $line = $_.Trim()
+            if (-not $line -or $line.StartsWith('#') -or -not $line.Contains('=')) { return }
+            $i = $line.IndexOf('=')
+            $k = $line.Substring(0, $i).Trim()
+            $v = $line.Substring($i + 1).Trim().Trim('"').Trim("'")
+            Set-Item -Path "Env:$k" -Value $v
+        }
+    }
+}
+
 function Test-CommandExists([string]$Name) {
     return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
 }
@@ -127,8 +141,8 @@ function Start-Dependencies {
 
     Wait-DockerReady
 
-    $env:DB_PORT = "$DbPort"
-    $env:REDIS_PORT = "$RedisPort"
+    if (-not $env:DB_PORT) { $env:DB_PORT = "$DbPort" }
+    if (-not $env:REDIS_PORT) { $env:REDIS_PORT = "$RedisPort" }
 
     Write-Step "Starting Postgres and Redis"
     docker compose up -d --remove-orphans db redis
@@ -151,7 +165,7 @@ function Run-Migrations {
         throw "Backend venv not found at $python. Run dependency install first."
     }
 
-    $env:DATABASE_URL = "postgresql://menuscan:localdev@127.0.0.1:$DbPort/menuscan"
+    if (-not $env:DATABASE_URL) { $env:DATABASE_URL = "postgresql://menuscan:localdev@127.0.0.1:$($env:DB_PORT)/menuscan" }
 
     Write-Step "Running Alembic migrations"
     Push-Location $AppDir
@@ -165,9 +179,9 @@ function Run-Migrations {
 
 function Start-Backend {
     $python = Join-Path $AppDir ".venv\Scripts\python.exe"
-    $env:DATABASE_URL = "postgresql://menuscan:localdev@127.0.0.1:$DbPort/menuscan"
-    $env:API_V1_PREFIX = "/api/v1"
-    $env:CORS_ORIGINS = "http://localhost:$FrontendPort,http://127.0.0.1:$FrontendPort"
+    if (-not $env:DATABASE_URL) { $env:DATABASE_URL = "postgresql://menuscan:localdev@127.0.0.1:$($env:DB_PORT)/menuscan" }
+    if (-not $env:API_V1_PREFIX) { $env:API_V1_PREFIX = "/api/v1" }
+    if (-not $env:CORS_ORIGINS) { $env:CORS_ORIGINS = "http://localhost:$FrontendPort,http://127.0.0.1:$FrontendPort" }
 
     if (
         (Test-HttpOk "http://127.0.0.1:$BackendPort/health") -and
@@ -229,6 +243,7 @@ function Start-Frontend {
 
 function Start-App {
     Ensure-RunDir
+    Invoke-LoadEnv
     Stop-App
     Start-Dependencies
     Run-Migrations

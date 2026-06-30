@@ -20,6 +20,7 @@ from src.modules.menu_scan.exceptions import (
     FileTooLargeError,
     InvalidPdfError,
     InvalidTargetLanguageError,
+    ScanForbiddenError,
     ScanNotFoundError,
     ScanNotReadyError,
     SourceFileNotFoundError,
@@ -43,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_PDF_PAGES = 5
-SUPPORTED_TARGET_LANGUAGES = {"vi", "en"}
+SUPPORTED_TARGET_LANGUAGES = {"vi", "en", "zh", "ja", "ko", "fr", "th"}
 SUPPORTED_MIME_TYPES = {
     "application/pdf",
     "image/jpeg",
@@ -85,7 +86,7 @@ class ScanService:
     def create_scan(
         self,
         *,
-        user: User,
+        user: User | None,
         file_name: str | None,
         content: bytes,
         target_language: str | None,
@@ -96,7 +97,10 @@ class ScanService:
             content=content,
         )
         scan_id = uuid.uuid4()
-        object_key = build_source_object_key(user_id=user.id, scan_id=scan_id)
+        object_key = build_source_object_key(
+            user_id=user.id if user else None,
+            scan_id=scan_id,
+        )
 
         self._save_object(
             key=object_key,
@@ -106,7 +110,7 @@ class ScanService:
         try:
             scan = ScanSession(
                 id=scan_id,
-                user_id=user.id,
+                user_id=user.id if user else None,
                 source_object_key=object_key,
                 source_file_name=source_file.file_name,
                 source_mime_type=source_file.mime_type,
@@ -126,8 +130,8 @@ class ScanService:
 
         return _scan_created_data(scan)
 
-    def get_scan(self, *, user: User, scan_id: uuid.UUID) -> ScanStatusData:
-        scan = self._get_owned_scan(user=user, scan_id=scan_id)
+    def get_scan(self, *, user: User | None, scan_id: uuid.UUID) -> ScanStatusData:
+        scan = self._get_accessible_scan(user=user, scan_id=scan_id)
         error = None
         if scan.error_code is not None:
             error = {
@@ -147,10 +151,10 @@ class ScanService:
     def get_source_access(
         self,
         *,
-        user: User,
+        user: User | None,
         scan_id: uuid.UUID,
     ) -> SourceAccess:
-        scan = self._get_owned_scan(user=user, scan_id=scan_id)
+        scan = self._get_accessible_scan(user=user, scan_id=scan_id)
         try:
             redirect_url = self._storage.create_presigned_get_url(
                 scan.source_object_key
@@ -177,7 +181,7 @@ class ScanService:
     def get_result(
         self,
         *,
-        user: User,
+        user: User | None,
         scan_id: uuid.UUID,
     ) -> ScanResultData:
         """Build the completed-scan result: scan metadata + extracted menu.
@@ -186,7 +190,7 @@ class ScanService:
         menu is None only if persistence was skipped (never happens today —
         the pipeline always creates a Menu, possibly with zero items).
         """
-        scan = self._get_owned_scan(user=user, scan_id=scan_id)
+        scan = self._get_accessible_scan(user=user, scan_id=scan_id)
         if scan.status != ScanStatus.COMPLETED:
             raise ScanNotReadyError(scan.status.value)
 
@@ -229,14 +233,20 @@ class ScanService:
             menu=menu_data,
         )
 
-    def _get_owned_scan(self, *, user: User, scan_id: uuid.UUID) -> ScanSession:
-        scan = self._repository.get_owned_scan(
+    def _get_accessible_scan(
+        self,
+        *,
+        user: User | None,
+        scan_id: uuid.UUID,
+    ) -> ScanSession:
+        scan = self._repository.get_by_id(
             self._session,
             scan_id=scan_id,
-            user_id=user.id,
         )
         if scan is None:
             raise ScanNotFoundError()
+        if scan.user_id is not None and (user is None or scan.user_id != user.id):
+            raise ScanForbiddenError()
         return scan
 
     def _save_object(self, *, key: str, data: bytes, content_type: str) -> None:
@@ -256,12 +266,18 @@ class ScanService:
             logger.warning("scan_source_orphan_cleanup_failed")
 
 
-def build_source_object_key(*, user_id: uuid.UUID, scan_id: uuid.UUID) -> str:
-    return f"users/{user_id}/scans/{scan_id}/source"
+def build_source_object_key(
+    *,
+    user_id: uuid.UUID | None,
+    scan_id: uuid.UUID,
+) -> str:
+    owner_segment = f"users/{user_id}" if user_id is not None else "guests"
+    return f"{owner_segment}/scans/{scan_id}/source"
 
 
-def _resolve_target_language(user: User, target_language: str | None) -> str:
-    language = (target_language or user.preferred_language or "vi").strip().lower()
+def _resolve_target_language(user: User | None, target_language: str | None) -> str:
+    preferred = user.preferred_language if user is not None else None
+    language = (target_language or preferred or "vi").strip().lower()
     if language not in SUPPORTED_TARGET_LANGUAGES:
         raise InvalidTargetLanguageError()
     return language

@@ -70,7 +70,7 @@ CREATE INDEX ix_magic_link_tokens_email_created_at
 
 CREATE TABLE user_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL,
+    user_id UUID,
     refresh_token_hash VARCHAR(255) NOT NULL,
     user_agent TEXT,
     ip_address INET,

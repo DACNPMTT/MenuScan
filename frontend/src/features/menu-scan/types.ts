@@ -52,12 +52,17 @@ export type ScanStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
 export type ScanStage = 'UPLOADING' | 'OCR' | 'ANALYZING' | 'TRANSLATING' | 'FINALIZING'
 
 /** `GET /api/v1/scans/{id}` body (`data` envelope). */
+export interface ScanError {
+  code: string
+  message: string
+}
+
 export interface ScanDetail {
   id: string
   status: ScanStatus
   stage?: ScanStage
   progress: number
-  error: string | null
+  error: ScanError | string | null
   created_at: string
   completed_at: string | null
 }
