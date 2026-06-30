@@ -24,8 +24,10 @@ import pytest
 
 from src.modules.billing.exceptions import (
     BillAlreadyFinalizedError,
+    BillNotFoundError,
     CurrencyMismatchError,
     EmptyBillError,
+    FoodItemNotFoundError,
     InvalidQuantityError,
     NegativeTotalError,
 )
@@ -275,8 +277,123 @@ def test_finalize_locks_the_bill_against_further_mutation(db_session):
         service.finalize_bill(bill_id=bill.id)
 
 
+def test_get_bill_for_user_returns_bill_for_owner(db_session):
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+
+    found = service.get_bill_for_user(bill_id=bill.id, user_id=user.id)
+
+    assert found.id == bill.id
+
+
+def test_get_bill_for_user_raises_not_found_for_other_user(db_session):
+    owner = _make_user(db_session)
+    stranger = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, owner)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=owner.id, menu_id=menu.id)
+
+    with pytest.raises(BillNotFoundError):
+        service.get_bill_for_user(bill_id=bill.id, user_id=stranger.id)
+
+
+def test_replace_items_adds_updates_and_removes_in_one_call(db_session):
+    """Covers the issue #128 criterion: add/update/remove item tính lại subtotal."""
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, com = _items(db_session, menu)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+
+    # Seed with both items.
+    service.replace_items(
+        bill_id=bill.id,
+        user_id=user.id,
+        items=[(pho.id, 1), (com.id, 2)],
+    )
+    assert bill.subtotal_amount == Decimal("155000.00")  # 65000 + 2*45000
+
+    # Update pho's quantity and drop com entirely.
+    service.replace_items(
+        bill_id=bill.id,
+        user_id=user.id,
+        items=[(pho.id, 3)],
+    )
+
+    assert {item.food_item_id for item in bill.items} == {pho.id}
+    assert bill.items[0].quantity == 3
+    assert bill.subtotal_amount == Decimal("195000.00")  # 3 * 65000
+    assert bill.total_amount == bill.subtotal_amount
+
+
+def test_replace_items_with_empty_list_clears_bill_to_zero_subtotal(db_session):
+    """Covers the issue #128 criterion: bill rỗng có subtotal bằng 0."""
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, _ = _items(db_session, menu)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+    service.replace_items(bill_id=bill.id, user_id=user.id, items=[(pho.id, 1)])
+
+    service.replace_items(bill_id=bill.id, user_id=user.id, items=[])
+
+    assert bill.items == []
+    assert bill.subtotal_amount == Decimal("0.00")
+    assert bill.total_amount == Decimal("0.00")
+
+
+def test_replace_items_rejects_food_item_outside_bills_menu(db_session):
+    """Covers the issue #128 criterion: food item phải thuộc menu của bill."""
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    other_menu = _make_menu_with_items(db_session, user)
+    other_pho, _ = _items(db_session, other_menu)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+
+    with pytest.raises(FoodItemNotFoundError):
+        service.replace_items(
+            bill_id=bill.id,
+            user_id=user.id,
+            items=[(other_pho.id, 1)],
+        )
+
+
+def test_replace_items_rejects_non_positive_quantity(db_session):
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, _ = _items(db_session, menu)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+
+    with pytest.raises(InvalidQuantityError):
+        service.replace_items(bill_id=bill.id, user_id=user.id, items=[(pho.id, 0)])
+
+
+def test_replace_items_cannot_mutate_a_finalized_bill(db_session):
+    """Covers the issue #128 criterion: chỉ bill DRAFT được sửa."""
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, _ = _items(db_session, menu)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+    service.add_item(bill_id=bill.id, food_item_id=pho.id, quantity=1)
+    service.finalize_bill(bill_id=bill.id)
+
+    with pytest.raises(BillAlreadyFinalizedError):
+        service.replace_items(bill_id=bill.id, user_id=user.id, items=[(pho.id, 2)])
+
+
 def test_billing_service_has_no_send_order_to_restaurant_capability():
-    """Billing never triggers a restaurant-facing order workflow (per spec)."""
+    """Billing never triggers a restaurant-facing order workflow (per spec).
+
+    Issue #128 added ``get_bill_for_user`` (ownership-scoped read for
+    ``GET /bills/{bill_id}``) and ``replace_items`` (add/update/remove in one
+    call for ``PATCH /bills/{bill_id}/items``); the assertion below was
+    updated accordingly. Crucially, no restaurant-order method was added.
+    """
     public_methods = {
         name
         for name in dir(BillingService)
@@ -284,7 +401,9 @@ def test_billing_service_has_no_send_order_to_restaurant_capability():
     }
     assert public_methods == {
         "create_bill",
+        "get_bill_for_user",
         "add_item",
+        "replace_items",
         "add_adjustment",
         "finalize_bill",
     }
