@@ -2,6 +2,8 @@ import { NavLink, Outlet, Navigate } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Spinner } from '@/shared/components/Spinner'
 
+// Authenticated app shell matching the MenuScan Figma: a top header (logo +
+// primary nav + account actions) and a footer. No left sidebar.
 const navigationItems = [
   { label: 'Dashboard', to: '/app' },
   { label: 'Scan', to: '/app/scan' },
@@ -13,7 +15,7 @@ export function AuthenticatedLayout() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', height: '100vh', width: '100vw', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="flex h-dvh w-screen items-center justify-center bg-app-bg">
         <Spinner />
       </div>
     )
@@ -24,42 +26,63 @@ export function AuthenticatedLayout() {
   }
 
   return (
-    <div className="authenticated-layout">
-      <aside className="authenticated-layout__sidebar">
-        <NavLink className="brand-link" to="/app" aria-label="MenuScan app">
-          <span className="brand-link__mark">MS</span>
-          <span>MenuScan</span>
+    <div className="flex min-h-dvh flex-col bg-app-bg">
+      <header className="flex h-[60px] shrink-0 items-center justify-between gap-3 border-b border-hairline bg-canvas px-4 sm:h-[75px] sm:gap-6 sm:px-[50px]">
+        <NavLink
+          to="/app"
+          aria-label="MenuScan app"
+          className="shrink-0 text-[22px] font-bold leading-none text-primary-dark sm:text-[30px]"
+        >
+          MenuScan
         </NavLink>
-        <nav className="authenticated-layout__nav" aria-label="App navigation">
+        <nav
+          className="hidden items-center gap-[24px] sm:flex sm:gap-[30px]"
+          aria-label="App navigation"
+        >
           {navigationItems.map((item) => (
             <NavLink
-              className={({ isActive }) =>
-                isActive ? 'app-nav-link app-nav-link--active' : 'app-nav-link'
-              }
               end={item.to === '/app'}
               key={item.to}
               to={item.to}
+              className={({ isActive }) =>
+                isActive
+                  ? 'text-[15px] font-bold text-primary-dark'
+                  : 'text-[15px] font-medium text-ink-variant transition-colors hover:text-primary-dark'
+              }
             >
               {item.label}
             </NavLink>
           ))}
         </nav>
-        <div style={{ marginTop: 'auto' }}>
-          <div style={{ marginBottom: '12px', fontSize: '0.85rem', color: 'var(--color-text-main)', opacity: 0.7, wordBreak: 'break-all' }}>
+        <div className="flex shrink-0 items-center gap-4">
+          <span
+            className="hidden max-w-[220px] truncate text-[14px] text-ink-variant md:inline"
+            title={user.email}
+          >
             {user.email}
-          </div>
+          </span>
           <button
+            type="button"
             onClick={() => logout()}
-            className="button button--secondary"
-            style={{ width: '100%', minHeight: '36px', height: '36px' }}
+            className="rounded-[4px] bg-primary-dark px-[20px] py-[8px] text-[15px] font-bold text-white transition-opacity hover:opacity-90"
           >
             Đăng xuất
           </button>
         </div>
-      </aside>
-      <main className="authenticated-layout__main">
+      </header>
+
+      <main className="min-w-0 flex-1">
         <Outlet />
       </main>
+
+      <footer className="flex shrink-0 flex-col items-center gap-2 border-t border-hairline bg-surface-muted px-4 py-[20px] text-center sm:flex-row sm:justify-between sm:gap-3 sm:px-[50px] sm:py-[30px] sm:text-left">
+        <span className="text-[20px] font-bold leading-none text-primary-dark">
+          MenuScan
+        </span>
+        <span className="text-[14px] text-ink-variant">
+          © 2024 MenuScan. All rights reserved.
+        </span>
+      </footer>
     </div>
   )
 }

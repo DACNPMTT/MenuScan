@@ -83,3 +83,4 @@ pnpm-debug.log*
 # ========================
 app/uploads/
 uploads/
+storage/

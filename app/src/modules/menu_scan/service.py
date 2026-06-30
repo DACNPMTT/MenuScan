@@ -21,6 +21,7 @@ from src.modules.menu_scan.exceptions import (
     InvalidPdfError,
     InvalidTargetLanguageError,
     ScanNotFoundError,
+    ScanNotReadyError,
     SourceFileNotFoundError,
     StorageUnavailableError,
     UnsupportedFileTypeError,
@@ -28,7 +29,12 @@ from src.modules.menu_scan.exceptions import (
 from src.modules.menu_scan.models import ScanSession, ScanStatus
 from src.modules.menu_scan.repository import ScanSessionRepository
 from src.modules.menu_scan.schemas import (
+    MenuItemData,
+    MenuResultData,
     ScanCreatedData,
+    ScanResultData,
+    ScanResultScanData,
+    ScanResultSourceData,
     ScanSourceData,
     ScanStatusData,
 )
@@ -166,6 +172,61 @@ class ScanService:
             data=stored_object.data,
             mime_type=stored_object.content_type or scan.source_mime_type,
             file_name=scan.source_file_name,
+        )
+
+    def get_result(
+        self,
+        *,
+        user: User,
+        scan_id: uuid.UUID,
+    ) -> ScanResultData:
+        """Build the completed-scan result: scan metadata + extracted menu.
+
+        Returns 409 SCAN_NOT_READY unless the pipeline reached COMPLETED. The
+        menu is None only if persistence was skipped (never happens today —
+        the pipeline always creates a Menu, possibly with zero items).
+        """
+        scan = self._get_owned_scan(user=user, scan_id=scan_id)
+        if scan.status != ScanStatus.COMPLETED:
+            raise ScanNotReadyError(scan.status.value)
+
+        detected_language = (
+            scan.ocr_result.detected_language if scan.ocr_result else None
+        )
+        processing_time_ms: int | None = None
+        if scan.started_at and scan.completed_at:
+            processing_time_ms = int(
+                (scan.completed_at - scan.started_at).total_seconds() * 1000
+            )
+
+        menu_data: MenuResultData | None = None
+        if scan.menu is not None:
+            menu_data = MenuResultData(
+                id=scan.menu.id,
+                title=scan.menu.title,
+                default_currency=scan.menu.default_currency,
+                is_saved=scan.menu.is_saved,
+                items=[
+                    MenuItemData.model_validate(item)
+                    for item in scan.menu.food_items
+                ],
+            )
+
+        return ScanResultData(
+            scan=ScanResultScanData(
+                id=scan.id,
+                status=scan.status,
+                source=ScanResultSourceData(
+                    file_name=scan.source_file_name,
+                    mime_type=scan.source_mime_type,
+                    file_size=scan.source_file_size,
+                    preview_url=f"/api/v1/scans/{scan.id}/source",
+                ),
+                detected_language=detected_language,
+                target_language=scan.target_language,
+                processing_time_ms=processing_time_ms,
+            ),
+            menu=menu_data,
         )
 
     def _get_owned_scan(self, *, user: User, scan_id: uuid.UUID) -> ScanSession:

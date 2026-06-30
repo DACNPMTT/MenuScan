@@ -129,9 +129,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [loginState, logoutState])
 
-  // Try to restore session on mount
+  // Try to restore session on mount. Skip the silent refresh on the magic-link
+  // verify route: VerifyPage exchanges the token and establishes the session
+  // itself. Firing refresh here races verify — the refresh request leaves
+  // before verify's Set-Cookie lands, returns 401, and logoutState() clobbers
+  // the session that verify just created, bouncing the user back to /auth/login.
   useEffect(() => {
+    const isVerifyRoute = window.location.pathname.startsWith('/auth/verify')
     Promise.resolve().then(() => {
+      if (isVerifyRoute) {
+        setLoading(false)
+        return
+      }
       refreshSession()
     })
   }, [refreshSession])

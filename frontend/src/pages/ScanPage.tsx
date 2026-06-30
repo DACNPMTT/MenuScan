@@ -1,18 +1,25 @@
+import { Link } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
 import { UploadPanel } from '@/features/menu-scan/components/UploadPanel'
-import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 
 export function ScanPage() {
-  useDocumentTitle('Scan menu | MenuScan')
-
   return (
-    <section className="route-page" aria-labelledby="scan-title">
-      <p className="eyebrow">Menu scan</p>
-      <h1 id="scan-title">Scan a menu</h1>
-      <p>
-        The upload surface is ready for API integration while staying inside
-        the menu-scan feature boundary.
-      </p>
-      <UploadPanel />
-    </section>
+    <div className="mx-auto w-full max-w-[1100px] px-4 py-[30px] sm:px-[50px] sm:py-[50px]">
+      <div className="flex flex-col gap-5">
+        <Link
+          to="/app"
+          className="flex w-fit items-center gap-2 text-[14px] text-ink-variant transition-colors hover:text-primary-dark"
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          Về Dashboard
+        </Link>
+        <h1 className="text-[48px] font-bold leading-[56px] tracking-[-0.5px] text-primary-dark">
+          Thêm menu
+        </h1>
+      </div>
+      <div className="mt-[40px]">
+        <UploadPanel />
+      </div>
+    </div>
   )
 }
