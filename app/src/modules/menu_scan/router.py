@@ -65,6 +65,15 @@ def get_scan_source(
     )
 
 
+@router.get("/{scan_id}/result", status_code=status.HTTP_200_OK)
+def get_scan_result(
+    scan_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    service: ScanService = Depends(get_scan_service),
+) -> dict[str, object]:
+    data = service.get_result(user=current_user, scan_id=scan_id)
+    return success_response(data=data.model_dump(mode="json"))
+
 def _run_pipeline(pipeline: ScanPipeline, scan_id: uuid.UUID) -> None:
     """Background task wrapper — catches exceptions to prevent unhandled crashes."""
     try:

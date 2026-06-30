@@ -8,6 +8,8 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { LandingPage } from '@/pages/LandingPage'
 import { MenusPage } from '@/pages/MenusPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { ScanResultPage } from '@/pages/ScanResultPage'
+import { CameraScanPage } from '@/pages/CameraScanPage'
 import { ScanPage } from '@/pages/ScanPage'
 import { SetPasswordPage } from '@/pages/SetPasswordPage'
 
@@ -23,6 +25,8 @@ export function AppRoutes() {
 
       <Route path="app" element={<AuthenticatedLayout />}>
         <Route index element={<DashboardPage />} />
+        <Route path="scan/camera" element={<CameraScanPage />} />
+        <Route path="scans/:scanId" element={<ScanResultPage />} />
         <Route path="scan" element={<ScanPage />} />
         <Route path="menus" element={<MenusPage />} />
       </Route>

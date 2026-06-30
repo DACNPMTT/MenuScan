@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -35,3 +36,48 @@ class ScanStatusData(BaseModel):
     error: dict[str, str | None] | None
     created_at: datetime
     completed_at: datetime | None
+
+class MenuItemData(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    original_name: str
+    translated_name: str | None
+    original_description: str | None
+    translated_description: str | None
+    price: Decimal | None
+    currency: str | None
+    category: str | None
+    confidence_score: Decimal | None
+    sort_order: int
+
+
+class MenuResultData(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    title: str
+    default_currency: str | None
+    is_saved: bool
+    items: list[MenuItemData]
+
+
+class ScanResultSourceData(BaseModel):
+    file_name: str
+    mime_type: str
+    file_size: int
+    preview_url: str
+
+
+class ScanResultScanData(BaseModel):
+    id: UUID
+    status: ScanStatus
+    source: ScanResultSourceData
+    detected_language: str | None
+    target_language: str
+    processing_time_ms: int | None
+
+
+class ScanResultData(BaseModel):
+    scan: ScanResultScanData
+    menu: MenuResultData | None

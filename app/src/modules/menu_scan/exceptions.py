@@ -58,6 +58,16 @@ class ScanNotFoundError(ApplicationError):
         )
 
 
+class ScanNotReadyError(ApplicationError):
+    def __init__(self, current_status: str) -> None:
+        super().__init__(
+            status_code=409,
+            code="SCAN_NOT_READY",
+            message="Scan result is not ready yet.",
+            details={"status": current_status},
+        )
+
+
 class SourceFileNotFoundError(ApplicationError):
     def __init__(self) -> None:
         super().__init__(
