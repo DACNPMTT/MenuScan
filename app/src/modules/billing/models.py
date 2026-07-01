@@ -58,6 +58,18 @@ class BillAdjustmentType(str, enum.Enum):
     ROUNDING = "ROUNDING"
 
 
+class BillAdjustmentCalculationType(str, enum.Enum):
+    """How ``BillAdjustment.value`` should be turned into ``calculated_amount``.
+
+    ``FIXED``: ``value`` is a flat money amount in the bill's currency.
+    ``PERCENTAGE``: ``value`` is a percentage (0-100) applied to the bill's
+    ``subtotal_amount`` at the time the adjustment is added/edited.
+    """
+
+    FIXED = "FIXED"
+    PERCENTAGE = "PERCENTAGE"
+
+
 class Bill(Base):
     __tablename__ = "bills"
 
@@ -233,9 +245,25 @@ class BillAdjustment(Base):
         nullable=False,
     )
     label: Mapped[str] = mapped_column(String(255), nullable=False)
-    # Signed amount: negative for discounts, positive for surcharges/tax/
-    # service charges. Always expressed in the bill's currency.
-    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    # How `value` below is interpreted -- a flat amount or a percentage of
+    # the bill's subtotal at the time the adjustment was added/edited.
+    calculation_type: Mapped[BillAdjustmentCalculationType] = mapped_column(
+        Enum(BillAdjustmentCalculationType, name="bill_adjustment_calculation_type"),
+        nullable=False,
+        server_default=BillAdjustmentCalculationType.FIXED.value,
+    )
+    # The raw, unsigned magnitude entered by the server (a money amount for
+    # FIXED, or 0-100 for PERCENTAGE). Never signed -- sign is derived from
+    # `type` when computing `calculated_amount`.
+    value: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    # Signed, server-computed amount actually applied to the bill: negative
+    # for discounts, positive for surcharges/tax/service charges/rounding.
+    # Always derived server-side from `type`, `calculation_type`, and
+    # `value` -- never trusted from the client.
+    calculated_amount: Mapped[Decimal] = mapped_column(
+        Numeric(14, 2),
+        nullable=False,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -244,4 +272,11 @@ class BillAdjustment(Base):
 
     bill: Mapped[Bill] = relationship(back_populates="adjustments")
 
-    __table_args__ = (Index("ix_bill_adjustments_bill_id", bill_id),)
+    __table_args__ = (
+        CheckConstraint("value >= 0", name="value_non_negative"),
+        CheckConstraint(
+            "calculation_type != 'PERCENTAGE' OR value <= 100",
+            name="percentage_value_within_bounds",
+        ),
+        Index("ix_bill_adjustments_bill_id", bill_id),
+    )

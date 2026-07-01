@@ -23,15 +23,22 @@ from decimal import Decimal
 import pytest
 
 from src.modules.billing.exceptions import (
+    AdjustmentLabelRequiredError,
+    AdjustmentNotFoundError,
     BillAlreadyFinalizedError,
     BillNotFoundError,
     CurrencyMismatchError,
     EmptyBillError,
     FoodItemNotFoundError,
+    InvalidPercentageRangeError,
     InvalidQuantityError,
     NegativeTotalError,
 )
-from src.modules.billing.models import BillAdjustmentType, BillStatus
+from src.modules.billing.models import (
+    BillAdjustmentCalculationType,
+    BillAdjustmentType,
+    BillStatus,
+)
 from src.modules.billing.service import BillingService
 from src.modules.identity.models import User
 from src.modules.menu.models import FoodItem, Menu
@@ -203,7 +210,7 @@ def test_quantity_must_be_positive(db_session):
         service.add_item(bill_id=bill.id, food_item_id=pho.id, quantity=0)
 
 
-def test_adjustment_applies_rounding_with_numeric_precision(db_session):
+def test_fixed_adjustment_applies_rounding_with_numeric_precision(db_session):
     user = _make_user(db_session)
     menu = _make_menu_with_items(db_session, user)
     pho, _ = _items(db_session, menu)
@@ -211,23 +218,199 @@ def test_adjustment_applies_rounding_with_numeric_precision(db_session):
     bill = service.create_bill(user_id=user.id, menu_id=menu.id)
     service.add_item(bill_id=bill.id, food_item_id=pho.id, quantity=1)
 
-    # 10% service charge on 65000, with a fractional discount to exercise
+    # FIXED service charge on 65000, with a fractional value to exercise
     # HALF_UP rounding to 2 decimal places.
     service.add_adjustment(
         bill_id=bill.id,
         adjustment_type=BillAdjustmentType.SERVICE_CHARGE,
-        label="Phí phục vụ 10%",
-        amount=Decimal("6500.005"),
+        calculation_type=BillAdjustmentCalculationType.FIXED,
+        label="Phí phục vụ",
+        value=Decimal("6500.005"),
     )
     service.add_adjustment(
         bill_id=bill.id,
         adjustment_type=BillAdjustmentType.DISCOUNT,
+        calculation_type=BillAdjustmentCalculationType.FIXED,
         label="Giảm giá thành viên",
-        amount=Decimal("-5000"),
+        value=Decimal("5000"),
     )
 
     assert bill.adjustment_total == Decimal("1500.01")
     assert bill.total_amount == Decimal("66500.01")
+
+
+def test_percentage_adjustment_is_computed_from_subtotal(db_session):
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, _ = _items(db_session, menu)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+    service.add_item(bill_id=bill.id, food_item_id=pho.id, quantity=1)
+
+    adjustment = service.add_adjustment(
+        bill_id=bill.id,
+        adjustment_type=BillAdjustmentType.TAX,
+        calculation_type=BillAdjustmentCalculationType.PERCENTAGE,
+        label="VAT 10%",
+        value=Decimal("10"),
+    )
+
+    assert adjustment.calculated_amount == Decimal("6500.00")
+    assert bill.adjustment_total == Decimal("6500.00")
+    assert bill.total_amount == Decimal("71500.00")
+
+
+def test_percentage_adjustment_order_does_not_change_result(db_session):
+    """Every adjustment is computed against subtotal, independent of order."""
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, _ = _items(db_session, menu)
+    service_a = BillingService(session=db_session)
+    bill_a = service_a.create_bill(user_id=user.id, menu_id=menu.id)
+    service_a.add_item(bill_id=bill_a.id, food_item_id=pho.id, quantity=1)
+    service_a.add_adjustment(
+        bill_id=bill_a.id,
+        adjustment_type=BillAdjustmentType.SERVICE_CHARGE,
+        calculation_type=BillAdjustmentCalculationType.PERCENTAGE,
+        label="Phí phục vụ 10%",
+        value=Decimal("10"),
+    )
+    service_a.add_adjustment(
+        bill_id=bill_a.id,
+        adjustment_type=BillAdjustmentType.DISCOUNT,
+        calculation_type=BillAdjustmentCalculationType.PERCENTAGE,
+        label="Giảm giá 5%",
+        value=Decimal("5"),
+    )
+
+    user_b = _make_user(db_session)
+    menu_b = _make_menu_with_items(db_session, user_b)
+    pho_b, _ = _items(db_session, menu_b)
+    service_b = BillingService(session=db_session)
+    bill_b = service_b.create_bill(user_id=user_b.id, menu_id=menu_b.id)
+    service_b.add_item(bill_id=bill_b.id, food_item_id=pho_b.id, quantity=1)
+    service_b.add_adjustment(
+        bill_id=bill_b.id,
+        adjustment_type=BillAdjustmentType.DISCOUNT,
+        calculation_type=BillAdjustmentCalculationType.PERCENTAGE,
+        label="Giảm giá 5%",
+        value=Decimal("5"),
+    )
+    service_b.add_adjustment(
+        bill_id=bill_b.id,
+        adjustment_type=BillAdjustmentType.SERVICE_CHARGE,
+        calculation_type=BillAdjustmentCalculationType.PERCENTAGE,
+        label="Phí phục vụ 10%",
+        value=Decimal("10"),
+    )
+
+    assert bill_a.total_amount == bill_b.total_amount
+
+
+def test_percentage_adjustment_rejects_value_above_100(db_session):
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, _ = _items(db_session, menu)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+    service.add_item(bill_id=bill.id, food_item_id=pho.id, quantity=1)
+
+    with pytest.raises(InvalidPercentageRangeError):
+        service.add_adjustment(
+            bill_id=bill.id,
+            adjustment_type=BillAdjustmentType.DISCOUNT,
+            calculation_type=BillAdjustmentCalculationType.PERCENTAGE,
+            label="Giảm giá quá tay",
+            value=Decimal("150"),
+        )
+
+
+def test_adjustment_requires_a_non_blank_label(db_session):
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, _ = _items(db_session, menu)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+    service.add_item(bill_id=bill.id, food_item_id=pho.id, quantity=1)
+
+    with pytest.raises(AdjustmentLabelRequiredError):
+        service.add_adjustment(
+            bill_id=bill.id,
+            adjustment_type=BillAdjustmentType.SURCHARGE,
+            calculation_type=BillAdjustmentCalculationType.FIXED,
+            label="   ",
+            value=Decimal("1000"),
+        )
+
+
+def test_update_adjustment_changes_value_and_recomputes_totals(db_session):
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, _ = _items(db_session, menu)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+    service.add_item(bill_id=bill.id, food_item_id=pho.id, quantity=1)
+    adjustment = service.add_adjustment(
+        bill_id=bill.id,
+        adjustment_type=BillAdjustmentType.DISCOUNT,
+        calculation_type=BillAdjustmentCalculationType.FIXED,
+        label="Giảm giá thành viên",
+        value=Decimal("5000"),
+    )
+
+    updated = service.update_adjustment(
+        bill_id=bill.id,
+        adjustment_id=adjustment.id,
+        adjustment_type=BillAdjustmentType.DISCOUNT,
+        calculation_type=BillAdjustmentCalculationType.PERCENTAGE,
+        label="Giảm giá thành viên 10%",
+        value=Decimal("10"),
+    )
+
+    assert updated.calculated_amount == Decimal("-6500.00")
+    assert bill.adjustment_total == Decimal("-6500.00")
+    assert bill.total_amount == Decimal("58500.00")
+
+
+def test_remove_adjustment_recomputes_totals(db_session):
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, _ = _items(db_session, menu)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+    service.add_item(bill_id=bill.id, food_item_id=pho.id, quantity=1)
+    adjustment = service.add_adjustment(
+        bill_id=bill.id,
+        adjustment_type=BillAdjustmentType.DISCOUNT,
+        calculation_type=BillAdjustmentCalculationType.FIXED,
+        label="Giảm giá thành viên",
+        value=Decimal("5000"),
+    )
+
+    bill = service.remove_adjustment(bill_id=bill.id, adjustment_id=adjustment.id)
+
+    assert bill.adjustments == []
+    assert bill.adjustment_total == Decimal("0.00")
+    assert bill.total_amount == Decimal("65000.00")
+
+
+def test_update_adjustment_raises_not_found_for_unknown_adjustment(db_session):
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, _ = _items(db_session, menu)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+    service.add_item(bill_id=bill.id, food_item_id=pho.id, quantity=1)
+
+    with pytest.raises(AdjustmentNotFoundError):
+        service.update_adjustment(
+            bill_id=bill.id,
+            adjustment_id=uuid.uuid4(),
+            adjustment_type=BillAdjustmentType.DISCOUNT,
+            calculation_type=BillAdjustmentCalculationType.FIXED,
+            label="Không tồn tại",
+            value=Decimal("1000"),
+        )
 
 
 def test_adjustment_cannot_push_total_negative(db_session):
@@ -242,8 +425,9 @@ def test_adjustment_cannot_push_total_negative(db_session):
         service.add_adjustment(
             bill_id=bill.id,
             adjustment_type=BillAdjustmentType.DISCOUNT,
+            calculation_type=BillAdjustmentCalculationType.FIXED,
             label="Giảm giá quá tay",
-            amount=Decimal("-999999"),
+            value=Decimal("999999"),
         )
 
 
@@ -386,13 +570,193 @@ def test_replace_items_cannot_mutate_a_finalized_bill(db_session):
         service.replace_items(bill_id=bill.id, user_id=user.id, items=[(pho.id, 2)])
 
 
+def test_tax_and_surcharge_all_adjustment_types_accepted(db_session):
+    """Covers issue #129: all four loại adjustment (Service charge, Tax, Discount, Other fee)."""
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, _ = _items(db_session, menu)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+    service.add_item(bill_id=bill.id, food_item_id=pho.id, quantity=1)
+
+    service.add_adjustment(
+        bill_id=bill.id,
+        adjustment_type=BillAdjustmentType.TAX,
+        calculation_type=BillAdjustmentCalculationType.PERCENTAGE,
+        label="VAT 10%",
+        value=Decimal("10"),
+    )
+    service.add_adjustment(
+        bill_id=bill.id,
+        adjustment_type=BillAdjustmentType.SERVICE_CHARGE,
+        calculation_type=BillAdjustmentCalculationType.FIXED,
+        label="Phí phục vụ",
+        value=Decimal("5000"),
+    )
+    service.add_adjustment(
+        bill_id=bill.id,
+        adjustment_type=BillAdjustmentType.DISCOUNT,
+        calculation_type=BillAdjustmentCalculationType.FIXED,
+        label="Giảm giá khuyến mãi",
+        value=Decimal("10000"),
+    )
+    service.add_adjustment(
+        bill_id=bill.id,
+        adjustment_type=BillAdjustmentType.SURCHARGE,
+        calculation_type=BillAdjustmentCalculationType.FIXED,
+        label="Phụ thu cuối tuần",
+        value=Decimal("3000"),
+    )
+
+    types = {adj.type for adj in bill.adjustments}
+    assert BillAdjustmentType.TAX in types
+    assert BillAdjustmentType.SERVICE_CHARGE in types
+    assert BillAdjustmentType.DISCOUNT in types
+    assert BillAdjustmentType.SURCHARGE in types
+    # total = 65000 (subtotal) + 6500 (TAX 10%) + 5000 (SC) - 10000 (DISC) + 3000 (SC2)
+    assert bill.total_amount == Decimal("69500.00")
+
+
+def test_adjustment_add_then_update_then_remove_recomputes_correctly(db_session):
+    """Covers issue #129 checklist: thêm/sửa/xóa adjustment tính lại total."""
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, _ = _items(db_session, menu)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+    service.add_item(bill_id=bill.id, food_item_id=pho.id, quantity=2)
+    # subtotal = 130000
+
+    adj = service.add_adjustment(
+        bill_id=bill.id,
+        adjustment_type=BillAdjustmentType.SERVICE_CHARGE,
+        calculation_type=BillAdjustmentCalculationType.FIXED,
+        label="Phí phục vụ ban đầu",
+        value=Decimal("10000"),
+    )
+    assert bill.total_amount == Decimal("140000.00")
+
+    service.update_adjustment(
+        bill_id=bill.id,
+        adjustment_id=adj.id,
+        adjustment_type=BillAdjustmentType.SERVICE_CHARGE,
+        calculation_type=BillAdjustmentCalculationType.PERCENTAGE,
+        label="Phí phục vụ 5%",
+        value=Decimal("5"),
+    )
+    # 5% of 130000 = 6500
+    assert bill.total_amount == Decimal("136500.00")
+
+    service.remove_adjustment(bill_id=bill.id, adjustment_id=adj.id)
+    assert bill.adjustment_total == Decimal("0.00")
+    assert bill.total_amount == Decimal("130000.00")
+
+
+def test_discount_at_exact_subtotal_brings_total_to_zero(db_session):
+    """Covers issue #129: discount không làm total âm — boundary = 0 is allowed."""
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, _ = _items(db_session, menu)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+    service.add_item(bill_id=bill.id, food_item_id=pho.id, quantity=1)
+
+    service.add_adjustment(
+        bill_id=bill.id,
+        adjustment_type=BillAdjustmentType.DISCOUNT,
+        calculation_type=BillAdjustmentCalculationType.FIXED,
+        label="Giảm 100%",
+        value=Decimal("65000"),
+    )
+
+    assert bill.total_amount == Decimal("0.00")
+
+
+def test_finalized_bill_blocks_add_and_remove_adjustment(db_session):
+    """Covers issue #129 checklist: chỉ bill DRAFT được sửa (for adjustments)."""
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, _ = _items(db_session, menu)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+    service.add_item(bill_id=bill.id, food_item_id=pho.id, quantity=1)
+    adj = service.add_adjustment(
+        bill_id=bill.id,
+        adjustment_type=BillAdjustmentType.TAX,
+        calculation_type=BillAdjustmentCalculationType.FIXED,
+        label="VAT",
+        value=Decimal("5000"),
+    )
+    service.finalize_bill(bill_id=bill.id)
+
+    with pytest.raises(BillAlreadyFinalizedError):
+        service.add_adjustment(
+            bill_id=bill.id,
+            adjustment_type=BillAdjustmentType.DISCOUNT,
+            calculation_type=BillAdjustmentCalculationType.FIXED,
+            label="Giảm giá sau chốt",
+            value=Decimal("1000"),
+        )
+
+    with pytest.raises(BillAlreadyFinalizedError):
+        service.update_adjustment(
+            bill_id=bill.id,
+            adjustment_id=adj.id,
+            adjustment_type=BillAdjustmentType.TAX,
+            calculation_type=BillAdjustmentCalculationType.FIXED,
+            label="VAT sửa",
+            value=Decimal("9000"),
+        )
+
+    with pytest.raises(BillAlreadyFinalizedError):
+        service.remove_adjustment(bill_id=bill.id, adjustment_id=adj.id)
+
+
+def test_percentage_adjustment_uses_subtotal_not_running_total(db_session):
+    """Thứ tự tính adjustment được tài liệu hóa: mỗi PERCENTAGE tính độc lập từ subtotal.
+
+    Nếu service charge 10% chạy trước và TAX 10% tính trên *running total* thì
+    tax sẽ là 10% × (subtotal + service_charge), khác với 10% × subtotal.
+    Test này xác minh tax chỉ tính từ subtotal gốc (65000), không phụ thuộc
+    vào adjustment đã thêm trước đó -- đây chính là quy tắc thứ tự được ghi trong
+    service docstring và api-endpoints.md (issue #129).
+    """
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, _ = _items(db_session, menu)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+    service.add_item(bill_id=bill.id, food_item_id=pho.id, quantity=1)
+    # subtotal = 65000
+
+    service.add_adjustment(
+        bill_id=bill.id,
+        adjustment_type=BillAdjustmentType.SERVICE_CHARGE,
+        calculation_type=BillAdjustmentCalculationType.PERCENTAGE,
+        label="Phí phục vụ 10%",
+        value=Decimal("10"),
+    )
+    tax_adj = service.add_adjustment(
+        bill_id=bill.id,
+        adjustment_type=BillAdjustmentType.TAX,
+        calculation_type=BillAdjustmentCalculationType.PERCENTAGE,
+        label="VAT 10%",
+        value=Decimal("10"),
+    )
+
+    # Both must be 10% of SUBTOTAL (65000) = 6500 each, not cumulative
+    assert tax_adj.calculated_amount == Decimal("6500.00")
+    assert bill.adjustment_total == Decimal("13000.00")  # 6500 + 6500
+    assert bill.total_amount == Decimal("78000.00")       # 65000 + 13000
+
+
 def test_billing_service_has_no_send_order_to_restaurant_capability():
     """Billing never triggers a restaurant-facing order workflow (per spec).
 
-    Issue #128 added ``get_bill_for_user`` (ownership-scoped read for
-    ``GET /bills/{bill_id}``) and ``replace_items`` (add/update/remove in one
-    call for ``PATCH /bills/{bill_id}/items``); the assertion below was
-    updated accordingly. Crucially, no restaurant-order method was added.
+    Issue #128 added ``get_bill_for_user`` and ``replace_items``.
+    Issue #129 confirmed that ``add_adjustment``, ``update_adjustment``,
+    ``remove_adjustment``, and ``finalize_bill`` are the only adjustment/
+    lifecycle operations exposed -- no restaurant-order method was added.
     """
     public_methods = {
         name
@@ -405,5 +769,7 @@ def test_billing_service_has_no_send_order_to_restaurant_capability():
         "add_item",
         "replace_items",
         "add_adjustment",
+        "update_adjustment",
+        "remove_adjustment",
         "finalize_bill",
     }

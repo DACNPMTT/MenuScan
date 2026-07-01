@@ -75,6 +75,29 @@ class BillRepository:
         session.flush()
         return adjustment
 
+    def get_adjustment(
+        self,
+        session: Session,
+        bill_id: uuid.UUID,
+        adjustment_id: uuid.UUID,
+    ) -> BillAdjustment | None:
+        """Return the adjustment only if it belongs to ``bill_id``."""
+        statement = select(BillAdjustment).where(
+            BillAdjustment.id == adjustment_id,
+            BillAdjustment.bill_id == bill_id,
+        )
+        return session.scalars(statement).first()
+
+    def remove_adjustment(
+        self,
+        session: Session,
+        bill: Bill,
+        adjustment: BillAdjustment,
+    ) -> None:
+        """Detach ``adjustment`` from ``bill`` (cascade delete-orphan)."""
+        bill.adjustments.remove(adjustment)
+        session.flush()
+
     def clear_items(self, session: Session, bill: Bill) -> None:
         """Delete every existing line item on ``bill`` (cascade delete-orphan)."""
         bill.items.clear()

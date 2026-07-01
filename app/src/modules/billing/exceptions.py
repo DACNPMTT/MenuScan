@@ -106,3 +106,47 @@ class InvalidQuantityError(ApplicationError):
             code="INVALID_QUANTITY",
             message="Số lượng món phải lớn hơn 0.",
         )
+
+
+class AdjustmentNotFoundError(ApplicationError):
+    """Raised when an adjustment cannot be found on the given bill (404)."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=404,
+            code="ADJUSTMENT_NOT_FOUND",
+            message="Không tìm thấy khoản điều chỉnh này trên hóa đơn.",
+        )
+
+
+class InvalidAdjustmentValueError(ApplicationError):
+    """Raised when an adjustment's value is negative (400)."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=400,
+            code="INVALID_ADJUSTMENT_VALUE",
+            message="Giá trị điều chỉnh phải lớn hơn hoặc bằng 0.",
+        )
+
+
+class InvalidPercentageRangeError(ApplicationError):
+    """Raised when a PERCENTAGE adjustment's value is outside 0-100 (400)."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=400,
+            code="INVALID_PERCENTAGE_RANGE",
+            message="Phần trăm điều chỉnh phải trong khoảng 0-100.",
+        )
+
+
+class AdjustmentLabelRequiredError(ApplicationError):
+    """Raised when an adjustment's label is blank (400)."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=400,
+            code="ADJUSTMENT_LABEL_REQUIRED",
+            message="Khoản điều chỉnh phải có nhãn hiển thị trên hóa đơn.",
+        )

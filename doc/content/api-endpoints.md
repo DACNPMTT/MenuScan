@@ -269,7 +269,7 @@ Lỗi: `401 UNAUTHORIZED`, `403 FORBIDDEN`, `404 SCAN_NOT_FOUND`,
 
 ## 4. Bill
 
-> Nghiệp vụ domain: xem `src/modules/billing/service.py` (issue #127, #128).
+> Nghiệp vụ domain: xem `src/modules/billing/service.py` (issue #127, #128, #129).
 
 ### POST `/bills`
 
@@ -297,6 +297,7 @@ Response `201 Created`:
     "total_amount": "0.00",
     "note": null,
     "items": [],
+    "adjustments": [],
     "created_at": "2026-06-30T08:30:00Z",
     "updated_at": "2026-06-30T08:30:00Z",
     "finalized_at": null
@@ -312,32 +313,17 @@ Lỗi: `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`, `404 MENU_NOT_FOUND`.
 Auth bắt buộc. Chỉ owner được truy cập; not-found và not-owned đều trả về
 `404 BILL_NOT_FOUND` để không lộ sự tồn tại của hóa đơn cho người khác.
 
-Response `200 OK`: cùng shape với `POST /bills`, với `items` chứa từng dòng:
-
-```json
-{
-  "id": "a1b2...",
-  "food_item_id": "a2f20df8-5570-411d-aad6-59308a295f65",
-  "name_snapshot": "Beef noodle soup",
-  "unit_price_snapshot": "65000.00",
-  "currency": "VND",
-  "quantity": 2,
-  "line_total": "130000.00",
-  "sort_order": 0
-}
-```
+Response `200 OK`: cùng shape với `POST /bills`, với `items` và `adjustments`
+đầy đủ.
 
 Lỗi: `401 UNAUTHORIZED`, `404 BILL_NOT_FOUND`.
 
 ### PATCH `/bills/{bill_id}/items`
 
 Auth bắt buộc. Chỉ owner và chỉ khi bill đang `DRAFT` mới được sửa. Body là
-**trạng thái mong muốn cuối cùng** của toàn bộ danh sách item trên hóa đơn:
-món có mặt trong `items` sẽ được thêm mới hoặc cập nhật số lượng; món hiện có
-trên bill nhưng vắng mặt trong `items` sẽ bị xóa. Mảng rỗng đưa bill về
-subtotal `0`. Client chỉ gửi `food_item_id` và `quantity`; server luôn tự đọc
-giá hiện tại của món trên menu và tính lại `line_total`/`subtotal_amount`/
-`total_amount` -- giá client gửi lên (nếu có) không được tin dùng.
+**trạng thái mong muốn cuối cùng** của toàn bộ danh sách item trên hóa đơn.
+Client chỉ gửi `food_item_id` và `quantity`; server luôn tự đọc giá hiện tại
+và tính lại tất cả totals.
 
 ```json
 {
@@ -348,12 +334,89 @@ giá hiện tại của món trên menu và tính lại `line_total`/`subtotal_a
 }
 ```
 
-Response `200 OK`: cùng shape với `GET /bills/{bill_id}`, đã cập nhật totals.
+Response `200 OK`: cùng shape với `GET /bills/{bill_id}`.
 
-Lỗi: `400 VALIDATION_ERROR` (quantity không phải số nguyên dương),
-`400 CURRENCY_MISMATCH`, `400 FOOD_ITEM_MISSING_PRICE`,
-`401 UNAUTHORIZED`, `404 BILL_NOT_FOUND`, `404 FOOD_ITEM_NOT_FOUND`
-(món không thuộc menu của bill), `409 BILL_ALREADY_FINALIZED`.
+Lỗi: `400 VALIDATION_ERROR`, `400 CURRENCY_MISMATCH`, `400 FOOD_ITEM_MISSING_PRICE`,
+`401 UNAUTHORIZED`, `404 BILL_NOT_FOUND`, `404 FOOD_ITEM_NOT_FOUND`,
+`409 BILL_ALREADY_FINALIZED`.
+
+### POST `/bills/{bill_id}/adjustments`
+
+Auth bắt buộc. Chỉ owner, chỉ bill `DRAFT`. Thêm một khoản điều chỉnh
+(phí, thuế, giảm giá, phụ thu) và tính lại `adjustment_total` / `total_amount`.
+
+**Loại adjustment** (`type`): `DISCOUNT` · `TAX` · `SERVICE_CHARGE` ·
+`SURCHARGE` · `ROUNDING`.
+
+**Cách tính** (`calculation_type`): `FIXED` (số tiền cố định) hoặc
+`PERCENTAGE` (% của `subtotal_amount`).
+
+**Quy tắc thứ tự tính (ordering rule)**: mỗi adjustment — dù FIXED hay
+PERCENTAGE — được tính **độc lập** từ `subtotal_amount` gốc, không cộng dồn
+trên running total của các adjustment khác. Điều này đảm bảo kết quả không
+phụ thuộc vào thứ tự thêm adjustment và mỗi dòng trên receipt hiển thị đúng
+`calculated_amount` của chính nó.
+
+Server tự tính `calculated_amount` (có dấu: âm cho DISCOUNT, dương cho các
+loại còn lại) -- client chỉ gửi `value` không dấu.
+
+```json
+{
+  "type": "TAX",
+  "calculation_type": "PERCENTAGE",
+  "label": "VAT 10%",
+  "value": "10"
+}
+```
+
+Response `201 Created`: full bill với `adjustments` đã có khoản mới.
+
+```json
+{
+  "id": "c3d4e5f6-...",
+  "type": "TAX",
+  "calculation_type": "PERCENTAGE",
+  "label": "VAT 10%",
+  "value": "10.00",
+  "calculated_amount": "6500.00",
+  "created_at": "2026-06-30T09:00:00Z"
+}
+```
+
+Lỗi: `400 VALIDATION_ERROR`, `400 INVALID_ADJUSTMENT_VALUE`,
+`400 INVALID_PERCENTAGE_RANGE` (value > 100), `400 ADJUSTMENT_LABEL_REQUIRED`,
+`400 NEGATIVE_TOTAL` (discount làm total < 0),
+`401 UNAUTHORIZED`, `404 BILL_NOT_FOUND`, `409 BILL_ALREADY_FINALIZED`.
+
+### PATCH `/bills/{bill_id}/adjustments/{adjustment_id}`
+
+Auth bắt buộc. Chỉ owner, chỉ bill `DRAFT`. Sửa toàn bộ trường của adjustment
+và tính lại totals. Body giống `POST /bills/{bill_id}/adjustments`.
+
+Response `200 OK`: full bill sau khi cập nhật.
+
+Lỗi: giống POST adjustments, thêm `404 ADJUSTMENT_NOT_FOUND`.
+
+### DELETE `/bills/{bill_id}/adjustments/{adjustment_id}`
+
+Auth bắt buộc. Chỉ owner, chỉ bill `DRAFT`. Xóa adjustment và tính lại totals.
+
+Response `200 OK`: full bill sau khi xóa.
+
+Lỗi: `401 UNAUTHORIZED`, `404 BILL_NOT_FOUND`, `404 ADJUSTMENT_NOT_FOUND`,
+`409 BILL_ALREADY_FINALIZED`.
+
+### POST `/bills/{bill_id}/finalize`
+
+Auth bắt buộc. Chỉ owner. Chốt bill `DRAFT` thành `FINALIZED` — bill phải có
+ít nhất một item. Sau khi finalize, mọi thao tác thêm/sửa/xóa item hoặc
+adjustment đều bị từ chối với `409 BILL_ALREADY_FINALIZED`.
+
+Response `200 OK`: full bill với `status: "FINALIZED"` và `finalized_at` được
+set server-side.
+
+Lỗi: `400 EMPTY_BILL`, `401 UNAUTHORIZED`, `404 BILL_NOT_FOUND`,
+`409 BILL_ALREADY_FINALIZED`.
 
 ## 5. Menu
 
