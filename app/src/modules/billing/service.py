@@ -31,12 +31,16 @@ from decimal import ROUND_HALF_UP, Decimal
 from sqlalchemy.orm import Session
 
 from src.modules.billing.exceptions import (
+    AdjustmentLabelRequiredError,
+    AdjustmentNotFoundError,
     BillAlreadyFinalizedError,
     BillNotFoundError,
     CurrencyMismatchError,
     EmptyBillError,
     FoodItemMissingPriceError,
     FoodItemNotFoundError,
+    InvalidAdjustmentValueError,
+    InvalidPercentageRangeError,
     InvalidQuantityError,
     MenuNotFoundError,
     NegativeTotalError,
@@ -44,6 +48,7 @@ from src.modules.billing.exceptions import (
 from src.modules.billing.models import (
     Bill,
     BillAdjustment,
+    BillAdjustmentCalculationType,
     BillAdjustmentType,
     BillItem,
     BillStatus,
@@ -52,6 +57,22 @@ from src.modules.billing.repository import BillRepository
 from src.modules.menu.models import FoodItem, Menu
 
 _CENTS = Decimal("0.01")
+
+# Sign applied to every computed adjustment amount, keyed by adjustment
+# type. DISCOUNT always reduces the total; every other type increases it.
+# This is the one place the sign convention lives -- callers only ever
+# supply an unsigned ``value``.
+_ADJUSTMENT_SIGN: dict[BillAdjustmentType, int] = {
+    BillAdjustmentType.DISCOUNT: -1,
+    BillAdjustmentType.SURCHARGE: 1,
+    BillAdjustmentType.TAX: 1,
+    BillAdjustmentType.SERVICE_CHARGE: 1,
+    BillAdjustmentType.ROUNDING: 1,
+}
+
+# A PERCENTAGE adjustment's `value` must fall within this inclusive range.
+_MIN_PERCENTAGE = Decimal("0")
+_MAX_PERCENTAGE = Decimal("100")
 
 
 def _round_money(value: Decimal) -> Decimal:
@@ -234,15 +255,38 @@ class BillingService:
         *,
         bill_id: uuid.UUID,
         adjustment_type: BillAdjustmentType,
+        calculation_type: BillAdjustmentCalculationType,
         label: str,
-        amount: Decimal,
+        value: Decimal,
     ) -> BillAdjustment:
-        """Add a signed adjustment (discount/tax/surcharge/...) to the bill."""
-        bill = self._get_mutable_bill(bill_id)
+        """Add a discount/tax/surcharge/... adjustment to the bill.
 
-        rounded_amount = _round_money(amount)
+        ``value`` is always an *unsigned* magnitude supplied by the caller:
+        a flat money amount when ``calculation_type`` is ``FIXED``, or a
+        percentage (0-100 inclusive) of the bill's *current*
+        ``subtotal_amount`` when ``calculation_type`` is ``PERCENTAGE``.
+        The signed, rounded ``calculated_amount`` actually applied to the
+        bill is always derived here -- never trusted from the client.
+
+        Ordering rule (documented per issue #129): every adjustment,
+        whether FIXED or PERCENTAGE, is computed independently against the
+        bill's line-item ``subtotal_amount`` -- never against a
+        running/cumulative total that includes other adjustments. This
+        keeps the result independent of the order adjustments were added
+        in, which matters because every adjustment must show its own label
+        and ``calculated_amount`` on the receipt.
+        """
+        bill = self._get_mutable_bill(bill_id)
+        calculated_amount = self._calculate_adjustment_amount(
+            bill=bill,
+            adjustment_type=adjustment_type,
+            calculation_type=calculation_type,
+            value=value,
+        )
+
+        label = self._validate_label(label)
         candidate_total = _round_money(
-            bill.subtotal_amount + bill.adjustment_total + rounded_amount
+            bill.subtotal_amount + bill.adjustment_total + calculated_amount
         )
         if candidate_total < 0:
             raise NegativeTotalError()
@@ -251,13 +295,86 @@ class BillingService:
             bill_id=bill.id,
             type=adjustment_type,
             label=label,
-            amount=rounded_amount,
+            calculation_type=calculation_type,
+            value=value,
+            calculated_amount=calculated_amount,
         )
         self._repository.add_adjustment(self._session, adjustment)
         bill.adjustments.append(adjustment)
         self._recompute_totals(bill)
         self._session.commit()
         return adjustment
+
+    def update_adjustment(
+        self,
+        *,
+        bill_id: uuid.UUID,
+        adjustment_id: uuid.UUID,
+        adjustment_type: BillAdjustmentType,
+        calculation_type: BillAdjustmentCalculationType,
+        label: str,
+        value: Decimal,
+    ) -> BillAdjustment:
+        """Edit an existing adjustment in place and recompute totals."""
+        bill = self._get_mutable_bill(bill_id)
+        adjustment = self._repository.get_adjustment(
+            self._session, bill_id, adjustment_id
+        )
+        if adjustment is None:
+            raise AdjustmentNotFoundError()
+
+        calculated_amount = self._calculate_adjustment_amount(
+            bill=bill,
+            adjustment_type=adjustment_type,
+            calculation_type=calculation_type,
+            value=value,
+            exclude_adjustment_id=adjustment.id,
+        )
+        label = self._validate_label(label)
+
+        other_adjustments_total = _round_money(
+            sum(
+                (
+                    adj.calculated_amount
+                    for adj in bill.adjustments
+                    if adj.id != adjustment.id
+                ),
+                Decimal("0.00"),
+            )
+        )
+        candidate_total = _round_money(
+            bill.subtotal_amount + other_adjustments_total + calculated_amount
+        )
+        if candidate_total < 0:
+            raise NegativeTotalError()
+
+        adjustment.type = adjustment_type
+        adjustment.calculation_type = calculation_type
+        adjustment.label = label
+        adjustment.value = value
+        adjustment.calculated_amount = calculated_amount
+        self._recompute_totals(bill)
+        self._session.commit()
+        return adjustment
+
+    def remove_adjustment(
+        self,
+        *,
+        bill_id: uuid.UUID,
+        adjustment_id: uuid.UUID,
+    ) -> Bill:
+        """Remove an adjustment from a DRAFT bill and recompute totals."""
+        bill = self._get_mutable_bill(bill_id)
+        adjustment = self._repository.get_adjustment(
+            self._session, bill_id, adjustment_id
+        )
+        if adjustment is None:
+            raise AdjustmentNotFoundError()
+
+        self._repository.remove_adjustment(self._session, bill, adjustment)
+        self._recompute_totals(bill)
+        self._session.commit()
+        return bill
 
     # --- Finalization -----------------------------------------------------
 
@@ -298,17 +415,58 @@ class BillingService:
             raise CurrencyMismatchError()
 
     @staticmethod
+    def _validate_label(label: str) -> str:
+        label = label.strip()
+        if not label:
+            raise AdjustmentLabelRequiredError()
+        return label
+
+    @staticmethod
+    def _calculate_adjustment_amount(
+        *,
+        bill: Bill,
+        adjustment_type: BillAdjustmentType,
+        calculation_type: BillAdjustmentCalculationType,
+        value: Decimal,
+        exclude_adjustment_id: uuid.UUID | None = None,
+    ) -> Decimal:
+        """Derive the signed, rounded ``calculated_amount`` server-side.
+
+        Never trusts a client-supplied amount: only an unsigned ``value``
+        (flat money for FIXED, 0-100 percentage for PERCENTAGE) comes from
+        the caller. See ``add_adjustment`` for the ordering rule that
+        PERCENTAGE is always computed against ``bill.subtotal_amount``.
+        """
+        del exclude_adjustment_id  # reserved for future cumulative modes
+        if value < 0:
+            raise InvalidAdjustmentValueError()
+
+        sign = _ADJUSTMENT_SIGN[adjustment_type]
+        if calculation_type == BillAdjustmentCalculationType.PERCENTAGE:
+            if value < _MIN_PERCENTAGE or value > _MAX_PERCENTAGE:
+                raise InvalidPercentageRangeError()
+            magnitude = _round_money(bill.subtotal_amount * value / Decimal("100"))
+        else:
+            magnitude = _round_money(value)
+
+        return _round_money(Decimal(sign) * magnitude)
+
+    @staticmethod
     def _recompute_totals(bill: Bill) -> None:
         """Recompute subtotal/adjustment/total strictly from persisted rows.
 
         Never trusts any client-supplied total -- always derived bottom-up
-        from ``bill.items`` (snapshots) and ``bill.adjustments``.
+        from ``bill.items`` (snapshots) and ``bill.adjustments``
+        (``calculated_amount``, the server-derived signed amount).
         """
         subtotal = _round_money(
             sum((item.line_total for item in bill.items), Decimal("0.00"))
         )
         adjustment_total = _round_money(
-            sum((adj.amount for adj in bill.adjustments), Decimal("0.00"))
+            sum(
+                (adj.calculated_amount for adj in bill.adjustments),
+                Decimal("0.00"),
+            )
         )
         total = _round_money(subtotal + adjustment_total)
         if total < 0:

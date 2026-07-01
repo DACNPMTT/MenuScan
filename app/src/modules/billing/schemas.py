@@ -12,6 +12,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
+from src.modules.billing.models import BillAdjustmentCalculationType, BillAdjustmentType
+
 
 class CreateBillRequest(BaseModel):
     """Request body for ``POST /bills``."""
@@ -62,6 +64,57 @@ class BillItemResponse(BaseModel):
         return str(value)
 
 
+class AdjustmentRequest(BaseModel):
+    """Request body for creating/editing a bill adjustment.
+
+    The client only ever sends an unsigned ``value`` (a flat amount for
+    ``FIXED``, or a 0-100 percentage for ``PERCENTAGE``) plus the
+    descriptive fields below; the signed ``calculated_amount`` actually
+    applied to the bill is always derived server-side.
+    """
+
+    type: BillAdjustmentType = Field(
+        description="DISCOUNT | SURCHARGE | TAX | SERVICE_CHARGE | ROUNDING"
+    )
+    calculation_type: BillAdjustmentCalculationType = Field(
+        description="FIXED | PERCENTAGE"
+    )
+    label: str = Field(
+        min_length=1,
+        max_length=255,
+        description="Nhãn hiển thị trên hóa đơn, ví dụ 'Giảm giá thành viên'.",
+    )
+    value: Decimal = Field(
+        ge=0,
+        description=(
+            "Giá trị không dấu: số tiền cố định (FIXED) hoặc phần trăm "
+            "0-100 (PERCENTAGE)."
+        ),
+    )
+
+
+class BillAdjustmentResponse(BaseModel):
+    """One bill adjustment in API responses."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    type: str
+    calculation_type: str
+    label: str
+    value: Decimal
+    calculated_amount: Decimal
+    created_at: datetime
+
+    @field_serializer("value", "calculated_amount")
+    def _serialize_money(self, value: Decimal) -> str:
+        return str(value)
+
+    @field_serializer("type", "calculation_type")
+    def _serialize_enum(self, value: object) -> str:
+        return value.value if hasattr(value, "value") else str(value)
+
+
 class BillResponse(BaseModel):
     """Full bill representation, including line items, in API responses."""
 
@@ -77,6 +130,7 @@ class BillResponse(BaseModel):
     total_amount: Decimal
     note: str | None
     items: list[BillItemResponse]
+    adjustments: list[BillAdjustmentResponse]
     created_at: datetime
     updated_at: datetime
     finalized_at: datetime | None
