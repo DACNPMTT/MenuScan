@@ -14,14 +14,20 @@ interface Envelope<T> {
   error?: unknown
 }
 
-interface ApiResponseEnvelope<T> {
+interface ApiResponseEnvelope<T, M = unknown> {
   success: boolean
   data?: T
+  meta?: M | null
   error?: {
     code: string
     message: string
     details?: unknown
   }
+}
+
+interface ApiRequestResult<T, M = unknown> {
+  data: T
+  meta: M | null
 }
 
 export class ApiError extends Error {
@@ -75,6 +81,14 @@ export async function apiRequest<T = unknown>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
+  const result = await apiRequestWithMeta<T>(path, options)
+  return result.data
+}
+
+export async function apiRequestWithMeta<T = unknown, M = unknown>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<ApiRequestResult<T, M>> {
   const { token, headers = {}, ...restOptions } = options
 
   const cleanPath = path.startsWith('/') ? path : `/${path}`
@@ -118,12 +132,12 @@ export async function apiRequest<T = unknown>(
   }
 
   if (response.status === 204) {
-    return {} as T
+    return { data: {} as T, meta: null }
   }
 
-  let body: ApiResponseEnvelope<T>
+  let body: ApiResponseEnvelope<T, M>
   try {
-    body = (await response.json()) as ApiResponseEnvelope<T>
+    body = (await response.json()) as ApiResponseEnvelope<T, M>
   } catch {
     throw new ApiError(
       response.status,
@@ -142,5 +156,8 @@ export async function apiRequest<T = unknown>(
     )
   }
 
-  return body.data as T
+  return {
+    data: body.data as T,
+    meta: body.meta ?? null,
+  }
 }

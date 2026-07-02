@@ -37,6 +37,30 @@ class ScanStatusData(BaseModel):
     created_at: datetime
     completed_at: datetime | None
 
+
+class ScanListSourceData(BaseModel):
+    file_name: str
+    mime_type: str
+    file_size: int
+    preview_url: str
+
+
+class ScanListMenuData(BaseModel):
+    id: UUID
+    title: str
+    is_saved: bool
+    item_count: int
+
+
+class ScanListItemData(BaseModel):
+    id: UUID
+    status: ScanStatus
+    created_at: datetime
+    completed_at: datetime | None
+    source: ScanListSourceData
+    menu: ScanListMenuData | None
+
+
 class MenuItemData(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

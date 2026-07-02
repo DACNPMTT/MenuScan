@@ -1,10 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { AlertCircle, ArrowLeft, Check, Loader2, RefreshCw, XCircle } from 'lucide-react'
+import {
+  AlertCircle,
+  ArrowLeft,
+  Bookmark,
+  BookmarkCheck,
+  Check,
+  Loader2,
+  RefreshCw,
+  XCircle,
+} from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
-import type { MenuItemResult, ScanDetail, ScanError, ScanResult } from '@/features/menu-scan/types'
+import type {
+  MenuItemResult,
+  MenuSavedState,
+  ScanDetail,
+  ScanError,
+  ScanResult,
+} from '@/features/menu-scan/types'
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '')
 
@@ -123,6 +138,13 @@ export function ScanResultPage() {
   }, [scanId, accessToken])
 
   const status = detail?.status
+  const handleSavedChange = (isSaved: boolean) => {
+    setResult((current) =>
+      current?.menu
+        ? { ...current, menu: { ...current.menu, is_saved: isSaved } }
+        : current,
+    )
+  }
 
   return (
     <div className="mx-auto w-full max-w-[900px] px-[30px] py-[40px] sm:px-[50px]">
@@ -156,7 +178,11 @@ export function ScanResultPage() {
       {!error && status !== 'COMPLETED' && <ProcessingView detail={detail} />}
 
       {status === 'COMPLETED' && result && (
-        <ResultView result={result} accessToken={accessToken} />
+        <ResultView
+          result={result}
+          accessToken={accessToken}
+          onSavedChange={handleSavedChange}
+        />
       )}
     </div>
   )
@@ -194,38 +220,95 @@ function ProcessingView({ detail }: { detail: ScanDetail | null }) {
 function ResultView({
   result,
   accessToken,
+  onSavedChange,
 }: {
   result: ScanResult
   accessToken: string | null
+  onSavedChange: (isSaved: boolean) => void
 }) {
   const items = result.menu?.items ?? []
   const source = result.scan.source
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  const handleToggleSaved = async () => {
+    if (!result.menu || saving) return
+    const nextSaved = !result.menu.is_saved
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const updated = await apiRequest<MenuSavedState>(
+        `/api/v1/menus/${result.menu.id}`,
+        {
+          method: 'PATCH',
+          token: accessToken ?? undefined,
+          body: JSON.stringify({ is_saved: nextSaved }),
+        },
+      )
+      onSavedChange(updated.is_saved)
+    } catch (err) {
+      setSaveError(
+        err instanceof ApiError
+          ? err.message
+          : 'Không thể cập nhật trạng thái lưu menu.',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <span className="flex size-10 items-center justify-center rounded-full bg-primary-dark">
-          <Check className="size-5 text-white" aria-hidden />
-        </span>
-        <div className="flex flex-col">
-          <h1 className="text-[28px] font-bold leading-[34px] text-primary-dark">
-            {result.menu?.title || 'Kết quả quét'}
-          </h1>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <span className="text-[14px] text-ink-variant">
-              {items.length} món · {source.file_name}
-            </span>
-            <span className="hidden text-[14px] text-ink-variant sm:inline">•</span>
-            {result.scan.detected_language && (
-              <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[12px] font-medium text-ink-variant">
-                Phát hiện: {LANGUAGE_MAP[result.scan.detected_language] || result.scan.detected_language.toUpperCase()}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-center gap-3">
+          <span className="flex size-10 items-center justify-center rounded-full bg-primary-dark">
+            <Check className="size-5 text-white" aria-hidden />
+          </span>
+          <div className="flex flex-col">
+            <h1 className="text-[28px] font-bold leading-[34px] text-primary-dark">
+              {result.menu?.title || 'Kết quả quét'}
+            </h1>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <span className="text-[14px] text-ink-variant">
+                {items.length} món · {source.file_name}
               </span>
-            )}
-            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[12px] font-medium text-primary-dark">
-              Dịch sang: {LANGUAGE_MAP[result.scan.target_language] || result.scan.target_language.toUpperCase()}
-            </span>
+              <span className="hidden text-[14px] text-ink-variant sm:inline">•</span>
+              {result.scan.detected_language && (
+                <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[12px] font-medium text-ink-variant">
+                  Phát hiện: {LANGUAGE_MAP[result.scan.detected_language] || result.scan.detected_language.toUpperCase()}
+                </span>
+              )}
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[12px] font-medium text-primary-dark">
+                Dịch sang: {LANGUAGE_MAP[result.scan.target_language] || result.scan.target_language.toUpperCase()}
+              </span>
+            </div>
           </div>
         </div>
+        {result.menu && (
+          <div className="flex flex-col items-start gap-2 sm:items-end">
+            <button
+              type="button"
+              onClick={handleToggleSaved}
+              disabled={saving}
+              className="flex min-h-10 items-center gap-2 rounded-[8px] border border-primary-dark px-4 py-2 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+              aria-pressed={result.menu.is_saved}
+            >
+              {saving ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : result.menu.is_saved ? (
+                <BookmarkCheck className="size-4" aria-hidden />
+              ) : (
+                <Bookmark className="size-4" aria-hidden />
+              )}
+              {result.menu.is_saved ? 'Đã lưu' : 'Lưu menu'}
+            </button>
+            {saveError && (
+              <span role="alert" className="text-[13px] text-destructive">
+                {saveError}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-[30px] lg:grid-cols-[300px_minmax(0,1fr)]">

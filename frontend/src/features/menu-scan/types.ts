@@ -67,6 +67,38 @@ export interface ScanDetail {
   completed_at: string | null
 }
 
+export interface ScanHistoryItem {
+  id: string
+  status: ScanStatus
+  created_at: string
+  completed_at: string | null
+  source: {
+    file_name: string
+    mime_type: string
+    file_size: number
+    preview_url: string
+  }
+  menu: {
+    id: string
+    title: string
+    is_saved: boolean
+    item_count: number
+  } | null
+}
+
+export interface PaginationMeta {
+  page: number
+  page_size: number
+  total: number
+  total_pages: number
+}
+
+export interface MenuSavedState {
+  id: string
+  is_saved: boolean
+  updated_at: string
+}
+
 export interface MenuItemResult {
   id: string
   original_name: string

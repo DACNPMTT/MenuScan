@@ -18,8 +18,6 @@ body:json {
   {
     "email": "nguyentrongduc447@gmail.com",
     "password": "secure_password_123"
-  }api_prefix: /api/v1
-    base_url: http://localhost:8000
   }
 }
 
@@ -33,4 +31,3 @@ script:post-response {
     bru.setEnvVar("access_token", res.body.data.access_token);
   }
 }
-​
