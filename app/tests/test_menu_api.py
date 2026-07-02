@@ -16,7 +16,11 @@ from src.modules.identity.dependencies import get_current_user
 from src.modules.identity.exceptions import UnauthorizedError
 from src.modules.identity.models import User
 from src.modules.menu.dependencies import get_menu_service
-from src.modules.menu.exceptions import MenuForbiddenError, MenuNotFoundError
+from src.modules.menu.exceptions import (
+    MenuForbiddenError,
+    MenuItemNotFoundError,
+    MenuNotFoundError,
+)
 from src.modules.menu.models import FoodItem, Menu, MenuStatus
 from src.modules.menu.schemas import (
     CreateMenuItemRequest,
@@ -24,11 +28,13 @@ from src.modules.menu.schemas import (
     MenuItemResponse,
     MenuSourceResponse,
     MenuSummaryResponse,
+    UpdateMenuItemRequest,
 )
 from src.modules.menu.service import MenuService
 from src.modules.menu_scan.models import ScanSession
 
 _MENU_ID = uuid.UUID("00000000-aaaa-bbbb-cccc-111111111111")
+_ITEM_ID = uuid.UUID("00000000-aaaa-bbbb-cccc-333333333333")
 _UPDATED_AT = datetime(2026, 1, 1, 0, 5, tzinfo=timezone.utc)
 
 
@@ -163,7 +169,7 @@ class StubMenuService:
         if isinstance(self._effect, Exception):
             raise self._effect
         return MenuItemResponse(
-            id=uuid.UUID("00000000-aaaa-bbbb-cccc-333333333333"),
+            id=_ITEM_ID,
             original_name=payload.original_name,
             translated_name=payload.translated_name,
             original_description=payload.original_description,
@@ -174,6 +180,56 @@ class StubMenuService:
             confidence_score=None,
             sort_order=3,
         )
+
+    def update_menu_item(
+        self,
+        *,
+        menu_id: uuid.UUID,
+        item_id: uuid.UUID,
+        user_id: uuid.UUID,
+        payload: UpdateMenuItemRequest,
+    ) -> MenuItemResponse:
+        self.calls.append(
+            {
+                "action": "update_item",
+                "menu_id": menu_id,
+                "item_id": item_id,
+                "user_id": user_id,
+                "payload": payload,
+            }
+        )
+        if isinstance(self._effect, Exception):
+            raise self._effect
+        return MenuItemResponse(
+            id=item_id,
+            original_name=payload.original_name or "Pho",
+            translated_name=payload.translated_name,
+            original_description=payload.original_description,
+            translated_description=payload.translated_description,
+            price=payload.price,
+            currency=payload.currency,
+            category=payload.category,
+            confidence_score=Decimal("0.55"),
+            sort_order=0,
+        )
+
+    def delete_menu_item(
+        self,
+        *,
+        menu_id: uuid.UUID,
+        item_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> None:
+        self.calls.append(
+            {
+                "action": "delete_item",
+                "menu_id": menu_id,
+                "item_id": item_id,
+                "user_id": user_id,
+            }
+        )
+        if isinstance(self._effect, Exception):
+            raise self._effect
 
 
 def _source_response() -> MenuSourceResponse:
@@ -426,6 +482,53 @@ def test_create_menu_item_forbidden_returns_403() -> None:
     assert response.json()["error"]["code"] == "FORBIDDEN"
 
 
+def test_update_menu_item_returns_updated_item() -> None:
+    stub = StubMenuService()
+    client = _make_client(stub)
+
+    response = client.patch(
+        f"/api/v1/menus/{_MENU_ID}/items/{_ITEM_ID}",
+        json={
+            "original_name": "Pho bo",
+            "translated_name": "Beef noodle soup",
+            "price": "9.25",
+            "currency": "USD",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["data"]["id"] == str(_ITEM_ID)
+    assert body["data"]["original_name"] == "Pho bo"
+    assert body["data"]["translated_name"] == "Beef noodle soup"
+    assert body["data"]["price"] == "9.25"
+    assert stub.calls[0]["action"] == "update_item"
+
+
+def test_update_menu_item_not_found_returns_404() -> None:
+    stub = StubMenuService(effect=MenuItemNotFoundError())
+    client = _make_client(stub)
+
+    response = client.patch(
+        f"/api/v1/menus/{_MENU_ID}/items/{_ITEM_ID}",
+        json={"translated_name": "Beef noodle soup"},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "MENU_ITEM_NOT_FOUND"
+
+
+def test_delete_menu_item_returns_no_content() -> None:
+    stub = StubMenuService()
+    client = _make_client(stub)
+
+    response = client.delete(f"/api/v1/menus/{_MENU_ID}/items/{_ITEM_ID}")
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert stub.calls[0]["action"] == "delete_item"
+
+
 class FakeSession:
     def __init__(self) -> None:
         self.committed = False
@@ -447,6 +550,7 @@ class FakeMenuRepository:
         self.total = total
         self.saved_menu: Menu | None = None
         self.saved_item: FoodItem | None = None
+        self.deleted_item: FoodItem | None = None
 
     def get_by_id(self, session: FakeSession, *, menu_id: uuid.UUID) -> Menu | None:
         if (
@@ -480,6 +584,9 @@ class FakeMenuRepository:
         self.saved_item = item
         return item
 
+    def delete_item(self, session: FakeSession, item: FoodItem) -> None:
+        self.deleted_item = item
+
 
 def _menu_for_owner(owner_id: uuid.UUID) -> Menu:
     scan = ScanSession(
@@ -506,7 +613,7 @@ def _menu_for_owner(owner_id: uuid.UUID) -> Menu:
     )
     menu.food_items = [
         FoodItem(
-            id=uuid.uuid4(),
+            id=_ITEM_ID,
             original_name="Pho",
             translated_name=None,
             sort_order=0,
@@ -675,6 +782,60 @@ def test_menu_service_creates_owned_menu_item_with_next_sort_order() -> None:
     assert item.sort_order == 1
     assert repository.saved_item is not None
     assert repository.saved_item.menu_id == menu.id
+    assert repository.saved_menu is menu
+    assert menu.updated_at == _UPDATED_AT
+    assert session.committed is True
+
+
+def test_menu_service_updates_owned_menu_item() -> None:
+    owner_id = uuid.uuid4()
+    menu = _menu_for_owner(owner_id)
+    session = FakeSession()
+    repository = FakeMenuRepository(menu)
+    service = MenuService(
+        session=session,  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        clock=lambda: _UPDATED_AT,
+    )
+
+    item = service.update_menu_item(
+        menu_id=menu.id,
+        item_id=_ITEM_ID,
+        user_id=owner_id,
+        payload=UpdateMenuItemRequest(
+            original_name=" Pho bo ",
+            translated_name=" Beef noodle soup ",
+            price=Decimal("9.25"),
+            currency="usd",
+        ),
+    )
+
+    assert item.original_name == "Pho bo"
+    assert item.translated_name == "Beef noodle soup"
+    assert item.price == Decimal("9.25")
+    assert item.currency == "USD"
+    assert repository.saved_item is menu.food_items[0]
+    assert repository.saved_menu is menu
+    assert menu.updated_at == _UPDATED_AT
+    assert session.committed is True
+
+
+def test_menu_service_deletes_owned_menu_item() -> None:
+    owner_id = uuid.uuid4()
+    menu = _menu_for_owner(owner_id)
+    session = FakeSession()
+    repository = FakeMenuRepository(menu)
+    service = MenuService(
+        session=session,  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        clock=lambda: _UPDATED_AT,
+    )
+
+    service.delete_menu_item(menu_id=menu.id, item_id=_ITEM_ID, user_id=owner_id)
+
+    assert repository.deleted_item is not None
+    assert repository.deleted_item.id == _ITEM_ID
+    assert menu.food_items == []
     assert repository.saved_menu is menu
     assert menu.updated_at == _UPDATED_AT
     assert session.committed is True

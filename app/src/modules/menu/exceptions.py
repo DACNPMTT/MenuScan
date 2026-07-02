@@ -17,3 +17,12 @@ class MenuForbiddenError(ApplicationError):
             code="FORBIDDEN",
             message="You do not have access to this menu.",
         )
+
+
+class MenuItemNotFoundError(ApplicationError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=404,
+            code="MENU_ITEM_NOT_FOUND",
+            message="Menu item was not found.",
+        )

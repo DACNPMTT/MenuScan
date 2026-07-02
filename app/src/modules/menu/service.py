@@ -6,7 +6,11 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from src.modules.menu.exceptions import MenuForbiddenError, MenuNotFoundError
+from src.modules.menu.exceptions import (
+    MenuForbiddenError,
+    MenuItemNotFoundError,
+    MenuNotFoundError,
+)
 from src.modules.menu.models import FoodItem, Menu, MenuStatus
 from src.modules.menu.repository import MenuRepository
 from src.modules.menu.schemas import (
@@ -15,6 +19,7 @@ from src.modules.menu.schemas import (
     MenuItemResponse,
     MenuSourceResponse,
     MenuSummaryResponse,
+    UpdateMenuItemRequest,
 )
 
 
@@ -149,6 +154,50 @@ class MenuService:
         self._session.commit()
         return MenuItemResponse.model_validate(item)
 
+    def update_menu_item(
+        self,
+        *,
+        menu_id: uuid.UUID,
+        item_id: uuid.UUID,
+        user_id: uuid.UUID,
+        payload: UpdateMenuItemRequest,
+    ) -> MenuItemResponse:
+        menu = self._get_owned_menu(menu_id=menu_id, user_id=user_id)
+        item = _find_menu_item(menu, item_id)
+        now = self._clock()
+
+        updates = payload.model_dump(exclude_unset=True)
+        for field_name, value in updates.items():
+            if isinstance(value, str):
+                value = value.strip() or None
+            if field_name == "currency" and value:
+                value = value.upper()
+            setattr(item, field_name, value)
+
+        item.updated_at = now
+        menu.updated_at = now
+        self._repository.save_item(self._session, item)
+        self._repository.save(self._session, menu)
+        self._session.commit()
+        return MenuItemResponse.model_validate(item)
+
+    def delete_menu_item(
+        self,
+        *,
+        menu_id: uuid.UUID,
+        item_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> None:
+        menu = self._get_owned_menu(menu_id=menu_id, user_id=user_id)
+        item = _find_menu_item(menu, item_id)
+        menu.food_items = [
+            food_item for food_item in menu.food_items if food_item.id != item_id
+        ]
+        menu.updated_at = self._clock()
+        self._repository.delete_item(self._session, item)
+        self._repository.save(self._session, menu)
+        self._session.commit()
+
     def _get_owned_menu(self, *, menu_id: uuid.UUID, user_id: uuid.UUID) -> Menu:
         menu = self._repository.get_by_id(self._session, menu_id=menu_id)
         if menu is None:
@@ -156,6 +205,13 @@ class MenuService:
         if menu.scan_session.user_id != user_id:
             raise MenuForbiddenError()
         return menu
+
+
+def _find_menu_item(menu: Menu, item_id: uuid.UUID) -> FoodItem:
+    for item in menu.food_items:
+        if item.id == item_id:
+            return item
+    raise MenuItemNotFoundError()
 
 
 def _menu_source_data(menu: Menu) -> MenuSourceResponse:
