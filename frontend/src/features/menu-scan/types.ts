@@ -99,6 +99,16 @@ export interface MenuSavedState {
   updated_at: string
 }
 
+export type MenuStatus = 'DRAFT' | 'CONFIRMED'
+
+export interface MenuSource {
+  scan_id: string
+  file_name: string
+  mime_type: string
+  file_size: number
+  preview_url: string
+}
+
 export interface MenuItemResult {
   id: string
   original_name: string
@@ -108,8 +118,27 @@ export interface MenuItemResult {
   price: string | null
   currency: string | null
   category: string | null
-  confidence_score: number
+  confidence_score: number | string | null
   sort_order: number
+}
+
+export interface MenuSummary {
+  id: string
+  title: string
+  status: MenuStatus
+  is_saved: boolean
+  item_count: number
+  default_currency: string | null
+  source: MenuSource
+  created_at: string
+  updated_at: string
+  confirmed_at: string | null
+}
+
+export interface MenuDetail extends MenuSummary {
+  source_language: string | null
+  target_language: string
+  items: MenuItemResult[]
 }
 
 /** `GET /api/v1/scans/{id}/result` body (`data` envelope). */
@@ -130,6 +159,7 @@ export interface ScanResult {
   menu: {
     id: string
     title: string | null
+    status?: MenuStatus
     default_currency: string | null
     is_saved: boolean
     items: MenuItemResult[]

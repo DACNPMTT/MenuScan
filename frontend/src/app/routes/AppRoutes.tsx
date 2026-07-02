@@ -7,6 +7,7 @@ import { RegisterPage } from '@/pages/auth/RegisterPage'
 import { VerifyPage } from '@/pages/auth/VerifyPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { LandingPage } from '@/pages/LandingPage'
+import { MenuDetailPage } from '@/pages/MenuDetailPage'
 import { MenusPage } from '@/pages/MenusPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ScanResultPage } from '@/pages/ScanResultPage'
@@ -30,6 +31,7 @@ export function AppRoutes() {
       <Route path="app" element={<AuthenticatedLayout />}>
         <Route index element={<DashboardPage />} />
         <Route path="menus" element={<MenusPage />} />
+        <Route path="menus/:menuId" element={<MenuDetailPage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

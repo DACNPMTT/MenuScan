@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from src.modules.menu.models import FoodItem, Menu
@@ -12,10 +12,41 @@ class MenuRepository:
     def get_by_id(self, session: Session, *, menu_id: uuid.UUID) -> Menu | None:
         statement = (
             select(Menu)
-            .options(selectinload(Menu.scan_session))
-            .where(Menu.id == menu_id)
+            .options(selectinload(Menu.scan_session), selectinload(Menu.food_items))
+            .where(Menu.id == menu_id, Menu.deleted_at.is_(None))
         )
         return session.scalars(statement).first()
+
+    def list_for_user(
+        self,
+        session: Session,
+        *,
+        user_id: uuid.UUID,
+        limit: int,
+        offset: int,
+    ) -> list[tuple[Menu, int]]:
+        statement = (
+            select(Menu, func.count(FoodItem.id).label("item_count"))
+            .join(Menu.scan_session)
+            .outerjoin(FoodItem, FoodItem.menu_id == Menu.id)
+            .options(selectinload(Menu.scan_session))
+            .where(
+                Menu.deleted_at.is_(None),
+                Menu.scan_session.has(user_id=user_id),
+            )
+            .group_by(Menu.id)
+            .order_by(desc(Menu.updated_at), desc(Menu.created_at), desc(Menu.id))
+            .limit(limit)
+            .offset(offset)
+        )
+        return [(row[0], row[1]) for row in session.execute(statement).all()]
+
+    def count_for_user(self, session: Session, *, user_id: uuid.UUID) -> int:
+        statement = select(func.count()).select_from(Menu).where(
+            Menu.deleted_at.is_(None),
+            Menu.scan_session.has(user_id=user_id),
+        )
+        return session.scalar(statement) or 0
 
     def save_menu_with_items(
         self,
@@ -35,3 +66,8 @@ class MenuRepository:
         session.add(menu)
         session.flush()
         return menu
+
+    def save_item(self, session: Session, item: FoodItem) -> FoodItem:
+        session.add(item)
+        session.flush()
+        return item
