@@ -11,7 +11,8 @@ from fastapi.testclient import TestClient
 
 from src.core.application import create_app
 from src.core.config import EmailConfig, Settings, StorageConfig
-from src.modules.identity.dependencies import get_optional_current_user
+from src.modules.identity.dependencies import get_current_user, get_optional_current_user
+from src.modules.identity.exceptions import UnauthorizedError
 from src.modules.identity.models import User
 from src.modules.menu_scan.dependencies import get_scan_service
 from src.modules.menu_scan.exceptions import (
@@ -24,6 +25,9 @@ from src.modules.menu_scan.models import ScanStatus
 from src.modules.menu_scan.schemas import (
     MenuItemData,
     MenuResultData,
+    ScanListItemData,
+    ScanListMenuData,
+    ScanListSourceData,
     ScanResultData,
     ScanResultScanData,
     ScanResultSourceData,
@@ -160,14 +164,35 @@ class StubScanService:
     def __init__(
         self,
         *,
+        list_items: list[ScanListItemData] | None = None,
+        list_total: int = 0,
         scan: ScanStatusData | Exception | None = None,
         source: SourceAccess | Exception | None = None,
         result: ScanResultData | Exception | None = None,
     ) -> None:
         self.calls: list[dict[str, object]] = []
+        self._list_items = list_items or []
+        self._list_total = list_total
         self._scan = scan
         self._source = source
         self._result = result
+
+    def list_scans(
+        self,
+        *,
+        user: User,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[ScanListItemData], int]:
+        self.calls.append(
+            {
+                "method": "list_scans",
+                "user": user,
+                "page": page,
+                "page_size": page_size,
+            }
+        )
+        return self._list_items, self._list_total
 
     def get_scan(self, *, user: User | None, scan_id: uuid.UUID) -> ScanStatusData:
         self.calls.append({"method": "get_scan", "user": user, "scan_id": scan_id})
@@ -197,9 +222,121 @@ def _make_client(
     app.dependency_overrides[get_scan_service] = lambda: stub
     if authenticated:
         app.dependency_overrides[get_optional_current_user] = lambda: user
+        app.dependency_overrides[get_current_user] = lambda: user
     else:
         app.dependency_overrides[get_optional_current_user] = lambda: None
+        app.dependency_overrides[get_current_user] = lambda: _raise_unauthorized()
     return TestClient(app, raise_server_exceptions=False)
+
+
+def _raise_unauthorized() -> None:
+    raise UnauthorizedError()
+
+
+def _scan_list_item(
+    *,
+    scan_id: uuid.UUID = _SCAN_ID,
+    status: ScanStatus = ScanStatus.COMPLETED,
+    created_at: datetime = _CREATED_AT,
+    completed_at: datetime | None = _COMPLETED_AT,
+    menu: ScanListMenuData | None = None,
+    with_menu: bool = True,
+) -> ScanListItemData:
+    return ScanListItemData(
+        id=scan_id,
+        status=status,
+        created_at=created_at,
+        completed_at=completed_at,
+        source=ScanListSourceData(
+            file_name="menu.jpg",
+            mime_type="image/jpeg",
+            file_size=len(JPEG_BYTES),
+            preview_url=f"/api/v1/scans/{scan_id}/source",
+        ),
+        menu=(
+            menu
+            if menu is not None
+            else ScanListMenuData(
+                id=_MENU_ID,
+                title="Lunch Menu",
+                is_saved=False,
+                item_count=1,
+            )
+        )
+        if with_menu
+        else None,
+    )
+
+
+def test_list_scans_returns_paginated_history() -> None:
+    item = _scan_list_item()
+    stub = StubScanService(list_items=[item], list_total=21)
+    client = _make_client(stub)
+
+    response = client.get("/api/v1/scans", params={"page": 2, "page_size": 20})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["meta"] == {
+        "page": 2,
+        "page_size": 20,
+        "total": 21,
+        "total_pages": 2,
+    }
+    data = body["data"]
+    assert data[0]["id"] == str(_SCAN_ID)
+    assert data[0]["source"]["preview_url"] == f"/api/v1/scans/{_SCAN_ID}/source"
+    assert data[0]["menu"]["item_count"] == 1
+    assert stub.calls[0]["method"] == "list_scans"
+    assert stub.calls[0]["page"] == 2
+    assert stub.calls[0]["page_size"] == 20
+
+
+def test_list_scans_empty_returns_empty_data_and_meta() -> None:
+    stub = StubScanService(list_items=[], list_total=0)
+    client = _make_client(stub)
+
+    response = client.get("/api/v1/scans")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["data"] == []
+    assert body["meta"] == {
+        "page": 1,
+        "page_size": 20,
+        "total": 0,
+        "total_pages": 0,
+    }
+
+
+def test_list_scans_includes_in_progress_scan_without_menu() -> None:
+    item = _scan_list_item(
+        status=ScanStatus.PROCESSING,
+        completed_at=None,
+        with_menu=False,
+    )
+    stub = StubScanService(list_items=[item], list_total=1)
+    client = _make_client(stub)
+
+    response = client.get("/api/v1/scans")
+
+    assert response.status_code == 200
+    data = response.json()["data"][0]
+    assert data["status"] == "PROCESSING"
+    assert data["completed_at"] is None
+    assert data["menu"] is None
+
+
+def test_list_scans_requires_authentication() -> None:
+    stub = StubScanService()
+    client = _make_client(stub, authenticated=False)
+
+    response = client.get("/api/v1/scans")
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "UNAUTHORIZED"
+    assert stub.calls == []
 
 
 def test_get_scan_pending_returns_200() -> None:

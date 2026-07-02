@@ -33,6 +33,9 @@ from src.modules.menu_scan.schemas import (
     MenuItemData,
     MenuResultData,
     ScanCreatedData,
+    ScanListItemData,
+    ScanListMenuData,
+    ScanListSourceData,
     ScanResultData,
     ScanResultScanData,
     ScanResultSourceData,
@@ -129,6 +132,48 @@ class ScanService:
             raise
 
         return _scan_created_data(scan)
+
+    def list_scans(
+        self,
+        *,
+        user: User,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[ScanListItemData], int]:
+        offset = (page - 1) * page_size
+        rows = self._repository.list_for_user(
+            self._session,
+            user_id=user.id,
+            limit=page_size,
+            offset=offset,
+        )
+        total = self._repository.count_for_user(self._session, user_id=user.id)
+        items = [
+            ScanListItemData(
+                id=row.id,
+                status=row.status,
+                created_at=row.created_at,
+                completed_at=row.completed_at,
+                source=ScanListSourceData(
+                    file_name=row.source_file_name,
+                    mime_type=row.source_mime_type,
+                    file_size=row.source_file_size,
+                    preview_url=f"/api/v1/scans/{row.id}/source",
+                ),
+                menu=(
+                    ScanListMenuData(
+                        id=row.menu_id,
+                        title=row.menu_title or "",
+                        is_saved=bool(row.menu_is_saved),
+                        item_count=row.item_count,
+                    )
+                    if row.menu_id is not None
+                    else None
+                ),
+            )
+            for row in rows
+        ]
+        return items, total
 
     def get_scan(self, *, user: User | None, scan_id: uuid.UUID) -> ScanStatusData:
         scan = self._get_accessible_scan(user=user, scan_id=scan_id)

@@ -147,6 +147,55 @@ Response `200 OK`:
 
 ## 3. Scan
 
+### GET `/scans`
+
+Auth bắt buộc. Trả danh sách phiên scan của user hiện tại, mới nhất trước.
+
+Query:
+
+| Field | Bắt buộc | Giá trị |
+| --- | --- | --- |
+| `page` | Không | Số trang, mặc định `1`, tối thiểu `1` |
+| `page_size` | Không | Số item mỗi trang, mặc định `20`, tối đa `50` |
+
+Response `200 OK`:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "71151f64-39c7-4419-810a-c0835bafe341",
+      "status": "COMPLETED",
+      "created_at": "2026-06-20T08:35:00Z",
+      "completed_at": "2026-06-20T08:36:30Z",
+      "source": {
+        "file_name": "menu.jpg",
+        "mime_type": "image/jpeg",
+        "file_size": 2458912,
+        "preview_url": "/api/v1/scans/71151f64-39c7-4419-810a-c0835bafe341/source"
+      },
+      "menu": {
+        "id": "d837618b-c842-4778-b0bb-d1178dcff634",
+        "title": "Menu Nhà hàng Hoa Sen",
+        "is_saved": true,
+        "item_count": 12
+      }
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "page_size": 20,
+    "total": 1,
+    "total_pages": 1
+  }
+}
+```
+
+`menu` là `null` nếu phiên scan chưa có menu.
+
+Lỗi: `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`.
+
 ### POST `/scans`
 
 Auth bắt buộc. Content-Type `multipart/form-data`.

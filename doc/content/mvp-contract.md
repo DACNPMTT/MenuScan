@@ -123,6 +123,7 @@ File không đọc được, ảnh không có chữ hoặc PDF không hợp lệ
 
 | Method | Endpoint | Mục đích |
 | --- | --- | --- |
+| `GET` | `/api/v1/scans` | Liệt kê lịch sử scan của user hiện tại, mới nhất trước. |
 | `POST` | `/api/v1/scans` | Upload file, tạo phiên và bắt đầu xử lý bất đồng bộ. |
 | `GET` | `/api/v1/scans/{scan_id}` | Lấy trạng thái và tiến trình xử lý. |
 | `GET` | `/api/v1/scans/{scan_id}/source` | Trả file gốc hoặc redirect đến URL ký tạm thời. |

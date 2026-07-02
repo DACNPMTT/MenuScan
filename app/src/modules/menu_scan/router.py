@@ -3,11 +3,20 @@ from __future__ import annotations
 import logging
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    Query,
+    UploadFile,
+    status,
+)
 from fastapi.responses import RedirectResponse, Response
 
 from src.core.responses import success_response
-from src.modules.identity.dependencies import get_optional_current_user
+from src.modules.identity.dependencies import get_current_user, get_optional_current_user
 from src.modules.identity.models import User
 from src.modules.menu_scan.dependencies import get_scan_pipeline, get_scan_service
 from src.modules.menu_scan.pipeline import ScanPipeline
@@ -35,6 +44,30 @@ async def create_scan(
     )
     background_tasks.add_task(_run_pipeline, pipeline, data.id)
     return success_response(data=data.model_dump(mode="json"))
+
+
+@router.get("", status_code=status.HTTP_200_OK)
+def list_scans(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+    service: ScanService = Depends(get_scan_service),
+) -> dict[str, object]:
+    items, total = service.list_scans(
+        user=current_user,
+        page=page,
+        page_size=page_size,
+    )
+    total_pages = (total + page_size - 1) // page_size
+    return success_response(
+        data=[item.model_dump(mode="json") for item in items],
+        meta={
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "total_pages": total_pages,
+        },
+    )
 
 
 @router.get("/{scan_id}", status_code=status.HTTP_200_OK)
@@ -73,6 +106,7 @@ def get_scan_result(
 ) -> dict[str, object]:
     data = service.get_result(user=current_user, scan_id=scan_id)
     return success_response(data=data.model_dump(mode="json"))
+
 
 def _run_pipeline(pipeline: ScanPipeline, scan_id: uuid.UUID) -> None:
     """Background task wrapper — catches exceptions to prevent unhandled crashes."""
