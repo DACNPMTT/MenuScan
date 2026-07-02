@@ -71,3 +71,7 @@ class MenuRepository:
         session.add(item)
         session.flush()
         return item
+
+    def delete_item(self, session: Session, item: FoodItem) -> None:
+        session.delete(item)
+        session.flush()

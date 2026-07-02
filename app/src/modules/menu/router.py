@@ -12,6 +12,7 @@ from src.modules.menu.dependencies import get_menu_service
 from src.modules.menu.schemas import (
     CreateMenuItemRequest,
     MenuSavedResponse,
+    UpdateMenuItemRequest,
     UpdateMenuRequest,
 )
 from src.modules.menu.service import MenuService
@@ -92,6 +93,38 @@ def create_menu_item(
         payload=payload,
     )
     return success_response(data=data.model_dump(mode="json"))
+
+
+@router.patch("/{menu_id}/items/{item_id}", status_code=status.HTTP_200_OK)
+def update_menu_item(
+    menu_id: uuid.UUID,
+    item_id: uuid.UUID,
+    payload: UpdateMenuItemRequest,
+    current_user: User = Depends(get_current_user),
+    service: MenuService = Depends(get_menu_service),
+) -> dict[str, object]:
+    data = service.update_menu_item(
+        menu_id=menu_id,
+        item_id=item_id,
+        user_id=current_user.id,
+        payload=payload,
+    )
+    return success_response(data=data.model_dump(mode="json"))
+
+
+@router.delete("/{menu_id}/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_menu_item(
+    menu_id: uuid.UUID,
+    item_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    service: MenuService = Depends(get_menu_service),
+) -> Response:
+    service.delete_menu_item(
+        menu_id=menu_id,
+        item_id=item_id,
+        user_id=current_user.id,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.delete("/{menu_id}", status_code=status.HTTP_204_NO_CONTENT)
