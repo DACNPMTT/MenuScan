@@ -15,6 +15,7 @@ import { apiRequest, ApiError } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import type {
   MenuItemResult,
+  MenuDetail,
   MenuSavedState,
   ScanDetail,
   ScanError,
@@ -145,6 +146,23 @@ export function ScanResultPage() {
         : current,
     )
   }
+  const handleConfirmed = (menu: MenuDetail) => {
+    setResult((current) =>
+      current?.menu
+        ? {
+            ...current,
+            menu: {
+              ...current.menu,
+              status: menu.status,
+              is_saved: menu.is_saved,
+              title: menu.title,
+              default_currency: menu.default_currency,
+              items: menu.items,
+            },
+          }
+        : current,
+    )
+  }
 
   return (
     <div className="mx-auto w-full max-w-[900px] px-[30px] py-[40px] sm:px-[50px]">
@@ -182,6 +200,7 @@ export function ScanResultPage() {
           result={result}
           accessToken={accessToken}
           onSavedChange={handleSavedChange}
+          onConfirmed={handleConfirmed}
         />
       )}
     </div>
@@ -221,15 +240,19 @@ function ResultView({
   result,
   accessToken,
   onSavedChange,
+  onConfirmed,
 }: {
   result: ScanResult
   accessToken: string | null
   onSavedChange: (isSaved: boolean) => void
+  onConfirmed: (menu: MenuDetail) => void
 }) {
   const items = result.menu?.items ?? []
   const source = result.scan.source
   const [saving, setSaving] = useState(false)
+  const [confirming, setConfirming] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [confirmError, setConfirmError] = useState<string | null>(null)
 
   const handleToggleSaved = async () => {
     if (!result.menu || saving) return
@@ -254,6 +277,30 @@ function ResultView({
       )
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleConfirm = async () => {
+    if (!result.menu || confirming) return
+    setConfirming(true)
+    setConfirmError(null)
+    try {
+      const confirmed = await apiRequest<MenuDetail>(
+        `/api/v1/menus/${result.menu.id}/confirm`,
+        {
+          method: 'POST',
+          token: accessToken ?? undefined,
+        },
+      )
+      onConfirmed(confirmed)
+    } catch (err) {
+      setConfirmError(
+        err instanceof ApiError
+          ? err.message
+          : 'Không thể xác nhận bản review cuối.',
+      )
+    } finally {
+      setConfirming(false)
     }
   }
 
@@ -288,6 +335,19 @@ function ResultView({
           <div className="flex flex-col items-start gap-2 sm:items-end">
             <button
               type="button"
+              onClick={handleConfirm}
+              disabled={confirming}
+              className="flex min-h-10 items-center gap-2 rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {confirming ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <Check className="size-4" aria-hidden />
+              )}
+              {result.menu.status === 'CONFIRMED' ? 'Đã xác nhận' : 'Xác nhận menu'}
+            </button>
+            <button
+              type="button"
               onClick={handleToggleSaved}
               disabled={saving}
               className="flex min-h-10 items-center gap-2 rounded-[8px] border border-primary-dark px-4 py-2 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
@@ -305,6 +365,11 @@ function ResultView({
             {saveError && (
               <span role="alert" className="text-[13px] text-destructive">
                 {saveError}
+              </span>
+            )}
+            {confirmError && (
+              <span role="alert" className="text-[13px] text-destructive">
+                {confirmError}
               </span>
             )}
           </div>

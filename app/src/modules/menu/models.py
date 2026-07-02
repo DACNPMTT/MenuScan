@@ -1,3 +1,4 @@
+import enum
 import uuid
 from datetime import datetime
 from decimal import Decimal
@@ -8,6 +9,7 @@ from sqlalchemy import (
     CHAR,
     CheckConstraint,
     DateTime,
+    Enum,
     ForeignKey,
     Index,
     Integer,
@@ -24,6 +26,11 @@ from src.core.database import Base
 
 if TYPE_CHECKING:
     from src.modules.menu_scan.models import ScanSession
+
+
+class MenuStatus(str, enum.Enum):
+    DRAFT = "DRAFT"
+    CONFIRMED = "CONFIRMED"
 
 
 class Menu(Base):
@@ -53,7 +60,13 @@ class Menu(Base):
         nullable=False,
         server_default="false",
     )
+    status: Mapped[MenuStatus] = mapped_column(
+        Enum(MenuStatus, name="menu_status"),
+        nullable=False,
+        server_default=MenuStatus.DRAFT.value,
+    )
     saved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
