@@ -94,6 +94,8 @@ class Menu(Base):
             "NOT is_saved OR saved_at IS NOT NULL",
             name="saved_at",
         ),
+        Index("ix_menus_deleted_at", deleted_at),
+        Index("ix_menus_updated_at", updated_at),
     )
 
 
