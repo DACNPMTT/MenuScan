@@ -13,3 +13,9 @@ get {
 headers {
   Authorization: Bearer {{access_token}}
 }
+
+script:post-response {
+  if (res.status === 200 && res.body && res.body.success && res.body.data && res.body.data.menu && res.body.data.menu.id) {
+    bru.setEnvVar("menu_id", res.body.data.menu.id);
+  }
+}

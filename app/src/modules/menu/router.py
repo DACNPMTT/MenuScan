@@ -3,7 +3,9 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import Response
+from pydantic import ValidationError
 
 from src.core.responses import success_response
 from src.modules.identity.dependencies import get_current_user
@@ -11,6 +13,7 @@ from src.modules.identity.models import User
 from src.modules.menu.dependencies import get_menu_service
 from src.modules.menu.schemas import (
     CreateMenuItemRequest,
+    ListMenuItemsQuery,
     MenuSavedResponse,
     UpdateMenuItemRequest,
     UpdateMenuRequest,
@@ -18,6 +21,25 @@ from src.modules.menu.schemas import (
 from src.modules.menu.service import MenuService
 
 router = APIRouter(prefix="/menus", tags=["menus"])
+
+
+def get_list_menu_items_query(
+    search: str | None = Query(default=None),
+    min_price: str | None = Query(default=None),
+    max_price: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=50),
+) -> ListMenuItemsQuery:
+    try:
+        return ListMenuItemsQuery(
+            search=search,
+            min_price=min_price,
+            max_price=max_price,
+            page=page,
+            page_size=page_size,
+        )
+    except ValidationError as error:
+        raise RequestValidationError(error.errors()) from error
 
 
 @router.patch("/{menu_id}", status_code=status.HTTP_200_OK)
@@ -78,6 +100,30 @@ def get_menu(
 ) -> dict[str, object]:
     data = service.get_menu(menu_id=menu_id, user_id=current_user.id)
     return success_response(data=data.model_dump(mode="json"))
+
+
+@router.get("/{menu_id}/items", status_code=status.HTTP_200_OK)
+def list_menu_items(
+    menu_id: uuid.UUID,
+    query: ListMenuItemsQuery = Depends(get_list_menu_items_query),
+    current_user: User = Depends(get_current_user),
+    service: MenuService = Depends(get_menu_service),
+) -> dict[str, object]:
+    items, total = service.list_menu_items(
+        menu_id=menu_id,
+        user_id=current_user.id,
+        query=query,
+    )
+    total_pages = (total + query.page_size - 1) // query.page_size
+    return success_response(
+        data=[item.model_dump(mode="json") for item in items],
+        meta={
+            "page": query.page,
+            "page_size": query.page_size,
+            "total": total,
+            "total_pages": total_pages,
+        },
+    )
 
 
 @router.post("/{menu_id}/items", status_code=status.HTTP_201_CREATED)
