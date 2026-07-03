@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   AlertCircle,
   ArrowLeft,
@@ -16,13 +16,15 @@ import {
   Search,
   Trash2,
   Users,
+  X,
   XCircle,
 } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { getAccessToken, refreshAccessToken } from '@/shared/lib/auth-token'
-import { ApiError, apiRequest } from '@/shared/lib/api'
+import { ApiError, apiRequest, apiRequestWithMeta } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
-import type { MenuDetail, MenuItemResult } from '@/features/menu-scan/types'
+import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue'
+import type { MenuDetail, MenuItemResult, PaginationMeta } from '@/features/menu-scan/types'
 
 interface BillLineState {
   quantity: number
@@ -53,6 +55,18 @@ const API_BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').r
 const LOW_CONFIDENCE_THRESHOLD = 0.75
 const UNSAVED_CHANGES_MESSAGE =
   'Bạn có thay đổi chưa lưu. Rời trang sẽ mất các chỉnh sửa này?'
+const SEARCH_DEBOUNCE_MS = 300
+const ITEMS_PAGE_SIZE = 50
+const ALL_CATEGORY = 'All'
+
+/** Normalize a price-filter input into a non-negative decimal string the API
+ * accepts (`min_price`/`max_price`), or '' when empty/invalid. */
+function normalizePrice(raw: string): string {
+  const trimmed = raw.trim().replace(',', '.')
+  if (trimmed === '') return ''
+  const value = Number(trimmed)
+  return Number.isFinite(value) && value >= 0 ? trimmed : ''
+}
 
 function formatMoney(amount: number, currency: string | null): string {
   const resolvedCurrency = currency ?? 'VND'
@@ -178,8 +192,33 @@ export function MenuDetailPage() {
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
-  const [activeCategory, setActiveCategory] = useState('All')
+  const [searchParams, setSearchParams] = useSearchParams()
+  // Raw filter inputs update instantly for a responsive feel; the debounced
+  // mirrors below drive the actual request so typing fires one request per
+  // debounce window, not one per keystroke.
+  const [searchInput, setSearchInput] = useState(() => searchParams.get('q') ?? '')
+  const [minPriceInput, setMinPriceInput] = useState(() => searchParams.get('min') ?? '')
+  const [maxPriceInput, setMaxPriceInput] = useState(() => searchParams.get('max') ?? '')
+  const [activeCategory, setActiveCategory] = useState(
+    () => searchParams.get('cat') ?? ALL_CATEGORY,
+  )
+  const debouncedSearch = useDebouncedValue(searchInput, SEARCH_DEBOUNCE_MS)
+  const debouncedMinPrice = useDebouncedValue(minPriceInput, SEARCH_DEBOUNCE_MS)
+  const debouncedMaxPrice = useDebouncedValue(maxPriceInput, SEARCH_DEBOUNCE_MS)
+  const trimmedSearch = debouncedSearch.trim()
+  const normalizedMinPrice = normalizePrice(debouncedMinPrice)
+  const normalizedMaxPrice = normalizePrice(debouncedMaxPrice)
+  const hasActiveFilter =
+    trimmedSearch !== '' || normalizedMinPrice !== '' || normalizedMaxPrice !== ''
+  // Server-driven filtered results. When no filter is active we reuse the items
+  // already embedded in the menu detail, avoiding a redundant request.
+  const [serverItems, setServerItems] = useState<MenuItemResult[]>([])
+  const [itemsMeta, setItemsMeta] = useState<PaginationMeta | null>(null)
+  const [itemsPage, setItemsPage] = useState(1)
+  const [itemsLoading, setItemsLoading] = useState(false)
+  const [itemsError, setItemsError] = useState<string | null>(null)
+  const requestIdRef = useRef(0)
+  const abortRef = useRef<AbortController | null>(null)
   const [peopleCount, setPeopleCount] = useState(1)
   const [billLines, setBillLines] = useState<Record<string, BillLineState>>({})
   const [addingManual, setAddingManual] = useState(false)
@@ -256,30 +295,102 @@ export function MenuDetailPage() {
   const confirmLeaveWithUnsavedChanges = () =>
     !hasUnsavedChanges || window.confirm(UNSAVED_CHANGES_MESSAGE)
 
+  // Items shown in the grid: server-filtered results while a filter is active,
+  // otherwise the full set embedded in the menu detail (no extra request).
+  const browseItems = useMemo<BillItem[]>(
+    () => (hasActiveFilter ? serverItems : allItems),
+    [hasActiveFilter, serverItems, allItems],
+  )
+
   const categories = useMemo(() => {
     const seen = new Set<string>()
-    allItems.forEach((item) => seen.add(itemCategory(item)))
-    return ['All', ...Array.from(seen)]
-  }, [allItems])
+    browseItems.forEach((item) => seen.add(itemCategory(item)))
+    return [ALL_CATEGORY, ...Array.from(seen)]
+  }, [browseItems])
 
-  const filteredItems = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase()
-    return allItems.filter((item) => {
-      const matchesCategory =
-        activeCategory === 'All' || itemCategory(item) === activeCategory
-      if (!matchesCategory) return false
-      if (!normalizedQuery) return true
-      return [
-        item.original_name,
-        item.translated_name,
-        item.original_description,
-        item.translated_description,
-        item.category,
-      ]
-        .filter(Boolean)
-        .some((value) => value!.toLowerCase().includes(normalizedQuery))
-    })
-  }, [activeCategory, allItems, query])
+  const filteredItems = useMemo(
+    () =>
+      activeCategory === ALL_CATEGORY
+        ? browseItems
+        : browseItems.filter((item) => itemCategory(item) === activeCategory),
+    [activeCategory, browseItems],
+  )
+
+  const canLoadMoreItems =
+    hasActiveFilter && itemsMeta ? itemsPage < itemsMeta.total_pages : false
+
+  const loadItems = useCallback(
+    async (page: number, mode: 'replace' | 'append') => {
+      if (!menuId) return
+      // Cancel any in-flight request and stamp this one so a slow earlier
+      // response can never overwrite a newer one (no stale results).
+      abortRef.current?.abort()
+      const controller = new AbortController()
+      abortRef.current = controller
+      const requestId = ++requestIdRef.current
+      setItemsLoading(true)
+      setItemsError(null)
+      if (mode === 'replace') setServerItems([])
+      try {
+        const params = new URLSearchParams()
+        params.set('page', String(page))
+        params.set('page_size', String(ITEMS_PAGE_SIZE))
+        if (trimmedSearch) params.set('search', trimmedSearch)
+        if (normalizedMinPrice) params.set('min_price', normalizedMinPrice)
+        if (normalizedMaxPrice) params.set('max_price', normalizedMaxPrice)
+        const result = await apiRequestWithMeta<MenuItemResult[], PaginationMeta>(
+          `/api/v1/menus/${menuId}/items?${params.toString()}`,
+          { method: 'GET', token: accessToken ?? undefined, signal: controller.signal },
+        )
+        if (requestId !== requestIdRef.current) return // superseded by a newer request
+        setServerItems((current) =>
+          mode === 'replace' ? result.data : [...current, ...result.data],
+        )
+        setItemsMeta(result.meta)
+        setItemsPage(page)
+      } catch (err) {
+        if (requestId !== requestIdRef.current || controller.signal.aborted) return
+        setItemsError(
+          err instanceof ApiError ? err.message : 'Không thể tải danh sách món.',
+        )
+      } finally {
+        if (requestId === requestIdRef.current) setItemsLoading(false)
+      }
+    },
+    [accessToken, menuId, normalizedMaxPrice, normalizedMinPrice, trimmedSearch],
+  )
+
+  // Refetch on menu change or whenever the debounced filters settle. Skipping
+  // when there's no active filter avoids a redundant request — the detail
+  // payload already carries every item.
+  useEffect(() => {
+    if (!hasActiveFilter) {
+      setServerItems([])
+      setItemsMeta(null)
+      setItemsPage(1)
+      return
+    }
+    void loadItems(1, 'replace')
+  }, [hasActiveFilter, loadItems])
+
+  // Reflect the applied (debounced) filters in the URL so a refresh or shared
+  // link preserves the current view. `replace` keeps filter edits out of the
+  // back/forward history.
+  useEffect(() => {
+    const next: Record<string, string> = {}
+    if (trimmedSearch) next.q = trimmedSearch
+    if (normalizedMinPrice) next.min = normalizedMinPrice
+    if (normalizedMaxPrice) next.max = normalizedMaxPrice
+    if (activeCategory !== ALL_CATEGORY) next.cat = activeCategory
+    setSearchParams(next, { replace: true })
+  }, [trimmedSearch, normalizedMinPrice, normalizedMaxPrice, activeCategory, setSearchParams])
+
+  const handleClearFilters = () => {
+    setSearchInput('')
+    setMinPriceInput('')
+    setMaxPriceInput('')
+    setActiveCategory(ALL_CATEGORY)
+  }
 
   const selectedLines = useMemo(
     () =>
@@ -400,6 +511,9 @@ export function MenuDetailPage() {
             }
           : current,
       )
+      setServerItems((current) =>
+        current.map((existing) => (existing.id === updated.id ? updated : existing)),
+      )
       cancelItemDraft(item.id)
       closeItemEdit(item.id)
     } catch (err) {
@@ -442,6 +556,10 @@ export function MenuDetailPage() {
         delete next[item.id]
         return next
       })
+      setServerItems((current) => current.filter((existing) => existing.id !== item.id))
+      setItemsMeta((current) =>
+        current ? { ...current, total: Math.max(0, current.total - 1) } : current,
+      )
       cancelItemDraft(item.id)
       closeItemEdit(item.id)
     } catch (err) {
@@ -624,33 +742,72 @@ export function MenuDetailPage() {
               </div>
             )}
 
-            <div className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
-              <label className="relative block">
-                <Search
-                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-variant"
-                  aria-hidden
-                />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search items..."
-                  className="h-11 w-full rounded-[8px] border border-hairline bg-canvas pl-10 pr-3 text-[14px] text-ink outline-none transition-colors placeholder:text-placeholder focus:border-primary-dark"
-                />
-              </label>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleAddManualItem()}
-                  disabled={addingManual}
-                  className="flex h-11 items-center gap-2 rounded-[8px] bg-primary-dark px-4 text-[14px] font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {addingManual ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Plus className="size-4" aria-hidden />
+            <div className="mb-6 flex flex-col gap-3">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+                <label className="relative block">
+                  <Search
+                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-variant"
+                    aria-hidden
+                  />
+                  <input
+                    type="text"
+                    value={searchInput}
+                    onChange={(event) => setSearchInput(event.target.value)}
+                    placeholder="Tìm món theo tên hoặc mô tả..."
+                    aria-label="Tìm kiếm món"
+                    className="h-11 w-full rounded-[8px] border border-hairline bg-canvas pl-10 pr-9 text-[14px] text-ink outline-none transition-colors placeholder:text-placeholder focus:border-primary-dark"
+                  />
+                  {searchInput && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchInput('')}
+                      aria-label="Xóa tìm kiếm"
+                      className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-ink-variant transition-colors hover:bg-surface-muted hover:text-ink"
+                    >
+                      <X className="size-4" aria-hidden />
+                    </button>
                   )}
-                  Add Manual Item
-                </button>
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex h-11 items-center overflow-hidden rounded-[8px] border border-hairline bg-canvas">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={minPriceInput}
+                      onChange={(event) => setMinPriceInput(event.target.value)}
+                      placeholder="Giá từ"
+                      aria-label="Giá tối thiểu"
+                      className="h-full w-[88px] bg-transparent px-3 text-[14px] text-ink outline-none placeholder:text-placeholder"
+                    />
+                    <span className="select-none px-1 text-ink-variant" aria-hidden>
+                      –
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={maxPriceInput}
+                      onChange={(event) => setMaxPriceInput(event.target.value)}
+                      placeholder="đến"
+                      aria-label="Giá tối đa"
+                      className="h-full w-[88px] bg-transparent pr-3 text-[14px] text-ink outline-none placeholder:text-placeholder"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleAddManualItem()}
+                    disabled={addingManual}
+                    className="flex h-11 items-center gap-2 rounded-[8px] bg-primary-dark px-4 text-[14px] font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {addingManual ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Plus className="size-4" aria-hidden />
+                    )}
+                    Thêm món
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
                 {categories.map((category) => (
                   <button
                     type="button"
@@ -658,15 +815,41 @@ export function MenuDetailPage() {
                     onClick={() => setActiveCategory(category)}
                     className={
                       activeCategory === category
-                        ? 'h-11 rounded-[8px] bg-primary-dark px-4 text-[14px] font-bold text-white'
-                        : 'h-11 rounded-[8px] border border-hairline bg-canvas px-4 text-[14px] font-medium text-primary-dark transition-colors hover:bg-surface-muted'
+                        ? 'h-9 rounded-full bg-primary-dark px-4 text-[13px] font-bold text-white'
+                        : 'h-9 rounded-full border border-hairline bg-canvas px-4 text-[13px] font-medium text-primary-dark transition-colors hover:bg-surface-muted'
                     }
                   >
                     {category}
                   </button>
                 ))}
+                {hasActiveFilter && (
+                  <button
+                    type="button"
+                    onClick={handleClearFilters}
+                    className="ml-auto flex h-9 items-center gap-1.5 rounded-full border border-hairline bg-canvas px-3 text-[13px] font-medium text-ink-variant transition-colors hover:bg-surface-muted hover:text-ink"
+                  >
+                    <X className="size-3.5" aria-hidden />
+                    Xóa bộ lọc
+                  </button>
+                )}
               </div>
             </div>
+
+            {itemsError && (
+              <div
+                role="alert"
+                className="mb-4 flex items-center gap-3 rounded-[8px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[14px] text-destructive"
+              >
+                <AlertCircle className="size-4 shrink-0" aria-hidden />
+                {itemsError}
+              </div>
+            )}
+
+            <p className="mb-3 text-[13px] text-ink-variant" aria-live="polite">
+              {itemsLoading && hasActiveFilter
+                ? 'Đang tìm món phù hợp...'
+                : `${filteredItems.length} món${hasActiveFilter && itemsMeta ? ` trên ${itemsMeta.total}` : ''}`}
+            </p>
 
             <main className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               {filteredItems.map((item) => (
@@ -712,13 +895,50 @@ export function MenuDetailPage() {
                 onNoteChange={setManualNote}
                 onSave={() => void handleAddManualItem()}
               />
-              {filteredItems.length === 0 && (
-                <div className="flex min-h-[170px] flex-col items-center justify-center gap-3 rounded-[8px] border border-dashed border-hairline bg-canvas/70 p-6 text-center text-ink-variant">
+              {!itemsLoading && filteredItems.length === 0 && (
+                <div className="col-span-full flex min-h-[170px] flex-col items-center justify-center gap-3 rounded-[8px] border border-dashed border-hairline bg-canvas/70 p-6 text-center text-ink-variant">
                   <XCircle className="size-7" aria-hidden />
-                  Không có món phù hợp.
+                  {hasActiveFilter ? (
+                    <>
+                      <span>Không có món phù hợp với bộ lọc.</span>
+                      <button
+                        type="button"
+                        onClick={handleClearFilters}
+                        className="rounded-[8px] border border-primary-dark px-4 py-2 text-[13px] font-bold text-primary-dark transition-colors hover:bg-primary/10"
+                      >
+                        Xóa bộ lọc
+                      </button>
+                    </>
+                  ) : (
+                    <span>Chưa có món nào trong menu.</span>
+                  )}
+                </div>
+              )}
+              {itemsLoading && hasActiveFilter && filteredItems.length === 0 && (
+                <div className="col-span-full flex min-h-[170px] items-center justify-center gap-3 rounded-[8px] border border-dashed border-hairline bg-canvas/70 p-6 text-[14px] text-ink-variant">
+                  <Loader2 className="size-6 animate-spin text-primary-dark" aria-hidden />
+                  Đang tải...
                 </div>
               )}
             </main>
+
+            {canLoadMoreItems && (
+              <div className="mt-5 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => void loadItems(itemsPage + 1, 'append')}
+                  disabled={itemsLoading}
+                  className="flex min-h-10 items-center gap-2 rounded-[8px] border border-primary-dark px-4 py-2 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {itemsLoading ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Plus className="size-4" aria-hidden />
+                  )}
+                  Tải thêm
+                </button>
+              </div>
+            )}
 
             <div className="mt-8 rounded-[8px] border border-hairline bg-canvas px-4 py-4">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

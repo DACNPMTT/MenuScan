@@ -4,7 +4,10 @@ from dataclasses import dataclass, field
 
 DEFAULT_DATABASE_URL = "postgresql://menuscan:localdev@localhost:54320/menuscan"
 DEFAULT_MAGIC_LINK_BASE_URL = "http://localhost:5173"
-DEFAULT_CORS_ORIGINS = ("http://localhost:5173",)
+DEFAULT_CORS_ORIGINS = (
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+)
 
 DEFAULT_EMAIL_PROVIDER = "console"
 DEFAULT_EMAIL_FROM_ADDRESS = ""

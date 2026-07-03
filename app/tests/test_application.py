@@ -37,7 +37,10 @@ def _default_storage_config() -> StorageConfig:
 def make_settings(
     *,
     api_v1_prefix: str = "/api/v1",
-    cors_origins: tuple[str, ...] = ("http://localhost:5173",),
+    cors_origins: tuple[str, ...] = (
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ),
     magic_link_base_url: str = "http://localhost:5173",
     email: EmailConfig | None = None,
     storage: StorageConfig | None = None,
@@ -160,6 +163,15 @@ def test_settings_load_cors_origins_from_environment(
     )
 
 
+def test_settings_use_local_dev_cors_defaults() -> None:
+    settings = Settings.from_environment()
+
+    assert settings.cors_origins == (
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    )
+
+
 def test_settings_reject_wildcard_cors_with_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -217,6 +229,19 @@ def test_cors_uses_origins_from_settings() -> None:
 
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "https://frontend.example"
+
+
+def test_cors_allows_local_ip_frontend_by_default() -> None:
+    response = make_client().options(
+        "/health",
+        headers={
+            "Origin": "http://127.0.0.1:5173",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
 
 
 def test_validation_error_uses_standard_error_contract() -> None:
