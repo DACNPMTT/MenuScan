@@ -30,16 +30,18 @@ from src.modules.billing.exceptions import (
     CurrencyMismatchError,
     EmptyBillError,
     FoodItemNotFoundError,
+    InvalidPeopleCountError,
     InvalidPercentageRangeError,
     InvalidQuantityError,
     NegativeTotalError,
 )
 from src.modules.billing.models import (
+    Bill,
     BillAdjustmentCalculationType,
     BillAdjustmentType,
     BillStatus,
 )
-from src.modules.billing.service import BillingService
+from src.modules.billing.service import BillSplit, BillingService, SplitShare
 from src.modules.identity.models import User
 from src.modules.menu.models import FoodItem, Menu
 from src.modules.menu_scan.models import ScanSession, ScanStatus
@@ -764,12 +766,211 @@ def test_billing_service_has_no_send_order_to_restaurant_capability():
         if not name.startswith("_") and callable(getattr(BillingService, name))
     }
     assert public_methods == {
-        "create_bill",
-        "get_bill_for_user",
-        "add_item",
-        "replace_items",
         "add_adjustment",
-        "update_adjustment",
-        "remove_adjustment",
+        "add_item",
+        "create_bill",
         "finalize_bill",
+        "get_bill_for_user",
+        "remove_adjustment",
+        "replace_items",
+        "split_bill",
+        "update_adjustment",
     }
+
+
+# ---------------------------------------------------------------------------
+# Bill split (issue #129 / [S2-12])
+# ---------------------------------------------------------------------------
+
+_ONE_CENT = Decimal("0.01")
+
+
+def _bill_with_total(
+    session,
+    user: User,
+    *,
+    currency: str,
+    total: Decimal,
+) -> Bill:
+    """Build a DRAFT bill whose ``total_amount`` is exactly ``total``.
+
+    Creates a throwaway menu with a single food item priced at ``total`` so the
+    one-line bill totals to the requested amount, exercising the same Decimal
+    snapshot path used in production (no float anywhere).
+    """
+    scan_session = ScanSession(
+        user_id=user.id,
+        source_object_key=f"scans/{uuid.uuid4()}.jpg",
+        source_file_name="menu.jpg",
+        source_mime_type="image/jpeg",
+        source_file_size=1024,
+        target_language="vi",
+        status=ScanStatus.COMPLETED,
+        completed_at=datetime.now(timezone.utc),
+    )
+    session.add(scan_session)
+    session.flush()
+    menu = Menu(
+        scan_session_id=scan_session.id,
+        title="Split test menu",
+        target_language="vi",
+        default_currency=currency,
+    )
+    session.add(menu)
+    session.flush()
+    food_item = FoodItem(
+        menu_id=menu.id,
+        original_name="Món đơn",
+        translated_name="Single item",
+        price=total,
+        currency=currency,
+        sort_order=0,
+    )
+    session.add(food_item)
+    session.flush()
+    service = BillingService(session=session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+    service.add_item(bill_id=bill.id, food_item_id=food_item.id, quantity=1)
+    return bill
+
+
+def _amounts(split: BillSplit) -> list[Decimal]:
+    return [share.amount for share in split.shares]
+
+
+def test_split_evenly_when_total_divisible(db_session):
+    """100.00 / 2 -> two exact halves, no remainder."""
+    user = _make_user(db_session)
+    bill = _bill_with_total(db_session, user, currency="USD", total=Decimal("100.00"))
+    service = BillingService(session=db_session)
+
+    split = service.split_bill(bill_id=bill.id, user_id=user.id, people_count=2)
+
+    assert split.base_share == Decimal("50.00")
+    assert split.remainder_units == 0
+    assert _amounts(split) == [Decimal("50.00"), Decimal("50.00")]
+    assert sum(_amounts(split), Decimal("0.00")) == bill.total_amount
+
+
+def test_split_distributes_remainder_deterministically(db_session):
+    """100.00 / 3 -> the first person absorbs the leftover cent."""
+    user = _make_user(db_session)
+    bill = _bill_with_total(db_session, user, currency="USD", total=Decimal("100.00"))
+    service = BillingService(session=db_session)
+
+    split = service.split_bill(bill_id=bill.id, user_id=user.id, people_count=3)
+
+    assert split.base_share == Decimal("33.33")
+    assert split.remainder_units == 1
+    assert _amounts(split) == [Decimal("33.34"), Decimal("33.33"), Decimal("33.33")]
+    assert sum(_amounts(split), Decimal("0.00")) == Decimal("100.00")
+
+
+@pytest.mark.parametrize(
+    "currency, total, people",
+    [
+        ("USD", Decimal("100.00"), 3),
+        ("USD", Decimal("100.00"), 7),
+        ("USD", Decimal("99.99"), 2),
+        ("USD", Decimal("0.03"), 4),
+        ("VND", Decimal("175000.00"), 3),
+        ("VND", Decimal("100000.00"), 7),
+        ("EUR", Decimal("250.00"), 9),
+        ("JPY", Decimal("1000.00"), 3),
+    ],
+)
+def test_split_shares_sum_exactly_to_total(db_session, currency, total, people):
+    """Invariant: shares always sum back to total, differing by <= 1 cent.
+
+    Multiple currencies are covered; precision follows the system-wide 2-dp
+    money model (VND/JPY totals are stored as NUMERIC(14,2) too).
+    """
+    user = _make_user(db_session)
+    bill = _bill_with_total(db_session, user, currency=currency, total=total)
+    service = BillingService(session=db_session)
+
+    split = service.split_bill(bill_id=bill.id, user_id=user.id, people_count=people)
+
+    assert split.currency == currency
+    assert split.people_count == people
+    assert len(split.shares) == people
+    amounts = _amounts(split)
+    assert sum(amounts, Decimal("0.00")) == bill.total_amount
+    assert max(amounts) - min(amounts) <= _ONE_CENT
+
+
+def test_split_single_person_returns_full_total(db_session):
+    user = _make_user(db_session)
+    bill = _bill_with_total(db_session, user, currency="USD", total=Decimal("100.00"))
+    service = BillingService(session=db_session)
+
+    split = service.split_bill(bill_id=bill.id, user_id=user.id, people_count=1)
+
+    assert split.shares == [SplitShare(person=1, amount=Decimal("100.00"))]
+    assert split.remainder_units == 0
+
+
+def test_split_rejects_fewer_than_one_person(db_session):
+    user = _make_user(db_session)
+    bill = _bill_with_total(db_session, user, currency="USD", total=Decimal("100.00"))
+    service = BillingService(session=db_session)
+
+    with pytest.raises(InvalidPeopleCountError):
+        service.split_bill(bill_id=bill.id, user_id=user.id, people_count=0)
+
+
+def test_split_never_uses_floating_point(db_session):
+    """All money in the split result must be Decimal, never float."""
+    user = _make_user(db_session)
+    bill = _bill_with_total(db_session, user, currency="USD", total=Decimal("100.00"))
+    service = BillingService(session=db_session)
+
+    split = service.split_bill(bill_id=bill.id, user_id=user.id, people_count=3)
+
+    assert isinstance(split.total_amount, Decimal)
+    assert isinstance(split.base_share, Decimal)
+    assert all(isinstance(share.amount, Decimal) for share in split.shares)
+    assert all(not isinstance(share.amount, float) for share in split.shares)
+
+
+def test_split_reflects_changes_to_items(db_session):
+    """Split recomputes from the current total after the bill changes."""
+    user = _make_user(db_session)
+    bill = _bill_with_total(db_session, user, currency="USD", total=Decimal("100.00"))
+    food_item_id = bill.items[0].food_item_id
+    service = BillingService(session=db_session)
+
+    first = service.split_bill(bill_id=bill.id, user_id=user.id, people_count=3)
+    assert sum(_amounts(first), Decimal("0.00")) == Decimal("100.00")
+
+    # Add the same item again -> total doubles to 200.00.
+    service.add_item(bill_id=bill.id, food_item_id=food_item_id, quantity=1)
+
+    second = service.split_bill(bill_id=bill.id, user_id=user.id, people_count=3)
+    assert bill.total_amount == Decimal("200.00")
+    assert sum(_amounts(second), Decimal("0.00")) == Decimal("200.00")
+    assert max(_amounts(second)) - min(_amounts(second)) <= _ONE_CENT
+
+
+def test_split_is_scoped_to_owner(db_session):
+    """A non-owner must not be able to split someone else's bill (404)."""
+    user = _make_user(db_session)
+    other = _make_user(db_session)
+    bill = _bill_with_total(db_session, user, currency="USD", total=Decimal("100.00"))
+    service = BillingService(session=db_session)
+
+    with pytest.raises(BillNotFoundError):
+        service.split_bill(bill_id=bill.id, user_id=other.id, people_count=2)
+
+
+def test_finalized_bill_can_still_be_split(db_session):
+    """Split is a read-only computation, so a FINALIZED bill is still splittable."""
+    user = _make_user(db_session)
+    bill = _bill_with_total(db_session, user, currency="USD", total=Decimal("100.00"))
+    service = BillingService(session=db_session)
+    service.finalize_bill(bill_id=bill.id)
+
+    split = service.split_bill(bill_id=bill.id, user_id=user.id, people_count=4)
+
+    assert sum(_amounts(split), Decimal("0.00")) == Decimal("100.00")
+    assert len(split.shares) == 4

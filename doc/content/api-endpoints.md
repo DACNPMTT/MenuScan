@@ -467,6 +467,49 @@ set server-side.
 Lỗi: `400 EMPTY_BILL`, `401 UNAUTHORIZED`, `404 BILL_NOT_FOUND`,
 `409 BILL_ALREADY_FINALIZED`.
 
+### POST `/bills/{bill_id}/split`
+
+Auth bắt buộc. Chỉ owner. Chia đều `total_amount` của bill cho `people_count`
+người. Toàn bộ tính toán dùng `Decimal`, không dùng floating-point: phần cơ bản
+mỗi người được floor đến cent, phần dư (theo nguyên cent) được phân bổ
+deterministic cho những người đầu tiên, nên tổng các phần luôn bằng đúng
+`total_amount` — không mất tiền do làm tròn. Bill không bị thay đổi (cả DRAFT
+và FINALIZED đều chia được); split là phép tính lại dựa trên item/adjustment
+hiện tại (xem `src/modules/billing/service.py`, issue #129).
+
+Body:
+
+```json
+{
+  "people_count": 3
+}
+```
+
+Response `200 OK`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "bill_id": "9b1c...",
+    "currency": "USD",
+    "total_amount": "100.00",
+    "people_count": 3,
+    "base_share": "33.33",
+    "remainder_units": 1,
+    "shares": [
+      { "person": 1, "amount": "33.34" },
+      { "person": 2, "amount": "33.33" },
+      { "person": 3, "amount": "33.33" }
+    ]
+  },
+  "meta": null
+}
+```
+
+Lỗi: `400 VALIDATION_ERROR` (`people_count < 1`), `400 INVALID_PEOPLE_COUNT`,
+`401 UNAUTHORIZED`, `404 BILL_NOT_FOUND`.
+
 ## 5. Menu
 
 ### PATCH `/menus/{menu_id}`
