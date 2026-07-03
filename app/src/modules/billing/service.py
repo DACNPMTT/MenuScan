@@ -25,8 +25,9 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
 
 from sqlalchemy.orm import Session
 
@@ -40,6 +41,7 @@ from src.modules.billing.exceptions import (
     FoodItemMissingPriceError,
     FoodItemNotFoundError,
     InvalidAdjustmentValueError,
+    InvalidPeopleCountError,
     InvalidPercentageRangeError,
     InvalidQuantityError,
     MenuNotFoundError,
@@ -82,6 +84,34 @@ def _round_money(value: Decimal) -> Decimal:
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+@dataclass(frozen=True)
+class SplitShare:
+    """One person's share of a split bill (service-level DTO)."""
+
+    person: int
+    amount: Decimal
+
+
+@dataclass(frozen=True)
+class BillSplit:
+    """Result of splitting a bill evenly among N people.
+
+    ``shares`` always sums exactly to ``total_amount``: the per-person base is
+    floored to the cent and the non-negative remainder (in whole cents) is
+    handed out one cent at a time to the first ``remainder_units`` people, so
+    no money is lost and the split is deterministic. All money is ``Decimal``
+    -- never float. Precision follows the system-wide 2-decimal money model.
+    """
+
+    bill_id: uuid.UUID
+    currency: str
+    total_amount: Decimal
+    people_count: int
+    base_share: Decimal
+    remainder_units: int
+    shares: list[SplitShare] = field(default_factory=list)
 
 
 class BillingService:
@@ -132,6 +162,49 @@ class BillingService:
         if bill is None:
             raise BillNotFoundError()
         return bill
+
+    def split_bill(
+        self,
+        *,
+        bill_id: uuid.UUID,
+        user_id: uuid.UUID,
+        people_count: int,
+    ) -> BillSplit:
+        """Split ``bill.total_amount`` evenly among ``people_count`` people.
+
+        Pure computation -- the bill is not mutated, so a DRAFT bill can be
+        previewed and a FINALIZED bill can still be split. The per-person base
+        is floored to the cent and the remainder distributed to the first
+        people so ``sum(shares) == total_amount`` exactly, deterministically.
+        """
+        if people_count < 1:
+            raise InvalidPeopleCountError()
+
+        bill = self.get_bill_for_user(bill_id=bill_id, user_id=user_id)
+
+        total = _round_money(bill.total_amount)
+        base = (total / people_count).quantize(_CENTS, rounding=ROUND_DOWN)
+        # Whole-cent units left over after every person gets ``base``. Always
+        # non-negative because ``base`` floors, and always an exact multiple
+        # of one cent because both ``total`` and ``base`` are 2-decimal.
+        remainder_units = int(((total - base * people_count) / _CENTS).to_integral_value())
+
+        shares = [
+            SplitShare(
+                person=index + 1,
+                amount=base + _CENTS if index < remainder_units else base,
+            )
+            for index in range(people_count)
+        ]
+        return BillSplit(
+            bill_id=bill.id,
+            currency=bill.currency,
+            total_amount=total,
+            people_count=people_count,
+            base_share=base,
+            remainder_units=remainder_units,
+            shares=shares,
+        )
 
     # --- Line items ---------------------------------------------------------
 

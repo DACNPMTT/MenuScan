@@ -114,7 +114,7 @@ such as the database.
 | `APP_ENV` | `development` |
 | `LOG_LEVEL` | `INFO` |
 | `API_V1_PREFIX` | `/api/v1` |
-| `CORS_ORIGINS` | `http://localhost:5173` |
+| `CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` |
 | `STORAGE_PROVIDER` | `local` |
 | `STORAGE_LOCAL_ROOT` | `storage/objects` |
 | `STORAGE_SIGNED_URL_SECONDS` | `300` |

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from src.modules.menu.models import FoodItem, Menu
@@ -48,6 +49,48 @@ class MenuRepository:
         )
         return session.scalar(statement) or 0
 
+    def list_items_for_menu(
+        self,
+        session: Session,
+        *,
+        menu_id: uuid.UUID,
+        search: str | None,
+        min_price: Decimal | None,
+        max_price: Decimal | None,
+        limit: int,
+        offset: int,
+    ) -> list[FoodItem]:
+        statement = self._items_for_menu_statement(
+            menu_id=menu_id,
+            search=search,
+            min_price=min_price,
+            max_price=max_price,
+        ).order_by(FoodItem.sort_order, FoodItem.id).limit(limit).offset(offset)
+        return list(session.scalars(statement).all())
+
+    def count_items_for_menu(
+        self,
+        session: Session,
+        *,
+        menu_id: uuid.UUID,
+        search: str | None,
+        min_price: Decimal | None,
+        max_price: Decimal | None,
+    ) -> int:
+        statement = (
+            select(func.count())
+            .select_from(FoodItem)
+            .where(
+                *self._items_for_menu_filters(
+                    menu_id=menu_id,
+                    search=search,
+                    min_price=min_price,
+                    max_price=max_price,
+                )
+            )
+        )
+        return session.scalar(statement) or 0
+
     def save_menu_with_items(
         self,
         session: Session,
@@ -75,3 +118,45 @@ class MenuRepository:
     def delete_item(self, session: Session, item: FoodItem) -> None:
         session.delete(item)
         session.flush()
+
+    def _items_for_menu_statement(
+        self,
+        *,
+        menu_id: uuid.UUID,
+        search: str | None,
+        min_price: Decimal | None,
+        max_price: Decimal | None,
+    ):
+        return select(FoodItem).where(
+            *self._items_for_menu_filters(
+                menu_id=menu_id,
+                search=search,
+                min_price=min_price,
+                max_price=max_price,
+            )
+        )
+
+    def _items_for_menu_filters(
+        self,
+        *,
+        menu_id: uuid.UUID,
+        search: str | None,
+        min_price: Decimal | None,
+        max_price: Decimal | None,
+    ) -> list[object]:
+        filters: list[object] = [FoodItem.menu_id == menu_id]
+        if search:
+            pattern = f"%{search.lower()}%"
+            filters.append(
+                or_(
+                    func.lower(FoodItem.original_name).like(pattern),
+                    func.lower(FoodItem.translated_name).like(pattern),
+                )
+            )
+        if min_price is not None:
+            filters.append(FoodItem.price.is_not(None))
+            filters.append(FoodItem.price >= min_price)
+        if max_price is not None:
+            filters.append(FoodItem.price.is_not(None))
+            filters.append(FoodItem.price <= max_price)
+        return filters

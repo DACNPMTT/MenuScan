@@ -15,6 +15,7 @@ from src.modules.menu.models import FoodItem, Menu, MenuStatus
 from src.modules.menu.repository import MenuRepository
 from src.modules.menu.schemas import (
     CreateMenuItemRequest,
+    ListMenuItemsQuery,
     MenuDetailResponse,
     MenuItemResponse,
     MenuSourceResponse,
@@ -102,6 +103,33 @@ class MenuService:
     ) -> MenuDetailResponse:
         menu = self._get_owned_menu(menu_id=menu_id, user_id=user_id)
         return _menu_detail_data(menu)
+
+    def list_menu_items(
+        self,
+        *,
+        menu_id: uuid.UUID,
+        user_id: uuid.UUID,
+        query: ListMenuItemsQuery,
+    ) -> tuple[list[MenuItemResponse], int]:
+        self._get_owned_menu(menu_id=menu_id, user_id=user_id)
+        offset = (query.page - 1) * query.page_size
+        items = self._repository.list_items_for_menu(
+            self._session,
+            menu_id=menu_id,
+            search=query.search,
+            min_price=query.min_price,
+            max_price=query.max_price,
+            limit=query.page_size,
+            offset=offset,
+        )
+        total = self._repository.count_items_for_menu(
+            self._session,
+            menu_id=menu_id,
+            search=query.search,
+            min_price=query.min_price,
+            max_price=query.max_price,
+        )
+        return [MenuItemResponse.model_validate(item) for item in items], total
 
     def delete_menu(
         self,

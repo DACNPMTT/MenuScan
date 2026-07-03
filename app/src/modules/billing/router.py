@@ -16,7 +16,10 @@ from src.modules.billing.dependencies import get_billing_service
 from src.modules.billing.schemas import (
     AdjustmentRequest,
     BillResponse,
+    BillSplitResponse,
     CreateBillRequest,
+    SplitBillRequest,
+    SplitShareResponse,
     UpdateBillItemsRequest,
 )
 from src.modules.billing.service import BillingService
@@ -47,6 +50,39 @@ def get_bill(
     """Retrieve a bill with its line items. Only the owner may access it."""
     bill = service.get_bill_for_user(bill_id=bill_id, user_id=current_user.id)
     data = BillResponse.model_validate(bill)
+    return success_response(data=data.model_dump(mode="json"))
+
+
+@router.post("/{bill_id}/split", status_code=status.HTTP_200_OK)
+def split_bill(
+    bill_id: uuid.UUID,
+    payload: SplitBillRequest,
+    current_user: User = Depends(get_current_user),
+    service: BillingService = Depends(get_billing_service),
+) -> dict[str, object]:
+    """Split the bill total evenly among N people.
+
+    Returns a deterministic per-person breakdown whose shares always sum back
+    to ``total_amount`` (no money lost to rounding). The bill is not mutated,
+    so both DRAFT and FINALIZED bills can be split.
+    """
+    split = service.split_bill(
+        bill_id=bill_id,
+        user_id=current_user.id,
+        people_count=payload.people_count,
+    )
+    data = BillSplitResponse(
+        bill_id=split.bill_id,
+        currency=split.currency,
+        total_amount=split.total_amount,
+        people_count=split.people_count,
+        base_share=split.base_share,
+        remainder_units=split.remainder_units,
+        shares=[
+            SplitShareResponse(person=share.person, amount=share.amount)
+            for share in split.shares
+        ],
+    )
     return success_response(data=data.model_dump(mode="json"))
 
 

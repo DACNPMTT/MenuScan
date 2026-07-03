@@ -28,7 +28,7 @@
 
   --radius-button: 48px;
   --radius-tile: 12px;
-  --focus-ring: 3px solid var(--color-civic-blue);
+  --focus-ring: 2px solid var(--ring, var(--color-civic-blue));
   --breakpoint-tablet: 780px;
 
   color: var(--color-text-main);
@@ -87,11 +87,6 @@ h2 {
 
 p {
   margin-bottom: var(--space-3);
-}
-
-:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--space-1);
 }
 
 .visually-hidden {

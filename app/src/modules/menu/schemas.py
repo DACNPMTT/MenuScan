@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.modules.menu.models import MenuStatus
 
@@ -45,6 +45,32 @@ class UpdateMenuItemRequest(BaseModel):
         if value is not None and not value.strip():
             raise ValueError("original_name must not be blank")
         return value
+
+
+class ListMenuItemsQuery(BaseModel):
+    search: str | None = None
+    min_price: Decimal | None = Field(default=None, ge=0)
+    max_price: Decimal | None = Field(default=None, ge=0)
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=20, ge=1, le=50)
+
+    @field_validator("search")
+    @classmethod
+    def normalize_search(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None
+
+    @model_validator(mode="after")
+    def validate_price_range(self) -> "ListMenuItemsQuery":
+        if (
+            self.min_price is not None
+            and self.max_price is not None
+            and self.min_price > self.max_price
+        ):
+            raise ValueError("min_price must be less than or equal to max_price")
+        return self
 
 
 class MenuSavedResponse(BaseModel):

@@ -1,0 +1,31 @@
+meta {
+  name: List Menus
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}{{api_prefix}}/menus
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{access_token}}
+}
+
+query {
+  page: 1
+  page_size: 20
+}
+
+tests {
+  test("lists menus with pagination", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data).to.be.an("array");
+    expect(res.body.meta).to.be.an("object");
+    expect(res.body.meta.page).to.equal(1);
+    expect(res.body.meta.total).to.be.a("number");
+  });
+}

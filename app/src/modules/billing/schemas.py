@@ -142,3 +142,43 @@ class BillResponse(BaseModel):
     @field_serializer("status")
     def _serialize_status(self, value: object) -> str:
         return value.value if hasattr(value, "value") else str(value)
+
+
+class SplitBillRequest(BaseModel):
+    """Request body for ``POST /bills/{bill_id}/split``."""
+
+    people_count: int = Field(
+        ge=1,
+        description="Số người chia hóa đơn, tối thiểu 1.",
+    )
+
+
+class SplitShareResponse(BaseModel):
+    """One person's share in a bill-split result."""
+
+    person: int
+    amount: Decimal
+
+    @field_serializer("amount")
+    def _serialize_money(self, value: Decimal) -> str:
+        return str(value)
+
+
+class BillSplitResponse(BaseModel):
+    """Breakdown of a bill split evenly among N people.
+
+    ``shares`` sums exactly to ``total_amount``; ``remainder_units`` is the
+    count of people who received one extra cent over ``base_share``.
+    """
+
+    bill_id: uuid.UUID
+    currency: str
+    total_amount: Decimal
+    people_count: int
+    base_share: Decimal
+    remainder_units: int
+    shares: list[SplitShareResponse]
+
+    @field_serializer("total_amount", "base_share")
+    def _serialize_money(self, value: Decimal) -> str:
+        return str(value)

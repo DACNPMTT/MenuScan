@@ -1,174 +1,48 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
-  FileText,
-  ImageIcon,
   Loader2,
-  Minus,
-  Pencil,
   Plus,
   ReceiptText,
-  RotateCcw,
-  Save,
-  Search,
   Trash2,
   Users,
   XCircle,
 } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
-import { getAccessToken, refreshAccessToken } from '@/shared/lib/auth-token'
-import { ApiError, apiRequest } from '@/shared/lib/api'
+import { ApiError, apiRequest, apiRequestWithMeta } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
-import type { MenuDetail, MenuItemResult } from '@/features/menu-scan/types'
-
-interface BillLineState {
-  quantity: number
-  note: string
-}
-
-interface ItemDraft {
-  original_name: string
-  translated_name: string
-  original_description: string
-  translated_description: string
-  price: string
-  currency: string
-  category: string
-}
-
-interface ItemValidationErrors {
-  original_name?: string
-  price?: string
-}
-
-type BillItem = MenuItemResult
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(
-  /\/$/,
-  '',
-)
-const LOW_CONFIDENCE_THRESHOLD = 0.75
-const UNSAVED_CHANGES_MESSAGE =
-  'Bạn có thay đổi chưa lưu. Rời trang sẽ mất các chỉnh sửa này?'
-
-function formatMoney(amount: number, currency: string | null): string {
-  const resolvedCurrency = currency ?? 'VND'
-  if (resolvedCurrency === 'VND') {
-    return `${Math.round(amount).toLocaleString('vi-VN')}đ`
-  }
-  return `${amount.toFixed(2)} ${resolvedCurrency}`
-}
-
-function itemPrice(item: BillItem): number {
-  const value = Number(item.price)
-  return Number.isFinite(value) ? value : 0
-}
-
-function draftFromItem(item: BillItem, fallbackCurrency: string | null): ItemDraft {
-  return {
-    original_name: item.original_name ?? '',
-    translated_name: item.translated_name ?? '',
-    original_description: item.original_description ?? '',
-    translated_description: item.translated_description ?? '',
-    price: item.price ?? '',
-    currency: item.currency ?? fallbackCurrency ?? '',
-    category: item.category ?? '',
-  }
-}
-
-function normalizeDraft(draft: ItemDraft) {
-  return {
-    original_name: draft.original_name.trim(),
-    translated_name: draft.translated_name.trim() || null,
-    original_description: draft.original_description.trim() || null,
-    translated_description: draft.translated_description.trim() || null,
-    price: draft.price.trim() || null,
-    currency: draft.currency.trim().toUpperCase() || null,
-    category: draft.category.trim() || null,
-  }
-}
-
-function draftMatchesItem(
-  draft: ItemDraft,
-  item: BillItem,
-  fallbackCurrency: string | null,
-): boolean {
-  const normalized = normalizeDraft(draft)
-  return (
-    normalized.original_name === item.original_name &&
-    normalized.translated_name === item.translated_name &&
-    normalized.original_description === item.original_description &&
-    normalized.translated_description === item.translated_description &&
-    normalized.price === (item.price ?? null) &&
-    normalized.currency === (item.currency ?? fallbackCurrency ?? null) &&
-    normalized.category === item.category
-  )
-}
-
-function validateDraft(draft: ItemDraft): ItemValidationErrors {
-  const errors: ItemValidationErrors = {}
-  if (!draft.original_name.trim()) {
-    errors.original_name = 'Tên gốc không được để trống.'
-  }
-  const price = draft.price.trim()
-  if (price) {
-    const numericPrice = Number(price)
-    if (!Number.isFinite(numericPrice) || numericPrice < 0) {
-      errors.price = 'Giá phải là số không âm.'
-    }
-  }
-  return errors
-}
-
-function confidenceValue(item: BillItem): number | null {
-  if (item.confidence_score === null || item.confidence_score === undefined) {
-    return null
-  }
-  const value = Number(item.confidence_score)
-  return Number.isFinite(value) ? value : null
-}
-
-function itemCategory(item: BillItem): string {
-  return item.category?.trim() || 'Other'
-}
-
-function hasAllergySignal(item: BillItem): boolean {
-  const text = [
-    item.category,
-    item.original_name,
-    item.translated_name,
-    item.original_description,
-    item.translated_description,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase()
-
-  return /(seafood|shellfish|shrimp|prawn|crab|lobster|hải sản|tôm|cua)/i.test(text)
-}
-
-function ItemDisplayName({
-  item,
-  originalClassName = 'text-ink-variant/40',
-}: {
-  item: BillItem
-  originalClassName?: string
-}) {
-  if (item.translated_name && item.translated_name !== item.original_name) {
-    return (
-      <>
-        {item.translated_name}
-        <span className={`ml-1 font-medium ${originalClassName}`}>
-          ({item.original_name})
-        </span>
-      </>
-    )
-  }
-  return item.original_name
-}
+import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue'
+import {
+  ALL_CATEGORY,
+  ITEMS_PAGE_SIZE,
+  SEARCH_DEBOUNCE_MS,
+  UNSAVED_CHANGES_MESSAGE,
+  draftFromItem,
+  draftMatchesItem,
+  formatMoney,
+  itemCategory,
+  itemPrice,
+  normalizeDraft,
+  normalizePrice,
+  validateDraft,
+} from '@/features/menu-scan/lib'
+import { BillItemCard } from '@/features/menu-scan/components/menu-detail/BillItemCard'
+import { ManualItemCard } from '@/features/menu-scan/components/menu-detail/ManualItemCard'
+import { MenuFilterBar } from '@/features/menu-scan/components/menu-detail/MenuFilterBar'
+import { ReceiptPreview } from '@/features/menu-scan/components/menu-detail/ReceiptPreview'
+import { SourcePreview } from '@/features/menu-scan/components/menu-detail/SourcePreview'
+import type {
+  BillItem,
+  BillLineState,
+  ItemDraft,
+  ItemValidationErrors,
+  MenuDetail,
+  MenuItemResult,
+  PaginationMeta,
+} from '@/features/menu-scan/types'
 
 export function MenuDetailPage() {
   const { menuId } = useParams<{ menuId: string }>()
@@ -178,8 +52,33 @@ export function MenuDetailPage() {
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
-  const [activeCategory, setActiveCategory] = useState('All')
+  const [searchParams, setSearchParams] = useSearchParams()
+  // Raw filter inputs update instantly for a responsive feel; the debounced
+  // mirrors below drive the actual request so typing fires one request per
+  // debounce window, not one per keystroke.
+  const [searchInput, setSearchInput] = useState(() => searchParams.get('q') ?? '')
+  const [minPriceInput, setMinPriceInput] = useState(() => searchParams.get('min') ?? '')
+  const [maxPriceInput, setMaxPriceInput] = useState(() => searchParams.get('max') ?? '')
+  const [activeCategory, setActiveCategory] = useState(
+    () => searchParams.get('cat') ?? ALL_CATEGORY,
+  )
+  const debouncedSearch = useDebouncedValue(searchInput, SEARCH_DEBOUNCE_MS)
+  const debouncedMinPrice = useDebouncedValue(minPriceInput, SEARCH_DEBOUNCE_MS)
+  const debouncedMaxPrice = useDebouncedValue(maxPriceInput, SEARCH_DEBOUNCE_MS)
+  const trimmedSearch = debouncedSearch.trim()
+  const normalizedMinPrice = normalizePrice(debouncedMinPrice)
+  const normalizedMaxPrice = normalizePrice(debouncedMaxPrice)
+  const hasActiveFilter =
+    trimmedSearch !== '' || normalizedMinPrice !== '' || normalizedMaxPrice !== ''
+  // Server-driven filtered results. When no filter is active we reuse the items
+  // already embedded in the menu detail, avoiding a redundant request.
+  const [serverItems, setServerItems] = useState<MenuItemResult[]>([])
+  const [itemsMeta, setItemsMeta] = useState<PaginationMeta | null>(null)
+  const [itemsPage, setItemsPage] = useState(1)
+  const [itemsLoading, setItemsLoading] = useState(false)
+  const [itemsError, setItemsError] = useState<string | null>(null)
+  const requestIdRef = useRef(0)
+  const abortRef = useRef<AbortController | null>(null)
   const [peopleCount, setPeopleCount] = useState(1)
   const [billLines, setBillLines] = useState<Record<string, BillLineState>>({})
   const [addingManual, setAddingManual] = useState(false)
@@ -256,30 +155,102 @@ export function MenuDetailPage() {
   const confirmLeaveWithUnsavedChanges = () =>
     !hasUnsavedChanges || window.confirm(UNSAVED_CHANGES_MESSAGE)
 
+  // Items shown in the grid: server-filtered results while a filter is active,
+  // otherwise the full set embedded in the menu detail (no extra request).
+  const browseItems = useMemo<BillItem[]>(
+    () => (hasActiveFilter ? serverItems : allItems),
+    [hasActiveFilter, serverItems, allItems],
+  )
+
   const categories = useMemo(() => {
     const seen = new Set<string>()
-    allItems.forEach((item) => seen.add(itemCategory(item)))
-    return ['All', ...Array.from(seen)]
-  }, [allItems])
+    browseItems.forEach((item) => seen.add(itemCategory(item)))
+    return [ALL_CATEGORY, ...Array.from(seen)]
+  }, [browseItems])
 
-  const filteredItems = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase()
-    return allItems.filter((item) => {
-      const matchesCategory =
-        activeCategory === 'All' || itemCategory(item) === activeCategory
-      if (!matchesCategory) return false
-      if (!normalizedQuery) return true
-      return [
-        item.original_name,
-        item.translated_name,
-        item.original_description,
-        item.translated_description,
-        item.category,
-      ]
-        .filter(Boolean)
-        .some((value) => value!.toLowerCase().includes(normalizedQuery))
-    })
-  }, [activeCategory, allItems, query])
+  const filteredItems = useMemo(
+    () =>
+      activeCategory === ALL_CATEGORY
+        ? browseItems
+        : browseItems.filter((item) => itemCategory(item) === activeCategory),
+    [activeCategory, browseItems],
+  )
+
+  const canLoadMoreItems =
+    hasActiveFilter && itemsMeta ? itemsPage < itemsMeta.total_pages : false
+
+  const loadItems = useCallback(
+    async (page: number, mode: 'replace' | 'append') => {
+      if (!menuId) return
+      // Cancel any in-flight request and stamp this one so a slow earlier
+      // response can never overwrite a newer one (no stale results).
+      abortRef.current?.abort()
+      const controller = new AbortController()
+      abortRef.current = controller
+      const requestId = ++requestIdRef.current
+      setItemsLoading(true)
+      setItemsError(null)
+      if (mode === 'replace') setServerItems([])
+      try {
+        const params = new URLSearchParams()
+        params.set('page', String(page))
+        params.set('page_size', String(ITEMS_PAGE_SIZE))
+        if (trimmedSearch) params.set('search', trimmedSearch)
+        if (normalizedMinPrice) params.set('min_price', normalizedMinPrice)
+        if (normalizedMaxPrice) params.set('max_price', normalizedMaxPrice)
+        const result = await apiRequestWithMeta<MenuItemResult[], PaginationMeta>(
+          `/api/v1/menus/${menuId}/items?${params.toString()}`,
+          { method: 'GET', token: accessToken ?? undefined, signal: controller.signal },
+        )
+        if (requestId !== requestIdRef.current) return // superseded by a newer request
+        setServerItems((current) =>
+          mode === 'replace' ? result.data : [...current, ...result.data],
+        )
+        setItemsMeta(result.meta)
+        setItemsPage(page)
+      } catch (err) {
+        if (requestId !== requestIdRef.current || controller.signal.aborted) return
+        setItemsError(
+          err instanceof ApiError ? err.message : 'Không thể tải danh sách món.',
+        )
+      } finally {
+        if (requestId === requestIdRef.current) setItemsLoading(false)
+      }
+    },
+    [accessToken, menuId, normalizedMaxPrice, normalizedMinPrice, trimmedSearch],
+  )
+
+  // Refetch on menu change or whenever the debounced filters settle. Skipping
+  // when there's no active filter avoids a redundant request — the detail
+  // payload already carries every item.
+  useEffect(() => {
+    if (!hasActiveFilter) {
+      setServerItems([])
+      setItemsMeta(null)
+      setItemsPage(1)
+      return
+    }
+    void loadItems(1, 'replace')
+  }, [hasActiveFilter, loadItems])
+
+  // Reflect the applied (debounced) filters in the URL so a refresh or shared
+  // link preserves the current view. `replace` keeps filter edits out of the
+  // back/forward history.
+  useEffect(() => {
+    const next: Record<string, string> = {}
+    if (trimmedSearch) next.q = trimmedSearch
+    if (normalizedMinPrice) next.min = normalizedMinPrice
+    if (normalizedMaxPrice) next.max = normalizedMaxPrice
+    if (activeCategory !== ALL_CATEGORY) next.cat = activeCategory
+    setSearchParams(next, { replace: true })
+  }, [trimmedSearch, normalizedMinPrice, normalizedMaxPrice, activeCategory, setSearchParams])
+
+  const handleClearFilters = () => {
+    setSearchInput('')
+    setMinPriceInput('')
+    setMaxPriceInput('')
+    setActiveCategory(ALL_CATEGORY)
+  }
 
   const selectedLines = useMemo(
     () =>
@@ -400,6 +371,9 @@ export function MenuDetailPage() {
             }
           : current,
       )
+      setServerItems((current) =>
+        current.map((existing) => (existing.id === updated.id ? updated : existing)),
+      )
       cancelItemDraft(item.id)
       closeItemEdit(item.id)
     } catch (err) {
@@ -442,6 +416,10 @@ export function MenuDetailPage() {
         delete next[item.id]
         return next
       })
+      setServerItems((current) => current.filter((existing) => existing.id !== item.id))
+      setItemsMeta((current) =>
+        current ? { ...current, total: Math.max(0, current.total - 1) } : current,
+      )
       cancelItemDraft(item.id)
       closeItemEdit(item.id)
     } catch (err) {
@@ -624,49 +602,37 @@ export function MenuDetailPage() {
               </div>
             )}
 
-            <div className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
-              <label className="relative block">
-                <Search
-                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-variant"
-                  aria-hidden
-                />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search items..."
-                  className="h-11 w-full rounded-[8px] border border-hairline bg-canvas pl-10 pr-3 text-[14px] text-ink outline-none transition-colors placeholder:text-placeholder focus:border-primary-dark"
-                />
-              </label>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleAddManualItem()}
-                  disabled={addingManual}
-                  className="flex h-11 items-center gap-2 rounded-[8px] bg-primary-dark px-4 text-[14px] font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {addingManual ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Plus className="size-4" aria-hidden />
-                  )}
-                  Add Manual Item
-                </button>
-                {categories.map((category) => (
-                  <button
-                    type="button"
-                    key={category}
-                    onClick={() => setActiveCategory(category)}
-                    className={
-                      activeCategory === category
-                        ? 'h-11 rounded-[8px] bg-primary-dark px-4 text-[14px] font-bold text-white'
-                        : 'h-11 rounded-[8px] border border-hairline bg-canvas px-4 text-[14px] font-medium text-primary-dark transition-colors hover:bg-surface-muted'
-                    }
-                  >
-                    {category}
-                  </button>
-                ))}
+            <MenuFilterBar
+              searchInput={searchInput}
+              onSearchChange={setSearchInput}
+              minPriceInput={minPriceInput}
+              onMinPriceChange={setMinPriceInput}
+              maxPriceInput={maxPriceInput}
+              onMaxPriceChange={setMaxPriceInput}
+              categories={categories}
+              activeCategory={activeCategory}
+              onCategoryChange={setActiveCategory}
+              hasActiveFilter={hasActiveFilter}
+              onClearFilters={handleClearFilters}
+              addingManual={addingManual}
+              onAddManualItem={() => void handleAddManualItem()}
+            />
+
+            {itemsError && (
+              <div
+                role="alert"
+                className="mb-4 flex items-center gap-3 rounded-[8px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[14px] text-destructive"
+              >
+                <AlertCircle className="size-4 shrink-0" aria-hidden />
+                {itemsError}
               </div>
-            </div>
+            )}
+
+            <p className="mb-3 text-[13px] text-ink-variant" aria-live="polite">
+              {itemsLoading && hasActiveFilter
+                ? 'Đang tìm món phù hợp...'
+                : `${filteredItems.length} món${hasActiveFilter && itemsMeta ? ` trên ${itemsMeta.total}` : ''}`}
+            </p>
 
             <main className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               {filteredItems.map((item) => (
@@ -712,13 +678,50 @@ export function MenuDetailPage() {
                 onNoteChange={setManualNote}
                 onSave={() => void handleAddManualItem()}
               />
-              {filteredItems.length === 0 && (
-                <div className="flex min-h-[170px] flex-col items-center justify-center gap-3 rounded-[8px] border border-dashed border-hairline bg-canvas/70 p-6 text-center text-ink-variant">
+              {!itemsLoading && filteredItems.length === 0 && (
+                <div className="col-span-full flex min-h-[170px] flex-col items-center justify-center gap-3 rounded-[8px] border border-dashed border-hairline bg-canvas/70 p-6 text-center text-ink-variant">
                   <XCircle className="size-7" aria-hidden />
-                  Không có món phù hợp.
+                  {hasActiveFilter ? (
+                    <>
+                      <span>Không có món phù hợp với bộ lọc.</span>
+                      <button
+                        type="button"
+                        onClick={handleClearFilters}
+                        className="rounded-[8px] border border-primary-dark px-4 py-2 text-[13px] font-bold text-primary-dark transition-colors hover:bg-primary/10"
+                      >
+                        Xóa bộ lọc
+                      </button>
+                    </>
+                  ) : (
+                    <span>Chưa có món nào trong menu.</span>
+                  )}
+                </div>
+              )}
+              {itemsLoading && hasActiveFilter && filteredItems.length === 0 && (
+                <div className="col-span-full flex min-h-[170px] items-center justify-center gap-3 rounded-[8px] border border-dashed border-hairline bg-canvas/70 p-6 text-[14px] text-ink-variant">
+                  <Loader2 className="size-6 animate-spin text-primary-dark" aria-hidden />
+                  Đang tải...
                 </div>
               )}
             </main>
+
+            {canLoadMoreItems && (
+              <div className="mt-5 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => void loadItems(itemsPage + 1, 'append')}
+                  disabled={itemsLoading}
+                  className="flex min-h-10 items-center gap-2 rounded-[8px] border border-primary-dark px-4 py-2 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {itemsLoading ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Plus className="size-4" aria-hidden />
+                  )}
+                  Tải thêm
+                </button>
+              </div>
+            )}
 
             <div className="mt-8 rounded-[8px] border border-hairline bg-canvas px-4 py-4">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -795,492 +798,5 @@ export function MenuDetailPage() {
         )}
       </div>
     </div>
-  )
-}
-
-function SourcePreview({
-  source,
-  accessToken,
-}: {
-  source: MenuDetail['source']
-  accessToken: string | null
-}) {
-  const [objectUrl, setObjectUrl] = useState<string | null>(null)
-  const [previewError, setPreviewError] = useState(false)
-  const isImage = source.mime_type.startsWith('image/')
-  const isPdf = source.mime_type === 'application/pdf'
-
-  useEffect(() => {
-    let active = true
-    let nextObjectUrl: string | null = null
-
-    const fetchPreview = async (previewUrl: string, token: string | null) =>
-      fetch(previewUrl, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        credentials: 'include',
-      })
-
-    const loadPreview = async () => {
-      setPreviewError(false)
-      setObjectUrl(null)
-      try {
-        const previewUrl = source.preview_url.startsWith('http')
-          ? source.preview_url
-          : `${API_BASE_URL}${source.preview_url}`
-        const token = getAccessToken() ?? accessToken
-        let response = await fetchPreview(previewUrl, token)
-        if (response.status === 401 || response.status === 403) {
-          const freshToken = await refreshAccessToken()
-          if (freshToken) response = await fetchPreview(previewUrl, freshToken)
-        }
-        if (!response.ok) throw new Error('Preview request failed')
-        const blob = await response.blob()
-        nextObjectUrl = URL.createObjectURL(blob)
-        if (active) {
-          setObjectUrl(nextObjectUrl)
-        } else {
-          URL.revokeObjectURL(nextObjectUrl)
-        }
-      } catch {
-        if (active) setPreviewError(true)
-      }
-    }
-
-    void loadPreview()
-    return () => {
-      active = false
-      if (nextObjectUrl) URL.revokeObjectURL(nextObjectUrl)
-    }
-  }, [accessToken, source.preview_url])
-
-  return (
-    <section className="mb-6 grid gap-4 rounded-[8px] border border-hairline bg-canvas p-4 lg:grid-cols-[300px_minmax(0,1fr)]">
-      <div className="flex min-h-[220px] items-center justify-center overflow-hidden rounded-[8px] border border-hairline bg-surface-muted">
-        {objectUrl && isImage ? (
-          <img
-            src={objectUrl}
-            alt={source.file_name}
-            className="h-full max-h-[360px] w-full object-contain"
-          />
-        ) : objectUrl && isPdf ? (
-          <iframe
-            title={source.file_name}
-            src={objectUrl}
-            className="h-[360px] w-full border-0"
-          />
-        ) : previewError ? (
-          <div className="flex flex-col items-center gap-2 text-center text-[13px] text-ink-variant">
-            <FileText className="size-7" aria-hidden />
-            Không thể tải ảnh gốc.
-          </div>
-        ) : (
-          <Loader2 className="size-6 animate-spin text-primary-dark" aria-hidden />
-        )}
-      </div>
-      <div className="flex min-w-0 flex-col justify-center gap-3">
-        <div className="flex items-center gap-2 text-primary-dark">
-          <ImageIcon className="size-5" aria-hidden />
-          <h2 className="mb-0 text-[18px] font-bold">Ảnh menu gốc</h2>
-        </div>
-        <p className="mb-0 truncate text-[14px] text-ink-variant">
-          {source.file_name}
-        </p>
-        <p className="mb-0 text-[13px] text-ink-variant/70">
-          {source.mime_type} · {(source.file_size / 1024).toFixed(1)} KB
-        </p>
-      </div>
-    </section>
-  )
-}
-
-function BillItemCard({
-  item,
-  draft,
-  editing,
-  dirty,
-  line,
-  currency,
-  validationErrors,
-  saveError,
-  saving,
-  deleting,
-  onDraftChange,
-  onEdit,
-  onSave,
-  onCancel,
-  onDelete,
-  onQuantityChange,
-  onNoteChange,
-}: {
-  item: BillItem
-  draft: ItemDraft
-  editing: boolean
-  dirty: boolean
-  line: BillLineState
-  currency: string | null
-  validationErrors: ItemValidationErrors
-  saveError: string | null
-  saving: boolean
-  deleting: boolean
-  onDraftChange: (patch: Partial<ItemDraft>) => void
-  onEdit: () => void
-  onSave: () => void
-  onCancel: () => void
-  onDelete: () => void
-  onQuantityChange: (quantity: number) => void
-  onNoteChange: (note: string) => void
-}) {
-  const confidence = confidenceValue(item)
-  const lowConfidenceLabel =
-    confidence !== null && confidence < LOW_CONFIDENCE_THRESHOLD
-      ? Math.round(confidence * 100)
-      : null
-  const priceCurrency = draft.currency.trim() || item.currency || currency || ''
-  const category = itemCategory(item)
-  const hasTranslatedDescription =
-    item.translated_description &&
-    item.translated_description !== item.original_description
-  const primaryDescription =
-    item.translated_description || item.original_description || null
-  const secondaryDescription = hasTranslatedDescription
-    ? item.original_description
-    : null
-
-  return (
-    <article className="flex min-h-[190px] flex-col gap-3 rounded-[8px] border border-hairline bg-canvas p-5">
-      {hasAllergySignal(item) && (
-        <div className="flex items-center gap-2 rounded-[6px] bg-destructive px-3 py-1.5 text-[12px] font-bold text-white">
-          <AlertCircle className="size-3.5" aria-hidden />
-          WARNING: Allergy Match Found (Seafood)
-        </div>
-      )}
-      {lowConfidenceLabel !== null && (
-        <div className="flex items-center gap-2 rounded-[6px] border border-[#d7a315]/40 bg-[#fff8e2] px-3 py-1.5 text-[12px] font-bold text-[#80600d]">
-          <AlertCircle className="size-3.5" aria-hidden />
-          OCR confidence thấp ({lowConfidenceLabel}%).
-        </div>
-      )}
-      {saveError && (
-        <div className="flex items-center gap-2 rounded-[6px] border border-destructive/30 bg-destructive/5 px-3 py-2 text-[13px] font-medium text-destructive">
-          <AlertCircle className="size-3.5" aria-hidden />
-          {saveError}
-        </div>
-      )}
-
-      {editing ? (
-        <>
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px]">
-            <label className="min-w-0">
-              <span className="sr-only">Tên món</span>
-              <input
-                value={draft.translated_name}
-                onChange={(event) =>
-                  onDraftChange({ translated_name: event.target.value })
-                }
-                placeholder="Tên món"
-                className="h-10 w-full rounded-t-[8px] border border-hairline bg-white px-3 text-[17px] font-bold text-primary-dark outline-none placeholder:text-placeholder focus:border-primary-dark"
-              />
-              <div className="flex items-center rounded-b-[8px] border border-t-0 border-hairline bg-surface-muted px-3">
-                <span className="shrink-0 text-[14px] font-bold text-ink-variant/40">
-                  (
-                </span>
-                <input
-                  value={draft.original_name}
-                  onChange={(event) =>
-                    onDraftChange({ original_name: event.target.value })
-                  }
-                  placeholder="Tên trên ảnh"
-                  className="h-9 min-w-0 flex-1 bg-transparent text-[14px] font-medium text-ink-variant/45 outline-none placeholder:text-placeholder/60"
-                />
-                <span className="shrink-0 text-[14px] font-bold text-ink-variant/40">
-                  )
-                </span>
-              </div>
-              {validationErrors.original_name && (
-                <p className="mb-0 mt-1 text-[12px] font-medium text-destructive">
-                  {validationErrors.original_name}
-                </p>
-              )}
-            </label>
-            <label>
-              <span className="sr-only">Giá</span>
-              <div className="flex h-10 overflow-hidden rounded-[8px] border border-hairline bg-white focus-within:border-primary-dark">
-                <input
-                  value={draft.price}
-                  onChange={(event) => onDraftChange({ price: event.target.value })}
-                  placeholder="Price"
-                  inputMode="decimal"
-                  className="min-w-0 flex-1 px-3 text-right text-[15px] font-bold text-primary-dark outline-none placeholder:text-placeholder"
-                />
-                {priceCurrency && (
-                  <span className="flex items-center border-l border-hairline bg-surface-muted px-2 text-[12px] font-bold text-primary-dark">
-                    {priceCurrency}
-                  </span>
-                )}
-              </div>
-              {validationErrors.price && (
-                <p className="mb-0 mt-1 text-[12px] font-medium text-destructive">
-                  {validationErrors.price}
-                </p>
-              )}
-            </label>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_130px]">
-            <input
-              value={draft.category}
-              onChange={(event) => onDraftChange({ category: event.target.value })}
-              placeholder="Category"
-              className="h-9 rounded-[8px] border border-hairline bg-surface-muted px-3 text-[13px] font-medium text-primary-dark outline-none placeholder:text-placeholder focus:border-primary-dark"
-            />
-            <input
-              value={draft.currency}
-              onChange={(event) => onDraftChange({ currency: event.target.value })}
-              placeholder="Currency"
-              maxLength={3}
-              className="h-9 rounded-[8px] border border-hairline bg-surface-muted px-3 text-[13px] font-medium uppercase text-primary-dark outline-none placeholder:text-placeholder focus:border-primary-dark"
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <textarea
-              value={draft.translated_description}
-              onChange={(event) =>
-                onDraftChange({ translated_description: event.target.value })
-              }
-              placeholder="Mô tả"
-              className="min-h-[70px] resize-none rounded-[8px] border border-hairline bg-white px-3 py-2 text-[14px] leading-6 text-ink outline-none placeholder:text-placeholder focus:border-primary-dark"
-            />
-            <textarea
-              value={draft.original_description}
-              onChange={(event) =>
-                onDraftChange({ original_description: event.target.value })
-              }
-              placeholder="Mô tả trên ảnh"
-              className="min-h-[54px] resize-none rounded-[8px] border border-hairline bg-surface-muted px-3 py-2 text-[13px] leading-5 text-ink-variant/55 outline-none placeholder:text-placeholder/60 focus:border-primary-dark"
-            />
-          </div>
-
-          <div className="flex flex-wrap justify-end gap-2">
-            <button
-              type="button"
-              onClick={onDelete}
-              disabled={deleting || saving}
-              className="flex min-h-9 items-center gap-2 rounded-[8px] border border-destructive/30 px-3 text-[13px] font-bold text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {deleting ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : (
-                <Trash2 className="size-4" aria-hidden />
-              )}
-              Xóa
-            </button>
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={saving || deleting}
-              className="flex min-h-9 items-center gap-2 rounded-[8px] border border-hairline px-3 text-[13px] font-bold text-ink transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <RotateCcw className="size-4" aria-hidden />
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={onSave}
-              disabled={!dirty || saving || deleting}
-              className="flex min-h-9 items-center gap-2 rounded-[8px] bg-primary-dark px-3 text-[13px] font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {saving ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : (
-                <Save className="size-4" aria-hidden />
-              )}
-              Save
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <h2 className="mb-1 text-[19px] font-bold leading-[25px] text-primary-dark">
-                <ItemDisplayName
-                  item={item}
-                  originalClassName="text-[14px] text-ink-variant/40"
-                />
-              </h2>
-              <span className="rounded-[4px] border border-primary-dark/30 bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-primary-dark">
-                {category}
-              </span>
-            </div>
-            <div className="flex shrink-0 items-start gap-2">
-              <strong className="pt-1 text-[17px] text-primary-dark">
-                {formatMoney(itemPrice(item), item.currency ?? currency)}
-              </strong>
-              <button
-                type="button"
-                onClick={onEdit}
-                className="flex size-9 items-center justify-center rounded-[8px] border border-hairline text-primary-dark transition-colors hover:bg-primary/10"
-                aria-label={`Sửa ${item.original_name}`}
-                title="Edit"
-              >
-                <Pencil className="size-4" aria-hidden />
-              </button>
-            </div>
-          </div>
-          {primaryDescription && (
-            <div className="flex flex-col gap-1.5">
-              <p className="mb-0 text-[14px] leading-6 text-ink-variant">
-                {primaryDescription}
-              </p>
-              {secondaryDescription && (
-                <p className="mb-0 border-l-2 border-hairline pl-3 text-[13px] leading-5 text-ink-variant/45">
-                  {secondaryDescription}
-                </p>
-              )}
-            </div>
-          )}
-        </>
-      )}
-
-      <div className="mt-auto flex items-center gap-0 border-t border-hairline pt-3">
-        <div className="flex h-9 shrink-0 items-center overflow-hidden rounded-[8px] border border-primary-dark">
-          <button
-            type="button"
-            onClick={() => onQuantityChange(line.quantity - 1)}
-            className="flex size-9 items-center justify-center text-primary-dark transition-colors hover:bg-primary/10"
-            aria-label={`Giảm ${item.original_name}`}
-          >
-            <Minus className="size-4" aria-hidden />
-          </button>
-          <span className="flex h-9 min-w-8 items-center justify-center text-[14px] font-bold text-ink">
-            {line.quantity}
-          </span>
-          <button
-            type="button"
-            onClick={() => onQuantityChange(line.quantity + 1)}
-            className="flex size-9 items-center justify-center text-primary-dark transition-colors hover:bg-primary/10"
-            aria-label={`Tăng ${item.original_name}`}
-          >
-            <Plus className="size-4" aria-hidden />
-          </button>
-        </div>
-        <input
-          value={line.note}
-          onChange={(event) => onNoteChange(event.target.value)}
-          placeholder="Add note..."
-          className="h-9 min-w-0 flex-1 rounded-r-[8px] border border-l-0 border-hairline bg-surface-muted px-3 text-[13px] text-ink outline-none placeholder:text-placeholder focus:border-primary-dark"
-        />
-      </div>
-    </article>
-  )
-}
-
-function ManualItemCard({
-  name,
-  price,
-  note,
-  saving,
-  onNameChange,
-  onPriceChange,
-  onNoteChange,
-  onSave,
-}: {
-  name: string
-  price: string
-  note: string
-  saving: boolean
-  onNameChange: (value: string) => void
-  onPriceChange: (value: string) => void
-  onNoteChange: (value: string) => void
-  onSave: () => void
-}) {
-  return (
-    <div className="flex min-h-[190px] flex-col gap-4 rounded-[8px] border border-dashed border-primary-dark/70 bg-canvas/70 p-5">
-      <div className="grid grid-cols-[minmax(0,1fr)_120px]">
-        <input
-          value={name}
-          onChange={(event) => onNameChange(event.target.value)}
-          placeholder="Item Name"
-          className="h-11 rounded-l-[6px] border border-hairline bg-white px-3 text-[14px] outline-none placeholder:text-placeholder focus:border-primary-dark"
-        />
-        <input
-          value={price}
-          onChange={(event) => onPriceChange(event.target.value)}
-          placeholder="Price"
-          inputMode="decimal"
-          className="h-11 rounded-r-[6px] border border-l-0 border-hairline bg-white px-3 text-right text-[14px] outline-none placeholder:text-placeholder focus:border-primary-dark"
-        />
-      </div>
-      <textarea
-        value={note}
-        onChange={(event) => onNoteChange(event.target.value)}
-        placeholder="Description/Note"
-        className="min-h-[74px] resize-none rounded-[8px] border border-hairline bg-surface-muted px-3 py-2 text-[14px] outline-none placeholder:text-placeholder focus:border-primary-dark"
-      />
-      <button
-        type="button"
-        onClick={onSave}
-        disabled={saving || !name.trim() || !Number.isFinite(Number(price))}
-        className="ml-auto flex min-h-9 items-center gap-2 rounded-[8px] px-3 text-[13px] font-bold text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {saving ? (
-          <Loader2 className="size-4 animate-spin" aria-hidden />
-        ) : (
-          <CheckCircle2 className="size-4" aria-hidden />
-        )}
-        Save Item
-      </button>
-    </div>
-  )
-}
-
-function ReceiptPreview({
-  lines,
-  currency,
-  subtotal,
-  peopleCount,
-}: {
-  lines: Array<{ item: BillItem; state: BillLineState }>
-  currency: string | null
-  subtotal: number
-  peopleCount: number
-}) {
-  return (
-    <section className="mt-6 rounded-[8px] border border-primary-dark/30 bg-canvas p-5">
-      <div className="mb-4 flex items-center gap-2 text-primary-dark">
-        <ReceiptText className="size-5" aria-hidden />
-        <h2 className="mb-0 text-[20px] font-bold">Digital Receipt</h2>
-      </div>
-      <div className="divide-y divide-hairline">
-        {lines.map(({ item, state }) => (
-          <div key={item.id} className="flex items-start justify-between gap-4 py-3">
-            <div className="min-w-0">
-              <p className="mb-0 truncate text-[15px] font-bold text-ink">
-                {state.quantity} ×{' '}
-                <ItemDisplayName
-                  item={item}
-                  originalClassName="text-[13px] text-ink-variant/40"
-                />
-              </p>
-              {state.note && (
-                <p className="mb-0 mt-1 text-[13px] text-ink-variant">{state.note}</p>
-              )}
-            </div>
-            <span className="shrink-0 text-[15px] font-bold text-primary-dark">
-              {formatMoney(itemPrice(item) * state.quantity, item.currency ?? currency)}
-            </span>
-          </div>
-        ))}
-      </div>
-      <div className="mt-4 flex flex-col gap-2 border-t border-hairline pt-4 text-[15px] sm:items-end">
-        <strong className="text-primary-dark">
-          Total: {formatMoney(subtotal, currency)}
-        </strong>
-        <span className="text-ink-variant">
-          Per person: {formatMoney(subtotal / Math.max(1, peopleCount), currency)}
-        </span>
-      </div>
-    </section>
   )
 }

@@ -165,3 +165,28 @@ export interface ScanResult {
     items: MenuItemResult[]
   } | null
 }
+
+/** Editable form state for a single menu item (MenuDetailPage editor). */
+export interface ItemDraft {
+  original_name: string
+  translated_name: string
+  original_description: string
+  translated_description: string
+  price: string
+  currency: string
+  category: string
+}
+
+export interface ItemValidationErrors {
+  original_name?: string
+  price?: string
+}
+
+/** Per-item bill line state on the MenuDetail page. */
+export interface BillLineState {
+  quantity: number
+  note: string
+}
+
+/** Convenience alias for a menu item used in the bill/editor view. */
+export type BillItem = MenuItemResult

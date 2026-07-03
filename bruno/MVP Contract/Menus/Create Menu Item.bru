@@ -1,0 +1,41 @@
+meta {
+  name: Create Menu Item
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}{{api_prefix}}/menus/{{menu_id}}/items
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{access_token}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "original_name": "Phở bò",
+    "translated_name": "Beef noodle soup",
+    "price": "55000",
+    "currency": "VND",
+    "category": "Món chính"
+  }
+}
+
+script:post-response {
+  if (res.status === 201 && res.body && res.body.success && res.body.data && res.body.data.id) {
+    bru.setEnvVar("menu_item_id", res.body.data.id);
+  }
+}
+
+tests {
+  test("creates a menu item", function () {
+    expect(res.status).to.equal(201);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data.id).to.be.a("string");
+    expect(res.body.data.original_name).to.equal("Phở bò");
+  });
+}

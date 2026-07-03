@@ -24,6 +24,7 @@ from src.modules.menu.exceptions import (
 from src.modules.menu.models import FoodItem, Menu, MenuStatus
 from src.modules.menu.schemas import (
     CreateMenuItemRequest,
+    ListMenuItemsQuery,
     MenuDetailResponse,
     MenuItemResponse,
     MenuSourceResponse,
@@ -140,6 +141,41 @@ class StubMenuService:
         if isinstance(self._effect, Exception):
             raise self._effect
         return _detail_response(menu_id)
+
+    def list_menu_items(
+        self,
+        *,
+        menu_id: uuid.UUID,
+        user_id: uuid.UUID,
+        query: ListMenuItemsQuery,
+    ) -> tuple[list[MenuItemResponse], int]:
+        self.calls.append(
+            {
+                "action": "list_items",
+                "menu_id": menu_id,
+                "user_id": user_id,
+                "query": query,
+            }
+        )
+        if isinstance(self._effect, Exception):
+            raise self._effect
+        return (
+            [
+                MenuItemResponse(
+                    id=_ITEM_ID,
+                    original_name="Phở bò tái",
+                    translated_name="Rare beef pho",
+                    original_description=None,
+                    translated_description=None,
+                    price=Decimal("55000.00"),
+                    currency="VND",
+                    category="Noodles",
+                    confidence_score=None,
+                    sort_order=0,
+                )
+            ],
+            1,
+        )
 
     def delete_menu(
         self,
@@ -425,6 +461,61 @@ def test_get_menu_returns_detail() -> None:
     assert stub.calls[0]["action"] == "get"
 
 
+def test_list_menu_items_returns_filtered_items_and_pagination() -> None:
+    stub = StubMenuService()
+    client = _make_client(stub)
+
+    response = client.get(
+        f"/api/v1/menus/{_MENU_ID}/items",
+        params={
+            "search": "phở",
+            "min_price": "50000",
+            "max_price": "60000",
+            "page": 1,
+            "page_size": 10,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["data"][0]["original_name"] == "Phở bò tái"
+    assert body["data"][0]["translated_name"] == "Rare beef pho"
+    assert body["meta"] == {
+        "page": 1,
+        "page_size": 10,
+        "total": 1,
+        "total_pages": 1,
+    }
+    assert stub.calls[0]["action"] == "list_items"
+    assert stub.calls[0]["query"].search == "phở"
+    assert stub.calls[0]["query"].min_price == Decimal("50000")
+    assert stub.calls[0]["query"].max_price == Decimal("60000")
+
+
+def test_list_menu_items_rejects_invalid_price_range() -> None:
+    stub = StubMenuService()
+    client = _make_client(stub)
+
+    response = client.get(
+        f"/api/v1/menus/{_MENU_ID}/items",
+        params={"min_price": "70000", "max_price": "60000"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    assert stub.calls == []
+
+
+def test_list_menu_items_forbidden_returns_403() -> None:
+    stub = StubMenuService(effect=MenuForbiddenError())
+    client = _make_client(stub)
+
+    response = client.get(f"/api/v1/menus/{_MENU_ID}/items")
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "FORBIDDEN"
+
+
 def test_get_menu_forbidden_returns_403() -> None:
     stub = StubMenuService(effect=MenuForbiddenError())
     client = _make_client(stub)
@@ -574,6 +665,68 @@ class FakeMenuRepository:
     def count_for_user(self, session: FakeSession, *, user_id: uuid.UUID) -> int:
         return self.total
 
+    def list_items_for_menu(
+        self,
+        session: FakeSession,
+        *,
+        menu_id: uuid.UUID,
+        search: str | None,
+        min_price: Decimal | None,
+        max_price: Decimal | None,
+        limit: int,
+        offset: int,
+    ) -> list[FoodItem]:
+        if self.menu is None or self.menu.id != menu_id:
+            return []
+
+        items = list(self.menu.food_items)
+        if search:
+            lowered = search.lower()
+            items = [
+                item
+                for item in items
+                if lowered in item.original_name.lower()
+                or (
+                    item.translated_name is not None
+                    and lowered in item.translated_name.lower()
+                )
+            ]
+        if min_price is not None:
+            items = [
+                item
+                for item in items
+                if item.price is not None and item.price >= min_price
+            ]
+        if max_price is not None:
+            items = [
+                item
+                for item in items
+                if item.price is not None and item.price <= max_price
+            ]
+        items.sort(key=lambda item: (item.sort_order, item.id))
+        return items[offset : offset + limit]
+
+    def count_items_for_menu(
+        self,
+        session: FakeSession,
+        *,
+        menu_id: uuid.UUID,
+        search: str | None,
+        min_price: Decimal | None,
+        max_price: Decimal | None,
+    ) -> int:
+        return len(
+            self.list_items_for_menu(
+                session,
+                menu_id=menu_id,
+                search=search,
+                min_price=min_price,
+                max_price=max_price,
+                limit=10_000,
+                offset=0,
+            )
+        )
+
     def save(self, session: FakeSession, menu: Menu) -> Menu:
         self.saved_menu = menu
         return menu
@@ -616,8 +769,23 @@ def _menu_for_owner(owner_id: uuid.UUID) -> Menu:
             id=_ITEM_ID,
             original_name="Pho",
             translated_name=None,
+            price=Decimal("45000.00"),
             sort_order=0,
-        )
+        ),
+        FoodItem(
+            id=uuid.UUID("00000000-aaaa-bbbb-cccc-444444444444"),
+            original_name="Phở bò tái",
+            translated_name="Rare beef pho",
+            price=Decimal("55000.00"),
+            sort_order=1,
+        ),
+        FoodItem(
+            id=uuid.UUID("00000000-aaaa-bbbb-cccc-555555555555"),
+            original_name="Bún chả",
+            translated_name="Grilled pork with noodles",
+            price=Decimal("65000.00"),
+            sort_order=2,
+        ),
     ]
     return menu
 
@@ -733,6 +901,53 @@ def test_menu_service_lists_owned_menus_with_metadata() -> None:
     assert items[0].source.file_name == "menu.png"
 
 
+def test_menu_service_lists_menu_items_with_combined_filters_and_vietnamese_search() -> None:
+    owner_id = uuid.uuid4()
+    menu = _menu_for_owner(owner_id)
+    repository = FakeMenuRepository(menu)
+    service = MenuService(
+        session=FakeSession(),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        clock=lambda: _UPDATED_AT,
+    )
+
+    items, total = service.list_menu_items(
+        menu_id=menu.id,
+        user_id=owner_id,
+        query=ListMenuItemsQuery(
+            search="PHỞ",
+            min_price=Decimal("50000"),
+            max_price=Decimal("60000"),
+            page=1,
+            page_size=10,
+        ),
+    )
+
+    assert total == 1
+    assert items[0].original_name == "Phở bò tái"
+    assert items[0].translated_name == "Rare beef pho"
+
+
+def test_menu_service_lists_menu_items_by_translated_name() -> None:
+    owner_id = uuid.uuid4()
+    menu = _menu_for_owner(owner_id)
+    repository = FakeMenuRepository(menu)
+    service = MenuService(
+        session=FakeSession(),  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        clock=lambda: _UPDATED_AT,
+    )
+
+    items, total = service.list_menu_items(
+        menu_id=menu.id,
+        user_id=owner_id,
+        query=ListMenuItemsQuery(search="grilled pork", page=1, page_size=10),
+    )
+
+    assert total == 1
+    assert items[0].original_name == "Bún chả"
+
+
 def test_menu_service_delete_soft_deletes_menu_and_source_scan() -> None:
     owner_id = uuid.uuid4()
     menu = _menu_for_owner(owner_id)
@@ -779,7 +994,7 @@ def test_menu_service_creates_owned_menu_item_with_next_sort_order() -> None:
     assert item.price == Decimal("2.50")
     assert item.currency == "USD"
     assert item.category == "Manual"
-    assert item.sort_order == 1
+    assert item.sort_order == 3
     assert repository.saved_item is not None
     assert repository.saved_item.menu_id == menu.id
     assert repository.saved_menu is menu
@@ -835,7 +1050,8 @@ def test_menu_service_deletes_owned_menu_item() -> None:
 
     assert repository.deleted_item is not None
     assert repository.deleted_item.id == _ITEM_ID
-    assert menu.food_items == []
+    assert len(menu.food_items) == 2
+    assert all(item.id != _ITEM_ID for item in menu.food_items)
     assert repository.saved_menu is menu
     assert menu.updated_at == _UPDATED_AT
     assert session.committed is True

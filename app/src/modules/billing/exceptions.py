@@ -150,3 +150,14 @@ class AdjustmentLabelRequiredError(ApplicationError):
             code="ADJUSTMENT_LABEL_REQUIRED",
             message="Khoản điều chỉnh phải có nhãn hiển thị trên hóa đơn.",
         )
+
+
+class InvalidPeopleCountError(ApplicationError):
+    """Raised when splitting a bill among fewer than one person (400)."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=400,
+            code="INVALID_PEOPLE_COUNT",
+            message="Số người chia hóa đơn phải lớn hơn hoặc bằng 1.",
+        )

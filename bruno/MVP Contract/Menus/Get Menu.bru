@@ -1,32 +1,24 @@
 meta {
-  name: Save Menu
+  name: Get Menu
   type: http
-  seq: 3
+  seq: 2
 }
 
-patch {
+get {
   url: {{base_url}}{{api_prefix}}/menus/{{menu_id}}
-  body: json
+  body: none
   auth: none
 }
 
 headers {
   Authorization: Bearer {{access_token}}
-  Content-Type: application/json
-}
-
-body:json {
-  {
-    "is_saved": true
-  }
 }
 
 tests {
-  test("saves menu state", function () {
+  test("returns menu detail with items", function () {
     expect(res.status).to.equal(200);
     expect(res.body.success).to.equal(true);
     expect(res.body.data.id).to.equal(bru.getEnvVar("menu_id"));
-    expect(res.body.data.is_saved).to.equal(true);
-    expect(res.body.data.updated_at).to.be.a("string");
+    expect(res.body.data.food_items).to.be.an("array");
   });
 }
