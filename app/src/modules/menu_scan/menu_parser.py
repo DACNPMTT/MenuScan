@@ -159,6 +159,12 @@ def parse_menu(
 
                 split = split_name_description_price(line.text)
                 if not split.name or not split.price_text:
+                    if (
+                        split.name
+                        and items
+                        and _looks_like_description_continuation(split.name)
+                    ):
+                        items[-1] = _append_description(items[-1], split.name)
                     continue
 
                 price_result = parse_price(split.price_text)
@@ -341,6 +347,39 @@ def _draft_item_from_line(
         ],
         sort_order=sort_order,
     )
+
+
+def _append_description(
+    item: ParsedMenuItemDraft,
+    continuation_text: str,
+) -> ParsedMenuItemDraft:
+    text = continuation_text.strip(" -–:;,.")
+    if not text:
+        return item
+    description = (
+        f"{item.original_description} {text}"
+        if item.original_description
+        else text
+    )
+    return item.model_copy(update={"original_description": description})
+
+
+def _looks_like_description_continuation(text: str) -> bool:
+    normalized = " ".join(text.strip().split())
+    if not normalized:
+        return False
+    if find_price_at_end(normalized) is not None or parse_price(normalized) is not None:
+        return False
+    if _looks_like_price_less_menu_item(normalized):
+        return False
+
+    words = normalized.split()
+    if "," in normalized or ";" in normalized:
+        return len(words) >= 2
+    if len(words) >= 5:
+        return True
+    first_alpha = next((char for char in normalized if char.isalpha()), "")
+    return bool(first_alpha and first_alpha.islower() and len(words) >= 3)
 
 
 def _lower_first(text: str) -> str:

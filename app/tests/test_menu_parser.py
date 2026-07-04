@@ -269,6 +269,25 @@ def test_price_accuracy_on_fixture_sample() -> None:
     assert accuracy >= 0.95
 
 
+def test_description_continuation_line_after_item() -> None:
+    document = make_single_column_document(
+        [
+            "Grilled chicken 120.000 VND",
+            "lemongrass, chili, fish sauce",
+            "Beef noodle soup 80.000 VND",
+        ]
+    )
+
+    draft = parse_menu(document)
+
+    assert [item.original_name for item in draft.items] == [
+        "Grilled chicken",
+        "Beef noodle soup",
+    ]
+    assert draft.items[0].original_description == "lemongrass, chili, fish sauce"
+    assert draft.items[1].original_description is None
+
+
 def _fixture_sample(sample_id: str) -> dict[str, object]:
     payload = json.loads(FIXTURE_SAMPLES_PATH.read_text(encoding="utf-8"))
     for sample in payload["image_samples"]:

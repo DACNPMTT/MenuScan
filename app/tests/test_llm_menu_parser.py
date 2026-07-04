@@ -10,6 +10,7 @@ from src.modules.menu_scan.llm_menu_parser import (
     LlmMenuParserUnavailableError,
 )
 from src.modules.menu_scan.ocr_contract import OcrDocument
+from fixtures.menu_parser_fixtures import make_single_column_document
 
 
 class FakeResponse:
@@ -83,11 +84,61 @@ def test_gemini_parser_posts_structured_json_request() -> None:
     assert "responseSchema" in call["json"]["generationConfig"]
     prompt = call["json"]["contents"][0]["parts"][0]["text"]
     assert "Pho bo 60.000 VND" in prompt
+    assert "Structured OCR blocks:" in prompt
+    assert "Raw OCR text fallback:" in prompt
     assert draft.parsing_provider == "gemini-2.5-flash"
     assert draft.source_language == "vi"
     assert draft.target_language == "en"
     assert draft.items[0].translated_name == "Beef pho"
     assert draft.items[0].price == "60000.00"
+
+
+def test_gemini_parser_prompt_includes_layout_coordinates() -> None:
+    provider_body = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {
+                            "text": json.dumps(
+                                {
+                                    "items": [
+                                        {
+                                            "original_name": "Pho bo",
+                                            "original_description": "rare beef, herbs",
+                                            "price": "60000.00",
+                                            "currency": "VND",
+                                            "sort_order": 0,
+                                        }
+                                    ],
+                                }
+                            )
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+    client = FakeClient(FakeResponse(200, provider_body))
+    parser = GeminiMenuParser(
+        api_key="test-key",
+        api_base_url="https://gemini.example.test/v1beta",
+        model="gemini-2.5-flash",
+        timeout_seconds=5,
+        client=client,  # type: ignore[arg-type]
+    )
+
+    parser.parse(
+        make_single_column_document(["Pho bo", "rare beef, herbs", "60.000 VND"]),
+        target_language="en",
+    )
+
+    prompt = client.calls[0]["json"]["contents"][0]["parts"][0]["text"]
+    assert "BLOCK id=" in prompt
+    assert "LINE id=" in prompt
+    assert "x=" in prompt
+    assert "y=" in prompt
+    assert "rare beef, herbs" in prompt
 
 
 def test_gemini_parser_maps_429_to_unavailable() -> None:
