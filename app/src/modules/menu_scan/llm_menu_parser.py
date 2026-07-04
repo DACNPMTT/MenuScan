@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -28,6 +29,8 @@ class GeminiMenuParser:
     model: str
     timeout_seconds: float
     client: httpx.Client | None = None
+    max_attempts: int = 3
+    retry_backoff_seconds: float = 0.5
 
     def parse(
         self,
@@ -58,18 +61,35 @@ class GeminiMenuParser:
     ) -> dict[str, Any]:
         owns_client = self.client is None
         client = self.client or httpx.Client(timeout=self.timeout_seconds)
+        attempts = max(1, self.max_attempts)
         try:
-            response = client.post(
-                f"{self.api_base_url}/{_model_path(self.model)}:generateContent",
-                params={"key": self.api_key},
-                json=_build_request(document=document, target_language=target_language),
-            )
-        except httpx.TimeoutException as error:
-            raise LlmMenuParserTimeoutError("gemini parser timed out") from error
-        except httpx.HTTPError as error:
-            raise LlmMenuParserUnavailableError(
-                "gemini parser request failed"
-            ) from error
+            for attempt in range(1, attempts + 1):
+                try:
+                    response = client.post(
+                        f"{self.api_base_url}/{_model_path(self.model)}:generateContent",
+                        params={"key": self.api_key},
+                        json=_build_request(
+                            document=document,
+                            target_language=target_language,
+                        ),
+                    )
+                except httpx.TimeoutException as error:
+                    if attempt < attempts:
+                        _sleep_before_retry(self.retry_backoff_seconds)
+                        continue
+                    raise LlmMenuParserTimeoutError("gemini parser timed out") from error
+                except httpx.HTTPError as error:
+                    if attempt < attempts:
+                        _sleep_before_retry(self.retry_backoff_seconds)
+                        continue
+                    raise LlmMenuParserUnavailableError(
+                        "gemini parser request failed"
+                    ) from error
+
+                if response.status_code in {408, 500, 502, 503, 504} and attempt < attempts:
+                    _sleep_before_retry(self.retry_backoff_seconds)
+                    continue
+                break
         finally:
             if owns_client:
                 client.close()
@@ -92,6 +112,11 @@ def _model_path(model: str) -> str:
     if normalized.startswith("models/"):
         return normalized
     return f"models/{normalized}"
+
+
+def _sleep_before_retry(seconds: float) -> None:
+    if seconds > 0:
+        time.sleep(seconds)
 
 
 def _build_request(

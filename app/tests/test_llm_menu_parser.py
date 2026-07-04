@@ -22,13 +22,14 @@ class FakeResponse:
 
 
 class FakeClient:
-    def __init__(self, response: FakeResponse) -> None:
+    def __init__(self, response: FakeResponse | list[FakeResponse]) -> None:
         self.calls: list[dict[str, Any]] = []
-        self._response = response
+        self._responses = response if isinstance(response, list) else [response]
 
     def post(self, url: str, **kwargs: Any) -> FakeResponse:
         self.calls.append({"url": url, **kwargs})
-        return self._response
+        index = min(len(self.calls) - 1, len(self._responses) - 1)
+        return self._responses[index]
 
 
 def test_gemini_parser_posts_structured_json_request() -> None:
@@ -100,6 +101,47 @@ def test_gemini_parser_maps_429_to_unavailable() -> None:
 
     with pytest.raises(LlmMenuParserUnavailableError):
         parser.parse(_document("Pho bo 60.000 VND"), target_language="en")
+
+
+def test_gemini_parser_retries_transient_503_then_succeeds() -> None:
+    provider_body = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {
+                            "text": json.dumps(
+                                {
+                                    "items": [
+                                        {
+                                            "original_name": "Pho bo",
+                                            "price": "60000.00",
+                                            "currency": "VND",
+                                            "sort_order": 0,
+                                        }
+                                    ],
+                                }
+                            )
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+    client = FakeClient([FakeResponse(503), FakeResponse(200, provider_body)])
+    parser = GeminiMenuParser(
+        api_key="test-key",
+        api_base_url="https://gemini.example.test/v1beta",
+        model="gemini-2.5-flash",
+        timeout_seconds=5,
+        client=client,  # type: ignore[arg-type]
+        retry_backoff_seconds=0,
+    )
+
+    draft = parser.parse(_document("Pho bo 60.000 VND"), target_language="en")
+
+    assert len(client.calls) == 2
+    assert draft.items[0].original_name == "Pho bo"
 
 
 def _document(text: str) -> OcrDocument:

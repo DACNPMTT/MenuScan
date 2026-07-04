@@ -1,5 +1,7 @@
 import os
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 
 
 DEFAULT_DATABASE_URL = "postgresql://menuscan:localdev@localhost:54320/menuscan"
@@ -28,11 +30,37 @@ DEFAULT_LLM_PROVIDER = "rule_based"
 DEFAULT_LLM_TIMEOUT_SECONDS = "20"
 DEFAULT_LLM_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 DEFAULT_LLM_MODEL = "gemini-2.5-flash"
+DEFAULT_SECRET_KEY = "menuscan-default-insecure-secret-key-change-this-in-production"
 
 SUPPORTED_EMAIL_PROVIDERS = ("console", "resend")
 SUPPORTED_STORAGE_PROVIDERS = ("local", "s3")
 SUPPORTED_OCR_PROVIDERS = ("fake", "google_vision")
 SUPPORTED_LLM_PROVIDERS = ("rule_based", "gemini")
+
+
+def _load_local_env_file() -> None:
+    """Load root env/.env.local for direct local app runs.
+
+    The PowerShell task runners already load this file. This fallback covers
+    teammates who start the backend directly with uvicorn. Existing environment
+    variables win, and pytest is skipped to keep tests hermetic.
+    """
+    if any("pytest" in Path(arg).name for arg in sys.argv):
+        return
+
+    env_file = Path(__file__).resolve().parents[3] / "env" / ".env.local"
+    if not env_file.exists():
+        return
+
+    for raw_line in env_file.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,7 +188,7 @@ class Settings:
             google_vision_model="DOCUMENT_TEXT_DETECTION",
         )
     )
-    secret_key: str = "menuscan-default-insecure-secret-key-change-this-in-production"
+    secret_key: str = DEFAULT_SECRET_KEY
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -244,10 +272,7 @@ class Settings:
             storage=storage,
             llm=llm,
             ocr=ocr,
-            secret_key=os.getenv(
-                "SECRET_KEY",
-                "menuscan-default-insecure-secret-key-change-this-in-production",
-            ),
+            secret_key=_env_or_default("SECRET_KEY", DEFAULT_SECRET_KEY),
         )
 
 
@@ -323,4 +348,12 @@ def _load_llm_config() -> LlmConfig:
     )
 
 
+def _env_or_default(name: str, default: str) -> str:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return default
+    return value
+
+
+_load_local_env_file()
 settings = Settings.from_environment()

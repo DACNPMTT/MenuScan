@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import unicodedata
 from collections import Counter
 from dataclasses import dataclass
 from typing import Protocol
@@ -30,6 +31,37 @@ _GENERIC_SECTIONS = {
     "nuoc",
     "nuoc uong",
     "specials",
+}
+_PRICELESS_DISH_KEYWORDS = {
+    "banh",
+    "bun",
+    "ca phe",
+    "cha",
+    "che",
+    "com",
+    "cuon",
+    "goi",
+    "mi",
+    "nem",
+    "pho",
+}
+_PRICELESS_ITEM_BLACKLIST = {
+    "bun bo",
+    "do ngon",
+    "do them",
+    "dongon",
+    "delivery",
+    "menu",
+    "nhan don khach doan",
+    "pho bien",
+    "popular",
+    "sot",
+    "tour theo yeu cau",
+}
+_PRICELESS_ITEM_CONTAINS_BLACKLIST = {
+    "co ba",
+    "nha hang",
+    "quan",
 }
 
 
@@ -70,10 +102,51 @@ def parse_menu(
         for block in sorted(page.blocks, key=_block_sort_key):
             for line in sorted(block.lines, key=_line_sort_key):
                 role = classify_line_role(line.text, block, page)
-                if role in {LineRole.NOISE, LineRole.UNKNOWN, LineRole.TITLE}:
+                if role in {LineRole.NOISE, LineRole.UNKNOWN}:
+                    continue
+                if role == LineRole.TITLE:
+                    if _looks_like_price_less_menu_item(line.text):
+                        items.append(
+                            _draft_item_from_line(
+                                line_text=line.text,
+                                price_text=None,
+                                price=None,
+                                currency=None,
+                                category=current_section,
+                                confidence=_merge_confidence(
+                                    block.confidence, line.confidence
+                                ),
+                                page_index=page.page_index,
+                                block_id=block.id,
+                                line_id=line.id,
+                                bounding_box=line.bounding_box,
+                                sort_order=len(items),
+                            )
+                        )
                     continue
 
                 if role == LineRole.SECTION_HEADER:
+                    if _looks_like_price_less_menu_item(line.text):
+                        items.append(
+                            _draft_item_from_line(
+                                line_text=line.text,
+                                price_text=None,
+                                price=None,
+                                currency=None,
+                                category=current_section,
+                                confidence=_merge_confidence(
+                                    block.confidence, line.confidence
+                                ),
+                                page_index=page.page_index,
+                                block_id=block.id,
+                                line_id=line.id,
+                                bounding_box=line.bounding_box,
+                                sort_order=len(items),
+                            )
+                        )
+                        current_base_name = None
+                        continue
+
                     section = _normalize_header(line.text)
                     current_section = section
                     current_base_name = (
@@ -105,26 +178,21 @@ def parse_menu(
                     original_name = f"{base_name} {variant_name}"
 
                 items.append(
-                    ParsedMenuItemDraft(
-                        original_name=original_name,
-                        original_description=split.description,
-                        base_name=base_name,
-                        variant_name=variant_name,
-                        variant_group=None,
+                    _draft_item_from_line(
+                        line_text=original_name,
+                        description=split.description,
                         price_text=split.price_text,
                         price=price,
                         currency=currency,
                         category=current_section,
                         confidence=_merge_confidence(block.confidence, line.confidence),
-                        source_references=[
-                            OcrSourceReference(
-                                page_index=page.page_index,
-                                block_id=block.id,
-                                line_id=line.id,
-                                bounding_box=line.bounding_box,
-                            )
-                        ],
+                        page_index=page.page_index,
+                        block_id=block.id,
+                        line_id=line.id,
+                        bounding_box=line.bounding_box,
                         sort_order=len(items),
+                        base_name=base_name,
+                        variant_name=variant_name,
                     )
                 )
 
@@ -221,6 +289,60 @@ def _looks_like_variant_name(name: str, base_name: str) -> bool:
     return len(normalized_name.split()) <= 4
 
 
+def _looks_like_price_less_menu_item(text: str) -> bool:
+    normalized = _ascii_fold(text)
+    words = normalized.split()
+    if not words or len(words) > 4:
+        return False
+    if any(character.isdigit() for character in normalized):
+        return False
+    if normalized in _GENERIC_SECTIONS or normalized in _PRICELESS_ITEM_BLACKLIST:
+        return False
+    if any(label in normalized for label in _PRICELESS_ITEM_CONTAINS_BLACKLIST):
+        return False
+    return any(keyword in normalized for keyword in _PRICELESS_DISH_KEYWORDS)
+
+
+def _draft_item_from_line(
+    *,
+    line_text: str,
+    price_text: str | None,
+    price: str | None,
+    currency: str | None,
+    category: str | None,
+    confidence: float | None,
+    page_index: int,
+    block_id: str | None,
+    line_id: str | None,
+    bounding_box: object,
+    sort_order: int,
+    description: str | None = None,
+    base_name: str | None = None,
+    variant_name: str | None = None,
+) -> ParsedMenuItemDraft:
+    return ParsedMenuItemDraft(
+        original_name=line_text.strip(),
+        original_description=description,
+        base_name=base_name,
+        variant_name=variant_name,
+        variant_group=None,
+        price_text=price_text,
+        price=price,
+        currency=currency,
+        category=category,
+        confidence=confidence,
+        source_references=[
+            OcrSourceReference(
+                page_index=page_index,
+                block_id=block_id,
+                line_id=line_id,
+                bounding_box=bounding_box,  # type: ignore[arg-type]
+            )
+        ],
+        sort_order=sort_order,
+    )
+
+
 def _lower_first(text: str) -> str:
     if not text:
         return text
@@ -228,6 +350,12 @@ def _lower_first(text: str) -> str:
 
 
 def _ascii_fold(text: str) -> str:
+    text = text.replace("đ", "d").replace("Đ", "D")
+    folded = unicodedata.normalize("NFKD", text)
+    folded = folded.encode("ascii", "ignore").decode("ascii")
+    if folded:
+        return " ".join(folded.lower().split())
+
     replacements = {
         "à": "a",
         "á": "a",
@@ -297,8 +425,10 @@ def _ascii_fold(text: str) -> str:
         "ỹ": "y",
         "đ": "d",
     }
-    return "".join(
+    return " ".join(
+        "".join(
         replacements.get(character.lower(), character.lower()) for character in text
+        ).split()
     )
 
 
