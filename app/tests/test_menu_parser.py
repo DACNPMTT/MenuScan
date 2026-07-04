@@ -202,6 +202,29 @@ def test_line_without_name_not_added() -> None:
     assert draft.items == []
 
 
+def test_price_less_vietnamese_dish_names_are_extracted() -> None:
+    document = make_single_column_document(
+        [
+            "BÚN BÒ HUẾ",
+            "PHỞ",
+            "BÁNH MÌ",
+            "GỎI CUỐN",
+            "PHỔ BIẾN",
+            "ĐỘ NGON",
+        ]
+    )
+
+    draft = parse_menu(document)
+
+    assert [item.original_name for item in draft.items] == [
+        "BÚN BÒ HUẾ",
+        "PHỞ",
+        "BÁNH MÌ",
+        "GỎI CUỐN",
+    ]
+    assert [item.price for item in draft.items] == [None, None, None, None]
+
+
 def test_parse_failure_returns_empty_not_fake_items() -> None:
     document = make_single_column_document(["hello world", "not a menu item"])
 

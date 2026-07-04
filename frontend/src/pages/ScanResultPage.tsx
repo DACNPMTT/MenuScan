@@ -22,6 +22,7 @@ import type {
   ScanError,
   ScanResult,
 } from '@/features/menu-scan/types'
+import { BillingWorkspace } from '@/features/billing/BillingWorkspace'
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '')
 
@@ -385,7 +386,21 @@ function ResultView({
 
       <div className="grid grid-cols-1 gap-[30px] lg:grid-cols-[300px_minmax(0,1fr)]">
         <SourcePreview source={source} accessToken={accessToken} />
-        <ItemsList items={items} />
+        {items.length === 0 ? (
+          <ItemsList items={items} />
+        ) : (
+          <div className="flex flex-col gap-3">
+            <p className="text-[14px] font-medium uppercase tracking-[0.7px] text-ink-variant">
+              Chọn món &amp; chia hóa đơn
+            </p>
+            <BillingWorkspace
+              menuId={result.menu!.id}
+              currency={result.menu!.default_currency}
+              items={items}
+              accessToken={accessToken}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

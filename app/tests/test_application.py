@@ -7,7 +7,7 @@ from sqlalchemy.exc import OperationalError
 
 from src.core import application as application_module
 from src.core.application import create_app
-from src.core.config import EmailConfig, Settings, StorageConfig
+from src.core.config import DEFAULT_SECRET_KEY, EmailConfig, Settings, StorageConfig
 
 
 def _default_email_config() -> EmailConfig:
@@ -210,6 +210,20 @@ def test_settings_requires_key_for_gemini_llm(
 
     with pytest.raises(ValueError, match="LLM_API_KEY"):
         Settings.from_environment()
+
+
+def test_settings_empty_secret_key_uses_dev_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("EMAIL_PROVIDER", "console")
+    monkeypatch.setenv("STORAGE_PROVIDER", "local")
+    monkeypatch.setenv("OCR_PROVIDER", "fake")
+    monkeypatch.setenv("LLM_PROVIDER", "rule_based")
+    monkeypatch.setenv("SECRET_KEY", "")
+
+    settings = Settings.from_environment()
+
+    assert settings.secret_key == DEFAULT_SECRET_KEY
 
 
 def test_cors_uses_origins_from_settings() -> None:
