@@ -1,6 +1,8 @@
 import { NavLink, Outlet, Navigate } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Spinner } from '@/shared/components/Spinner'
+import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
+import { RouteErrorFallback } from '@/shared/components/RouteErrorFallback'
 
 // Authenticated app shell matching the MenuScan Figma: a top header (logo +
 // primary nav + account actions) and a footer. No left sidebar.
@@ -70,9 +72,10 @@ export function AuthenticatedLayout() {
           </button>
         </div>
       </header>
-
       <main className="min-w-0 flex-1">
-        <Outlet />
+        <ErrorBoundary fallback={(error, reset) => <RouteErrorFallback error={error} onReset={reset} />}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
 
       <footer className="flex shrink-0 flex-col items-center gap-2 border-t border-hairline bg-surface-muted px-4 py-[20px] text-center sm:flex-row sm:justify-between sm:gap-3 sm:px-[50px] sm:py-[30px] sm:text-left">

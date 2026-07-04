@@ -7,11 +7,13 @@ import {
   Loader2,
   Plus,
   ReceiptText,
+  RefreshCw,
   Trash2,
   Users,
   XCircle,
 } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
+import { useToast } from '@/app/providers/ToastProvider'
 import { ApiError, apiRequest, apiRequestWithMeta } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue'
@@ -48,6 +50,7 @@ export function MenuDetailPage() {
   const { menuId } = useParams<{ menuId: string }>()
   const navigate = useNavigate()
   const { accessToken } = useAuth()
+  const toast = useToast()
   const [menu, setMenu] = useState<MenuDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
@@ -376,6 +379,7 @@ export function MenuDetailPage() {
       )
       cancelItemDraft(item.id)
       closeItemEdit(item.id)
+      toast.show({ variant: 'success', title: 'Đã lưu món' })
     } catch (err) {
       setItemSaveErrors((current) => ({
         ...current,
@@ -422,6 +426,7 @@ export function MenuDetailPage() {
       )
       cancelItemDraft(item.id)
       closeItemEdit(item.id)
+      toast.show({ variant: 'success', title: 'Đã xóa món' })
     } catch (err) {
       setItemSaveErrors((current) => ({
         ...current,
@@ -489,6 +494,7 @@ export function MenuDetailPage() {
       setManualPrice('')
       setManualNote('')
       setActiveCategory('All')
+      toast.show({ variant: 'success', title: 'Đã thêm món' })
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : 'Không thể lưu món thủ công.',
@@ -520,6 +526,7 @@ export function MenuDetailPage() {
           : confirmed,
       )
       setShowReceipt(true)
+      toast.show({ variant: 'success', title: 'Đã xác nhận menu' })
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : 'Không thể xác nhận menu.',
@@ -790,10 +797,33 @@ export function MenuDetailPage() {
               </div>
             </div>
           </>
+        ) : error ? (
+          <div className="flex flex-col items-center gap-4 rounded-[8px] border border-hairline bg-canvas px-4 py-[70px] text-center">
+            <span className="flex size-14 items-center justify-center rounded-full bg-destructive/10">
+              <AlertCircle className="size-7 text-destructive" aria-hidden />
+            </span>
+            <p role="alert" className="max-w-[360px] text-[14px] text-destructive">
+              {error}
+            </p>
+            <button
+              type="button"
+              onClick={() => void loadMenu()}
+              className="flex min-h-10 items-center gap-2 rounded-[8px] border border-destructive/30 px-4 py-2 text-[14px] font-medium text-destructive transition-colors hover:bg-destructive/10"
+            >
+              <RefreshCw className="size-4" aria-hidden />
+              Thử lại
+            </button>
+          </div>
         ) : (
           <div className="flex flex-col items-center gap-4 rounded-[8px] border border-hairline bg-canvas px-4 py-[70px] text-center text-ink-variant">
             <XCircle className="size-8 text-destructive" aria-hidden />
-            Không tìm thấy menu.
+            <p className="text-[15px] font-medium text-ink">Không tìm thấy menu.</p>
+            <Link
+              to="/app/menus"
+              className="rounded-[8px] bg-primary-dark px-5 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
+            >
+              Về Menus
+            </Link>
           </div>
         )}
       </div>

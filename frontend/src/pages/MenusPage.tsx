@@ -11,6 +11,7 @@ import {
   Utensils,
 } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
+import { useToast } from '@/app/providers/ToastProvider'
 import { ApiError, apiRequest, apiRequestWithMeta } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import type {
@@ -31,6 +32,7 @@ function formatTime(value: string): string {
 
 export function MenusPage() {
   useDocumentTitle('Menus | MenuScan')
+  const toast = useToast()
   const { accessToken } = useAuth()
   const [menus, setMenus] = useState<MenuSummary[]>([])
   const [meta, setMeta] = useState<PaginationMeta | null>(null)
@@ -82,6 +84,7 @@ export function MenusPage() {
       setMeta((current) =>
         current ? { ...current, total: Math.max(0, current.total - 1) } : current,
       )
+      toast.show({ variant: 'success', title: 'Đã xóa menu' })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không thể xóa menu.')
     } finally {
@@ -114,10 +117,20 @@ export function MenusPage() {
       {error && (
         <div
           role="alert"
-          className="mt-5 flex items-center gap-3 rounded-[8px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[14px] text-destructive"
+          className="mt-5 flex flex-col gap-3 rounded-[8px] border border-destructive/30 bg-destructive/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
         >
-          <AlertCircle className="size-4 shrink-0" aria-hidden />
-          {error}
+          <div className="flex items-center gap-3 text-[14px] text-destructive">
+            <AlertCircle className="size-4 shrink-0" aria-hidden />
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadMenus(1)}
+            className="flex min-h-9 w-fit items-center gap-2 rounded-[8px] border border-destructive/30 px-3 py-1.5 text-[13px] font-bold text-destructive transition-colors hover:bg-destructive/10"
+          >
+            <RefreshCw className="size-4" aria-hidden />
+            Thử lại
+          </button>
         </div>
       )}
 
@@ -136,10 +149,21 @@ export function MenusPage() {
             Đang tải menu...
           </MenuMessage>
         ) : menus.length === 0 ? (
-          <MenuMessage icon={<Utensils className="size-7" />}>
-            Chưa có menu nào. Sau khi scan xong, hãy xác nhận review cuối để menu
-            xuất hiện ở đây.
-          </MenuMessage>
+          <>
+            <MenuMessage icon={<Utensils className="size-7" />}>
+              Chưa có menu nào. Sau khi scan xong, hãy xác nhận review cuối để
+              menu xuất hiện ở đây.
+            </MenuMessage>
+            <div className="flex justify-center px-[20px] pb-[40px]">
+              <Link
+                to="/app/scan"
+                className="flex min-h-10 items-center gap-2 rounded-[8px] bg-primary-dark px-5 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
+              >
+                <ScanLine className="size-4" aria-hidden />
+                Quét menu mới
+              </Link>
+            </div>
+          </>
         ) : (
           <div className="divide-y divide-hairline">
             {menus.map((menu) => (
