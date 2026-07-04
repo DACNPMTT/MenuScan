@@ -11,6 +11,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
+import { useToast } from '@/app/providers/ToastProvider'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import type {
@@ -248,6 +249,7 @@ function ResultView({
   onConfirmed: (menu: MenuDetail) => void
 }) {
   const items = result.menu?.items ?? []
+  const toast = useToast()
   const source = result.scan.source
   const [saving, setSaving] = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -269,6 +271,10 @@ function ResultView({
         },
       )
       onSavedChange(updated.is_saved)
+      toast.show({
+        variant: 'success',
+        title: nextSaved ? 'Đã lưu menu' : 'Đã bỏ lưu menu',
+      })
     } catch (err) {
       setSaveError(
         err instanceof ApiError
@@ -293,6 +299,7 @@ function ResultView({
         },
       )
       onConfirmed(confirmed)
+      toast.show({ variant: 'success', title: 'Đã xác nhận menu' })
     } catch (err) {
       setConfirmError(
         err instanceof ApiError
