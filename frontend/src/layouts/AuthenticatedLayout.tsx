@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Navigate } from 'react-router-dom'
-import { LayoutDashboard, ScanLine, Utensils } from 'lucide-react'
+import { LayoutDashboard, LogOut, ScanLine, Utensils } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Spinner } from '@/shared/components/Spinner'
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
@@ -30,13 +30,21 @@ export function AuthenticatedLayout() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-app-bg">
-      <header className="flex h-[60px] shrink-0 items-center justify-between gap-3 border-b border-hairline bg-canvas px-4 sm:h-[75px] sm:gap-6 sm:px-[50px]">
+      <header className="flex min-h-[64px] shrink-0 items-center justify-between gap-2 border-b border-hairline bg-canvas px-3 py-2 sm:h-[75px] sm:gap-6 sm:px-[50px] sm:py-0">
         <NavLink
           to="/app"
           aria-label="MenuScan app"
-          className="shrink-0 text-[22px] font-bold leading-none text-primary-dark sm:text-[30px]"
+          className="min-w-0 shrink text-primary-dark"
         >
-          MenuScan
+          <span className="block text-[22px] font-bold leading-none sm:text-[30px]">
+            MenuScan
+          </span>
+          <span
+            className="mt-1 block max-w-[min(62vw,230px)] truncate text-[12px] font-medium leading-none text-ink-variant sm:hidden"
+            title={user.email}
+          >
+            {user.email}
+          </span>
         </NavLink>
         <nav
           className="hidden items-center gap-[24px] sm:flex sm:gap-[30px]"
@@ -57,7 +65,7 @@ export function AuthenticatedLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="flex shrink-0 items-center gap-4">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
           <span
             className="hidden max-w-[220px] truncate text-[14px] text-ink-variant md:inline"
             title={user.email}
@@ -67,37 +75,40 @@ export function AuthenticatedLayout() {
           <button
             type="button"
             onClick={() => logout()}
-            className="rounded-[4px] bg-primary-dark px-[20px] py-[8px] text-[15px] font-bold text-white transition-opacity hover:opacity-90"
+            className="flex size-10 items-center justify-center rounded-[8px] bg-primary-dark text-[15px] font-bold text-white transition-opacity hover:opacity-90 sm:size-auto sm:rounded-[4px] sm:px-[20px] sm:py-[8px]"
           >
-            Đăng xuất
+            <LogOut className="size-4 sm:hidden" aria-hidden />
+            <span className="sr-only sm:not-sr-only">Đăng xuất</span>
           </button>
         </div>
       </header>
       <nav
-        className="grid shrink-0 grid-cols-3 border-b border-hairline bg-canvas px-2 py-1.5 sm:hidden"
+        className="shrink-0 border-b border-hairline bg-surface-muted px-3 py-2 sm:hidden"
         aria-label="App navigation"
       >
-        {navigationItems.map((item) => {
-          const Icon = item.icon
-          return (
-            <NavLink
-              end={item.to === '/app'}
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                [
-                  'flex min-h-12 flex-col items-center justify-center gap-1 rounded-[8px] px-2 text-[12px] font-semibold transition-colors',
-                  isActive
-                    ? 'bg-primary/10 text-primary-dark'
-                    : 'text-ink-variant hover:bg-surface-muted hover:text-primary-dark',
-                ].join(' ')
-              }
-            >
-              <Icon className="size-4" aria-hidden />
-              <span>{item.label}</span>
-            </NavLink>
-          )
-        })}
+        <div className="grid grid-cols-3 gap-1 rounded-[10px] bg-canvas p-1">
+          {navigationItems.map((item) => {
+            const Icon = item.icon
+            return (
+              <NavLink
+                end={item.to === '/app'}
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  [
+                    'flex min-h-11 items-center justify-center gap-1.5 rounded-[8px] px-2 text-[12px] font-semibold transition-colors',
+                    isActive
+                      ? 'bg-primary-dark text-white shadow-sm'
+                      : 'text-ink-variant hover:bg-surface-muted hover:text-primary-dark',
+                  ].join(' ')
+                }
+              >
+                <Icon className="size-4 shrink-0" aria-hidden />
+                <span className="truncate">{item.label}</span>
+              </NavLink>
+            )
+          })}
+        </div>
       </nav>
       <main className="min-w-0 flex-1">
         <ErrorBoundary fallback={(error, reset) => <RouteErrorFallback error={error} onReset={reset} />}>
