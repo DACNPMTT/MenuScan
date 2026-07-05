@@ -30,7 +30,18 @@ DEFAULT_LLM_PROVIDER = "rule_based"
 DEFAULT_LLM_TIMEOUT_SECONDS = "20"
 DEFAULT_LLM_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 DEFAULT_LLM_MODEL = "gemini-2.5-flash"
+# Secondary Gemini model tried automatically when the primary model is quota-
+# exhausted (429) or unavailable, before degrading to the rule-based parser.
+# It has a separate, more generous free-tier daily quota than gemini-2.5-flash.
+DEFAULT_LLM_FALLBACK_MODEL = "gemini-2.5-flash-lite"
 DEFAULT_SECRET_KEY = "menuscan-default-insecure-secret-key-change-this-in-production"
+DEFAULT_SCAN_STALE_TIMEOUT_MINUTES = "10"
+
+# Currency conversion. open.er-api.com is free, requires no API key, supports
+# VND + ~160 currencies, and is CORS-friendly. Rates are cached in-process.
+DEFAULT_EXCHANGE_RATE_API_BASE_URL = "https://open.er-api.com/v6"
+DEFAULT_EXCHANGE_RATE_TIMEOUT_SECONDS = "10"
+DEFAULT_EXCHANGE_RATE_CACHE_TTL_SECONDS = "3600"
 
 SUPPORTED_EMAIL_PROVIDERS = ("console", "resend")
 SUPPORTED_STORAGE_PROVIDERS = ("local", "s3")
@@ -149,6 +160,7 @@ class LlmConfig:
     api_key: str | None
     api_base_url: str
     timeout_seconds: float
+    fallback_model: str | None = None
 
     def is_configured(self) -> bool:
         if self.provider == "rule_based":
@@ -189,6 +201,10 @@ class Settings:
         )
     )
     secret_key: str = DEFAULT_SECRET_KEY
+    scan_stale_timeout_minutes: int = int(DEFAULT_SCAN_STALE_TIMEOUT_MINUTES)
+    exchange_rate_api_base_url: str = DEFAULT_EXCHANGE_RATE_API_BASE_URL
+    exchange_rate_timeout_seconds: float = float(DEFAULT_EXCHANGE_RATE_TIMEOUT_SECONDS)
+    exchange_rate_cache_ttl_seconds: int = int(DEFAULT_EXCHANGE_RATE_CACHE_TTL_SECONDS)
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -273,6 +289,21 @@ class Settings:
             llm=llm,
             ocr=ocr,
             secret_key=_env_or_default("SECRET_KEY", DEFAULT_SECRET_KEY),
+            scan_stale_timeout_minutes=_load_scan_stale_timeout_minutes(),
+            exchange_rate_api_base_url=os.getenv(
+                "EXCHANGE_RATE_API_BASE_URL", DEFAULT_EXCHANGE_RATE_API_BASE_URL
+            ).rstrip("/"),
+            exchange_rate_timeout_seconds=float(
+                os.getenv(
+                    "EXCHANGE_RATE_TIMEOUT_SECONDS", DEFAULT_EXCHANGE_RATE_TIMEOUT_SECONDS
+                )
+            ),
+            exchange_rate_cache_ttl_seconds=int(
+                os.getenv(
+                    "EXCHANGE_RATE_CACHE_TTL_SECONDS",
+                    DEFAULT_EXCHANGE_RATE_CACHE_TTL_SECONDS,
+                )
+            ),
         )
 
 
@@ -345,7 +376,19 @@ def _load_llm_config() -> LlmConfig:
         timeout_seconds=float(
             os.getenv("LLM_TIMEOUT_SECONDS", DEFAULT_LLM_TIMEOUT_SECONDS)
         ),
+        fallback_model=(
+            os.getenv("LLM_FALLBACK_MODEL", DEFAULT_LLM_FALLBACK_MODEL) or None
+        ),
     )
+
+
+def _load_scan_stale_timeout_minutes() -> int:
+    value = int(
+        os.getenv("SCAN_STALE_TIMEOUT_MINUTES", DEFAULT_SCAN_STALE_TIMEOUT_MINUTES)
+    )
+    if value < 1:
+        raise ValueError("SCAN_STALE_TIMEOUT_MINUTES must be >= 1")
+    return value
 
 
 def _env_or_default(name: str, default: str) -> str:

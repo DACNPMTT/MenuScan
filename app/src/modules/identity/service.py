@@ -51,7 +51,7 @@ MAGIC_LINK_TTL = timedelta(minutes=15)
 RESEND_COOLDOWN = timedelta(seconds=RESEND_COOLDOWN_SECONDS)
 MAGIC_LINK_TOKEN_BYTES = 32  # 256 bits of entropy
 MAGIC_LINK_SUCCESS_MESSAGE = "Nếu email hợp lệ, liên kết đăng nhập sẽ được gửi."
-SESSION_TTL = timedelta(days=30)
+SESSION_TTL = timedelta(minutes=15)
 ACCESS_TOKEN_TTL = timedelta(minutes=15)
 
 
@@ -378,12 +378,21 @@ class MagicLinkService:
             return
 
         try:
-            session_id_str, _ = refresh_token_cookie.split(".", 1)
+            session_id_str, raw_token_secret = refresh_token_cookie.split(".", 1)
             session_id = uuid.UUID(session_id_str)
         except ValueError:
             return
 
         user_session = self._session_repository.get_by_id(self._session, session_id)
-        if user_session is not None and user_session.revoked_at is None:
+        if user_session is None:
+            return
+
+        # Mirror refresh_session's secret check: a session_id with a
+        # non-matching secret (forged/stale/already-rotated cookie) must not
+        # revoke a session it doesn't actually authenticate.
+        if hash_token(raw_token_secret) != user_session.refresh_token_hash:
+            return
+
+        if user_session.revoked_at is None:
             user_session.revoked_at = now
             self._session.commit()

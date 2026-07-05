@@ -247,13 +247,18 @@ class ScanPipeline:
         draft: ParsedMenuDraft,
     ) -> ParsedMenuDraft:
         """Translate menu items. Failure is graceful — original content preserved."""
-        try:
-            draft = self.translation_service.translate_draft(draft)
-        except Exception:
-            logger.warning(
-                "pipeline_translation_failed scan_id=%s — continuing with originals",
-                scan_id,
+        if draft.translation_complete:
+            logger.info(
+                "pipeline_translate_skipped_already_translated scan_id=%s", scan_id
             )
+        else:
+            try:
+                draft = self.translation_service.translate_draft(draft)
+            except Exception:
+                logger.warning(
+                    "pipeline_translation_failed scan_id=%s — continuing with originals",
+                    scan_id,
+                )
 
         with self.session_factory() as session:
             scan = self.scan_repository.get_scan_for_processing(

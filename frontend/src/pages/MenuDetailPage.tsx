@@ -17,6 +17,9 @@ import { useToast } from '@/app/providers/ToastProvider'
 import { ApiError, apiRequest, apiRequestWithMeta } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue'
+import { useExchangeRates } from '@/shared/hooks/useExchangeRates'
+import { CurrencySelect } from '@/shared/components/CurrencySelect'
+import { formatConvertedAmount } from '@/shared/lib/currency'
 import {
   ALL_CATEGORY,
   ITEMS_PAGE_SIZE,
@@ -24,7 +27,6 @@ import {
   UNSAVED_CHANGES_MESSAGE,
   draftFromItem,
   draftMatchesItem,
-  formatMoney,
   itemCategory,
   itemPrice,
   normalizeDraft,
@@ -133,6 +135,8 @@ export function MenuDetailPage() {
     () => menu?.default_currency ?? allItems.find((item) => item.currency)?.currency ?? 'VND',
     [allItems, menu?.default_currency],
   )
+  const [displayCurrency, setDisplayCurrency] = useState(currency)
+  const { rates: exchangeRates } = useExchangeRates(currency)
 
   const dirtyItemIds = useMemo(
     () =>
@@ -687,6 +691,8 @@ export function MenuDetailPage() {
                   }
                   line={billLines[item.id] ?? { quantity: 0, note: '' }}
                   currency={currency}
+                  displayCurrency={displayCurrency}
+                  rates={exchangeRates}
                   validationErrors={itemValidationErrors[item.id] ?? {}}
                   saveError={itemSaveErrors[item.id] ?? null}
                   saving={savingItemId === item.id}
@@ -780,6 +786,10 @@ export function MenuDetailPage() {
                       : 'Chọn món để xem tạm tính.'}
                   </p>
                 </div>
+                <CurrencySelect
+                  value={displayCurrency}
+                  onChange={setDisplayCurrency}
+                />
                 <label className="flex items-center gap-3 text-[14px] font-medium text-ink">
                   <Users className="size-4 text-primary-dark" aria-hidden />
                   Số người
@@ -796,7 +806,7 @@ export function MenuDetailPage() {
                 <div className="flex items-center gap-2 text-[14px] text-ink-variant">
                   <span>Mỗi người dự tính:</span>
                   <strong className="text-[20px] text-primary-dark">
-                    {formatMoney(perPerson, currency)}
+                    {formatConvertedAmount(perPerson, currency, displayCurrency, exchangeRates)}
                   </strong>
                 </div>
               </div>
@@ -823,9 +833,11 @@ export function MenuDetailPage() {
                           )}
                         </div>
                         <span className="shrink-0 font-bold text-primary-dark">
-                          {formatMoney(
+                          {formatConvertedAmount(
                             itemPrice(item) * state.quantity,
                             item.currency ?? currency,
+                            displayCurrency,
+                            exchangeRates,
                           )}
                         </span>
                       </div>
@@ -834,12 +846,14 @@ export function MenuDetailPage() {
                   <div className="mt-4 flex flex-col gap-2 border-t border-hairline pt-4 text-[14px] sm:items-end">
                     <div className="flex w-full justify-between gap-3 sm:w-[280px]">
                       <span className="text-ink-variant">Tạm tính</span>
-                      <strong className="text-ink">{formatMoney(subtotal, currency)}</strong>
+                      <strong className="text-ink">
+                        {formatConvertedAmount(subtotal, currency, displayCurrency, exchangeRates)}
+                      </strong>
                     </div>
                     <div className="flex w-full justify-between gap-3 sm:w-[280px]">
                       <span className="text-ink-variant">Chia cho {peopleCount} người</span>
                       <strong className="text-primary-dark">
-                        {formatMoney(perPerson, currency)}
+                        {formatConvertedAmount(perPerson, currency, displayCurrency, exchangeRates)}
                       </strong>
                     </div>
                   </div>

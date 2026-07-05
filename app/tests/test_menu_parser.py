@@ -194,6 +194,15 @@ def test_empty_document_returns_empty_draft() -> None:
     assert draft.items == []
 
 
+def test_rule_based_parser_marks_translation_incomplete() -> None:
+    """Rule-based parsing never translates — pipeline must still run translation."""
+    document = make_single_column_document(["Phở bò 60.000đ"])
+
+    draft = parse_menu(document)
+
+    assert draft.translation_complete is False
+
+
 def test_line_without_name_not_added() -> None:
     document = make_single_column_document(["60.000đ"])
 

@@ -50,6 +50,7 @@ class GeminiMenuParser:
             update={
                 "parsing_provider": draft.parsing_provider or self.model,
                 "target_language": target_language,
+                "translation_complete": True,
             }
         )
 
@@ -183,9 +184,14 @@ def _build_prompt(
         "- Set price to null when the price is missing or confidence is low.\n"
         "- When price is known, use a decimal string such as 60000.00.\n"
         "- Use ISO currency codes such as VND or USD when currency is clear.\n"
-        "- Translate names and descriptions into the requested target language.\n"
-        "- Omit optional fields when unknown.\n\n"
-        f"Detected source language: {detected}\n"
+        f"- ALWAYS fill translated_name and translated_description in the target "
+        f"language ({target_language}) for every item. Determine each dish's "
+        "actual language from its own text — do NOT rely on the detected-source "
+        "hint below, which is often wrong. If a name/description is already in "
+        f"the target language ({target_language}), copy it verbatim into the "
+        "translated field. Never leave translated_name empty.\n"
+        "- Omit other optional fields when unknown.\n\n"
+        f"Detected source language (UNRELIABLE hint, may be wrong): {detected}\n"
         f"Target language: {target_language}\n"
         "Structured OCR blocks:\n"
         f"{layout_text}\n\n"

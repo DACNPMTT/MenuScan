@@ -4,7 +4,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, select, update
 from sqlalchemy.orm import Session
 
 from src.modules.menu.models import FoodItem, Menu
@@ -150,3 +150,38 @@ class ScanSessionRepository:
         if scan.ocr_result is not None:
             session.delete(scan.ocr_result)
         session.flush()
+
+    def reclaim_stale_processing_scans(
+        self,
+        session: Session,
+        *,
+        stale_before: datetime,
+        error_code: str,
+        error_message: str,
+    ) -> list[uuid.UUID]:
+        """Atomically fail scans stuck in PROCESSING past `stale_before`.
+
+        Single UPDATE...RETURNING — race-safe across concurrent processes/
+        replicas without SELECT-then-write or SELECT...FOR UPDATE SKIP LOCKED.
+        Caller is responsible for committing.
+        """
+        statement = (
+            update(ScanSession)
+            .where(
+                ScanSession.status == ScanStatus.PROCESSING,
+                ScanSession.started_at.is_not(None),
+                ScanSession.started_at < stale_before,
+                ScanSession.deleted_at.is_(None),
+            )
+            .values(
+                status=ScanStatus.FAILED,
+                stage=None,
+                progress=0,
+                error_code=error_code,
+                error_message=error_message,
+                completed_at=func.now(),
+            )
+            .returning(ScanSession.id)
+            .execution_options(synchronize_session=False)
+        )
+        return [row[0] for row in session.execute(statement)]

@@ -3,11 +3,11 @@ import { ItemDisplayName } from '@/features/menu-scan/components/menu-detail/Ite
 import {
   LOW_CONFIDENCE_THRESHOLD,
   confidenceValue,
-  formatMoney,
   hasAllergySignal,
   itemCategory,
   itemPrice,
 } from '@/features/menu-scan/lib'
+import { formatConvertedAmount, type ExchangeRates } from '@/shared/lib/currency'
 import type {
   BillItem,
   BillLineState,
@@ -22,6 +22,8 @@ export interface BillItemCardProps {
   dirty: boolean
   line: BillLineState
   currency: string | null
+  displayCurrency: string
+  rates: ExchangeRates | null
   validationErrors: ItemValidationErrors
   saveError: string | null
   saving: boolean
@@ -44,6 +46,8 @@ export function BillItemCard({
   dirty,
   line,
   currency,
+  displayCurrency,
+  rates,
   validationErrors,
   saveError,
   saving,
@@ -241,7 +245,12 @@ export function BillItemCard({
             </div>
             <div className="flex shrink-0 items-start gap-2">
               <strong className="pt-1 text-[17px] text-primary-dark">
-                {formatMoney(itemPrice(item), item.currency ?? currency)}
+                {formatConvertedAmount(
+                  itemPrice(item),
+                  item.currency ?? currency ?? 'VND',
+                  displayCurrency,
+                  rates,
+                )}
               </strong>
               <button
                 type="button"

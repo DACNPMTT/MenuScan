@@ -6,6 +6,7 @@ import {
   Bookmark,
   BookmarkCheck,
   Check,
+  ListChecks,
   Loader2,
   RefreshCw,
   XCircle,
@@ -14,6 +15,9 @@ import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
+import { useExchangeRates } from '@/shared/hooks/useExchangeRates'
+import { CurrencySelect } from '@/shared/components/CurrencySelect'
+import { formatConvertedAmount, type ExchangeRates } from '@/shared/lib/currency'
 import type {
   MenuItemResult,
   MenuDetail,
@@ -22,7 +26,6 @@ import type {
   ScanError,
   ScanResult,
 } from '@/features/menu-scan/types'
-import { BillingWorkspace } from '@/features/billing/BillingWorkspace'
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '')
 
@@ -50,16 +53,6 @@ const LANGUAGE_MAP: Record<string, string> = {
   ko: '🇰🇷 한국어',
   fr: '🇫🇷 Français',
   th: '🇹🇭 ภาษาไทย',
-}
-
-function formatPrice(price: string | null, currency: string | null): string {
-  if (!price) return '—'
-  const num = Number(price)
-  if (!Number.isFinite(num)) return price
-  const formatted = Number.isInteger(num) ? String(num) : num.toFixed(2)
-  return currency === 'VND'
-    ? `${Number(formatted).toLocaleString('vi-VN')} ₫`
-    : `${formatted} ${currency ?? ''}`.trim()
 }
 
 export function ScanResultPage() {
@@ -252,6 +245,9 @@ function ResultView({
   const items = result.menu?.items ?? []
   const toast = useToast()
   const source = result.scan.source
+  const baseCurrency = result.menu?.default_currency ?? 'VND'
+  const [displayCurrency, setDisplayCurrency] = useState(baseCurrency)
+  const { rates } = useExchangeRates(baseCurrency)
   const [saving, setSaving] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -341,11 +337,18 @@ function ResultView({
         </div>
         {result.menu && (
           <div className="flex flex-col items-start gap-2 sm:items-end">
+            <Link
+              to={`/app/menus/${result.menu.id}`}
+              className="flex min-h-10 items-center gap-2 rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
+            >
+              <ListChecks className="size-4" aria-hidden />
+              Chọn món &amp; chia hóa đơn
+            </Link>
             <button
               type="button"
               onClick={handleConfirm}
               disabled={confirming}
-              className="flex min-h-10 items-center gap-2 rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex min-h-10 items-center gap-2 rounded-[8px] border border-primary-dark px-4 py-2 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {confirming ? (
                 <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -386,21 +389,13 @@ function ResultView({
 
       <div className="grid grid-cols-1 gap-[30px] lg:grid-cols-[300px_minmax(0,1fr)]">
         <SourcePreview source={source} accessToken={accessToken} />
-        {items.length === 0 ? (
-          <ItemsList items={items} />
-        ) : (
-          <div className="flex flex-col gap-3">
-            <p className="text-[14px] font-medium uppercase tracking-[0.7px] text-ink-variant">
-              Chọn món &amp; chia hóa đơn
-            </p>
-            <BillingWorkspace
-              menuId={result.menu!.id}
-              currency={result.menu!.default_currency}
-              items={items}
-              accessToken={accessToken}
-            />
-          </div>
-        )}
+        <ItemsList
+          items={items}
+          baseCurrency={baseCurrency}
+          displayCurrency={displayCurrency}
+          rates={rates}
+          onCurrencyChange={setDisplayCurrency}
+        />
       </div>
     </div>
   )
@@ -468,12 +463,29 @@ function SourcePreview({
   )
 }
 
-function ItemsList({ items }: { items: MenuItemResult[] }) {
+function ItemsList({
+  items,
+  baseCurrency,
+  displayCurrency,
+  rates,
+  onCurrencyChange,
+}: {
+  items: MenuItemResult[]
+  baseCurrency: string
+  displayCurrency: string
+  rates: ExchangeRates | null
+  onCurrencyChange: (currency: string) => void
+}) {
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[14px] font-medium uppercase tracking-[0.7px] text-ink-variant">
-        Món trích xuất
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-[14px] font-medium uppercase tracking-[0.7px] text-ink-variant">
+          Món trích xuất
+        </p>
+        {items.length > 0 && (
+          <CurrencySelect value={displayCurrency} onChange={onCurrencyChange} />
+        )}
+      </div>
       {items.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-[12px] border border-dashed border-hairline bg-canvas px-4 py-[40px] text-center">
           <XCircle className="size-8 text-ink-variant" aria-hidden />
@@ -510,7 +522,14 @@ function ItemsList({ items }: { items: MenuItemResult[] }) {
                   {item.original_name}
                 </span>
                 <span className="shrink-0 text-[15px] font-semibold text-primary-dark">
-                  {formatPrice(item.price, item.currency)}
+                  {item.price
+                    ? formatConvertedAmount(
+                        Number(item.price),
+                        item.currency ?? baseCurrency,
+                        displayCurrency,
+                        rates,
+                      )
+                    : '—'}
                 </span>
               </div>
               {item.translated_name && item.translated_name !== item.original_name && (
