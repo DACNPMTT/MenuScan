@@ -10,6 +10,7 @@ import { LandingPage } from '@/pages/LandingPage'
 import { MenuDetailPage } from '@/pages/MenuDetailPage'
 import { MenusPage } from '@/pages/MenusPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { ProfilePage } from '@/pages/ProfilePage'
 import { ScanResultPage } from '@/pages/ScanResultPage'
 import { CameraScanPage } from '@/pages/CameraScanPage'
 import { ScanPage } from '@/pages/ScanPage'
@@ -25,15 +26,15 @@ export function AppRoutes() {
       <Route path="auth/check-email" element={<RequireGuest><CheckEmailPage /></RequireGuest>} />
       <Route path="auth/verify" element={<VerifyPage />} />
       <Route path="auth/set-password" element={<SetPasswordPage />} />
-      <Route path="app/scan/camera" element={<CameraScanPage />} />
-      <Route path="app/scans/:scanId" element={<ScanResultPage />} />
-      <Route path="app/scan" element={<ScanPage />} />
-
       <Route path="app" element={<AuthenticatedLayout />}>
         <Route index element={<DashboardPage />} />
+        <Route path="scan" element={<ScanPage />} />
+        <Route path="scan/camera" element={<CameraScanPage />} />
+        <Route path="scans/:scanId" element={<ScanResultPage />} />
         <Route path="menus" element={<MenusPage />} />
         <Route path="menus/:menuId" element={<MenuDetailPage />} />
         <Route path="bills/:billId" element={<BillReceiptPage />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

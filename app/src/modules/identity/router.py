@@ -12,10 +12,31 @@ from src.modules.identity.schemas import (
     MagicLinkRequest,
     MagicLinkVerifyRequest,
     SetPasswordRequest,
+    UpdateUserProfileRequest,
 )
 from src.modules.identity.service import MagicLinkService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _user_response_data(user: User, *, include_profile_details: bool = False) -> dict[str, object]:
+    data: dict[str, object] = {
+        "id": str(user.id),
+        "email": user.email,
+        "display_name": user.display_name,
+        "preferred_language": user.preferred_language,
+        "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+    }
+    if include_profile_details:
+        data.update(
+            {
+                "status": user.status.value
+                if hasattr(user.status, "value")
+                else str(user.status),
+                "created_at": user.created_at,
+            }
+        )
+    return data
 
 
 @router.post("/magic-links", status_code=status.HTTP_202_ACCEPTED)
@@ -55,15 +76,7 @@ def verify_magic_link(
             "access_token": access_token,
             "token_type": "Bearer",
             "expires_in": 900,
-            "user": {
-                "id": str(user.id),
-                "email": user.email,
-                "display_name": user.display_name,
-                "preferred_language": user.preferred_language,
-                "role": user.role.value
-                if hasattr(user.role, "value")
-                else str(user.role),
-            },
+            "user": _user_response_data(user),
         }
     )
 
@@ -102,15 +115,7 @@ def login(
             "access_token": access_token,
             "token_type": "Bearer",
             "expires_in": 900,
-            "user": {
-                "id": str(user.id),
-                "email": user.email,
-                "display_name": user.display_name,
-                "preferred_language": user.preferred_language,
-                "role": user.role.value
-                if hasattr(user.role, "value")
-                else str(user.role),
-            },
+            "user": _user_response_data(user),
         }
     )
 
@@ -159,17 +164,29 @@ def get_me(
 ) -> dict[str, object]:
     """Retrieve details for the currently authenticated user."""
     return success_response(
-        data={
-            "id": str(current_user.id),
-            "email": current_user.email,
-            "display_name": current_user.display_name,
-            "preferred_language": current_user.preferred_language,
-            "role": current_user.role.value
-            if hasattr(current_user.role, "value")
-            else str(current_user.role),
-            "status": current_user.status.value
-            if hasattr(current_user.status, "value")
-            else str(current_user.status),
-            "created_at": current_user.created_at,
-        }
+        data=_user_response_data(current_user, include_profile_details=True)
     )
+
+
+@router.patch("/me", status_code=status.HTTP_200_OK)
+def update_me(
+    payload: UpdateUserProfileRequest,
+    current_user: User = Depends(get_current_user),
+    service: MagicLinkService = Depends(get_magic_link_service),
+) -> dict[str, object]:
+    """Update editable profile fields for the currently authenticated user."""
+    updates = payload.model_dump(exclude_unset=True)
+    user = service.update_user_profile(current_user, **updates)
+    return success_response(data=_user_response_data(user, include_profile_details=True))
+
+
+@router.post("/me/profile", status_code=status.HTTP_200_OK)
+def update_me_profile(
+    payload: UpdateUserProfileRequest,
+    current_user: User = Depends(get_current_user),
+    service: MagicLinkService = Depends(get_magic_link_service),
+) -> dict[str, object]:
+    """POST-compatible profile update for clients/proxies that block PATCH."""
+    updates = payload.model_dump(exclude_unset=True)
+    user = service.update_user_profile(current_user, **updates)
+    return success_response(data=_user_response_data(user, include_profile_details=True))

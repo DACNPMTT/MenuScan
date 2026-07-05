@@ -1,4 +1,5 @@
 import { NavLink, Outlet, Navigate } from 'react-router-dom'
+import { LayoutDashboard, LogOut, ScanLine, Utensils } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Spinner } from '@/shared/components/Spinner'
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
@@ -7,13 +8,14 @@ import { RouteErrorFallback } from '@/shared/components/RouteErrorFallback'
 // Authenticated app shell matching the MenuScan Figma: a top header (logo +
 // primary nav + account actions) and a footer. No left sidebar.
 const navigationItems = [
-  { label: 'Dashboard', to: '/app' },
-  { label: 'Scan', to: '/app/scan' },
-  { label: 'Menus', to: '/app/menus' },
+  { label: 'Dashboard', to: '/app', icon: LayoutDashboard },
+  { label: 'Scan', to: '/app/scan', icon: ScanLine },
+  { label: 'Menus', to: '/app/menus', icon: Utensils },
 ]
 
 export function AuthenticatedLayout() {
   const { user, loading, logout } = useAuth()
+  const accountLabel = user?.display_name || user?.email?.split('@')[0] || 'Profile'
 
   if (loading) {
     return (
@@ -29,14 +31,25 @@ export function AuthenticatedLayout() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-app-bg">
-      <header className="flex h-[60px] shrink-0 items-center justify-between gap-3 border-b border-hairline bg-canvas px-4 sm:h-[75px] sm:gap-6 sm:px-[50px]">
-        <NavLink
-          to="/app"
-          aria-label="MenuScan app"
-          className="shrink-0 text-[22px] font-bold leading-none text-primary-dark sm:text-[30px]"
-        >
-          MenuScan
-        </NavLink>
+      <header className="flex min-h-[64px] shrink-0 items-center justify-between gap-2 border-b border-hairline bg-canvas px-3 py-2 sm:h-[75px] sm:gap-6 sm:px-[50px] sm:py-0">
+        <div className="min-w-0 shrink">
+          <NavLink
+            to="/app"
+            aria-label="MenuScan app"
+            className="block text-primary-dark"
+          >
+            <span className="block text-[22px] font-bold leading-none sm:text-[30px]">
+              MenuScan
+            </span>
+          </NavLink>
+          <NavLink
+            to="/app/profile"
+            className="mt-1 block max-w-[min(62vw,230px)] truncate text-[12px] font-medium leading-none text-ink-variant transition-colors hover:text-primary-dark sm:hidden"
+            title={user.email}
+          >
+            {accountLabel}
+          </NavLink>
+        </div>
         <nav
           className="hidden items-center gap-[24px] sm:flex sm:gap-[30px]"
           aria-label="App navigation"
@@ -56,22 +69,52 @@ export function AuthenticatedLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="flex shrink-0 items-center gap-4">
-          <span
-            className="hidden max-w-[220px] truncate text-[14px] text-ink-variant md:inline"
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+          <NavLink
+            to="/app/profile"
+            className="hidden max-w-[220px] truncate text-[14px] text-ink-variant transition-colors hover:text-primary-dark md:inline"
             title={user.email}
           >
-            {user.email}
-          </span>
+            {accountLabel}
+          </NavLink>
           <button
             type="button"
             onClick={() => logout()}
-            className="rounded-[4px] bg-primary-dark px-[20px] py-[8px] text-[15px] font-bold text-white transition-opacity hover:opacity-90"
+            className="flex size-10 items-center justify-center rounded-[8px] bg-primary-dark text-[15px] font-bold text-white transition-opacity hover:opacity-90 sm:size-auto sm:rounded-[4px] sm:px-[20px] sm:py-[8px]"
           >
-            Đăng xuất
+            <LogOut className="size-4 sm:hidden" aria-hidden />
+            <span className="sr-only sm:not-sr-only">Đăng xuất</span>
           </button>
         </div>
       </header>
+      <nav
+        className="shrink-0 border-b border-hairline bg-surface-muted px-3 py-2 sm:hidden"
+        aria-label="App navigation"
+      >
+        <div className="grid grid-cols-3 gap-1 rounded-[10px] bg-canvas p-1">
+          {navigationItems.map((item) => {
+            const Icon = item.icon
+            return (
+              <NavLink
+                end={item.to === '/app'}
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  [
+                    'flex min-h-11 items-center justify-center gap-1.5 rounded-[8px] px-2 text-[12px] font-semibold transition-colors',
+                    isActive
+                      ? 'bg-primary-dark text-white shadow-sm'
+                      : 'text-ink-variant hover:bg-surface-muted hover:text-primary-dark',
+                  ].join(' ')
+                }
+              >
+                <Icon className="size-4 shrink-0" aria-hidden />
+                <span className="truncate">{item.label}</span>
+              </NavLink>
+            )
+          })}
+        </div>
+      </nav>
       <main className="min-w-0 flex-1">
         <ErrorBoundary fallback={(error, reset) => <RouteErrorFallback error={error} onReset={reset} />}>
           <Outlet />

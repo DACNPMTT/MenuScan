@@ -390,6 +390,133 @@ def test_get_current_user_profile(client, db_session, clock):
     assert data["status"] == "ACTIVE"
 
 
+def test_update_current_user_profile(client, db_session, clock):
+    # Arrange: Create User
+    user = User(
+        email="update-profile@example.com",
+        display_name=None,
+        preferred_language="vi",
+        role=UserRole.USER,
+        status=UserStatus.ACTIVE,
+        created_at=clock(),
+        updated_at=clock(),
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    from src.modules.identity.dependencies import get_magic_link_service
+
+    service = get_magic_link_service(db_session)
+    access_token = service.create_access_token(user.id)
+
+    # Act: Update editable profile fields
+    response = client.patch(
+        "/api/v1/auth/me",
+        json={"display_name": "  Nguyễn An  ", "preferred_language": "en"},
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    # Assert: 200, response and DB both reflect normalized values
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    data = body["data"]
+    assert data["display_name"] == "Nguyễn An"
+    assert data["preferred_language"] == "en"
+
+    db_session.refresh(user)
+    assert user.display_name == "Nguyễn An"
+    assert user.preferred_language == "en"
+
+
+def test_update_current_user_profile_post_alias(client, db_session, clock):
+    user = User(
+        email="update-profile-post@example.com",
+        display_name=None,
+        preferred_language="vi",
+        role=UserRole.USER,
+        status=UserStatus.ACTIVE,
+        created_at=clock(),
+        updated_at=clock(),
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    from src.modules.identity.dependencies import get_magic_link_service
+
+    service = get_magic_link_service(db_session)
+    access_token = service.create_access_token(user.id)
+
+    response = client.post(
+        "/api/v1/auth/me/profile",
+        json={"display_name": "Profile Post", "preferred_language": "en"},
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["display_name"] == "Profile Post"
+    assert data["preferred_language"] == "en"
+
+
+def test_update_profile_can_clear_display_name(client, db_session, clock):
+    user = User(
+        email="clear-name@example.com",
+        display_name="Old Name",
+        preferred_language="vi",
+        role=UserRole.USER,
+        status=UserStatus.ACTIVE,
+        created_at=clock(),
+        updated_at=clock(),
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    from src.modules.identity.dependencies import get_magic_link_service
+
+    service = get_magic_link_service(db_session)
+    access_token = service.create_access_token(user.id)
+
+    response = client.patch(
+        "/api/v1/auth/me",
+        json={"display_name": "   "},
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["display_name"] is None
+    db_session.refresh(user)
+    assert user.display_name is None
+
+
+def test_update_profile_rejects_invalid_language(client, db_session, clock):
+    user = User(
+        email="invalid-lang@example.com",
+        display_name=None,
+        preferred_language="vi",
+        role=UserRole.USER,
+        status=UserStatus.ACTIVE,
+        created_at=clock(),
+        updated_at=clock(),
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    from src.modules.identity.dependencies import get_magic_link_service
+
+    service = get_magic_link_service(db_session)
+    access_token = service.create_access_token(user.id)
+
+    response = client.patch(
+        "/api/v1/auth/me",
+        json={"preferred_language": "fr"},
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
 def test_get_profile_fails_if_unauthorized(client):
     # Act: Call without auth
     response = client.get("/api/v1/auth/me")
