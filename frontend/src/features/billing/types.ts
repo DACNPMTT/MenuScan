@@ -15,6 +15,14 @@ export type BillAdjustmentType =
 
 export type BillAdjustmentCalculationType = 'FIXED' | 'PERCENTAGE'
 
+export const ADJUSTMENT_TYPE_LABELS = {
+  DISCOUNT: 'Giảm giá',
+  SURCHARGE: 'Phụ thu',
+  TAX: 'Thuế',
+  SERVICE_CHARGE: 'Phí dịch vụ',
+  ROUNDING: 'Làm tròn',
+} satisfies Record<BillAdjustmentType, string>
+
 /** One immutable line item on a bill. `name_snapshot` / `unit_price_snapshot`
  * are fixed at add-time so later menu edits never change a billed amount. */
 export interface BillItemResponse {
@@ -58,14 +66,29 @@ export interface Bill {
   finalized_at: string | null
 }
 
+export type BillResponse = Bill
+
 /** `POST /bills` request body. */
 export interface CreateBillRequest {
   menu_id: string
 }
 
+export interface BillItemInput {
+  food_item_id: string
+  quantity: number
+}
+
 /** `PATCH /bills/{id}/items` request body — the desired end state. */
 export interface UpdateBillItemsRequest {
-  items: { food_item_id: string; quantity: number }[]
+  items: BillItemInput[]
+}
+
+/** `POST/PATCH /bills/{id}/adjustments` request body. */
+export interface AdjustmentInput {
+  type: BillAdjustmentType
+  calculation_type: BillAdjustmentCalculationType
+  label: string
+  value: string
 }
 
 /** Result of `POST /bills/{id}/split`. `shares` sums exactly to
