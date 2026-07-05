@@ -147,7 +147,9 @@ class BillingService:
             adjustment_total=Decimal("0.00"),
             total_amount=Decimal("0.00"),
         )
-        return self._repository.add(self._session, bill)
+        added = self._repository.add(self._session, bill)
+        self._session.commit()
+        return added
 
     # --- Reads --------------------------------------------------------------
 

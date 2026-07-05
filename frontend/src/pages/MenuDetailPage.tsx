@@ -34,7 +34,7 @@ import {
 import { BillItemCard } from '@/features/menu-scan/components/menu-detail/BillItemCard'
 import { ManualItemCard } from '@/features/menu-scan/components/menu-detail/ManualItemCard'
 import { MenuFilterBar } from '@/features/menu-scan/components/menu-detail/MenuFilterBar'
-import { ReceiptPreview } from '@/features/menu-scan/components/menu-detail/ReceiptPreview'
+import type { Bill } from '@/features/billing/types'
 import { SourcePreview } from '@/features/menu-scan/components/menu-detail/SourcePreview'
 import type {
   BillItem,
@@ -89,7 +89,7 @@ export function MenuDetailPage() {
   const [manualName, setManualName] = useState('')
   const [manualPrice, setManualPrice] = useState('')
   const [manualNote, setManualNote] = useState('')
-  const [showReceipt, setShowReceipt] = useState(false)
+  const [creatingBill, setCreatingBill] = useState(false)
   const [itemDrafts, setItemDrafts] = useState<Record<string, ItemDraft>>({})
   const [itemValidationErrors, setItemValidationErrors] = useState<
     Record<string, ItemValidationErrors>
@@ -525,7 +525,6 @@ export function MenuDetailPage() {
             }
           : confirmed,
       )
-      setShowReceipt(true)
       toast.show({ variant: 'success', title: 'Đã xác nhận menu' })
     } catch (err) {
       setError(
@@ -533,6 +532,38 @@ export function MenuDetailPage() {
       )
     } finally {
       setConfirming(false)
+    }
+  }
+
+  const handleCreateReceipt = async () => {
+    if (!menuId || creatingBill || selectedLines.length === 0) return
+    setCreatingBill(true)
+    try {
+      const bill = await apiRequest<Bill>(`/api/v1/bills`, {
+        method: 'POST',
+        token: accessToken ?? undefined,
+        body: JSON.stringify({ menu_id: menuId }),
+      })
+      await apiRequest<Bill>(`/api/v1/bills/${bill.id}/items`, {
+        method: 'PATCH',
+        token: accessToken ?? undefined,
+        body: JSON.stringify({
+          items: selectedLines.map((line) => ({
+            food_item_id: line.item.id,
+            quantity: line.state.quantity,
+          })),
+        }),
+      })
+      navigate(`/app/bills/${bill.id}?people=${peopleCount}`)
+    } catch (err) {
+      const description = err instanceof ApiError ? err.message : undefined
+      toast.show({
+        variant: 'error',
+        title: 'Không thể tạo biên nhận',
+        description: description ?? 'Vui lòng thử lại.',
+      })
+    } finally {
+      setCreatingBill(false)
     }
   }
 
@@ -753,16 +784,6 @@ export function MenuDetailPage() {
                 </div>
               </div>
             </div>
-
-            {showReceipt && (
-              <ReceiptPreview
-                lines={selectedLines}
-                currency={currency}
-                subtotal={subtotal}
-                peopleCount={peopleCount}
-              />
-            )}
-
             <div className="fixed inset-x-0 bottom-0 z-20 border-t border-hairline bg-surface-muted px-4 py-[20px] shadow-[0_-10px_30px_rgba(24,29,21,0.08)] sm:px-[50px] sm:py-[30px]">
               <div className="mx-auto flex max-w-[1240px] flex-col justify-center gap-3 sm:min-h-11 sm:flex-row sm:items-center sm:justify-end">
                 <Link
@@ -776,11 +797,15 @@ export function MenuDetailPage() {
                 </Link>
                 <button
                   type="button"
-                  onClick={() => setShowReceipt((current) => !current)}
-                  disabled={selectedLines.length === 0}
+                  onClick={() => void handleCreateReceipt()}
+                  disabled={creatingBill || selectedLines.length === 0}
                   className="flex min-h-11 items-center justify-center gap-2 rounded-[8px] border border-primary-dark bg-canvas px-5 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <ReceiptText className="size-4" aria-hidden />
+                  {creatingBill ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <ReceiptText className="size-4" aria-hidden />
+                  )}
                   Show Digital Receipt
                 </button>
                 <button

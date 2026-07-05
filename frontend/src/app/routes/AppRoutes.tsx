@@ -14,6 +14,7 @@ import { ScanResultPage } from '@/pages/ScanResultPage'
 import { CameraScanPage } from '@/pages/CameraScanPage'
 import { ScanPage } from '@/pages/ScanPage'
 import { SetPasswordPage } from '@/pages/SetPasswordPage'
+import { BillReceiptPage } from '@/pages/BillReceiptPage'
 
 export function AppRoutes() {
   return (
@@ -32,6 +33,7 @@ export function AppRoutes() {
         <Route index element={<DashboardPage />} />
         <Route path="menus" element={<MenusPage />} />
         <Route path="menus/:menuId" element={<MenuDetailPage />} />
+        <Route path="bills/:billId" element={<BillReceiptPage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />
