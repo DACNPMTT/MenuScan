@@ -1,4 +1,5 @@
 import { NavLink, Outlet, Navigate } from 'react-router-dom'
+import { LayoutDashboard, ScanLine, Utensils } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Spinner } from '@/shared/components/Spinner'
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
@@ -7,9 +8,9 @@ import { RouteErrorFallback } from '@/shared/components/RouteErrorFallback'
 // Authenticated app shell matching the MenuScan Figma: a top header (logo +
 // primary nav + account actions) and a footer. No left sidebar.
 const navigationItems = [
-  { label: 'Dashboard', to: '/app' },
-  { label: 'Scan', to: '/app/scan' },
-  { label: 'Menus', to: '/app/menus' },
+  { label: 'Dashboard', to: '/app', icon: LayoutDashboard },
+  { label: 'Scan', to: '/app/scan', icon: ScanLine },
+  { label: 'Menus', to: '/app/menus', icon: Utensils },
 ]
 
 export function AuthenticatedLayout() {
@@ -72,6 +73,32 @@ export function AuthenticatedLayout() {
           </button>
         </div>
       </header>
+      <nav
+        className="grid shrink-0 grid-cols-3 border-b border-hairline bg-canvas px-2 py-1.5 sm:hidden"
+        aria-label="App navigation"
+      >
+        {navigationItems.map((item) => {
+          const Icon = item.icon
+          return (
+            <NavLink
+              end={item.to === '/app'}
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                [
+                  'flex min-h-12 flex-col items-center justify-center gap-1 rounded-[8px] px-2 text-[12px] font-semibold transition-colors',
+                  isActive
+                    ? 'bg-primary/10 text-primary-dark'
+                    : 'text-ink-variant hover:bg-surface-muted hover:text-primary-dark',
+                ].join(' ')
+              }
+            >
+              <Icon className="size-4" aria-hidden />
+              <span>{item.label}</span>
+            </NavLink>
+          )
+        })}
+      </nav>
       <main className="min-w-0 flex-1">
         <ErrorBoundary fallback={(error, reset) => <RouteErrorFallback error={error} onReset={reset} />}>
           <Outlet />
