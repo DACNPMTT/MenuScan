@@ -14,6 +14,13 @@ export interface User {
   display_name: string | null
   preferred_language: string
   role: string
+  status?: string
+  created_at?: string
+}
+
+export interface UpdateProfilePayload {
+  display_name?: string | null
+  preferred_language?: string
 }
 
 interface AuthContextType {
@@ -24,6 +31,7 @@ interface AuthContextType {
   requestMagicLink: (email: string) => Promise<{ message: string; resend_after_seconds: number }>
   verifyMagicLink: (token: string) => Promise<User>
   setPassword: (password: string) => Promise<void>
+  updateProfile: (payload: UpdateProfilePayload) => Promise<User>
   logout: () => Promise<void>
   refreshSession: () => Promise<void>
 }
@@ -104,6 +112,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [accessToken])
 
+  const updateProfile = useCallback(async (payload: UpdateProfilePayload) => {
+    if (!accessToken) throw new Error('Unauthenticated')
+    const updatedUser = await apiRequest<User>('/api/v1/auth/me/profile', {
+      method: 'POST',
+      token: accessToken,
+      body: JSON.stringify(payload),
+    })
+    setUser(updatedUser)
+    return updatedUser
+  }, [accessToken])
+
   // 5. Logout
   const logout = useCallback(async () => {
     try {
@@ -125,8 +144,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // future callers; the mount effect and 401 auto-refresh go through the manager.
   const refreshSession = useCallback(async () => {
     const token = await refreshAccessToken()
-    if (token) await fetchCurrentUser(token)
-    else {
+    if (token) {
+      setAccessToken(token)
+      await fetchCurrentUser(token)
+      setLoading(false)
+    } else {
       logoutState()
       setLoading(false)
     }
@@ -153,7 +175,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
       const token = await refreshAccessToken()
-      if (token) await fetchCurrentUser(token)
+      if (token) {
+        setAccessToken(token)
+        await fetchCurrentUser(token)
+      }
       setLoading(false)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -169,6 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         requestMagicLink,
         verifyMagicLink,
         setPassword,
+        updateProfile,
         logout,
         refreshSession,
       }}

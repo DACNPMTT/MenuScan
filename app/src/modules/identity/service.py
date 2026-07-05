@@ -53,6 +53,7 @@ MAGIC_LINK_TOKEN_BYTES = 32  # 256 bits of entropy
 MAGIC_LINK_SUCCESS_MESSAGE = "Nếu email hợp lệ, liên kết đăng nhập sẽ được gửi."
 SESSION_TTL = timedelta(days=30)
 ACCESS_TOKEN_TTL = timedelta(minutes=15)
+_UNSET = object()
 
 
 # --- Token generation + hashing helpers (pure stdlib) -------------------------
@@ -268,6 +269,23 @@ class MagicLinkService:
         user.password_hash = hash_password(password)
         user.updated_at = now
         self._session.commit()
+
+    def update_user_profile(
+        self,
+        user: User,
+        *,
+        display_name: str | None | object = _UNSET,
+        preferred_language: str | object = _UNSET,
+    ) -> User:
+        """Update editable profile fields for the currently authenticated user."""
+        now = self._clock()
+        if display_name is not _UNSET:
+            user.display_name = display_name if isinstance(display_name, str) else None
+        if preferred_language is not _UNSET and isinstance(preferred_language, str):
+            user.preferred_language = preferred_language
+        user.updated_at = now
+        self._session.commit()
+        return user
 
     # --- Traditional Password Login -------------------------------------------
 

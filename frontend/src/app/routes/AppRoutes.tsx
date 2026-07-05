@@ -10,6 +10,7 @@ import { LandingPage } from '@/pages/LandingPage'
 import { MenuDetailPage } from '@/pages/MenuDetailPage'
 import { MenusPage } from '@/pages/MenusPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { ProfilePage } from '@/pages/ProfilePage'
 import { ScanResultPage } from '@/pages/ScanResultPage'
 import { CameraScanPage } from '@/pages/CameraScanPage'
 import { ScanPage } from '@/pages/ScanPage'
@@ -33,6 +34,7 @@ export function AppRoutes() {
         <Route path="menus" element={<MenusPage />} />
         <Route path="menus/:menuId" element={<MenuDetailPage />} />
         <Route path="bills/:billId" element={<BillReceiptPage />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

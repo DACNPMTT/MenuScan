@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, field_validator
 
@@ -48,6 +49,37 @@ class SetPasswordRequest(BaseModel):
     """Request body for setting the password after verification."""
 
     password: str
+
+
+class UpdateUserProfileRequest(BaseModel):
+    """Request body for updating editable profile preferences."""
+
+    display_name: str | None = None
+    preferred_language: Literal["vi", "en"] | None = None
+
+    @field_validator("display_name", mode="before")
+    @classmethod
+    def _normalize_display_name(cls, value: object) -> object:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+    @field_validator("display_name", mode="after")
+    @classmethod
+    def _validate_display_name_length(cls, value: str | None) -> str | None:
+        if value is not None and len(value) > 150:
+            raise ValueError("Display name must be 150 characters or fewer.")
+        return value
+
+    @field_validator("preferred_language", mode="before")
+    @classmethod
+    def _normalize_preferred_language(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
 
 
 class LoginRequest(BaseModel):

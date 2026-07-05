@@ -13,8 +13,11 @@ import {
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
 import { ApiError, apiRequest, apiRequestWithMeta } from '@/shared/lib/api'
+import { getAccessToken, refreshAccessToken } from '@/shared/lib/auth-token'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
+import { API_BASE_URL } from '@/features/menu-scan/lib'
 import type {
+  MenuSource,
   MenuSummary,
   PaginationMeta,
 } from '@/features/menu-scan/types'
@@ -170,6 +173,7 @@ export function MenusPage() {
               <MenuRow
                 key={menu.id}
                 menu={menu}
+                accessToken={accessToken}
                 deleting={deletingId === menu.id}
                 onDelete={handleDelete}
               />
@@ -199,19 +203,19 @@ export function MenusPage() {
 }
 
 function MenuRow({
+  accessToken,
   menu,
   deleting,
   onDelete,
 }: {
+  accessToken: string | null
   menu: MenuSummary
   deleting: boolean
   onDelete: (menuId: string) => Promise<void>
 }) {
   return (
     <div className="grid grid-cols-[56px_minmax(0,1fr)] gap-4 px-[20px] py-[16px] sm:grid-cols-[64px_minmax(0,1fr)_auto]">
-      <div className="flex aspect-square size-14 items-center justify-center rounded-[8px] border border-hairline bg-surface-muted sm:size-16">
-        <FileText className="size-6 text-primary-dark" aria-hidden />
-      </div>
+      <MenuThumbnail source={menu.source} accessToken={accessToken} />
       <Link
         to={`/app/menus/${menu.id}`}
         className="min-w-0 transition-colors hover:text-primary-dark"
@@ -252,6 +256,82 @@ function MenuRow({
           )}
         </button>
       </div>
+    </div>
+  )
+}
+
+function MenuThumbnail({
+  accessToken,
+  source,
+}: {
+  accessToken: string | null
+  source: MenuSource
+}) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null)
+  const [previewError, setPreviewError] = useState(false)
+  const isImage = source.mime_type.startsWith('image/')
+
+  useEffect(() => {
+    if (!isImage) {
+      return
+    }
+
+    let active = true
+    let nextObjectUrl: string | null = null
+
+    const previewUrl = source.preview_url.startsWith('http')
+      ? source.preview_url
+      : `${API_BASE_URL}${source.preview_url}`
+
+    const fetchPreview = async (token: string | null) =>
+      fetch(previewUrl, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+      })
+
+    const loadPreview = async () => {
+      setPreviewError(false)
+      setObjectUrl(null)
+      try {
+        let response = await fetchPreview(getAccessToken() ?? accessToken)
+        if (response.status === 401 || response.status === 403) {
+          const freshToken = await refreshAccessToken()
+          if (freshToken) response = await fetchPreview(freshToken)
+        }
+        if (!response.ok) throw new Error('Menu preview request failed')
+        const blob = await response.blob()
+        nextObjectUrl = URL.createObjectURL(blob)
+        if (active) {
+          setObjectUrl(nextObjectUrl)
+        } else {
+          URL.revokeObjectURL(nextObjectUrl)
+        }
+      } catch {
+        if (active) setPreviewError(true)
+      }
+    }
+
+    void loadPreview()
+    return () => {
+      active = false
+      if (nextObjectUrl) URL.revokeObjectURL(nextObjectUrl)
+    }
+  }, [accessToken, isImage, source.preview_url])
+
+  return (
+    <div className="flex aspect-square size-14 items-center justify-center overflow-hidden rounded-[8px] border border-hairline bg-surface-muted sm:size-16">
+      {objectUrl && isImage ? (
+        <img
+          src={objectUrl}
+          alt={source.file_name}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      ) : previewError || !isImage ? (
+        <FileText className="size-6 text-primary-dark" aria-hidden />
+      ) : (
+        <Loader2 className="size-5 animate-spin text-primary-dark" aria-hidden />
+      )}
     </div>
   )
 }

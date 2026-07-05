@@ -15,6 +15,7 @@ const navigationItems = [
 
 export function AuthenticatedLayout() {
   const { user, loading, logout } = useAuth()
+  const accountLabel = user?.display_name || user?.email?.split('@')[0] || 'Profile'
 
   if (loading) {
     return (
@@ -31,21 +32,24 @@ export function AuthenticatedLayout() {
   return (
     <div className="flex min-h-dvh flex-col bg-app-bg">
       <header className="flex min-h-[64px] shrink-0 items-center justify-between gap-2 border-b border-hairline bg-canvas px-3 py-2 sm:h-[75px] sm:gap-6 sm:px-[50px] sm:py-0">
-        <NavLink
-          to="/app"
-          aria-label="MenuScan app"
-          className="min-w-0 shrink text-primary-dark"
-        >
-          <span className="block text-[22px] font-bold leading-none sm:text-[30px]">
-            MenuScan
-          </span>
-          <span
-            className="mt-1 block max-w-[min(62vw,230px)] truncate text-[12px] font-medium leading-none text-ink-variant sm:hidden"
+        <div className="min-w-0 shrink">
+          <NavLink
+            to="/app"
+            aria-label="MenuScan app"
+            className="block text-primary-dark"
+          >
+            <span className="block text-[22px] font-bold leading-none sm:text-[30px]">
+              MenuScan
+            </span>
+          </NavLink>
+          <NavLink
+            to="/app/profile"
+            className="mt-1 block max-w-[min(62vw,230px)] truncate text-[12px] font-medium leading-none text-ink-variant transition-colors hover:text-primary-dark sm:hidden"
             title={user.email}
           >
-            {user.email}
-          </span>
-        </NavLink>
+            {accountLabel}
+          </NavLink>
+        </div>
         <nav
           className="hidden items-center gap-[24px] sm:flex sm:gap-[30px]"
           aria-label="App navigation"
@@ -66,12 +70,13 @@ export function AuthenticatedLayout() {
           ))}
         </nav>
         <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-          <span
-            className="hidden max-w-[220px] truncate text-[14px] text-ink-variant md:inline"
+          <NavLink
+            to="/app/profile"
+            className="hidden max-w-[220px] truncate text-[14px] text-ink-variant transition-colors hover:text-primary-dark md:inline"
             title={user.email}
           >
-            {user.email}
-          </span>
+            {accountLabel}
+          </NavLink>
           <button
             type="button"
             onClick={() => logout()}
