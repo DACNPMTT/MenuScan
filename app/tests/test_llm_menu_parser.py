@@ -91,6 +91,7 @@ def test_gemini_parser_posts_structured_json_request() -> None:
     assert draft.target_language == "en"
     assert draft.items[0].translated_name == "Beef pho"
     assert draft.items[0].price == "60000.00"
+    assert draft.translation_complete is True
 
 
 def test_gemini_parser_prompt_includes_layout_coordinates() -> None:

@@ -93,19 +93,36 @@ def get_ocr_service(
     )
 
 
+def _build_gemini_parser(model: str) -> GeminiMenuParser:
+    config = settings.llm
+    assert config.api_key is not None  # noqa: S101
+    return GeminiMenuParser(
+        api_key=config.api_key,
+        api_base_url=config.api_base_url,
+        model=model,
+        timeout_seconds=config.timeout_seconds,
+    )
+
+
 def get_menu_parser() -> MenuParser:
     config = settings.llm
     if config.provider == "rule_based":
         return RuleBasedMenuParser()
     if config.provider == "gemini":
-        assert config.api_key is not None  # noqa: S101
-        gemini = GeminiMenuParser(
-            api_key=config.api_key,
-            api_base_url=config.api_base_url,
-            model=config.model,
-            timeout_seconds=config.timeout_seconds,
+        # Fallback chain: primary Gemini model → secondary Gemini model (a
+        # separate quota pool, used when the primary is 429/unavailable) →
+        # rule-based parser (last resort, no external dependency). Each hop is
+        # taken only on LlmMenuParserUnavailableError/Timeout.
+        fallback: MenuParser = RuleBasedMenuParser()
+        if config.fallback_model and config.fallback_model != config.model:
+            fallback = _FallbackMenuParser(
+                primary=_build_gemini_parser(config.fallback_model),
+                fallback=fallback,
+            )
+        return _FallbackMenuParser(
+            primary=_build_gemini_parser(config.model),
+            fallback=fallback,
         )
-        return _FallbackMenuParser(primary=gemini, fallback=RuleBasedMenuParser())
     raise ValueError(f"Unsupported LLM_PROVIDER={config.provider!r}")
 
 

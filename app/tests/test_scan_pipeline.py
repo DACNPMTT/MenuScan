@@ -133,6 +133,9 @@ class FailingOcrService:
 class FakeMenuParser:
     """Menu parser that returns a fixed draft."""
 
+    def __init__(self, translation_complete: bool = False) -> None:
+        self._translation_complete = translation_complete
+
     def parse(
         self,
         document: OcrDocument,
@@ -146,6 +149,7 @@ class FakeMenuParser:
             target_language=target_language,
             default_currency="VND",
             confidence=0.9,
+            translation_complete=self._translation_complete,
             items=[
                 ParsedMenuItemDraft(
                     original_name="Phở bò",
@@ -178,6 +182,28 @@ class FailingTranslationProvider:
         target_language: str,
     ) -> list[str | None]:
         raise TranslationTimeoutError("Translation timed out")
+
+
+class SpyTranslationProvider:
+    """Wraps another provider and counts translate_batch calls."""
+
+    def __init__(self, wrapped: object) -> None:
+        self._wrapped = wrapped
+        self.call_count = 0
+
+    def translate_batch(
+        self,
+        *,
+        texts: list[str],
+        source_language: str,
+        target_language: str,
+    ) -> list[str | None]:
+        self.call_count += 1
+        return self._wrapped.translate_batch(
+            texts=texts,
+            source_language=source_language,
+            target_language=target_language,
+        )
 
 
 # ── Helpers ─────────────────────────────────────────────────────────
@@ -333,6 +359,52 @@ def test_translation_failure_still_completes(
         assert item_0.original_name == "Phở bò"
         # translated_name may be None since translation failed
         # but original content is preserved
+
+
+def test_translate_stage_skipped_when_parser_marks_translation_complete(
+    db_session_factory: sessionmaker[Session],
+) -> None:
+    """Parser already translated (e.g. Gemini) → translation service not called."""
+    with db_session_factory() as session:
+        scan = _create_scan_session(session)
+        scan_id = scan.id
+
+    spy = SpyTranslationProvider(FakeTranslationProvider())
+    pipeline = _build_pipeline(
+        db_session_factory,
+        menu_parser=FakeMenuParser(translation_complete=True),
+        translation_service=TranslationService(provider=spy),
+    )
+    pipeline.process(scan_id)
+
+    assert spy.call_count == 0
+    with db_session_factory() as session:
+        scan = session.get(ScanSession, scan_id)
+        assert scan is not None
+        assert scan.status == ScanStatus.COMPLETED
+
+
+def test_translate_stage_runs_when_parser_did_not_translate(
+    db_session_factory: sessionmaker[Session],
+) -> None:
+    """Rule-based/fallback parser (no translation) → translation service still called."""
+    with db_session_factory() as session:
+        scan = _create_scan_session(session)
+        scan_id = scan.id
+
+    spy = SpyTranslationProvider(FakeTranslationProvider())
+    pipeline = _build_pipeline(
+        db_session_factory,
+        menu_parser=FakeMenuParser(translation_complete=False),
+        translation_service=TranslationService(provider=spy),
+    )
+    pipeline.process(scan_id)
+
+    assert spy.call_count == 1
+    with db_session_factory() as session:
+        scan = session.get(ScanSession, scan_id)
+        assert scan is not None
+        assert scan.status == ScanStatus.COMPLETED
 
 
 def test_retry_does_not_create_duplicates(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import time
 from dataclasses import dataclass
 from time import monotonic
 from typing import Any
@@ -23,6 +24,14 @@ from src.modules.menu_scan.ocr.provider import (
 )
 
 
+_RETRYABLE_STATUS_CODES = frozenset({408, 429, 500, 502, 503, 504})
+
+
+def _sleep_before_retry(seconds: float) -> None:
+    if seconds > 0:
+        time.sleep(seconds)
+
+
 @dataclass(frozen=True, slots=True)
 class GoogleVisionOcrProvider:
     api_key: str
@@ -30,6 +39,8 @@ class GoogleVisionOcrProvider:
     timeout_seconds: float
     feature_type: str = "DOCUMENT_TEXT_DETECTION"
     client: httpx.Client | None = None
+    max_attempts: int = 3
+    retry_backoff_seconds: float = 0.5
 
     def extract_document(
         self,
@@ -76,16 +87,30 @@ class GoogleVisionOcrProvider:
         }
         owns_client = self.client is None
         client = self.client or httpx.Client(timeout=self.timeout_seconds)
+        attempts = max(1, self.max_attempts)
         try:
-            response = client.post(
-                f"{self.api_base_url}/images:annotate",
-                params={"key": self.api_key},
-                json=payload,
-            )
-        except httpx.TimeoutException as error:
-            raise ProviderTimeoutError() from error
-        except httpx.HTTPError as error:
-            raise ProviderUnavailableError() from error
+            for attempt in range(1, attempts + 1):
+                try:
+                    response = client.post(
+                        f"{self.api_base_url}/images:annotate",
+                        params={"key": self.api_key},
+                        json=payload,
+                    )
+                except httpx.TimeoutException as error:
+                    if attempt < attempts:
+                        _sleep_before_retry(self.retry_backoff_seconds)
+                        continue
+                    raise ProviderTimeoutError() from error
+                except httpx.HTTPError as error:
+                    if attempt < attempts:
+                        _sleep_before_retry(self.retry_backoff_seconds)
+                        continue
+                    raise ProviderUnavailableError() from error
+
+                if response.status_code in _RETRYABLE_STATUS_CODES and attempt < attempts:
+                    _sleep_before_retry(self.retry_backoff_seconds)
+                    continue
+                break
         finally:
             if owns_client:
                 client.close()

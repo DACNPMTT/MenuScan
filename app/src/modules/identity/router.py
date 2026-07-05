@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Cookie, Depends, Request, Response, status
 
-from src.core.config import settings
 from src.core.responses import success_response
+from src.modules.identity.cookies import (
+    clear_refresh_token_cookie,
+    set_refresh_token_cookie,
+)
 from src.modules.identity.dependencies import get_current_user, get_magic_link_service
 from src.modules.identity.models import User
 from src.modules.identity.schemas import (
@@ -66,15 +69,7 @@ def verify_magic_link(
         user_agent=user_agent,
     )
 
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        samesite="lax",
-        secure=settings.app_env != "development" and settings.app_env != "test",
-        path="/",
-        max_age=30 * 24 * 60 * 60,  # 30 days
-    )
+    set_refresh_token_cookie(response, refresh_token)
 
     return success_response(
         data={
@@ -113,15 +108,7 @@ def login(
         user_agent=user_agent,
     )
 
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        samesite="lax",
-        secure=settings.app_env != "development" and settings.app_env != "test",
-        path="/",
-        max_age=30 * 24 * 60 * 60,  # 30 days
-    )
+    set_refresh_token_cookie(response, refresh_token)
 
     return success_response(
         data={
@@ -148,15 +135,7 @@ def refresh_session(
         user_agent=user_agent,
     )
 
-    response.set_cookie(
-        key="refresh_token",
-        value=new_refresh_token,
-        httponly=True,
-        samesite="lax",
-        secure=settings.app_env != "development" and settings.app_env != "test",
-        path="/",
-        max_age=30 * 24 * 60 * 60,
-    )
+    set_refresh_token_cookie(response, new_refresh_token)
 
     return success_response(
         data={
@@ -176,13 +155,7 @@ def logout(
 ) -> None:
     """Idempotently revoke the current session and clear cookies."""
     service.logout(refresh_token)
-    response.delete_cookie(
-        key="refresh_token",
-        path="/",
-        httponly=True,
-        samesite="lax",
-        secure=settings.app_env != "development" and settings.app_env != "test",
-    )
+    clear_refresh_token_cookie(response)
 
 
 @router.get("/me", status_code=status.HTTP_200_OK)

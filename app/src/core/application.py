@@ -1,3 +1,5 @@
+import asyncio
+import contextlib
 import logging
 import time
 import uuid
@@ -16,7 +18,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.responses import Response
 
 from src.core.config import Settings, settings
-from src.core.database import engine
+from src.core.database import SessionLocal, engine
 from src.core.errors import (
     ApplicationError,
     DependencyUnavailableError,
@@ -25,6 +27,8 @@ from src.core.errors import (
     http_error_handler,
     validation_error_handler,
 )
+from src.modules.menu_scan.repository import ScanSessionRepository
+from src.modules.menu_scan.watchdog import run_stale_scan_watchdog
 from src.router import api_router
 
 
@@ -142,9 +146,19 @@ def create_app(
             "application_started environment=%s",
             current_settings.app_env,
         )
+        watchdog_task = asyncio.create_task(
+            run_stale_scan_watchdog(
+                session_factory=SessionLocal,
+                repository=ScanSessionRepository(),
+                stale_timeout_minutes=current_settings.scan_stale_timeout_minutes,
+            )
+        )
         try:
             yield
         finally:
+            watchdog_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await watchdog_task
             current_database_engine.dispose()
             logger.info("application_stopped")
 

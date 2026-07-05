@@ -149,6 +149,16 @@ class ParsedMenuDraft(BaseModel):
     target_language: str
     default_currency: str | None = None
     confidence: float | None = Field(default=None, ge=0, le=1)
+    translation_complete: bool = Field(
+        default=False,
+        description=(
+            "True when the parser already populated translated_name/"
+            "translated_description for items during its own LLM call "
+            "(e.g. GeminiMenuParser). Signals the pipeline to skip its "
+            "separate translation stage to avoid a redundant LLM call "
+            "that would also overwrite the parser's translations."
+        ),
+    )
     source_document: OcrSourceReference | None = None
     items: list[ParsedMenuItemDraft]
     warnings: list[OcrErrorCode] = Field(default_factory=list)

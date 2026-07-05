@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import { apiRequest } from '@/shared/lib/api'
 import {
+  getAccessToken,
   setAccessToken as setStoredAccessToken,
   clearAccessToken as clearStoredAccessToken,
   refreshAccessToken,
@@ -104,13 +105,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 4. Set Password
   const setPassword = useCallback(async (password: string) => {
-    if (!accessToken) throw new Error('Unauthenticated')
+    // Read the manager's token, not the React state copy — the state copy can
+    // lag behind a silent/401-triggered refresh (see refreshSession/mount effect).
+    const token = getAccessToken()
+    if (!token) throw new Error('Unauthenticated')
     await apiRequest('/api/v1/auth/set-password', {
       method: 'POST',
-      token: accessToken,
+      token,
       body: JSON.stringify({ password }),
     })
-  }, [accessToken])
+  }, [])
 
   const updateProfile = useCallback(async (payload: UpdateProfilePayload) => {
     if (!accessToken) throw new Error('Unauthenticated')
@@ -126,10 +130,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 5. Logout
   const logout = useCallback(async () => {
     try {
-      if (accessToken) {
+      // Same reasoning as setPassword: use the manager's token so logout still
+      // calls the backend (and actually revokes the session) even when the
+      // session was restored via silent refresh rather than an explicit login.
+      const token = getAccessToken()
+      if (token) {
         await apiRequest('/api/v1/auth/logout', {
           method: 'POST',
-          token: accessToken,
+          token,
         })
       }
     } catch (e) {
@@ -137,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       logoutState()
     }
-  }, [accessToken, logoutState])
+  }, [logoutState])
 
   // 6. Refresh Session — delegates to the token manager (single-flight, raw
   // fetch so it never recurses into apiRequest). Kept on the context for
