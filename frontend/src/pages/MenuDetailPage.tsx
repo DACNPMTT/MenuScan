@@ -32,6 +32,7 @@ import {
   validateDraft,
 } from '@/features/menu-scan/lib'
 import { BillItemCard } from '@/features/menu-scan/components/menu-detail/BillItemCard'
+import { ItemDisplayName } from '@/features/menu-scan/components/menu-detail/ItemDisplayName'
 import { ManualItemCard } from '@/features/menu-scan/components/menu-detail/ManualItemCard'
 import { MenuFilterBar } from '@/features/menu-scan/components/menu-detail/MenuFilterBar'
 import type { Bill } from '@/features/billing/types'
@@ -761,11 +762,27 @@ export function MenuDetailPage() {
               </div>
             )}
 
-            <div className="mt-8 rounded-[8px] border border-hairline bg-canvas px-4 py-4">
+            <section
+              aria-labelledby="bill-calculator-title"
+              className="mt-8 rounded-[8px] border border-hairline bg-canvas px-4 py-4"
+            >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2
+                    id="bill-calculator-title"
+                    className="mb-1 text-[16px] font-bold text-primary-dark"
+                  >
+                    Bảng tính toán
+                  </h2>
+                  <p className="mb-0 text-[13px] text-ink-variant">
+                    {selectedLines.length > 0
+                      ? `${selectedLines.length} món đã chọn`
+                      : 'Chọn món để xem tạm tính.'}
+                  </p>
+                </div>
                 <label className="flex items-center gap-3 text-[14px] font-medium text-ink">
                   <Users className="size-4 text-primary-dark" aria-hidden />
-                  Number of People
+                  Số người
                   <input
                     type="number"
                     min={1}
@@ -777,13 +794,58 @@ export function MenuDetailPage() {
                   />
                 </label>
                 <div className="flex items-center gap-2 text-[14px] text-ink-variant">
-                  <span>Estimated Per Person:</span>
+                  <span>Mỗi người dự tính:</span>
                   <strong className="text-[20px] text-primary-dark">
                     {formatMoney(perPerson, currency)}
                   </strong>
                 </div>
               </div>
-            </div>
+              {selectedLines.length > 0 && (
+                <div className="mt-4 border-t border-hairline pt-4">
+                  <div className="flex flex-col gap-2">
+                    {selectedLines.map(({ item, state }) => (
+                      <div
+                        key={item.id}
+                        className="flex items-start justify-between gap-3 rounded-[8px] bg-surface-muted px-3 py-2 text-[14px]"
+                      >
+                        <div className="min-w-0">
+                          <p className="mb-0 truncate font-semibold text-ink">
+                            {state.quantity} x{' '}
+                            <ItemDisplayName
+                              item={item}
+                              originalClassName="text-[12px] text-ink-variant/50"
+                            />
+                          </p>
+                          {state.note && (
+                            <p className="mb-0 mt-1 text-[12px] text-ink-variant">
+                              {state.note}
+                            </p>
+                          )}
+                        </div>
+                        <span className="shrink-0 font-bold text-primary-dark">
+                          {formatMoney(
+                            itemPrice(item) * state.quantity,
+                            item.currency ?? currency,
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 flex flex-col gap-2 border-t border-hairline pt-4 text-[14px] sm:items-end">
+                    <div className="flex w-full justify-between gap-3 sm:w-[280px]">
+                      <span className="text-ink-variant">Tạm tính</span>
+                      <strong className="text-ink">{formatMoney(subtotal, currency)}</strong>
+                    </div>
+                    <div className="flex w-full justify-between gap-3 sm:w-[280px]">
+                      <span className="text-ink-variant">Chia cho {peopleCount} người</span>
+                      <strong className="text-primary-dark">
+                        {formatMoney(perPerson, currency)}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
             <div className="fixed inset-x-0 bottom-0 z-20 border-t border-hairline bg-surface-muted px-4 py-[20px] shadow-[0_-10px_30px_rgba(24,29,21,0.08)] sm:px-[50px] sm:py-[30px]">
               <div className="mx-auto flex max-w-[1240px] flex-col justify-center gap-3 sm:min-h-11 sm:flex-row sm:items-center sm:justify-end">
                 <Link
@@ -806,7 +868,7 @@ export function MenuDetailPage() {
                   ) : (
                     <ReceiptText className="size-4" aria-hidden />
                   )}
-                  Show Digital Receipt
+                  Show bill
                 </button>
                 <button
                   type="button"
