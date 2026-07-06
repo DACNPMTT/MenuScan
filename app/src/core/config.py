@@ -161,6 +161,8 @@ class LlmConfig:
     api_base_url: str
     timeout_seconds: float
     fallback_model: str | None = None
+    # Key pool tried in order; a 429/quota on one key rotates to the next.
+    api_keys: tuple[str, ...] = ()
 
     def is_configured(self) -> bool:
         if self.provider == "rule_based":
@@ -365,10 +367,14 @@ def _load_ocr_config() -> OcrConfig:
 
 
 def _load_llm_config() -> LlmConfig:
+    single_key = os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY")
+    pool = _split_csv(os.getenv("GEMINI_API_KEYS"))
+    api_keys = tuple(pool) if pool else (tuple([single_key]) if single_key else ())
+
     return LlmConfig(
         provider=os.getenv("LLM_PROVIDER", DEFAULT_LLM_PROVIDER),
         model=os.getenv("LLM_MODEL", DEFAULT_LLM_MODEL),
-        api_key=os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY"),
+        api_key=api_keys[0] if api_keys else None,
         api_base_url=os.getenv(
             "LLM_API_BASE_URL",
             DEFAULT_LLM_API_BASE_URL,
@@ -379,7 +385,14 @@ def _load_llm_config() -> LlmConfig:
         fallback_model=(
             os.getenv("LLM_FALLBACK_MODEL", DEFAULT_LLM_FALLBACK_MODEL) or None
         ),
+        api_keys=api_keys,
     )
+
+
+def _split_csv(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 def _load_scan_stale_timeout_minutes() -> int:

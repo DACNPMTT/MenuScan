@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -19,7 +20,9 @@ class GeminiTranslationProvider:
     api_base_url: str
     model: str
     timeout_seconds: float
+    api_keys: tuple[str, ...] = ()
     client: httpx.Client | None = None
+    retry_backoff_seconds: float = 0.5
 
     def translate_batch(
         self,
@@ -60,18 +63,29 @@ class GeminiTranslationProvider:
         source_language: str,
         target_language: str,
     ) -> dict[str, Any]:
+        keys = self._effective_keys()
+        if not keys:
+            raise TranslationProviderError("gemini translation has no api key")
+
         owns_client = self.client is None
         client = self.client or httpx.Client(timeout=self.timeout_seconds)
+        request_body = _build_request(
+            texts=texts,
+            source_language=source_language,
+            target_language=target_language,
+        )
         try:
-            response = client.post(
-                f"{self.api_base_url}/{_model_path(self.model)}:generateContent",
-                params={"key": self.api_key},
-                json=_build_request(
-                    texts=texts,
-                    source_language=source_language,
-                    target_language=target_language,
-                ),
-            )
+            response = None
+            for index, key in enumerate(keys):
+                response = client.post(
+                    f"{self.api_base_url}/{_model_path(self.model)}:generateContent",
+                    params={"key": key},
+                    json=request_body,
+                )
+                if response.status_code == 429 and index < len(keys) - 1:
+                    _sleep_before_retry(self.retry_backoff_seconds)
+                    continue
+                break
         except httpx.TimeoutException as error:
             raise TranslationTimeoutError("gemini translation timed out") from error
         except httpx.HTTPError as error:
@@ -82,6 +96,7 @@ class GeminiTranslationProvider:
             if owns_client:
                 client.close()
 
+        assert response is not None  # noqa: S101 - loop runs at least once
         if response.status_code in {408, 504}:
             raise TranslationTimeoutError("gemini translation timed out")
         if response.status_code == 429 or response.status_code >= 500:
@@ -96,12 +111,25 @@ class GeminiTranslationProvider:
                 "gemini translation returned invalid json"
             ) from error
 
+    def _effective_keys(self) -> list[str]:
+        """The key pool to try, in order. Falls back to the single api_key."""
+        if self.api_keys:
+            keys = [key for key in self.api_keys if key]
+            if keys:
+                return keys
+        return [self.api_key] if self.api_key else []
+
 
 def _model_path(model: str) -> str:
     normalized = model.strip("/")
     if normalized.startswith("models/"):
         return normalized
     return f"models/{normalized}"
+
+
+def _sleep_before_retry(seconds: float) -> None:
+    if seconds > 0:
+        time.sleep(seconds)
 
 
 def _build_request(

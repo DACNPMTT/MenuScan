@@ -131,6 +131,7 @@ def get_translation_service() -> TranslationService:
     if config.api_key:
         provider = GeminiTranslationProvider(
             api_key=config.api_key,
+            api_keys=config.api_keys,
             api_base_url=config.api_base_url,
             model=config.model,
             timeout_seconds=config.timeout_seconds,
