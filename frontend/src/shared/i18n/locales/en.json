@@ -1,0 +1,460 @@
+{
+  "common": {
+    "appName": "MenuScan",
+    "login": "Log in",
+    "logout": "Log out",
+    "enterApp": "Open app",
+    "loading": "Loading…",
+    "save": "Save",
+    "saveChanges": "Save changes",
+    "cancel": "Cancel",
+    "back": "Back",
+    "retry": "Try again",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "backToDashboard": "Back to Dashboard"
+  },
+  "scan": {
+    "title": "Add menu",
+    "uploadCard": { "title": "Upload image / PDF", "desc": "Drag & drop or choose a file" },
+    "cameraCard": { "title": "Scan with camera", "desc": "Capture a physical menu" },
+    "dropzone": {
+      "title": "Drag & drop or click to choose a file",
+      "hint": "Supports JPG, JPEG, PNG, WEBP, PDF — up to 10 MB",
+      "aria": "Drag a file here or click to choose a file"
+    },
+    "selectedFile": "Selected file",
+    "removeAria": "Remove file {{name}}",
+    "statusTitle": "Processing status",
+    "steps": [
+      { "title": "Upload", "desc": "File attached." },
+      { "title": "AI Analysis", "desc": "Recognizing & analyzing the menu." },
+      { "title": "Extraction", "desc": "Getting dishes and prices." },
+      { "title": "Result", "desc": "Showing the dish list." }
+    ],
+    "readyToStart": "Ready to start…",
+    "translateTo": "Translate to language:",
+    "uploading": "Uploading…",
+    "start": "Start scanning",
+    "errors": {
+      "fileTooLarge": "File is too large. The maximum size is 10 MB.",
+      "unsupportedType": "Unsupported format. Only JPG, PNG, WEBP, PDF are accepted.",
+      "genericPrefix": "Error: "
+    }
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "scan": "Scan",
+    "menus": "Menus",
+    "profile": "Profile"
+  },
+  "footer": {
+    "rights": "© {{year}} MenuScan. All rights reserved."
+  },
+  "language": {
+    "label": "Language",
+    "select": "Select language"
+  },
+  "currencySelect": {
+    "label": "Currency",
+    "changeAria": "Change display currency"
+  },
+  "toast": {
+    "closeAria": "Close notification",
+    "regionAria": "Notifications"
+  },
+  "errorFallback": {
+    "title": "Something went wrong",
+    "body": "The system hit an unexpected problem. Please reload the page; if the error persists, go back home and try again later.",
+    "reload": "Reload page",
+    "toHome": "Back to home"
+  },
+  "routeError": {
+    "title": "This page hit an error",
+    "body": "The content couldn't load due to an unexpected error. Reload the page to try again, or go back to the Dashboard to continue."
+  },
+  "verify": {
+    "docTitle": "Verify",
+    "verifyingAria": "Verifying",
+    "errorTitle": "Verification isn't available yet",
+    "errorBody": "The verification link is invalid, has expired, or has already been used. Please request a new login link.",
+    "successTitle": "Email verified successfully!",
+    "successBody": "Your account is now fully set up. You can start exploring menus.",
+    "continue": "Continue"
+  },
+  "checkEmail": {
+    "bodyWithEmail": "We've sent a verification link to {{email}}. Please click the link to activate your account.",
+    "bodyNoEmail": "We've sent a verification link to your email. Please click the link to activate your account.",
+    "sending": "Sending…"
+  },
+  "register": {
+    "heading": "Create your account"
+  },
+  "magicLink": {
+    "rateLimited": "Please wait before requesting again.",
+    "emailUnavailable": "The email service is temporarily unavailable.",
+    "invalidEmail": "Invalid email.",
+    "generic": "Something went wrong. Please try again."
+  },
+  "authVerify": {
+    "docTitle": "Verify account",
+    "tokenMissing": "The verification token was not found in the URL. Please check the link in your email.",
+    "linkInvalid": "The verification link has expired or is invalid.",
+    "verifying": "Verifying your login link…",
+    "failedTitle": "Verification failed",
+    "errorTitle": "Verification error"
+  },
+  "setPassword": {
+    "docTitle": "Set password",
+    "emailVerified": "Email verified successfully!",
+    "subtitle": "Set a password to log in directly next time.",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password",
+    "minCharsPlaceholder": "Minimum 6 characters",
+    "reenterPlaceholder": "Re-enter your password",
+    "saving": "Saving…",
+    "save": "Save Password",
+    "errors": {
+      "enterPassword": "Please enter a password.",
+      "minLength": "The password must be at least 6 characters.",
+      "mismatch": "The confirmation password does not match.",
+      "saveFailed": "Something went wrong while saving the password. Please try again."
+    }
+  },
+  "dashboard": {
+    "fallbackName": "there",
+    "welcome": "Welcome back, {{name}}",
+    "systemStatus": "System status: all services operational",
+    "upload": { "title": "Upload image / PDF", "desc": "Drag & drop or choose a file from your device" },
+    "camera": { "title": "Scan with camera", "desc": "Capture a physical menu instantly" },
+    "metrics": {
+      "scanned": "Menus scanned",
+      "itemsLoaded": "Dishes loaded",
+      "historyPage": "History page"
+    },
+    "recent": "Recent scans",
+    "sessionCount_one": "{{count}} scan session",
+    "sessionCount_other": "{{count}} scan sessions",
+    "loadingHistory": "Loading scan history…",
+    "loadMore": "Load more",
+    "historyError": "Couldn't load the scan history.",
+    "dishCount_one": "{{count}} dish",
+    "dishCount_other": "{{count}} dishes",
+    "saved": "Saved",
+    "viewResult": "View result",
+    "status": {
+      "PENDING": "Pending",
+      "PROCESSING": "Processing",
+      "COMPLETED": "Completed",
+      "FAILED": "Failed"
+    },
+    "empty": {
+      "title": "No scan sessions yet",
+      "body": "Upload your first menu so MenuScan can extract the dish list.",
+      "scanNow": "Scan a menu now"
+    }
+  },
+  "menus": {
+    "savedMenus": "Saved menus",
+    "title": "Menus",
+    "scanNew": "Scan a new menu",
+    "finalReview": "Final review",
+    "menuCount_one": "{{count}} menu",
+    "menuCount_other": "{{count}} menus",
+    "loading": "Loading menus…",
+    "loadMore": "Load more",
+    "empty": "No menus yet. After scanning, confirm the final review so the menu appears here.",
+    "confirmed": "Confirmed",
+    "draft": "Draft",
+    "dishCount_one": "{{count}} dish",
+    "dishCount_other": "{{count}} dishes",
+    "view": "View",
+    "deleteAria": "Delete {{title}}",
+    "toast": { "deleted": "Menu deleted" },
+    "errors": {
+      "loadFailed": "Couldn't load the menu list.",
+      "deleteFailed": "Couldn't delete the menu."
+    }
+  },
+  "camera": {
+    "title": "Scan with camera",
+    "backToUpload": "Back to upload",
+    "capturedAlt": "Captured photo",
+    "unavailable": "Camera unavailable.",
+    "capture": "Take photo",
+    "retake": "Retake",
+    "useThis": "Use this photo",
+    "hint": "Place the menu in the frame, make sure it's well lit and not blurry.",
+    "errors": {
+      "denied": "Camera access was denied. Please allow camera access in your browser.",
+      "notFound": "No camera was found on the device.",
+      "openFailed": "Couldn't open the camera. Please try again.",
+      "uploadFailed": "Couldn't upload the photo. Please try again."
+    }
+  },
+  "menuDetail": {
+    "backToMenus": "Back to Menus",
+    "loading": "Loading menu…",
+    "loadingShort": "Loading…",
+    "loadMore": "Load more",
+    "notFound": "Menu not found.",
+    "sourceImage": "Original menu image",
+    "sourceLoadFailed": "Couldn't load the original image.",
+    "unsavedConfirm": "You have unsaved changes. Leaving will discard these edits?",
+    "deleteMenu": "Delete menu",
+    "confirmed": "Confirmed",
+    "draft": "Draft",
+    "dishCount_one": "{{count}} dish",
+    "dishCount_other": "{{count}} dishes",
+    "unsavedChanges_one": "{{count}} dish has unsaved edits.",
+    "unsavedChanges_other": "{{count}} dishes have unsaved edits.",
+    "searching": "Finding matching dishes…",
+    "resultCount_one": "{{count}} dish",
+    "resultCount_other": "{{count}} dishes",
+    "resultCountOf_one": "{{count}} dish of {{total}}",
+    "resultCountOf_other": "{{count}} dishes of {{total}}",
+    "noFilterMatch": "No dishes match the filter.",
+    "clearFilters": "Clear filters",
+    "noItems": "No dishes in this menu yet.",
+    "calcTitle": "Bill calculator",
+    "selectedCount_one": "{{count}} dish selected",
+    "selectedCount_other": "{{count}} dishes selected",
+    "selectPrompt": "Select dishes to see the subtotal.",
+    "peopleCount": "People",
+    "perPerson": "Per person:",
+    "subtotal": "Subtotal",
+    "splitAmong_one": "Split among {{count}} person",
+    "splitAmong_other": "Split among {{count}} people",
+    "scanAnother": "Scan another menu",
+    "showBill": "Show bill",
+    "confirmedBtn": "Confirmed",
+    "reviewConfirm": "Review / Confirm",
+    "confirmDeleteItem": "Remove \"{{name}}\" from the menu?",
+    "toast": {
+      "itemSaved": "Dish saved",
+      "itemDeleted": "Dish deleted",
+      "itemAdded": "Dish added",
+      "menuConfirmed": "Menu confirmed",
+      "createReceiptFailed": "Couldn't create the receipt"
+    },
+    "errors": {
+      "loadFailed": "Couldn't load the menu.",
+      "loadItemsFailed": "Couldn't load the dish list.",
+      "saveItemFailed": "Couldn't save the dish.",
+      "deleteItemFailed": "Couldn't delete the dish.",
+      "deleteMenuFailed": "Couldn't delete the menu.",
+      "addManualFailed": "Couldn't save the manual dish.",
+      "confirmMenuFailed": "Couldn't confirm the menu.",
+      "tryAgain": "Please try again."
+    }
+  },
+  "manualItem": {
+    "name": "Item Name",
+    "price": "Price",
+    "note": "Description/Note",
+    "save": "Save Item"
+  },
+  "filter": {
+    "searchPlaceholder": "Search dishes by name or description…",
+    "searchAria": "Search dishes",
+    "clearSearchAria": "Clear search",
+    "minPrice": "Min price",
+    "minPriceAria": "Minimum price",
+    "maxPrice": "to",
+    "maxPriceAria": "Maximum price",
+    "addItem": "Add dish",
+    "allCategories": "All"
+  },
+  "billItem": {
+    "lowConfidence": "Low OCR confidence ({{value}}%).",
+    "allergyWarning": "WARNING: Allergy Match Found (Seafood)",
+    "namePlaceholder": "Dish name",
+    "originalNamePlaceholder": "Name on the image",
+    "pricePlaceholder": "Price",
+    "categoryPlaceholder": "Category",
+    "currencyPlaceholder": "Currency",
+    "descPlaceholder": "Description",
+    "originalDescPlaceholder": "Description on the image",
+    "addNote": "Add note…",
+    "editAria": "Edit {{name}}",
+    "decreaseAria": "Decrease {{name}}",
+    "increaseAria": "Increase {{name}}",
+    "errors": {
+      "nameRequired": "The original name can't be empty.",
+      "priceInvalid": "The price must be a non-negative number."
+    }
+  },
+  "receipt": {
+    "ticket": "Digital Order Ticket",
+    "order": "Order {{id}}",
+    "subtotal": "Subtotal",
+    "total": "Total",
+    "splitAmong": "Split among",
+    "people_one": "{{count}} person",
+    "people_other": "{{count}} people",
+    "perPersonPays": "Each person pays",
+    "finalizing": "Finalizing…",
+    "finalize": "Issue receipt",
+    "backToEdit": "Back to edit bill",
+    "finalized": "Finalized · cannot be edited"
+  },
+  "billReceipt": {
+    "docTitle": "Receipt",
+    "backToMenu": "Back to menu",
+    "backToMenus": "Back to Menus",
+    "loading": "Loading receipt…",
+    "toast": { "finalized": "Receipt finalized", "finalizeFailed": "Couldn't finalize the receipt" },
+    "errors": { "loadFailed": "Couldn't load the receipt." }
+  },
+  "profile": {
+    "interfaceLanguage": "Interface language",
+    "account": "Account",
+    "refresh": "Refresh",
+    "loading": "Loading profile…",
+    "setPassword": "Set password",
+    "infoTitle": "Profile information",
+    "displayName": "Display name",
+    "enterDisplayName": "Enter a display name",
+    "email": "Email",
+    "noEmail": "No email",
+    "notSet": "Not set",
+    "fallbackUser": "User",
+    "preferredLanguage": "Preferred language",
+    "role": "Role",
+    "statusLabel": "Status",
+    "createdAt": "Created at",
+    "roleLabels": { "USER": "User", "ADMIN": "Administrator" },
+    "statusLabels": { "ACTIVE": "Active", "LOCKED": "Locked", "DISABLED": "Disabled" },
+    "languageLabels": { "vi": "Vietnamese", "en": "English" },
+    "errors": {
+      "nameTooLong": "The display name can be at most 150 characters.",
+      "updateFailed": "Couldn't update the profile. Please try again.",
+      "loadFailed": "Couldn't load the full account information."
+    }
+  },
+  "scanResult": {
+    "title": "Scan result",
+    "retryScan": "Scan again",
+    "processing": { "title": "Processing menu", "default": "Processing" },
+    "stages": {
+      "UPLOADING": "Uploading the file",
+      "OCR": "Recognizing text (OCR)",
+      "ANALYZING": "Analyzing the menu layout",
+      "TRANSLATING": "Translating the dishes",
+      "FINALIZING": "Finalizing"
+    },
+    "dishCount_one": "{{count}} dish",
+    "dishCount_other": "{{count}} dishes",
+    "detected": "Detected:",
+    "translatedTo": "Translated to:",
+    "chooseAndSplit": "Choose dishes & split the bill",
+    "confirmed": "Confirmed",
+    "confirmMenu": "Confirm menu",
+    "saved": "Saved",
+    "saveMenu": "Save menu",
+    "sourceFile": "Source file",
+    "extractedItems": "Extracted dishes",
+    "scanAnother": "Scan another menu",
+    "noItems": {
+      "title": "No dishes could be extracted",
+      "body": "The image may be unclear, not a menu, or the OCR provider isn't configured. Try again with a clearer menu."
+    },
+    "toast": {
+      "saved": "Menu saved",
+      "unsaved": "Menu unsaved",
+      "confirmed": "Menu confirmed"
+    },
+    "errors": {
+      "resultLoadFailed": "Scan finished but the result couldn't be loaded.",
+      "scanFailed": "Scan failed. Please try again.",
+      "statusFailed": "Couldn't fetch the scan status.",
+      "tookTooLong": "The scan is taking longer than expected. Please come back later.",
+      "saveFailed": "Couldn't update the menu saved state.",
+      "confirmFailed": "Couldn't confirm the final review."
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The page you opened does not exist in MenuScan.",
+    "toDashboard": "Back to Dashboard",
+    "toHome": "Back to home",
+    "home": "MenuScan home"
+  },
+  "auth": {
+    "welcomeBack": "Welcome back",
+    "signinSubtitle": "Sign in to MenuScan",
+    "registerSubtitle": "Create your new account",
+    "continueGoogle": "Continue with Google",
+    "googleUnavailable": "Google sign-in is not available in the MVP yet.",
+    "or": "OR",
+    "errorTitle": "Error",
+    "successTitle": "Success",
+    "emailLabel": "Email Address",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "Enter your password",
+    "loggingIn": "Logging in…",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "forgotPassword": "Forgot password?",
+    "forgotPasswordHint": "To recover your account, choose \"Sign up / passwordless login\" to receive a quick magic link.",
+    "processing": "Processing…",
+    "signUp": "Sign Up",
+    "logIn": "Log In",
+    "haveAccount": "Already have an account?",
+    "noAccount": "Don't have an account?",
+    "checkInbox": "Check your inbox!",
+    "inboxTextBefore": "We've sent a verification link to",
+    "inboxTextAfter": "Click the link in the email to activate your account.",
+    "resendIn": "Resend in ({{seconds}}s)",
+    "resendEmail": "Resend verification email",
+    "backToLogin": "Back to login",
+    "fillEmailPassword": "Please enter both email and password.",
+    "invalidCredentials": "Incorrect email or password.",
+    "fillEmail": "Please enter your email to continue.",
+    "linkSent": "Login link sent!",
+    "sendFailed": "Couldn't send the email. Please try again later."
+  },
+  "landing": {
+    "nav": {
+      "features": "Features",
+      "howItWorks": "How it works",
+      "signup": "Sign up"
+    },
+    "hero": {
+      "title": "Turn menu photos into structured data",
+      "subtitle": "Automatically extract dishes, prices, descriptions, and dietary information from any physical menu image in seconds.",
+      "startScanning": "Start scanning"
+    },
+    "stats": {
+      "badge": "By the numbers",
+      "labels": ["Menus digitized", "Avg. processing", "Field accuracy", "Always available"]
+    },
+    "features": [
+      { "title": "Upload image", "body": "Drag and drop or select a photo of any restaurant menu." },
+      { "title": "Scan camera", "body": "Use your device's camera to capture a menu directly in real-time." },
+      { "title": "Extract data", "body": "Instantly receive structured JSON with items, prices, and categories." }
+    ],
+    "how": {
+      "title": "How it Works",
+      "steps": [
+        { "title": "Upload", "body": "Provide menu image." },
+        { "title": "AI Analysis", "body": "Engine processes image." },
+        { "title": "Extraction", "body": "Structure data mapped." },
+        { "title": "Review", "body": "Export or edit results." }
+      ]
+    },
+    "testimonials": {
+      "title": "What customers say",
+      "subtitle": "People everywhere are digitizing menus with MenuScan.",
+      "items": [
+        { "quote": "MenuScan cut our menu entry time by 80%.", "name": "Minh Anh", "role": "Manager · Cafe Sài Gòn", "initials": "MA" },
+        { "quote": "The OCR handles accented Vietnamese menus well, with few fixes needed.", "name": "Hoàng Nguyên", "role": "Owner · Phở 24", "initials": "HN" },
+        { "quote": "We get JSON right after upload — integration was very fast.", "name": "Trần Vy", "role": "Dev · FoodApp", "initials": "TV" }
+      ]
+    }
+  }
+}

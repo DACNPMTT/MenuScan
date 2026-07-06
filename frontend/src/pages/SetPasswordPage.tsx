@@ -1,13 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 
 export function SetPasswordPage() {
-  useDocumentTitle('Thiết lập mật khẩu | MenuScan')
+  const { t } = useTranslation()
+  useDocumentTitle(`${t('setPassword.docTitle')} | MenuScan`)
   const navigate = useNavigate()
   const { user, loading, setPassword } = useAuth()
 
@@ -26,15 +28,15 @@ export function SetPasswordPage() {
   const handleSetPassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!password) {
-      setPasswordError('Vui lòng nhập mật khẩu.')
+      setPasswordError(t('setPassword.errors.enterPassword'))
       return
     }
     if (password.length < 6) {
-      setPasswordError('Mật khẩu phải chứa ít nhất 6 ký tự.')
+      setPasswordError(t('setPassword.errors.minLength'))
       return
     }
     if (password !== confirmPassword) {
-      setPasswordError('Mật khẩu xác nhận không khớp.')
+      setPasswordError(t('setPassword.errors.mismatch'))
       return
     }
 
@@ -45,7 +47,7 @@ export function SetPasswordPage() {
       // Navigate to app dashboard on success
       navigate('/app', { replace: true })
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Có lỗi xảy ra khi lưu mật khẩu. Vui lòng thử lại.'
+      const message = err instanceof Error ? err.message : t('setPassword.errors.saveFailed')
       setPasswordError(message)
     } finally {
       setSavingPassword(false)
@@ -68,40 +70,40 @@ export function SetPasswordPage() {
           </div>
           <div className="flex flex-col gap-[7px]">
             <p className="text-[20px] leading-[30px] text-ink">
-              Email verified successfully!
+              {t('setPassword.emailVerified')}
             </p>
             <p className="text-[15px] leading-[22px] text-ink-variant">
-              Thiết lập mật khẩu để đăng nhập trực tiếp lần sau.
+              {t('setPassword.subtitle')}
             </p>
           </div>
         </header>
 
         <form onSubmit={handleSetPassword} noValidate className="flex flex-col gap-[30px] pb-4">
           <label className="flex flex-col gap-[5px]">
-            <span className="text-[14px] leading-[14px] text-ink">New Password</span>
+            <span className="text-[14px] leading-[14px] text-ink">{t('setPassword.newPassword')}</span>
             <Input
               type="password"
               required
               autoComplete="new-password"
               value={password}
               onChange={(event) => setPasswordInput(event.target.value)}
-              placeholder="Minimum 6 characters"
-              aria-label="New Password"
+              placeholder={t('setPassword.minCharsPlaceholder')}
+              aria-label={t('setPassword.newPassword')}
               disabled={savingPassword}
               className="rounded-none border-0 border-b border-hairline bg-transparent px-0 py-1 text-[16px] text-ink shadow-none placeholder:text-placeholder focus-visible:border-primary-dark focus-visible:ring-0"
             />
           </label>
 
           <label className="flex flex-col gap-[5px]">
-            <span className="text-[14px] leading-[14px] text-ink">Confirm Password</span>
+            <span className="text-[14px] leading-[14px] text-ink">{t('setPassword.confirmPassword')}</span>
             <Input
               type="password"
               required
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
-              placeholder="Re-enter your password"
-              aria-label="Confirm Password"
+              placeholder={t('setPassword.reenterPlaceholder')}
+              aria-label={t('setPassword.confirmPassword')}
               disabled={savingPassword}
               className="rounded-none border-0 border-b border-hairline bg-transparent px-0 py-1 text-[16px] text-ink shadow-none placeholder:text-placeholder focus-visible:border-primary-dark focus-visible:ring-0"
             />
@@ -118,7 +120,7 @@ export function SetPasswordPage() {
             disabled={savingPassword}
             className="h-12 rounded-full bg-primary text-[17px] font-bold text-white hover:bg-primary/90"
           >
-            {savingPassword ? 'Đang lưu...' : 'Save Password'}
+            {savingPassword ? t('setPassword.saving') : t('setPassword.save')}
           </Button>
         </form>
       </div>

@@ -10,6 +10,7 @@ import {
   Trash2,
   Utensils,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
 import { ApiError, apiRequest, apiRequestWithMeta } from '@/shared/lib/api'
@@ -34,6 +35,7 @@ function formatTime(value: string): string {
 }
 
 export function MenusPage() {
+  const { t } = useTranslation()
   useDocumentTitle('Menus | MenuScan')
   const toast = useToast()
   const { accessToken } = useAuth()
@@ -60,14 +62,14 @@ export function MenusPage() {
         setMeta(result.meta)
       } catch (err) {
         setError(
-          err instanceof ApiError ? err.message : 'Không thể tải danh sách menu.',
+          err instanceof ApiError ? err.message : t('menus.errors.loadFailed'),
         )
       } finally {
         setLoading(false)
         setLoadingMore(false)
       }
     },
-    [accessToken],
+    [accessToken, t],
   )
 
   useEffect(() => {
@@ -87,9 +89,9 @@ export function MenusPage() {
       setMeta((current) =>
         current ? { ...current, total: Math.max(0, current.total - 1) } : current,
       )
-      toast.show({ variant: 'success', title: 'Đã xóa menu' })
+      toast.show({ variant: 'success', title: t('menus.toast.deleted') })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không thể xóa menu.')
+      setError(err instanceof ApiError ? err.message : t('menus.errors.deleteFailed'))
     } finally {
       setDeletingId(null)
     }
@@ -102,10 +104,10 @@ export function MenusPage() {
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-2">
           <p className="text-[13px] font-bold uppercase tracking-[0.7px] text-ink-variant">
-            Menu đã lưu
+            {t('menus.savedMenus')}
           </p>
           <h1 className="text-[32px] font-bold leading-[40px] text-primary-dark sm:text-[44px] sm:leading-[52px]">
-            Menus
+            {t('menus.title')}
           </h1>
         </div>
         <Link
@@ -113,7 +115,7 @@ export function MenusPage() {
           className="flex min-h-10 w-fit items-center gap-2 rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
         >
           <ScanLine className="size-4" aria-hidden />
-          Quét menu mới
+          {t('menus.scanNew')}
         </Link>
       </header>
 
@@ -132,7 +134,7 @@ export function MenusPage() {
             className="flex min-h-9 w-fit items-center gap-2 rounded-[8px] border border-destructive/30 px-3 py-1.5 text-[13px] font-bold text-destructive transition-colors hover:bg-destructive/10"
           >
             <RefreshCw className="size-4" aria-hidden />
-            Thử lại
+            {t('common.retry')}
           </button>
         </div>
       )}
@@ -140,22 +142,21 @@ export function MenusPage() {
       <section className="mt-[25px] overflow-hidden rounded-[12px] border border-hairline bg-canvas">
         <div className="flex items-center justify-between border-b border-hairline bg-app-bg px-[20px] py-[16px]">
           <h2 className="text-[20px] leading-[28px] text-primary-dark">
-            Review cuối
+            {t('menus.finalReview')}
           </h2>
           {meta && (
-            <span className="text-[13px] text-ink-variant">{meta.total} menu</span>
+            <span className="text-[13px] text-ink-variant">{t('menus.menuCount', { count: meta.total })}</span>
           )}
         </div>
 
         {loading ? (
           <MenuMessage icon={<Loader2 className="size-7 animate-spin" />}>
-            Đang tải menu...
+            {t('menus.loading')}
           </MenuMessage>
         ) : menus.length === 0 ? (
           <>
             <MenuMessage icon={<Utensils className="size-7" />}>
-              Chưa có menu nào. Sau khi scan xong, hãy xác nhận review cuối để
-              menu xuất hiện ở đây.
+              {t('menus.empty')}
             </MenuMessage>
             <div className="flex justify-center px-[20px] pb-[40px]">
               <Link
@@ -163,7 +164,7 @@ export function MenusPage() {
                 className="flex min-h-10 items-center gap-2 rounded-[8px] bg-primary-dark px-5 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
               >
                 <ScanLine className="size-4" aria-hidden />
-                Quét menu mới
+                {t('menus.scanNew')}
               </Link>
             </div>
           </>
@@ -191,7 +192,7 @@ export function MenusPage() {
                   ) : (
                     <RefreshCw className="size-4" aria-hidden />
                   )}
-                  Tải thêm
+                  {t('menus.loadMore')}
                 </button>
               </div>
             )}
@@ -213,6 +214,7 @@ function MenuRow({
   deleting: boolean
   onDelete: (menuId: string) => Promise<void>
 }) {
+  const { t } = useTranslation()
   return (
     <div className="grid grid-cols-[56px_minmax(0,1fr)] gap-4 px-[20px] py-[16px] sm:grid-cols-[64px_minmax(0,1fr)_auto]">
       <MenuThumbnail source={menu.source} accessToken={accessToken} />
@@ -226,11 +228,11 @@ function MenuRow({
           </h3>
           <span className="flex items-center gap-1 rounded-full bg-[#e4f4df] px-2.5 py-0.5 text-[12px] font-bold text-[#256b2b]">
             <CheckCircle2 className="size-3.5" aria-hidden />
-            {menu.status === 'CONFIRMED' ? 'Đã xác nhận' : 'Bản nháp'}
+            {menu.status === 'CONFIRMED' ? t('menus.confirmed') : t('menus.draft')}
           </span>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-variant">
-          <span>{menu.item_count} món</span>
+          <span>{t('menus.dishCount', { count: menu.item_count })}</span>
           <span>{menu.source.file_name}</span>
           <span>{formatTime(menu.updated_at)}</span>
         </div>
@@ -240,13 +242,13 @@ function MenuRow({
           to={`/app/menus/${menu.id}`}
           className="rounded-[8px] border border-primary-dark px-4 py-2 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10"
         >
-          Xem
+          {t('menus.view')}
         </Link>
         <button
           type="button"
           onClick={() => void onDelete(menu.id)}
           disabled={deleting}
-          aria-label={`Xóa ${menu.title}`}
+          aria-label={t('menus.deleteAria', { title: menu.title })}
           className="flex size-10 items-center justify-center rounded-[8px] border border-destructive/30 text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {deleting ? (

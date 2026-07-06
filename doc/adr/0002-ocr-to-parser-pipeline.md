@@ -96,6 +96,11 @@ The upload validator already enforces a page limit (`max_pages` from
   be empty/null when using the LLM parser, because the model receives only
   text and has no access to bounding box geometry. This is an accepted
   trade-off for MVP.
+  **Superseded in part by ADR 0003:** the Gemini parser now also receives the
+  menu page image(s) (hybrid image + OCR text). OCR is retained as the
+  character/price anchor and benchmark intermediate; `source_references` /
+  per-item confidence remain empty. See
+  [ADR 0003](0003-multimodal-menu-parser.md).
 - A live OCR benchmark (CER/WER, price accuracy, line recall) against
   `doc/ocr-benchmark/dataset/ground_truth.json` must pass the quality gates
   in `doc/ocr-benchmark/README.md` before any adapter is wired to production

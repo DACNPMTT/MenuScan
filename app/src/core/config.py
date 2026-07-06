@@ -27,9 +27,21 @@ DEFAULT_OCR_CONTRAST_FACTOR = "1.1"
 DEFAULT_GOOGLE_VISION_API_BASE_URL = "https://vision.googleapis.com/v1"
 
 DEFAULT_LLM_PROVIDER = "rule_based"
-DEFAULT_LLM_TIMEOUT_SECONDS = "20"
+# Large menus (50+ items) can take ~135s for the model to generate the full
+# structured JSON. A low timeout trips LlmMenuParserTimeoutError and degrades to
+# the weaker fallback model, which under-extracts. Keep this comfortably above
+# real large-menu latency.
+DEFAULT_LLM_TIMEOUT_SECONDS = "180"
 DEFAULT_LLM_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 DEFAULT_LLM_MODEL = "gemini-2.5-flash"
+# Multimodal parsing: attach the menu page image(s) to the Gemini parse call
+# alongside OCR text (ADR 0003). The image drives layout / column-price
+# association / grouping; OCR text stays the character-and-price anchor. Only
+# the "gemini" provider consumes it; rule-based ignores images.
+DEFAULT_LLM_MULTIMODAL = "true"
+# Downscale ceiling for images sent to the LLM. Smaller than the OCR ceiling to
+# bound image-token cost and latency, since the model reads layout, not fine print.
+DEFAULT_LLM_IMAGE_MAX_DIMENSION = "1536"
 # Secondary Gemini model tried automatically when the primary model is quota-
 # exhausted (429) or unavailable, before degrading to the rule-based parser.
 # It has a separate, more generous free-tier daily quota than gemini-2.5-flash.
@@ -161,8 +173,13 @@ class LlmConfig:
     api_base_url: str
     timeout_seconds: float
     fallback_model: str | None = None
-    # Key pool tried in order; a 429/quota on one key rotates to the next.
+    multimodal: bool = True
+    image_max_dimension: int = int(DEFAULT_LLM_IMAGE_MAX_DIMENSION)
+    # Key pool tried in order; a 429/quota on one key rotates to the next for the
+    # same model before degrading to the next model in ``models``.
     api_keys: tuple[str, ...] = ()
+    # Model failover chain (strongest first). Each model uses the full key pool.
+    models: tuple[str, ...] = ()
 
     def is_configured(self) -> bool:
         if self.provider == "rule_based":
@@ -367,13 +384,25 @@ def _load_ocr_config() -> OcrConfig:
 
 
 def _load_llm_config() -> LlmConfig:
+    model = os.getenv("LLM_MODEL", DEFAULT_LLM_MODEL)
+    fallback_model = os.getenv("LLM_FALLBACK_MODEL", DEFAULT_LLM_FALLBACK_MODEL) or None
+
+    # Key pool: GEMINI_API_KEYS (comma-separated) wins; otherwise the single key.
     single_key = os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY")
     pool = _split_csv(os.getenv("GEMINI_API_KEYS"))
     api_keys = tuple(pool) if pool else (tuple([single_key]) if single_key else ())
 
+    # Model failover chain: LLM_MODELS (comma-separated) wins; otherwise the
+    # primary model followed by the distinct fallback model.
+    models_env = _split_csv(os.getenv("LLM_MODELS"))
+    if models_env:
+        models = tuple(models_env)
+    else:
+        models = (model,) + ((fallback_model,) if fallback_model and fallback_model != model else ())
+
     return LlmConfig(
         provider=os.getenv("LLM_PROVIDER", DEFAULT_LLM_PROVIDER),
-        model=os.getenv("LLM_MODEL", DEFAULT_LLM_MODEL),
+        model=models[0] if models else model,
         api_key=api_keys[0] if api_keys else None,
         api_base_url=os.getenv(
             "LLM_API_BASE_URL",
@@ -382,10 +411,13 @@ def _load_llm_config() -> LlmConfig:
         timeout_seconds=float(
             os.getenv("LLM_TIMEOUT_SECONDS", DEFAULT_LLM_TIMEOUT_SECONDS)
         ),
-        fallback_model=(
-            os.getenv("LLM_FALLBACK_MODEL", DEFAULT_LLM_FALLBACK_MODEL) or None
+        fallback_model=fallback_model,
+        multimodal=_env_bool("LLM_MULTIMODAL", DEFAULT_LLM_MULTIMODAL),
+        image_max_dimension=int(
+            os.getenv("LLM_IMAGE_MAX_DIMENSION", DEFAULT_LLM_IMAGE_MAX_DIMENSION)
         ),
         api_keys=api_keys,
+        models=models,
     )
 
 
@@ -409,6 +441,11 @@ def _env_or_default(name: str, default: str) -> str:
     if value is None or not value.strip():
         return default
     return value
+
+
+def _env_bool(name: str, default: str) -> bool:
+    value = os.getenv(name, default).strip().lower()
+    return value in {"1", "true", "yes", "on"}
 
 
 _load_local_env_file()

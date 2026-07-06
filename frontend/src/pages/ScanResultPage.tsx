@@ -11,6 +11,7 @@ import {
   RefreshCw,
   XCircle,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
 import { apiRequest, ApiError } from '@/shared/lib/api'
@@ -37,14 +38,6 @@ function resolveUrl(path: string): string {
 const POLL_INTERVAL_MS = 1500
 const MAX_POLL_MS = 180_000 // 3 min cap; the pipeline finishes well under this.
 
-const STAGE_LABELS: Record<string, string> = {
-  UPLOADING: 'Đang tải file lên',
-  OCR: 'Đang nhận dạng văn bản (OCR)',
-  ANALYZING: 'Đang phân tích bố cục menu',
-  TRANSLATING: 'Đang dịch các món',
-  FINALIZING: 'Đang hoàn tất',
-}
-
 const LANGUAGE_MAP: Record<string, string> = {
   vi: '🇻🇳 Tiếng Việt',
   en: '🇺🇸 English',
@@ -58,7 +51,8 @@ const LANGUAGE_MAP: Record<string, string> = {
 export function ScanResultPage() {
   const { scanId } = useParams<{ scanId: string }>()
   const { accessToken } = useAuth()
-  useDocumentTitle('Kết quả quét | MenuScan')
+  const { t } = useTranslation()
+  useDocumentTitle(`${t('scanResult.title')} | MenuScan`)
 
   const [detail, setDetail] = useState<ScanDetail | null>(null)
   const [result, setResult] = useState<ScanResult | null>(null)
@@ -92,7 +86,7 @@ export function ScanResultPage() {
               setError(
                 err instanceof ApiError
                   ? err.message
-                  : 'Quét hoàn tất nhưng không tải được kết quả.',
+                  : t('scanResult.errors.resultLoadFailed'),
               )
             }
           }
@@ -104,10 +98,10 @@ export function ScanResultPage() {
             const err = current.error
             const msg =
               err == null
-                ? 'Quét thất bại. Vui lòng thử lại.'
+                ? t('scanResult.errors.scanFailed')
                 : typeof err === 'string'
                   ? err
-                  : (err as ScanError).message || 'Quét thất bại. Vui lòng thử lại.'
+                  : (err as ScanError).message || t('scanResult.errors.scanFailed')
             setError(msg)
           }
           return
@@ -116,12 +110,12 @@ export function ScanResultPage() {
         if (Date.now() - startedAt.current < MAX_POLL_MS) {
           timer = window.setTimeout(poll, POLL_INTERVAL_MS)
         } else {
-          setError('Quét đang mất nhiều thời gian hơn dự kiến. Vui lòng quay lại sau.')
+          setError(t('scanResult.errors.tookTooLong'))
         }
       } catch (err) {
         if (cancelled) return
         setError(
-          err instanceof ApiError ? err.message : 'Không thể lấy trạng thái quét.',
+          err instanceof ApiError ? err.message : t('scanResult.errors.statusFailed'),
         )
       }
     }
@@ -131,7 +125,7 @@ export function ScanResultPage() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [scanId, accessToken])
+  }, [scanId, accessToken, t])
 
   const status = detail?.status
   const handleSavedChange = (isSaved: boolean) => {
@@ -166,7 +160,7 @@ export function ScanResultPage() {
         className="mb-6 flex w-fit items-center gap-2 text-[14px] text-ink-variant transition-colors hover:text-primary-dark"
       >
         <ArrowLeft className="size-4" aria-hidden />
-        Về Dashboard
+        {t('common.backToDashboard')}
       </Link>
 
       {error && (
@@ -183,7 +177,7 @@ export function ScanResultPage() {
             className="flex w-fit items-center gap-2 rounded-[8px] border border-destructive/30 px-4 py-2 text-[14px] font-medium text-destructive transition-colors hover:bg-destructive/10"
           >
             <RefreshCw className="size-4" aria-hidden />
-            Thử quét lại
+            {t('scanResult.retryScan')}
           </Link>
         </div>
       )}
@@ -203,17 +197,19 @@ export function ScanResultPage() {
 }
 
 function ProcessingView({ detail }: { detail: ScanDetail | null }) {
+  const { t } = useTranslation()
   const progress = detail?.progress ?? 0
+  const fallbackStage = t('scanResult.processing.default')
   const stageLabel = detail?.stage
-    ? (STAGE_LABELS[detail.stage] ?? 'Đang xử lý')
-    : 'Đang xử lý'
+    ? t(`scanResult.stages.${detail.stage}`, { defaultValue: fallbackStage })
+    : fallbackStage
   return (
     <div className="flex flex-col gap-6 rounded-[12px] border border-hairline bg-canvas p-[30px]">
       <div className="flex items-center gap-3">
         <Loader2 className="size-6 animate-spin text-primary-dark" aria-hidden />
         <div className="flex flex-col">
           <h1 className="text-[24px] font-bold leading-[30px] text-primary-dark">
-            Đang xử lý menu
+            {t('scanResult.processing.title')}
           </h1>
           <p className="text-[14px] text-ink-variant">{stageLabel}</p>
         </div>
@@ -242,6 +238,7 @@ function ResultView({
   onSavedChange: (isSaved: boolean) => void
   onConfirmed: (menu: MenuDetail) => void
 }) {
+  const { t } = useTranslation()
   const items = result.menu?.items ?? []
   const toast = useToast()
   const source = result.scan.source
@@ -270,13 +267,13 @@ function ResultView({
       onSavedChange(updated.is_saved)
       toast.show({
         variant: 'success',
-        title: nextSaved ? 'Đã lưu menu' : 'Đã bỏ lưu menu',
+        title: nextSaved ? t('scanResult.toast.saved') : t('scanResult.toast.unsaved'),
       })
     } catch (err) {
       setSaveError(
         err instanceof ApiError
           ? err.message
-          : 'Không thể cập nhật trạng thái lưu menu.',
+          : t('scanResult.errors.saveFailed'),
       )
     } finally {
       setSaving(false)
@@ -296,12 +293,12 @@ function ResultView({
         },
       )
       onConfirmed(confirmed)
-      toast.show({ variant: 'success', title: 'Đã xác nhận menu' })
+      toast.show({ variant: 'success', title: t('scanResult.toast.confirmed') })
     } catch (err) {
       setConfirmError(
         err instanceof ApiError
           ? err.message
-          : 'Không thể xác nhận bản review cuối.',
+          : t('scanResult.errors.confirmFailed'),
       )
     } finally {
       setConfirming(false)
@@ -317,20 +314,20 @@ function ResultView({
           </span>
           <div className="flex flex-col">
             <h1 className="text-[28px] font-bold leading-[34px] text-primary-dark">
-              {result.menu?.title || 'Kết quả quét'}
+              {result.menu?.title || t('scanResult.title')}
             </h1>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <span className="text-[14px] text-ink-variant">
-                {items.length} món · {source.file_name}
+                {t('scanResult.dishCount', { count: items.length })} · {source.file_name}
               </span>
               <span className="hidden text-[14px] text-ink-variant sm:inline">•</span>
               {result.scan.detected_language && (
                 <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[12px] font-medium text-ink-variant">
-                  Phát hiện: {LANGUAGE_MAP[result.scan.detected_language] || result.scan.detected_language.toUpperCase()}
+                  {t('scanResult.detected')} {LANGUAGE_MAP[result.scan.detected_language] || result.scan.detected_language.toUpperCase()}
                 </span>
               )}
               <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[12px] font-medium text-primary-dark">
-                Dịch sang: {LANGUAGE_MAP[result.scan.target_language] || result.scan.target_language.toUpperCase()}
+                {t('scanResult.translatedTo')} {LANGUAGE_MAP[result.scan.target_language] || result.scan.target_language.toUpperCase()}
               </span>
             </div>
           </div>
@@ -342,7 +339,7 @@ function ResultView({
               className="flex min-h-10 items-center gap-2 rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
             >
               <ListChecks className="size-4" aria-hidden />
-              Chọn món &amp; chia hóa đơn
+              {t('scanResult.chooseAndSplit')}
             </Link>
             <button
               type="button"
@@ -355,7 +352,7 @@ function ResultView({
               ) : (
                 <Check className="size-4" aria-hidden />
               )}
-              {result.menu.status === 'CONFIRMED' ? 'Đã xác nhận' : 'Xác nhận menu'}
+              {result.menu.status === 'CONFIRMED' ? t('scanResult.confirmed') : t('scanResult.confirmMenu')}
             </button>
             <button
               type="button"
@@ -371,7 +368,7 @@ function ResultView({
               ) : (
                 <Bookmark className="size-4" aria-hidden />
               )}
-              {result.menu.is_saved ? 'Đã lưu' : 'Lưu menu'}
+              {result.menu.is_saved ? t('scanResult.saved') : t('scanResult.saveMenu')}
             </button>
             {saveError && (
               <span role="alert" className="text-[13px] text-destructive">
@@ -410,6 +407,7 @@ function SourcePreview({
   source: ScanResult['scan']['source']
   accessToken: string | null
 }) {
+  const { t } = useTranslation()
   const [objectUrl, setObjectUrl] = useState<string | null>(null)
   const isImage = source.mime_type.startsWith('image/')
 
@@ -435,7 +433,7 @@ function SourcePreview({
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[14px] font-medium uppercase tracking-[0.7px] text-ink-variant">
-        File gốc
+        {t('scanResult.sourceFile')}
       </p>
       <div className="overflow-hidden rounded-[12px] border border-hairline bg-surface-muted">
         {isImage ? (
@@ -476,11 +474,12 @@ function ItemsList({
   rates: ExchangeRates | null
   onCurrencyChange: (currency: string) => void
 }) {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-[14px] font-medium uppercase tracking-[0.7px] text-ink-variant">
-          Món trích xuất
+          {t('scanResult.extractedItems')}
         </p>
         {items.length > 0 && (
           <CurrencySelect value={displayCurrency} onChange={onCurrencyChange} />
@@ -491,18 +490,17 @@ function ItemsList({
           <XCircle className="size-8 text-ink-variant" aria-hidden />
           <div className="flex flex-col gap-1">
             <p className="text-[15px] font-medium text-ink">
-              Không trích xuất được món nào
+              {t('scanResult.noItems.title')}
             </p>
             <p className="max-w-[340px] text-[14px] text-ink-variant">
-              Ảnh có thể không rõ, không phải menu, hoặc nhà cung cấp OCR chưa
-              được cấu hình. Thử lại với menu rõ hơn.
+              {t('scanResult.noItems.body')}
             </p>
           </div>
           <Link
             to="/app/scan"
             className="mt-1 rounded-[8px] bg-primary-dark px-[20px] py-[10px] text-[15px] font-bold text-white transition-opacity hover:opacity-90"
           >
-            Quét menu khác
+            {t('scanResult.scanAnother')}
           </Link>
         </div>
       ) : (

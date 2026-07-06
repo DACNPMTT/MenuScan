@@ -25,9 +25,10 @@ from src.modules.menu_scan.exceptions import (
     ScanNotReadyError,
     SourceFileNotFoundError,
     StorageUnavailableError,
+    TooManyPagesError,
     UnsupportedFileTypeError,
 )
-from src.modules.menu_scan.models import ScanSession, ScanStatus
+from src.modules.menu_scan.models import ScanSession, ScanSourceFile, ScanStatus
 from src.modules.menu_scan.repository import ScanSessionRepository
 from src.modules.menu_scan.schemas import (
     MenuItemData,
@@ -46,7 +47,11 @@ from src.modules.menu_scan.schemas import (
 logger = logging.getLogger(__name__)
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
-MAX_PDF_PAGES = 5
+MAX_PDF_PAGES = 8
+MAX_PAGES_PER_SCAN = 8
+# One scan may bundle several files (multiple photos or a multi-page PDF). Cap
+# the combined payload so a scan can't hold 8 × 10 MB in memory at once.
+MAX_TOTAL_UPLOAD_BYTES = 40 * 1024 * 1024
 SUPPORTED_TARGET_LANGUAGES = {"vi", "en", "zh", "ja", "ko", "fr", "th"}
 SUPPORTED_MIME_TYPES = {
     "application/pdf",
@@ -56,6 +61,14 @@ SUPPORTED_MIME_TYPES = {
 }
 _PDF_PAGE_PATTERN = re.compile(rb"/Type\s*/Page(?!s)\b")
 _SAFE_FILENAME_PATTERN = re.compile(r"[^A-Za-z0-9._ -]+")
+
+
+@dataclass(frozen=True, slots=True)
+class UploadCandidate:
+    """A raw uploaded file before validation (as received by the router)."""
+
+    file_name: str | None
+    content: bytes
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,45 +103,79 @@ class ScanService:
         self,
         *,
         user: User | None,
-        file_name: str | None,
-        content: bytes,
+        files: list[UploadCandidate],
         target_language: str | None,
     ) -> ScanCreatedData:
         language = _resolve_target_language(user, target_language)
-        source_file = _validate_source_file(
-            file_name=file_name,
-            content=content,
-        )
+        if not files:
+            raise EmptyUploadError()
+
+        # Validate each file and compute the combined page/byte budget.
+        sources = [
+            _validate_source_file(file_name=candidate.file_name, content=candidate.content)
+            for candidate in files
+        ]
+        if sum(source.file_size for source in sources) > MAX_TOTAL_UPLOAD_BYTES:
+            raise FileTooLargeError(MAX_TOTAL_UPLOAD_BYTES)
+        page_counts = [_page_count(source) for source in sources]
+        if sum(page_counts) > MAX_PAGES_PER_SCAN:
+            raise TooManyPagesError(MAX_PAGES_PER_SCAN)
+
         scan_id = uuid.uuid4()
-        object_key = build_source_object_key(
+        base_key = build_source_object_key(
             user_id=user.id if user else None,
             scan_id=scan_id,
         )
 
-        self._save_object(
-            key=object_key,
-            data=source_file.data,
-            content_type=source_file.mime_type,
-        )
+        saved_keys: list[str] = []
+        try:
+            for index, source in enumerate(sources):
+                # First file keeps the historical key; extras get a suffix. This
+                # keeps single-file scans byte-for-byte compatible.
+                key = base_key if index == 0 else f"{base_key}-{index}"
+                self._save_object(
+                    key=key,
+                    data=source.data,
+                    content_type=source.mime_type,
+                )
+                saved_keys.append(key)
+        except Exception:
+            for key in saved_keys:
+                self._cleanup_orphan(key)
+            raise
+
+        primary = sources[0]
         try:
             scan = ScanSession(
                 id=scan_id,
                 user_id=user.id if user else None,
-                source_object_key=object_key,
-                source_file_name=source_file.file_name,
-                source_mime_type=source_file.mime_type,
-                source_file_size=source_file.file_size,
-                source_page_count=_page_count(source_file),
+                source_object_key=saved_keys[0],
+                source_file_name=primary.file_name,
+                source_mime_type=primary.mime_type,
+                source_file_size=primary.file_size,
+                source_page_count=sum(page_counts),
                 target_language=language,
                 status=ScanStatus.PENDING,
                 progress=0,
                 created_at=datetime.now(timezone.utc),
             )
+            scan.source_files = [
+                ScanSourceFile(
+                    object_key=saved_keys[index],
+                    file_name=source.file_name,
+                    mime_type=source.mime_type,
+                    file_size=source.file_size,
+                    page_count=page_counts[index],
+                    sort_order=index,
+                )
+                for index, source in enumerate(sources)
+            ]
             self._repository.add(self._session, scan)
             self._session.commit()
         except Exception:
             self._session.rollback()
-            self._cleanup_orphan(object_key)
+            for key in saved_keys:
+                self._cleanup_orphan(key)
             raise
 
         return _scan_created_data(scan)

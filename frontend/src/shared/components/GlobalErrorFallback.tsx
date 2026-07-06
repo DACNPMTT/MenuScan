@@ -1,5 +1,6 @@
 import { AlertTriangle } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 interface GlobalErrorFallbackProps {
   error: Error
@@ -10,6 +11,7 @@ interface GlobalErrorFallbackProps {
  * page with a reload (the reliable way back) and a safe link to the landing
  * page. The stack is never shown in production. */
 export function GlobalErrorFallback({ error, onReset }: GlobalErrorFallbackProps) {
+  const { t } = useTranslation()
   void onReset // app-level recovery is reload, not reset (re-render re-throws)
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-5 bg-app-bg px-4 py-10 text-center">
@@ -18,11 +20,10 @@ export function GlobalErrorFallback({ error, onReset }: GlobalErrorFallbackProps
       </span>
       <div className="flex flex-col gap-2">
         <h1 className="text-[24px] font-bold leading-[30px] text-primary-dark">
-          Đã có lỗi xảy ra
+          {t('errorFallback.title')}
         </h1>
         <p className="max-w-[420px] text-[14px] text-ink-variant">
-          Hệ thống gặp sự cố không mong muốn. Vui lòng tải lại trang; nếu lỗi
-          tiếp tục, quay lại trang chủ và thử lại sau.
+          {t('errorFallback.body')}
         </p>
       </div>
       <div className="flex flex-col items-center gap-3 sm:flex-row">
@@ -31,13 +32,13 @@ export function GlobalErrorFallback({ error, onReset }: GlobalErrorFallbackProps
           onClick={() => window.location.reload()}
           className="flex min-h-10 items-center justify-center rounded-[8px] bg-primary-dark px-6 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
         >
-          Tải lại trang
+          {t('errorFallback.reload')}
         </button>
         <Link
           to="/"
           className="flex min-h-10 items-center justify-center rounded-[8px] border border-hairline bg-canvas px-6 text-[14px] font-bold text-ink transition-colors hover:bg-surface-muted"
         >
-          Về trang chủ
+          {t('errorFallback.toHome')}
         </Link>
       </div>
       {import.meta.env.DEV && (

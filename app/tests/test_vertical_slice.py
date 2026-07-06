@@ -363,9 +363,9 @@ class TestUploadFailurePaths:
         assert r.status_code == 413
         assert r.json()["error"]["code"] == "FILE_TOO_LARGE"
 
-    def test_pdf_exceeding_5_pages_returns_422(self, auth_client):
-        """PDF > 5 trang → 422."""
-        pdf_bytes = b"%PDF-1.4\n" + b"/Type /Page\n" * 6 + b"%%EOF\n"
+    def test_pdf_exceeding_page_limit_returns_422(self, auth_client):
+        """PDF > 8 trang → 422."""
+        pdf_bytes = b"%PDF-1.4\n" + b"/Type /Page\n" * 9 + b"%%EOF\n"
         r = auth_client.post(
             "/api/v1/scans",
             files={"file": ("long.pdf", pdf_bytes, "application/octet-stream")},

@@ -171,7 +171,12 @@
                                                 "10.000đ"
                                             ],
                         "items":  [
-
+                                      { "name": "Cơm tấm sườn", "price_text": "65.000đ", "price": "65000.00", "currency": "VND" },
+                                      { "name": "Cơm gà xối mỡ", "price_text": "58.000đ", "price": "58000.00", "currency": "VND" },
+                                      { "name": "Canh chua", "price_text": "35.000đ", "price": "35000.00", "currency": "VND" },
+                                      { "name": "Trà tắc", "price_text": "18.000đ", "price": "18000.00", "currency": "VND" },
+                                      { "name": "Bánh flan", "price_text": "20.000đ", "price": "20000.00", "currency": "VND" },
+                                      { "name": "Nước suối", "price_text": "10.000đ", "price": "10000.00", "currency": "VND" }
                                   ]
                     },
                     {
@@ -204,7 +209,12 @@
                                                 "45.000đ"
                                             ],
                         "items":  [
-
+                                      { "name": "Mực nướng muối ớt", "price_text": "120.000đ", "price": "120000.00", "currency": "VND" },
+                                      { "name": "Tôm hấp bia", "price_text": "180.000đ", "price": "180000.00", "currency": "VND" },
+                                      { "name": "Ghẹ rang me", "price_text": "250.000đ", "price": "250000.00", "currency": "VND" },
+                                      { "name": "Ốc hương xào bơ", "price_text": "150.000đ", "price": "150000.00", "currency": "VND" },
+                                      { "name": "Cháo hàu", "price_text": "80.000đ", "price": "80000.00", "currency": "VND" },
+                                      { "name": "Rau muống xào tỏi", "price_text": "45.000đ", "price": "45000.00", "currency": "VND" }
                                   ]
                     },
                     {

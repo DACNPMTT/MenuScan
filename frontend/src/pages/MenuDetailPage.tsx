@@ -12,6 +12,7 @@ import {
   Users,
   XCircle,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
 import { ApiError, apiRequest, apiRequestWithMeta } from '@/shared/lib/api'
@@ -24,7 +25,6 @@ import {
   ALL_CATEGORY,
   ITEMS_PAGE_SIZE,
   SEARCH_DEBOUNCE_MS,
-  UNSAVED_CHANGES_MESSAGE,
   draftFromItem,
   draftMatchesItem,
   itemCategory,
@@ -50,6 +50,7 @@ import type {
 } from '@/features/menu-scan/types'
 
 export function MenuDetailPage() {
+  const { t } = useTranslation()
   const { menuId } = useParams<{ menuId: string }>()
   const navigate = useNavigate()
   const { accessToken } = useAuth()
@@ -119,11 +120,11 @@ export function MenuDetailPage() {
       setItemSaveErrors({})
       setEditingItemIds(new Set())
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không thể tải menu.')
+      setError(err instanceof ApiError ? err.message : t('menuDetail.errors.loadFailed'))
     } finally {
       setLoading(false)
     }
-  }, [accessToken, menuId])
+  }, [accessToken, menuId, t])
 
   useEffect(() => {
     void Promise.resolve().then(loadMenu)
@@ -161,7 +162,7 @@ export function MenuDetailPage() {
   }, [hasUnsavedChanges])
 
   const confirmLeaveWithUnsavedChanges = () =>
-    !hasUnsavedChanges || window.confirm(UNSAVED_CHANGES_MESSAGE)
+    !hasUnsavedChanges || window.confirm(t('menuDetail.unsavedConfirm'))
 
   // Items shown in the grid: server-filtered results while a filter is active,
   // otherwise the full set embedded in the menu detail (no extra request).
@@ -219,13 +220,13 @@ export function MenuDetailPage() {
       } catch (err) {
         if (requestId !== requestIdRef.current || controller.signal.aborted) return
         setItemsError(
-          err instanceof ApiError ? err.message : 'Không thể tải danh sách món.',
+          err instanceof ApiError ? err.message : t('menuDetail.errors.loadItemsFailed'),
         )
       } finally {
         if (requestId === requestIdRef.current) setItemsLoading(false)
       }
     },
-    [accessToken, menuId, normalizedMaxPrice, normalizedMinPrice, trimmedSearch],
+    [accessToken, menuId, normalizedMaxPrice, normalizedMinPrice, trimmedSearch, t],
   )
 
   // Refetch on menu change or whenever the debounced filters settle. Skipping
@@ -343,7 +344,7 @@ export function MenuDetailPage() {
   const handleSaveItem = async (item: BillItem) => {
     if (!menuId || savingItemId) return
     const draft = itemDrafts[item.id] ?? draftFromItem(item, currency)
-    const validationErrors = validateDraft(draft)
+    const validationErrors = validateDraft(draft, t)
     if (Object.keys(validationErrors).length > 0) {
       setItemValidationErrors((current) => ({
         ...current,
@@ -384,11 +385,11 @@ export function MenuDetailPage() {
       )
       cancelItemDraft(item.id)
       closeItemEdit(item.id)
-      toast.show({ variant: 'success', title: 'Đã lưu món' })
+      toast.show({ variant: 'success', title: t('menuDetail.toast.itemSaved') })
     } catch (err) {
       setItemSaveErrors((current) => ({
         ...current,
-        [item.id]: err instanceof ApiError ? err.message : 'Không thể lưu món.',
+        [item.id]: err instanceof ApiError ? err.message : t('menuDetail.errors.saveItemFailed'),
       }))
     } finally {
       setSavingItemId(null)
@@ -397,7 +398,7 @@ export function MenuDetailPage() {
 
   const handleDeleteItem = async (item: BillItem) => {
     if (!menuId || deletingItemId) return
-    const shouldDelete = window.confirm(`Xóa món "${item.original_name}" khỏi menu?`)
+    const shouldDelete = window.confirm(t('menuDetail.confirmDeleteItem', { name: item.original_name }))
     if (!shouldDelete) return
 
     setDeletingItemId(item.id)
@@ -431,11 +432,11 @@ export function MenuDetailPage() {
       )
       cancelItemDraft(item.id)
       closeItemEdit(item.id)
-      toast.show({ variant: 'success', title: 'Đã xóa món' })
+      toast.show({ variant: 'success', title: t('menuDetail.toast.itemDeleted') })
     } catch (err) {
       setItemSaveErrors((current) => ({
         ...current,
-        [item.id]: err instanceof ApiError ? err.message : 'Không thể xóa món.',
+        [item.id]: err instanceof ApiError ? err.message : t('menuDetail.errors.deleteItemFailed'),
       }))
     } finally {
       setDeletingItemId(null)
@@ -454,7 +455,7 @@ export function MenuDetailPage() {
       })
       navigate('/app/menus', { replace: true })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không thể xóa menu.')
+      setError(err instanceof ApiError ? err.message : t('menuDetail.errors.deleteMenuFailed'))
       setDeleting(false)
     }
   }
@@ -499,10 +500,10 @@ export function MenuDetailPage() {
       setManualPrice('')
       setManualNote('')
       setActiveCategory('All')
-      toast.show({ variant: 'success', title: 'Đã thêm món' })
+      toast.show({ variant: 'success', title: t('menuDetail.toast.itemAdded') })
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : 'Không thể lưu món thủ công.',
+        err instanceof ApiError ? err.message : t('menuDetail.errors.addManualFailed'),
       )
     } finally {
       setAddingManual(false)
@@ -530,10 +531,10 @@ export function MenuDetailPage() {
             }
           : confirmed,
       )
-      toast.show({ variant: 'success', title: 'Đã xác nhận menu' })
+      toast.show({ variant: 'success', title: t('menuDetail.toast.menuConfirmed') })
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : 'Không thể xác nhận menu.',
+        err instanceof ApiError ? err.message : t('menuDetail.errors.confirmMenuFailed'),
       )
     } finally {
       setConfirming(false)
@@ -564,8 +565,8 @@ export function MenuDetailPage() {
       const description = err instanceof ApiError ? err.message : undefined
       toast.show({
         variant: 'error',
-        title: 'Không thể tạo biên nhận',
-        description: description ?? 'Vui lòng thử lại.',
+        title: t('menuDetail.toast.createReceiptFailed'),
+        description: description ?? t('menuDetail.errors.tryAgain'),
       })
     } finally {
       setCreatingBill(false)
@@ -583,7 +584,7 @@ export function MenuDetailPage() {
           className="mb-5 flex w-fit items-center gap-2 text-[14px] text-ink-variant transition-colors hover:text-primary-dark"
         >
           <ArrowLeft className="size-4" aria-hidden />
-          Về Menus
+          {t('menuDetail.backToMenus')}
         </Link>
 
         {error && (
@@ -599,7 +600,7 @@ export function MenuDetailPage() {
         {loading ? (
           <div className="flex flex-col items-center gap-4 rounded-[8px] border border-hairline bg-canvas px-4 py-[70px] text-center text-ink-variant">
             <Loader2 className="size-8 animate-spin text-primary-dark" aria-hidden />
-            Đang tải menu...
+            {t('menuDetail.loading')}
           </div>
         ) : menu ? (
           <>
@@ -608,10 +609,10 @@ export function MenuDetailPage() {
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <span className="flex items-center gap-1 rounded-full bg-[#e4f4df] px-2.5 py-0.5 text-[12px] font-bold text-[#256b2b]">
                     <CheckCircle2 className="size-3.5" aria-hidden />
-                    {menu.status === 'CONFIRMED' ? 'Đã xác nhận' : 'Bản nháp'}
+                    {menu.status === 'CONFIRMED' ? t('menuDetail.confirmed') : t('menuDetail.draft')}
                   </span>
                   <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[12px] font-medium text-ink-variant">
-                    {allItems.length} món
+                    {t('menuDetail.dishCount', { count: allItems.length })}
                   </span>
                 </div>
                 <h1 className="mb-1 text-[30px] font-bold leading-[38px] text-primary-dark sm:text-[38px] sm:leading-[46px]">
@@ -632,7 +633,7 @@ export function MenuDetailPage() {
                 ) : (
                   <Trash2 className="size-4" aria-hidden />
                 )}
-                Xóa menu
+                {t('menuDetail.deleteMenu')}
               </button>
             </header>
 
@@ -641,7 +642,7 @@ export function MenuDetailPage() {
             {hasUnsavedChanges && (
               <div className="mb-5 flex items-center gap-3 rounded-[8px] border border-[#d7a315]/40 bg-[#fff8e2] px-4 py-3 text-[14px] font-medium text-[#80600d]">
                 <AlertCircle className="size-4 shrink-0" aria-hidden />
-                Có {dirtyItemIds.length} món đang chỉnh sửa chưa lưu.
+                {t('menuDetail.unsavedChanges', { count: dirtyItemIds.length })}
               </div>
             )}
 
@@ -673,8 +674,8 @@ export function MenuDetailPage() {
 
             <p className="mb-3 text-[13px] text-ink-variant" aria-live="polite">
               {itemsLoading && hasActiveFilter
-                ? 'Đang tìm món phù hợp...'
-                : `${filteredItems.length} món${hasActiveFilter && itemsMeta ? ` trên ${itemsMeta.total}` : ''}`}
+                ? t('menuDetail.searching')
+                : (hasActiveFilter && itemsMeta ? t('menuDetail.resultCountOf', { count: filteredItems.length, total: itemsMeta.total }) : t('menuDetail.resultCount', { count: filteredItems.length }))}
             </p>
 
             <main className="grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -728,24 +729,24 @@ export function MenuDetailPage() {
                   <XCircle className="size-7" aria-hidden />
                   {hasActiveFilter ? (
                     <>
-                      <span>Không có món phù hợp với bộ lọc.</span>
+                      <span>{t('menuDetail.noFilterMatch')}</span>
                       <button
                         type="button"
                         onClick={handleClearFilters}
                         className="rounded-[8px] border border-primary-dark px-4 py-2 text-[13px] font-bold text-primary-dark transition-colors hover:bg-primary/10"
                       >
-                        Xóa bộ lọc
+                        {t('menuDetail.clearFilters')}
                       </button>
                     </>
                   ) : (
-                    <span>Chưa có món nào trong menu.</span>
+                    <span>{t('menuDetail.noItems')}</span>
                   )}
                 </div>
               )}
               {itemsLoading && hasActiveFilter && filteredItems.length === 0 && (
                 <div className="col-span-full flex min-h-[170px] items-center justify-center gap-3 rounded-[8px] border border-dashed border-hairline bg-canvas/70 p-6 text-[14px] text-ink-variant">
                   <Loader2 className="size-6 animate-spin text-primary-dark" aria-hidden />
-                  Đang tải...
+                  {t('menuDetail.loadingShort')}
                 </div>
               )}
             </main>
@@ -763,7 +764,7 @@ export function MenuDetailPage() {
                   ) : (
                     <Plus className="size-4" aria-hidden />
                   )}
-                  Tải thêm
+                  {t('menuDetail.loadMore')}
                 </button>
               </div>
             )}
@@ -778,12 +779,12 @@ export function MenuDetailPage() {
                     id="bill-calculator-title"
                     className="mb-1 text-[16px] font-bold text-primary-dark"
                   >
-                    Bảng tính toán
+                    {t('menuDetail.calcTitle')}
                   </h2>
                   <p className="mb-0 text-[13px] text-ink-variant">
                     {selectedLines.length > 0
-                      ? `${selectedLines.length} món đã chọn`
-                      : 'Chọn món để xem tạm tính.'}
+                      ? t('menuDetail.selectedCount', { count: selectedLines.length })
+                      : t('menuDetail.selectPrompt')}
                   </p>
                 </div>
                 <CurrencySelect
@@ -792,7 +793,7 @@ export function MenuDetailPage() {
                 />
                 <label className="flex items-center gap-3 text-[14px] font-medium text-ink">
                   <Users className="size-4 text-primary-dark" aria-hidden />
-                  Số người
+                  {t('menuDetail.peopleCount')}
                   <input
                     type="number"
                     min={1}
@@ -804,7 +805,7 @@ export function MenuDetailPage() {
                   />
                 </label>
                 <div className="flex items-center gap-2 text-[14px] text-ink-variant">
-                  <span>Mỗi người dự tính:</span>
+                  <span>{t('menuDetail.perPerson')}</span>
                   <strong className="text-[20px] text-primary-dark">
                     {formatConvertedAmount(perPerson, currency, displayCurrency, exchangeRates)}
                   </strong>
@@ -845,13 +846,13 @@ export function MenuDetailPage() {
                   </div>
                   <div className="mt-4 flex flex-col gap-2 border-t border-hairline pt-4 text-[14px] sm:items-end">
                     <div className="flex w-full justify-between gap-3 sm:w-[280px]">
-                      <span className="text-ink-variant">Tạm tính</span>
+                      <span className="text-ink-variant">{t('menuDetail.subtotal')}</span>
                       <strong className="text-ink">
                         {formatConvertedAmount(subtotal, currency, displayCurrency, exchangeRates)}
                       </strong>
                     </div>
                     <div className="flex w-full justify-between gap-3 sm:w-[280px]">
-                      <span className="text-ink-variant">Chia cho {peopleCount} người</span>
+                      <span className="text-ink-variant">{t('menuDetail.splitAmong', { count: peopleCount })}</span>
                       <strong className="text-primary-dark">
                         {formatConvertedAmount(perPerson, currency, displayCurrency, exchangeRates)}
                       </strong>
@@ -869,7 +870,7 @@ export function MenuDetailPage() {
                   }}
                   className="flex min-h-11 items-center justify-center rounded-[8px] border border-hairline bg-canvas px-5 text-[14px] font-bold text-ink transition-colors hover:bg-white"
                 >
-                  Scan Another Menu
+                  {t('menuDetail.scanAnother')}
                 </Link>
                 <button
                   type="button"
@@ -882,7 +883,7 @@ export function MenuDetailPage() {
                   ) : (
                     <ReceiptText className="size-4" aria-hidden />
                   )}
-                  Show bill
+                  {t('menuDetail.showBill')}
                 </button>
                 <button
                   type="button"
@@ -893,7 +894,7 @@ export function MenuDetailPage() {
                   {confirming ? (
                     <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
                   ) : null}
-                  {menu.status === 'CONFIRMED' ? 'Confirmed' : 'Review / Confirm'}
+                  {menu.status === 'CONFIRMED' ? t('menuDetail.confirmedBtn') : t('menuDetail.reviewConfirm')}
                 </button>
               </div>
             </div>
@@ -912,18 +913,18 @@ export function MenuDetailPage() {
               className="flex min-h-10 items-center gap-2 rounded-[8px] border border-destructive/30 px-4 py-2 text-[14px] font-medium text-destructive transition-colors hover:bg-destructive/10"
             >
               <RefreshCw className="size-4" aria-hidden />
-              Thử lại
+              {t('common.retry')}
             </button>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4 rounded-[8px] border border-hairline bg-canvas px-4 py-[70px] text-center text-ink-variant">
             <XCircle className="size-8 text-destructive" aria-hidden />
-            <p className="text-[15px] font-medium text-ink">Không tìm thấy menu.</p>
+            <p className="text-[15px] font-medium text-ink">{t('menuDetail.notFound')}</p>
             <Link
               to="/app/menus"
               className="rounded-[8px] bg-primary-dark px-5 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
             >
-              Về Menus
+              {t('menuDetail.backToMenus')}
             </Link>
           </div>
         )}

@@ -1,4 +1,6 @@
 import { Loader2, Plus, Search, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { ALL_CATEGORY } from '@/features/menu-scan/lib'
 
 export interface MenuFilterBarProps {
   searchInput: string
@@ -33,6 +35,7 @@ export function MenuFilterBar({
   addingManual,
   onAddManualItem,
 }: MenuFilterBarProps) {
+  const { t } = useTranslation()
   return (
     <div className="mb-6 flex flex-col gap-3">
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
@@ -45,15 +48,15 @@ export function MenuFilterBar({
             type="text"
             value={searchInput}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Tìm món theo tên hoặc mô tả..."
-            aria-label="Tìm kiếm món"
+            placeholder={t('filter.searchPlaceholder')}
+            aria-label={t('filter.searchAria')}
             className="h-11 w-full rounded-[8px] border border-hairline bg-canvas pl-10 pr-9 text-[14px] text-ink outline-none transition-colors placeholder:text-placeholder focus:border-primary-dark"
           />
           {searchInput && (
             <button
               type="button"
               onClick={() => onSearchChange('')}
-              aria-label="Xóa tìm kiếm"
+              aria-label={t('filter.clearSearchAria')}
               className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-ink-variant transition-colors hover:bg-surface-muted hover:text-ink"
             >
               <X className="size-4" aria-hidden />
@@ -67,8 +70,8 @@ export function MenuFilterBar({
               inputMode="decimal"
               value={minPriceInput}
               onChange={(event) => onMinPriceChange(event.target.value)}
-              placeholder="Giá từ"
-              aria-label="Giá tối thiểu"
+              placeholder={t('filter.minPrice')}
+              aria-label={t('filter.minPriceAria')}
               className="h-full w-[88px] bg-transparent px-3 text-[14px] text-ink outline-none placeholder:text-placeholder"
             />
             <span className="select-none px-1 text-ink-variant" aria-hidden>
@@ -79,8 +82,8 @@ export function MenuFilterBar({
               inputMode="decimal"
               value={maxPriceInput}
               onChange={(event) => onMaxPriceChange(event.target.value)}
-              placeholder="đến"
-              aria-label="Giá tối đa"
+              placeholder={t('filter.maxPrice')}
+              aria-label={t('filter.maxPriceAria')}
               className="h-full w-[88px] bg-transparent pr-3 text-[14px] text-ink outline-none placeholder:text-placeholder"
             />
           </div>
@@ -95,7 +98,7 @@ export function MenuFilterBar({
             ) : (
               <Plus className="size-4" aria-hidden />
             )}
-            Thêm món
+            {t('filter.addItem')}
           </button>
         </div>
       </div>
@@ -111,7 +114,7 @@ export function MenuFilterBar({
                 : 'h-9 rounded-full border border-hairline bg-canvas px-4 text-[13px] font-medium text-primary-dark transition-colors hover:bg-surface-muted'
             }
           >
-            {category}
+            {category === ALL_CATEGORY ? t('filter.allCategories') : category}
           </button>
         ))}
         {hasActiveFilter && (
@@ -121,7 +124,7 @@ export function MenuFilterBar({
             className="ml-auto flex h-9 items-center gap-1.5 rounded-full border border-hairline bg-canvas px-3 text-[13px] font-medium text-ink-variant transition-colors hover:bg-surface-muted hover:text-ink"
           >
             <X className="size-3.5" aria-hidden />
-            Xóa bộ lọc
+            {t('menuDetail.clearFilters')}
           </button>
         )}
       </div>

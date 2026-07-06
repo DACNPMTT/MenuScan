@@ -88,6 +88,12 @@ class ScanSession(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    source_files: Mapped[list["ScanSourceFile"]] = relationship(
+        back_populates="scan_session",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="ScanSourceFile.sort_order",
+    )
 
     __table_args__ = (
         CheckConstraint(
@@ -100,7 +106,7 @@ class ScanSession(Base):
             name="file_size",
         ),
         CheckConstraint(
-            "source_page_count BETWEEN 1 AND 5",
+            "source_page_count BETWEEN 1 AND 8",
             name="page_count",
         ),
         CheckConstraint(
@@ -117,6 +123,64 @@ class ScanSession(Base):
             name="completed_at",
         ),
         Index("ix_scan_sessions_user_id", user_id),
+    )
+
+
+class ScanSourceFile(Base):
+    """One uploaded source file for a scan.
+
+    A scan may carry several pages (multiple images uploaded together, or a
+    multi-page PDF). ``scan_sessions.source_*`` holds the first/primary file for
+    preview and history; this table holds every page in upload order so the
+    pipeline can OCR them all and merge into one document.
+    """
+
+    __tablename__ = "scan_source_files"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    scan_session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "scan_sessions.id",
+            name="fk_scan_source_files_scan_session_id_scan_sessions",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+    object_key: Mapped[str] = mapped_column(Text, nullable=False)
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    file_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    page_count: Mapped[int] = mapped_column(
+        SmallInteger,
+        nullable=False,
+        server_default="1",
+    )
+    sort_order: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    scan_session: Mapped[ScanSession] = relationship(back_populates="source_files")
+
+    __table_args__ = (
+        CheckConstraint(
+            "mime_type IN "
+            "('image/jpeg', 'image/png', 'image/webp', 'application/pdf')",
+            name="source_file_mime_type",
+        ),
+        CheckConstraint(
+            "file_size BETWEEN 1 AND 10485760",
+            name="source_file_size",
+        ),
+        CheckConstraint("sort_order >= 0", name="source_file_sort_order"),
+        Index("ix_scan_source_files_scan_session_id", scan_session_id),
     )
 
 

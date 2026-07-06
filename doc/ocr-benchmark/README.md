@@ -54,6 +54,21 @@ python doc\ocr-benchmark\measure_provider_output.py `
   --csv-output doc\ocr-benchmark\results\google_vision.csv
 ```
 
+### Parse-accuracy (text-only vs multimodal B2)
+
+`measure_parse_accuracy.py` scores item name-recall and price-accuracy of the
+`GeminiMenuParser` against samples that have item-level ground truth, running it
+both text-only and with the page image attached (ADR 0003). It makes live
+Vision + Gemini calls (quota, rate-limited) — run manually, not in CI:
+
+```powershell
+python doc\ocr-benchmark\measure_parse_accuracy.py            # all item-truth samples
+python doc\ocr-benchmark\measure_parse_accuracy.py ocr-019 ocr-020  # subset
+```
+
+Note: the synthetic dataset is clean, so text-only and B2 often tie here; the
+gap widens on genuine skewed/multi-column photos.
+
 ## Minimum MVP Gates
 
 The team should not integrate a provider into production scan orchestration

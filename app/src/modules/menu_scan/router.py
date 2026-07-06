@@ -20,7 +20,7 @@ from src.modules.identity.dependencies import get_current_user, get_optional_cur
 from src.modules.identity.models import User
 from src.modules.menu_scan.dependencies import get_scan_pipeline, get_scan_service
 from src.modules.menu_scan.pipeline import ScanPipeline
-from src.modules.menu_scan.service import ScanService
+from src.modules.menu_scan.service import ScanService, UploadCandidate
 
 logger = logging.getLogger(__name__)
 
@@ -30,16 +30,26 @@ router = APIRouter(prefix="/scans", tags=["scans"])
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
 async def create_scan(
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
+    files: list[UploadFile] = File(default=[]),
+    file: UploadFile | None = File(default=None),
     target_language: str | None = Form(default=None),
     current_user: User | None = Depends(get_optional_current_user),
     service: ScanService = Depends(get_scan_service),
     pipeline: ScanPipeline = Depends(get_scan_pipeline),
 ) -> dict[str, object]:
+    # Accept the multi-file field ``files`` (up to 8 pages) and the legacy
+    # single-file field ``file`` for backward compatibility.
+    uploads = list(files)
+    if file is not None:
+        uploads.append(file)
+    candidates = [
+        UploadCandidate(file_name=upload.filename, content=await upload.read())
+        for upload in uploads
+    ]
+
     data = service.create_scan(
         user=current_user,
-        file_name=file.filename,
-        content=await file.read(),
+        files=candidates,
         target_language=target_language,
     )
     background_tasks.add_task(_run_pipeline, pipeline, data.id)

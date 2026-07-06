@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FileText, ImageIcon, Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { getAccessToken, refreshAccessToken } from '@/shared/lib/auth-token'
 import { API_BASE_URL } from '@/features/menu-scan/lib'
 import type { MenuDetail } from '@/features/menu-scan/types'
@@ -12,6 +13,7 @@ export interface SourcePreviewProps {
 /** Fetches the original menu file (image or PDF) with auth and renders a
  * preview, refreshing the access token once on 401/403. */
 export function SourcePreview({ source, accessToken }: SourcePreviewProps) {
+  const { t } = useTranslation()
   const [objectUrl, setObjectUrl] = useState<string | null>(null)
   const [previewError, setPreviewError] = useState(false)
   const isImage = source.mime_type.startsWith('image/')
@@ -78,7 +80,7 @@ export function SourcePreview({ source, accessToken }: SourcePreviewProps) {
         ) : previewError ? (
           <div className="flex flex-col items-center gap-2 text-center text-[13px] text-ink-variant">
             <FileText className="size-7" aria-hidden />
-            Không thể tải ảnh gốc.
+            {t('menuDetail.sourceLoadFailed')}
           </div>
         ) : (
           <Loader2 className="size-6 animate-spin text-primary-dark" aria-hidden />
@@ -87,7 +89,7 @@ export function SourcePreview({ source, accessToken }: SourcePreviewProps) {
       <div className="flex min-w-0 flex-col justify-center gap-3">
         <div className="flex items-center gap-2 text-primary-dark">
           <ImageIcon className="size-5" aria-hidden />
-          <h2 className="mb-0 text-[18px] font-bold">Ảnh menu gốc</h2>
+          <h2 className="mb-0 text-[18px] font-bold">{t('menuDetail.sourceImage')}</h2>
         </div>
         <p className="mb-0 truncate text-[14px] text-ink-variant">
           {source.file_name}

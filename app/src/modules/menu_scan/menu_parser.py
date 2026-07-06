@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unicodedata
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -71,8 +72,14 @@ class MenuParser(Protocol):
         document: OcrDocument,
         *,
         target_language: str = "en",
+        images: Sequence[bytes] | None = None,
     ) -> ParsedMenuDraft:
-        """Convert provider-neutral OCR output into a parsed menu draft."""
+        """Convert provider-neutral OCR output into a parsed menu draft.
+
+        ``images`` are the preprocessed page image bytes (one per page). A
+        multimodal parser may attach them to its request; parsers that work
+        from text alone ignore them.
+        """
         ...
 
 
@@ -83,7 +90,9 @@ class RuleBasedMenuParser:
         document: OcrDocument,
         *,
         target_language: str = "en",
+        images: Sequence[bytes] | None = None,
     ) -> ParsedMenuDraft:
+        # Rule-based parsing is text/geometry only; images are ignored.
         return parse_menu(document, target_language=target_language)
 
 

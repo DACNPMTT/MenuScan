@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { AlertCircle, ArrowLeft, Loader2, RefreshCw } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
 import { ApiError, apiRequest } from '@/shared/lib/api'
@@ -9,7 +10,8 @@ import { DigitalReceipt } from '@/features/billing/components/DigitalReceipt'
 import type { Bill, BillSplit } from '@/features/billing/types'
 
 export function BillReceiptPage() {
-  useDocumentTitle('Biên nhận | MenuScan')
+  const { t } = useTranslation()
+  useDocumentTitle(`${t('billReceipt.docTitle')} | MenuScan`)
   const { billId } = useParams<{ billId: string }>()
   const [searchParams] = useSearchParams()
   const { accessToken } = useAuth()
@@ -34,11 +36,11 @@ export function BillReceiptPage() {
       })
       setBill(data)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không thể tải biên nhận.')
+      setError(err instanceof ApiError ? err.message : t('billReceipt.errors.loadFailed'))
     } finally {
       setLoading(false)
     }
-  }, [accessToken, billId])
+  }, [accessToken, billId, t])
 
   // Split is a server-side compute (not persisted), so recompute on every load
   // from the bill's current snapshot + the requested people count.
@@ -77,7 +79,7 @@ export function BillReceiptPage() {
         method: 'POST',
         token: accessToken ?? undefined,
       })
-      toast.show({ variant: 'success', title: 'Đã chốt biên nhận' })
+      toast.show({ variant: 'success', title: t('billReceipt.toast.finalized') })
       await loadBill()
     } catch (err) {
       // Finalize is idempotent: a 409 means it was already finalized — treat
@@ -87,7 +89,7 @@ export function BillReceiptPage() {
       } else {
         toast.show({
           variant: 'error',
-          title: 'Không thể chốt biên nhận',
+          title: t('billReceipt.toast.finalizeFailed'),
           description: err instanceof ApiError ? err.message : undefined,
         })
       }
@@ -103,13 +105,13 @@ export function BillReceiptPage() {
         className="mb-6 flex w-fit items-center gap-2 text-[14px] text-ink-variant transition-colors hover:text-primary-dark"
       >
         <ArrowLeft className="size-4" aria-hidden />
-        Về menu
+        {t('billReceipt.backToMenu')}
       </Link>
 
       {loading ? (
         <div className="flex flex-col items-center gap-3 py-[80px] text-ink-variant">
           <Loader2 className="size-7 animate-spin text-primary-dark" aria-hidden />
-          Đang tải biên nhận...
+          {t('billReceipt.loading')}
         </div>
       ) : error ? (
         <div className="flex flex-col items-center gap-4 rounded-[12px] border border-destructive/30 bg-destructive/5 px-5 py-[50px] text-center">
@@ -126,13 +128,13 @@ export function BillReceiptPage() {
               className="flex min-h-10 items-center gap-2 rounded-[8px] border border-destructive/30 px-4 py-2 text-[14px] font-medium text-destructive transition-colors hover:bg-destructive/10"
             >
               <RefreshCw className="size-4" aria-hidden />
-              Thử lại
+              {t('common.retry')}
             </button>
             <Link
               to="/app/menus"
               className="flex min-h-10 items-center rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
             >
-              Về Menus
+              {t('billReceipt.backToMenus')}
             </Link>
           </div>
         </div>

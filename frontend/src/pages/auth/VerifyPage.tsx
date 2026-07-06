@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Check } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Button } from '@/shared/components/ui/button'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
@@ -10,7 +11,8 @@ type VerifyStatus = 'verifying' | 'success' | 'error'
 const verificationRequests = new Map<string, Promise<void>>()
 
 export function VerifyPage() {
-  useDocumentTitle('Verify | MenuScan')
+  const { t } = useTranslation()
+  useDocumentTitle(`${t('verify.docTitle')} | MenuScan`)
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const { verifyMagicLink } = useAuth()
@@ -62,7 +64,7 @@ export function VerifyPage() {
         <div
           className="size-8 animate-spin rounded-full border-2 border-hairline border-t-primary"
           role="status"
-          aria-label="Verifying"
+          aria-label={t('verify.verifyingAria')}
         />
       </div>
     )
@@ -75,17 +77,16 @@ export function VerifyPage() {
           <h1 className="text-[30px] font-bold tracking-[-0.75px] text-primary-dark">
             MenuScan
           </h1>
-          <h2 className="text-[24px] text-ink">Verification isn&apos;t available yet</h2>
+          <h2 className="text-[24px] text-ink">{t('verify.errorTitle')}</h2>
           <p className="text-[16px] leading-[22px] text-ink-variant">
-            Liên kết xác thực không hợp lệ, đã hết hạn, hoặc đã được sử dụng.
-            Vui lòng yêu cầu liên kết đăng nhập mới.
-          </p>
+            {t('verify.errorBody')}
+                    </p>
           <Button
             type="button"
             className="h-12 rounded-full bg-primary font-bold text-white hover:bg-primary/90"
             onClick={() => navigate('/auth/login')}
           >
-            Back to login
+            {t('auth.backToLogin')}
           </Button>
         </div>
       </div>
@@ -108,12 +109,10 @@ export function VerifyPage() {
 
           <div className="flex flex-col items-center gap-[7px]">
             <h2 className="text-center text-[30px] font-bold leading-[34px] text-ink">
-              Email verified
-              <br />
-              successfully!
+              {t('verify.successTitle')}
             </h2>
             <p className="text-center text-[16px] leading-[22px] text-ink-variant">
-              Your account is now fully set up. You can start exploring menus.
+              {t('verify.successBody')}
             </p>
           </div>
 
@@ -122,7 +121,7 @@ export function VerifyPage() {
             className="h-12 rounded-full bg-primary px-[25px] text-[17px] font-bold text-white hover:bg-primary/90"
             onClick={() => navigate('/auth/set-password', { replace: true })}
           >
-            Continue
+            {t('verify.continue')}
           </Button>
         </div>
       </div>

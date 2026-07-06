@@ -1,4 +1,5 @@
 import { AlertCircle, Loader2, Minus, Pencil, Plus, RotateCcw, Save, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { ItemDisplayName } from '@/features/menu-scan/components/menu-detail/ItemDisplayName'
 import {
   LOW_CONFIDENCE_THRESHOLD,
@@ -60,6 +61,7 @@ export function BillItemCard({
   onQuantityChange,
   onNoteChange,
 }: BillItemCardProps) {
+  const { t } = useTranslation()
   const confidence = confidenceValue(item)
   const lowConfidenceLabel =
     confidence !== null && confidence < LOW_CONFIDENCE_THRESHOLD
@@ -81,13 +83,13 @@ export function BillItemCard({
       {hasAllergySignal(item) && (
         <div className="flex items-center gap-2 rounded-[6px] bg-destructive px-3 py-1.5 text-[12px] font-bold text-white">
           <AlertCircle className="size-3.5" aria-hidden />
-          WARNING: Allergy Match Found (Seafood)
+          {t('billItem.allergyWarning')}
         </div>
       )}
       {lowConfidenceLabel !== null && (
         <div className="flex items-center gap-2 rounded-[6px] border border-[#d7a315]/40 bg-[#fff8e2] px-3 py-1.5 text-[12px] font-bold text-[#80600d]">
           <AlertCircle className="size-3.5" aria-hidden />
-          OCR confidence thấp ({lowConfidenceLabel}%).
+          {t('billItem.lowConfidence', { value: lowConfidenceLabel })}
         </div>
       )}
       {saveError && (
@@ -101,13 +103,13 @@ export function BillItemCard({
         <>
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px]">
             <label className="min-w-0">
-              <span className="sr-only">Tên món</span>
+              <span className="sr-only">{t('billItem.namePlaceholder')}</span>
               <input
                 value={draft.translated_name}
                 onChange={(event) =>
                   onDraftChange({ translated_name: event.target.value })
                 }
-                placeholder="Tên món"
+                placeholder={t('billItem.namePlaceholder')}
                 className="h-10 w-full rounded-t-[8px] border border-hairline bg-white px-3 text-[17px] font-bold text-primary-dark outline-none placeholder:text-placeholder focus:border-primary-dark"
               />
               <div className="flex items-center rounded-b-[8px] border border-t-0 border-hairline bg-surface-muted px-3">
@@ -119,7 +121,7 @@ export function BillItemCard({
                   onChange={(event) =>
                     onDraftChange({ original_name: event.target.value })
                   }
-                  placeholder="Tên trên ảnh"
+                  placeholder={t('billItem.originalNamePlaceholder')}
                   className="h-9 min-w-0 flex-1 bg-transparent text-[14px] font-medium text-ink-variant/45 outline-none placeholder:text-placeholder/60"
                 />
                 <span className="shrink-0 text-[14px] font-bold text-ink-variant/40">
@@ -133,12 +135,12 @@ export function BillItemCard({
               )}
             </label>
             <label>
-              <span className="sr-only">Giá</span>
+              <span className="sr-only">{t('billItem.pricePlaceholder')}</span>
               <div className="flex h-10 overflow-hidden rounded-[8px] border border-hairline bg-white focus-within:border-primary-dark">
                 <input
                   value={draft.price}
                   onChange={(event) => onDraftChange({ price: event.target.value })}
-                  placeholder="Price"
+                  placeholder={t('billItem.pricePlaceholder')}
                   inputMode="decimal"
                   className="min-w-0 flex-1 px-3 text-right text-[15px] font-bold text-primary-dark outline-none placeholder:text-placeholder"
                 />
@@ -160,13 +162,13 @@ export function BillItemCard({
             <input
               value={draft.category}
               onChange={(event) => onDraftChange({ category: event.target.value })}
-              placeholder="Category"
+              placeholder={t('billItem.categoryPlaceholder')}
               className="h-9 rounded-[8px] border border-hairline bg-surface-muted px-3 text-[13px] font-medium text-primary-dark outline-none placeholder:text-placeholder focus:border-primary-dark"
             />
             <input
               value={draft.currency}
               onChange={(event) => onDraftChange({ currency: event.target.value })}
-              placeholder="Currency"
+              placeholder={t('billItem.currencyPlaceholder')}
               maxLength={3}
               className="h-9 rounded-[8px] border border-hairline bg-surface-muted px-3 text-[13px] font-medium uppercase text-primary-dark outline-none placeholder:text-placeholder focus:border-primary-dark"
             />
@@ -178,7 +180,7 @@ export function BillItemCard({
               onChange={(event) =>
                 onDraftChange({ translated_description: event.target.value })
               }
-              placeholder="Mô tả"
+              placeholder={t('billItem.descPlaceholder')}
               className="min-h-[70px] resize-none rounded-[8px] border border-hairline bg-white px-3 py-2 text-[14px] leading-6 text-ink outline-none placeholder:text-placeholder focus:border-primary-dark"
             />
             <textarea
@@ -186,7 +188,7 @@ export function BillItemCard({
               onChange={(event) =>
                 onDraftChange({ original_description: event.target.value })
               }
-              placeholder="Mô tả trên ảnh"
+              placeholder={t('billItem.originalDescPlaceholder')}
               className="min-h-[54px] resize-none rounded-[8px] border border-hairline bg-surface-muted px-3 py-2 text-[13px] leading-5 text-ink-variant/55 outline-none placeholder:text-placeholder/60 focus:border-primary-dark"
             />
           </div>
@@ -203,7 +205,7 @@ export function BillItemCard({
               ) : (
                 <Trash2 className="size-4" aria-hidden />
               )}
-              Xóa
+              {t('common.delete')}
             </button>
             <button
               type="button"
@@ -212,7 +214,7 @@ export function BillItemCard({
               className="flex min-h-9 items-center gap-2 rounded-[8px] border border-hairline px-3 text-[13px] font-bold text-ink transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
             >
               <RotateCcw className="size-4" aria-hidden />
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -225,7 +227,7 @@ export function BillItemCard({
               ) : (
                 <Save className="size-4" aria-hidden />
               )}
-              Save
+              {t('common.save')}
             </button>
           </div>
         </>
@@ -256,8 +258,8 @@ export function BillItemCard({
                 type="button"
                 onClick={onEdit}
                 className="flex size-9 items-center justify-center rounded-[8px] border border-hairline text-primary-dark transition-colors hover:bg-primary/10"
-                aria-label={`Sửa ${item.original_name}`}
-                title="Edit"
+                aria-label={t('billItem.editAria', { name: item.original_name })}
+                title={t('common.edit')}
               >
                 <Pencil className="size-4" aria-hidden />
               </button>
@@ -284,7 +286,7 @@ export function BillItemCard({
             type="button"
             onClick={() => onQuantityChange(line.quantity - 1)}
             className="flex size-9 items-center justify-center text-primary-dark transition-colors hover:bg-primary/10"
-            aria-label={`Giảm ${item.original_name}`}
+            aria-label={t('billItem.decreaseAria', { name: item.original_name })}
           >
             <Minus className="size-4" aria-hidden />
           </button>
@@ -295,7 +297,7 @@ export function BillItemCard({
             type="button"
             onClick={() => onQuantityChange(line.quantity + 1)}
             className="flex size-9 items-center justify-center text-primary-dark transition-colors hover:bg-primary/10"
-            aria-label={`Tăng ${item.original_name}`}
+            aria-label={t('billItem.increaseAria', { name: item.original_name })}
           >
             <Plus className="size-4" aria-hidden />
           </button>
@@ -303,7 +305,7 @@ export function BillItemCard({
         <input
           value={line.note}
           onChange={(event) => onNoteChange(event.target.value)}
-          placeholder="Add note..."
+          placeholder={t('billItem.addNote')}
           className="h-9 min-w-0 flex-1 rounded-r-[8px] border border-l-0 border-hairline bg-surface-muted px-3 text-[13px] text-ink outline-none placeholder:text-placeholder focus:border-primary-dark"
         />
       </div>

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { useMagicLink } from '@/features/auth/hooks/useMagicLink'
@@ -23,6 +24,7 @@ interface MagicLinkFormProps {
  * user enumeration).
  */
 export function MagicLinkForm({ heading, ctaLabel, alternate }: MagicLinkFormProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { state, errorMessage, request } = useMagicLink()
   const [email, setEmail] = useState('')
@@ -50,7 +52,7 @@ export function MagicLinkForm({ heading, ctaLabel, alternate }: MagicLinkFormPro
 
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-[30px] pb-4">
           <label className="flex flex-col gap-[5px]">
-            <span className="text-[14px] leading-[14px] text-ink">Email Address</span>
+            <span className="text-[14px] leading-[14px] text-ink">{t('auth.emailLabel')}</span>
             <Input
               type="email"
               required
@@ -58,7 +60,7 @@ export function MagicLinkForm({ heading, ctaLabel, alternate }: MagicLinkFormPro
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
-              aria-label="Email Address"
+              aria-label={t('auth.emailLabel')}
               className="rounded-none border-0 border-b border-hairline bg-transparent px-0 py-1 text-[16px] text-ink shadow-none placeholder:text-placeholder focus-visible:border-primary-dark focus-visible:ring-0"
             />
           </label>
@@ -74,7 +76,7 @@ export function MagicLinkForm({ heading, ctaLabel, alternate }: MagicLinkFormPro
             disabled={isLoading}
             className="h-12 rounded-full bg-primary text-[17px] font-bold text-white hover:bg-primary/90"
           >
-            {isLoading ? 'Đang gửi...' : ctaLabel}
+            {isLoading ? t('checkEmail.sending') : ctaLabel}
           </Button>
         </form>
 

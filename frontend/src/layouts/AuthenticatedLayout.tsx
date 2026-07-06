@@ -1,21 +1,24 @@
 import { NavLink, Outlet, Navigate } from 'react-router-dom'
 import { LayoutDashboard, LogOut, ScanLine, Utensils } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Spinner } from '@/shared/components/Spinner'
+import { LanguageSwitcher } from '@/shared/components/LanguageSwitcher'
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
 import { RouteErrorFallback } from '@/shared/components/RouteErrorFallback'
 
 // Authenticated app shell matching the MenuScan Figma: a top header (logo +
 // primary nav + account actions) and a footer. No left sidebar.
 const navigationItems = [
-  { label: 'Dashboard', to: '/app', icon: LayoutDashboard },
-  { label: 'Scan', to: '/app/scan', icon: ScanLine },
-  { label: 'Menus', to: '/app/menus', icon: Utensils },
-]
+  { key: 'dashboard', to: '/app', icon: LayoutDashboard },
+  { key: 'scan', to: '/app/scan', icon: ScanLine },
+  { key: 'menus', to: '/app/menus', icon: Utensils },
+] as const
 
 export function AuthenticatedLayout() {
   const { user, loading, logout } = useAuth()
-  const accountLabel = user?.display_name || user?.email?.split('@')[0] || 'Profile'
+  const { t } = useTranslation()
+  const accountLabel = user?.display_name || user?.email?.split('@')[0] || t('nav.profile')
 
   if (loading) {
     return (
@@ -65,11 +68,12 @@ export function AuthenticatedLayout() {
                   : 'text-[15px] font-medium text-ink-variant transition-colors hover:text-primary-dark'
               }
             >
-              {item.label}
+              {t(`nav.${item.key}`)}
             </NavLink>
           ))}
         </nav>
         <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+          <LanguageSwitcher className="hidden sm:inline-flex" />
           <NavLink
             to="/app/profile"
             className="hidden max-w-[220px] truncate text-[14px] text-ink-variant transition-colors hover:text-primary-dark md:inline"
@@ -83,7 +87,7 @@ export function AuthenticatedLayout() {
             className="flex size-10 items-center justify-center rounded-[8px] bg-primary-dark text-[15px] font-bold text-white transition-opacity hover:opacity-90 sm:size-auto sm:rounded-[4px] sm:px-[20px] sm:py-[8px]"
           >
             <LogOut className="size-4 sm:hidden" aria-hidden />
-            <span className="sr-only sm:not-sr-only">Đăng xuất</span>
+            <span className="sr-only sm:not-sr-only">{t('common.logout')}</span>
           </button>
         </div>
       </header>
@@ -109,10 +113,13 @@ export function AuthenticatedLayout() {
                 }
               >
                 <Icon className="size-4 shrink-0" aria-hidden />
-                <span className="truncate">{item.label}</span>
+                <span className="truncate">{t(`nav.${item.key}`)}</span>
               </NavLink>
             )
           })}
+        </div>
+        <div className="mt-2 flex justify-center">
+          <LanguageSwitcher />
         </div>
       </nav>
       <main className="min-w-0 flex-1">
@@ -126,7 +133,7 @@ export function AuthenticatedLayout() {
           MenuScan
         </span>
         <span className="text-[14px] text-ink-variant">
-          © 2024 MenuScan. All rights reserved.
+          {t('footer.rights', { year: 2024 })}
         </span>
       </footer>
     </div>

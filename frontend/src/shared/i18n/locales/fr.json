@@ -1,0 +1,33 @@
+{
+  "common": {
+    "appName": "MenuScan",
+    "login": "Se connecter",
+    "logout": "Se déconnecter",
+    "enterApp": "Ouvrir l'application",
+    "loading": "Chargement…",
+    "save": "Enregistrer",
+    "saveChanges": "Enregistrer les modifications",
+    "cancel": "Annuler",
+    "back": "Retour",
+    "retry": "Réessayer",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "confirm": "Confirmer",
+    "close": "Fermer",
+    "yes": "Oui",
+    "no": "Non"
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "scan": "Scanner",
+    "menus": "Menus",
+    "profile": "Compte"
+  },
+  "footer": {
+    "rights": "© {{year}} MenuScan. Tous droits réservés."
+  },
+  "language": {
+    "label": "Langue",
+    "select": "Choisir la langue"
+  }
+}

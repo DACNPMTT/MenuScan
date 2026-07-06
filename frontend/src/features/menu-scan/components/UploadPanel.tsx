@@ -10,6 +10,7 @@ import {
   Upload,
   X,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import {
@@ -30,32 +31,22 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function validateFile(file: File): SelectedFile['error'] {
+function validateFile(
+  file: File,
+  t: (key: string) => string,
+): SelectedFile['error'] {
   if (file.size > MAX_FILE_SIZE_BYTES) {
-    return {
-      code: 'FILE_TOO_LARGE',
-      message: 'File quá lớn. Dung lượng tối đa là 10 MB.',
-    }
+    return { code: 'FILE_TOO_LARGE', message: t('scan.errors.fileTooLarge') }
   }
   const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
   const isPdf = file.type === 'application/pdf' || ext === 'pdf'
   const isImage =
     file.type.startsWith('image/') && ALLOWED_EXTENSIONS.includes(ext as never)
   if (!isPdf && !isImage) {
-    return {
-      code: 'UNSUPPORTED_TYPE',
-      message: 'Định dạng không được hỗ trợ. Chỉ chấp nhận JPG, PNG, WEBP, PDF.',
-    }
+    return { code: 'UNSUPPORTED_TYPE', message: t('scan.errors.unsupportedType') }
   }
   return null
 }
-
-const STEPS = [
-  { title: 'Tải lên', desc: 'File đã được đính kèm.' },
-  { title: 'Phân tích AI', desc: 'Nhận dạng & phân tích menu.' },
-  { title: 'Trích xuất', desc: 'Lấy món và giá.' },
-  { title: 'Kết quả', desc: 'Hiển thị danh sách món.' },
-] as const
 
 const TARGET_LANGUAGES = [
   { code: 'vi', label: '🇻🇳 Tiếng Việt' },
@@ -68,8 +59,13 @@ const TARGET_LANGUAGES = [
 ] as const
 
 export function UploadPanel() {
-  useDocumentTitle('Thêm menu | MenuScan')
+  const { t } = useTranslation()
+  useDocumentTitle(`${t('scan.title')} | MenuScan`)
   const navigate = useNavigate()
+  const steps = t('scan.steps', { returnObjects: true }) as Array<{
+    title: string
+    desc: string
+  }>
 
   const [selected, setSelected] = useState<SelectedFile | null>(null)
   const [targetLanguage, setTargetLanguage] = useState('vi')
@@ -92,7 +88,7 @@ export function UploadPanel() {
     setSelected({
       file,
       previewUrl: isImage ? URL.createObjectURL(file) : null,
-      error: validateFile(file),
+      error: validateFile(file, t),
     })
     setSubmitError(null)
   }
@@ -133,7 +129,7 @@ export function UploadPanel() {
       const message =
         error instanceof ApiError
           ? error.message
-          : `Lỗi: ${error instanceof Error ? error.message : String(error)}`
+          : `${t('scan.errors.genericPrefix')}${error instanceof Error ? error.message : String(error)}`
       setSubmitError(message)
     } finally {
       setIsSubmitting(false)
@@ -160,10 +156,10 @@ export function UploadPanel() {
             </span>
             <div className="flex flex-col gap-0.5">
               <span className="text-[18px] leading-[26px] text-primary-dark">
-                Tải ảnh / PDF lên
+                {t('scan.uploadCard.title')}
               </span>
               <span className="text-[13px] text-ink-variant">
-                Kéo thả hoặc chọn file
+                {t('scan.uploadCard.desc')}
               </span>
             </div>
             <span className="absolute right-2 top-2 flex size-5 items-center justify-center rounded-full bg-primary-dark">
@@ -180,10 +176,10 @@ export function UploadPanel() {
             </span>
             <div className="flex flex-col gap-0.5">
               <span className="text-[18px] leading-[26px] text-primary-dark">
-                Quét bằng camera
+                {t('scan.cameraCard.title')}
               </span>
               <span className="text-[13px] text-ink-variant">
-                Chụp menu vật lý
+                {t('scan.cameraCard.desc')}
               </span>
             </div>
           </Link>
@@ -206,7 +202,7 @@ export function UploadPanel() {
               inputRef.current?.click()
             }
           }}
-          aria-label="Kéo thả file vào đây hoặc nhấn để chọn file"
+          aria-label={t('scan.dropzone.aria')}
           className={cn(
             'flex h-[256px] cursor-pointer flex-col items-center justify-center gap-5 rounded-[12px] border border-dashed p-px text-center transition-colors',
             isDragging
@@ -226,10 +222,10 @@ export function UploadPanel() {
           </div>
           <div className="flex flex-col items-center gap-1.5">
             <p className="text-[20px] leading-[30px] text-primary-dark">
-              Kéo thả hoặc nhấn để chọn file
+              {t('scan.dropzone.title')}
             </p>
             <p className="text-[14px] leading-[20px] text-ink-variant">
-              Hỗ trợ JPG, JPEG, PNG, WEBP, PDF — tối đa 10 MB
+              {t('scan.dropzone.hint')}
             </p>
           </div>
         </div>
@@ -238,7 +234,7 @@ export function UploadPanel() {
         {selected && (
           <div className="flex flex-col gap-2">
             <p className="text-[14px] font-medium uppercase tracking-[0.7px] text-ink-variant">
-              File đã chọn
+              {t('scan.selectedFile')}
             </p>
             <div className="flex items-center gap-5 rounded-[8px] border border-hairline bg-canvas p-[9px]">
               {isPdf ? (
@@ -271,10 +267,10 @@ export function UploadPanel() {
                 type="button"
                 onClick={handleRemove}
                 className="flex items-center gap-1.5 rounded-[4px] p-2 text-[14px] text-ink-variant transition-colors hover:bg-secondary hover:text-primary-dark"
-                aria-label={`Xóa file ${selected.file.name}`}
+                aria-label={t('scan.removeAria', { name: selected.file.name })}
               >
                 <X className="size-5" aria-hidden />
-                <span className="hidden sm:inline">Xóa</span>
+                <span className="hidden sm:inline">{t('common.delete')}</span>
               </button>
             </div>
             {selected.error && (
@@ -304,10 +300,10 @@ export function UploadPanel() {
       <div className="flex flex-col gap-[30px]">
         <div className="rounded-[12px] border border-hairline bg-canvas p-[21px]">
           <h2 className="border-b border-hairline pb-[9px] text-[18px] leading-[26px] text-primary-dark">
-            Trạng thái xử lý
+            {t('scan.statusTitle')}
           </h2>
           <ol className="relative mt-4 flex flex-col">
-            {STEPS.map((step, index) => {
+            {steps.map((step, index) => {
               const stepNum = index + 1
               const state =
                 stepNum <= completedSteps
@@ -315,7 +311,7 @@ export function UploadPanel() {
                   : stepNum === completedSteps + 1
                     ? 'current'
                     : 'pending'
-              const isLast = index === STEPS.length - 1
+              const isLast = index === steps.length - 1
               return (
                 <li key={step.title} className="flex gap-5">
                   {/* Indicator + connector */}
@@ -362,7 +358,7 @@ export function UploadPanel() {
                           : 'text-ink-variant',
                       )}
                     >
-                      {state === 'current' ? 'Sẵn sàng để bắt đầu...' : step.desc}
+                      {state === 'current' ? t('scan.readyToStart') : step.desc}
                     </span>
                   </div>
                 </li>
@@ -377,7 +373,7 @@ export function UploadPanel() {
             htmlFor="targetLanguage"
             className="text-[15px] font-bold text-primary-dark"
           >
-            Dịch sang ngôn ngữ:
+            {t('scan.translateTo')}
           </label>
           <select
             id="targetLanguage"
@@ -408,12 +404,12 @@ export function UploadPanel() {
           {isSubmitting ? (
             <>
               <Loader2 className="size-5 animate-spin" aria-hidden />
-              Đang tải lên...
+              {t('scan.uploading')}
             </>
           ) : (
             <>
               <Upload className="size-5" aria-hidden />
-              Bắt đầu quét
+              {t('scan.start')}
             </>
           )}
         </button>

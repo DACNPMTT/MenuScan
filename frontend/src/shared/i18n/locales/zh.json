@@ -1,0 +1,33 @@
+{
+  "common": {
+    "appName": "MenuScan",
+    "login": "登录",
+    "logout": "退出登录",
+    "enterApp": "进入应用",
+    "loading": "加载中…",
+    "save": "保存",
+    "saveChanges": "保存更改",
+    "cancel": "取消",
+    "back": "返回",
+    "retry": "重试",
+    "edit": "编辑",
+    "delete": "删除",
+    "confirm": "确认",
+    "close": "关闭",
+    "yes": "是",
+    "no": "否"
+  },
+  "nav": {
+    "dashboard": "仪表板",
+    "scan": "扫描",
+    "menus": "菜单",
+    "profile": "账户"
+  },
+  "footer": {
+    "rights": "© {{year}} MenuScan. 保留所有权利。"
+  },
+  "language": {
+    "label": "语言",
+    "select": "选择语言"
+  }
+}
