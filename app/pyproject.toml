@@ -16,7 +16,7 @@ dependencies = [
     "pyjwt>=2.13.0",
     "bcrypt>=5.0.0",
     "python-multipart>=0.0.20",
-    "pillow>=11.0.0",
+    "pillow>=12.3.0",
     "pymupdf>=1.28.0",
     "langdetect>=1.0.9",
 ]
