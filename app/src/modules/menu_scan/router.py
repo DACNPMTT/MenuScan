@@ -111,11 +111,27 @@ def get_scan_source(
 @router.get("/{scan_id}/result", status_code=status.HTTP_200_OK)
 def get_scan_result(
     scan_id: uuid.UUID,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=6, ge=1, le=50),
     current_user: User | None = Depends(get_optional_current_user),
     service: ScanService = Depends(get_scan_service),
 ) -> dict[str, object]:
-    data = service.get_result(user=current_user, scan_id=scan_id)
-    return success_response(data=data.model_dump(mode="json"))
+    data, total = service.get_result(
+        user=current_user,
+        scan_id=scan_id,
+        page=page,
+        page_size=page_size,
+    )
+    total_pages = (total + page_size - 1) // page_size
+    return success_response(
+        data=data.model_dump(mode="json"),
+        meta={
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "total_pages": total_pages,
+        },
+    )
 
 
 def _run_pipeline(pipeline: ScanPipeline, scan_id: uuid.UUID) -> None:

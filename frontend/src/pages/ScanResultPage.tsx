@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   AlertCircle,
@@ -6,6 +6,8 @@ import {
   Bookmark,
   BookmarkCheck,
   Check,
+  ChevronLeft,
+  ChevronRight,
   ListChecks,
   Loader2,
   RefreshCw,
@@ -14,7 +16,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
-import { apiRequest, ApiError } from '@/shared/lib/api'
+import { apiRequest, apiRequestWithMeta, ApiError } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { useExchangeRates } from '@/shared/hooks/useExchangeRates'
 import { CurrencySelect } from '@/shared/components/CurrencySelect'
@@ -23,6 +25,7 @@ import type {
   MenuItemResult,
   MenuDetail,
   MenuSavedState,
+  PaginationMeta,
   ScanDetail,
   ScanError,
   ScanResult,
@@ -37,6 +40,7 @@ function resolveUrl(path: string): string {
 
 const POLL_INTERVAL_MS = 1500
 const MAX_POLL_MS = 180_000 // 3 min cap; the pipeline finishes well under this.
+const SCAN_RESULT_ITEMS_PAGE_SIZE = 6
 
 const LANGUAGE_MAP: Record<string, string> = {
   vi: '🇻🇳 Tiếng Việt',
@@ -56,12 +60,37 @@ export function ScanResultPage() {
 
   const [detail, setDetail] = useState<ScanDetail | null>(null)
   const [result, setResult] = useState<ScanResult | null>(null)
+  const [resultMeta, setResultMeta] = useState<PaginationMeta | null>(null)
   const [error, setError] = useState<string | null>(null)
   const startedAt = useRef(0)
+
+  const fetchResultPage = useCallback(
+    async (page: number) => {
+      if (!scanId) return
+      return apiRequestWithMeta<ScanResult, PaginationMeta>(
+        `/api/v1/scans/${scanId}/result?page=${page}&page_size=${SCAN_RESULT_ITEMS_PAGE_SIZE}`,
+        { method: 'GET', token: accessToken ?? undefined },
+      )
+    },
+    [accessToken, scanId],
+  )
+
+  const loadResultPage = useCallback(
+    async (page: number) => {
+      const response = await fetchResultPage(page)
+      if (!response) return
+      setResult(response.data)
+      setResultMeta(response.meta)
+    },
+    [fetchResultPage],
+  )
 
   useEffect(() => {
     if (!scanId) return
     startedAt.current = Date.now()
+    setResult(null)
+    setResultMeta(null)
+    setError(null)
     let cancelled = false
     let timer = 0
 
@@ -76,11 +105,11 @@ export function ScanResultPage() {
 
         if (current.status === 'COMPLETED') {
           try {
-            const res = await apiRequest<ScanResult>(
-              `/api/v1/scans/${scanId}/result`,
-              { method: 'GET', token: accessToken ?? undefined },
-            )
-            if (!cancelled) setResult(res)
+            const response = await fetchResultPage(1)
+            if (!cancelled && response) {
+              setResult(response.data)
+              setResultMeta(response.meta)
+            }
           } catch (err) {
             if (!cancelled) {
               setError(
@@ -125,7 +154,7 @@ export function ScanResultPage() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [scanId, accessToken, t])
+  }, [scanId, accessToken, fetchResultPage, t])
 
   const status = detail?.status
   const handleSavedChange = (isSaved: boolean) => {
@@ -146,7 +175,7 @@ export function ScanResultPage() {
               is_saved: menu.is_saved,
               title: menu.title,
               default_currency: menu.default_currency,
-              items: menu.items,
+              items: current.menu.items,
             },
           }
         : current,
@@ -187,9 +216,11 @@ export function ScanResultPage() {
       {status === 'COMPLETED' && result && (
         <ResultView
           result={result}
+          itemsMeta={resultMeta}
           accessToken={accessToken}
           onSavedChange={handleSavedChange}
           onConfirmed={handleConfirmed}
+          onItemsPageChange={loadResultPage}
         />
       )}
     </div>
@@ -229,14 +260,18 @@ function ProcessingView({ detail }: { detail: ScanDetail | null }) {
 
 function ResultView({
   result,
+  itemsMeta,
   accessToken,
   onSavedChange,
   onConfirmed,
+  onItemsPageChange,
 }: {
   result: ScanResult
+  itemsMeta: PaginationMeta | null
   accessToken: string | null
   onSavedChange: (isSaved: boolean) => void
   onConfirmed: (menu: MenuDetail) => void
+  onItemsPageChange: (page: number) => Promise<void>
 }) {
   const { t } = useTranslation()
   const items = result.menu?.items ?? []
@@ -247,8 +282,27 @@ function ResultView({
   const { rates } = useExchangeRates(baseCurrency)
   const [saving, setSaving] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [itemsLoading, setItemsLoading] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [confirmError, setConfirmError] = useState<string | null>(null)
+  const totalItems = itemsMeta?.total ?? items.length
+
+  const handleItemsPageChange = async (page: number) => {
+    if (itemsLoading) return
+    setItemsLoading(true)
+    try {
+      await onItemsPageChange(page)
+    } catch (err) {
+      const description = err instanceof ApiError ? err.message : undefined
+      toast.show({
+        variant: 'error',
+        title: t('scanResult.errors.resultLoadFailed'),
+        description,
+      })
+    } finally {
+      setItemsLoading(false)
+    }
+  }
 
   const handleToggleSaved = async () => {
     if (!result.menu || saving) return
@@ -318,7 +372,7 @@ function ResultView({
             </h1>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <span className="text-[14px] text-ink-variant">
-                {t('scanResult.dishCount', { count: items.length })} · {source.file_name}
+                {t('scanResult.dishCount', { count: totalItems })} · {source.file_name}
               </span>
               <span className="hidden text-[14px] text-ink-variant sm:inline">•</span>
               {result.scan.detected_language && (
@@ -392,6 +446,9 @@ function ResultView({
           displayCurrency={displayCurrency}
           rates={rates}
           onCurrencyChange={setDisplayCurrency}
+          itemsMeta={itemsMeta}
+          itemsLoading={itemsLoading}
+          onPageChange={(page) => void handleItemsPageChange(page)}
         />
       </div>
     </div>
@@ -467,14 +524,28 @@ function ItemsList({
   displayCurrency,
   rates,
   onCurrencyChange,
+  itemsMeta,
+  itemsLoading,
+  onPageChange,
 }: {
   items: MenuItemResult[]
   baseCurrency: string
   displayCurrency: string
   rates: ExchangeRates | null
   onCurrencyChange: (currency: string) => void
+  itemsMeta: PaginationMeta | null
+  itemsLoading: boolean
+  onPageChange: (page: number) => void
 }) {
   const { t } = useTranslation()
+  const showPagination = itemsMeta !== null && itemsMeta.total_pages > 1
+  const pageStart =
+    itemsMeta && items.length > 0
+      ? (itemsMeta.page - 1) * itemsMeta.page_size + 1
+      : 0
+  const pageEnd = itemsMeta
+    ? Math.min(itemsMeta.page * itemsMeta.page_size, itemsMeta.total)
+    : items.length
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -504,7 +575,8 @@ function ItemsList({
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((item) => (
             <div
               key={item.id}
@@ -551,7 +623,46 @@ function ItemsList({
               )}
             </div>
           ))}
-        </div>
+          </div>
+          {showPagination && itemsMeta && (
+            <div className="flex flex-col items-center justify-between gap-3 rounded-[8px] border border-hairline bg-canvas px-3 py-2 sm:flex-row">
+              <p className="text-[13px] text-ink-variant" aria-live="polite">
+                {t('scanResult.pageStatus', {
+                  from: pageStart,
+                  to: pageEnd,
+                  total: itemsMeta.total,
+                })}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onPageChange(itemsMeta.page - 1)}
+                  disabled={itemsLoading || itemsMeta.page <= 1}
+                  aria-label={t('scanResult.prevPage')}
+                  className="flex size-9 items-center justify-center rounded-[8px] border border-hairline text-primary-dark transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <ChevronLeft className="size-4" aria-hidden />
+                </button>
+                <span className="min-w-[72px] text-center text-[13px] font-bold text-ink">
+                  {itemsMeta.page} / {itemsMeta.total_pages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onPageChange(itemsMeta.page + 1)}
+                  disabled={itemsLoading || itemsMeta.page >= itemsMeta.total_pages}
+                  aria-label={t('scanResult.nextPage')}
+                  className="flex size-9 items-center justify-center rounded-[8px] border border-hairline text-primary-dark transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {itemsLoading ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <ChevronRight className="size-4" aria-hidden />
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

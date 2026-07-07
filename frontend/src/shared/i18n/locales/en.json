@@ -358,6 +358,9 @@
     "saveMenu": "Save menu",
     "sourceFile": "Source file",
     "extractedItems": "Extracted dishes",
+    "pageStatus": "Showing {{from}}-{{to}} of {{total}} dishes",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
     "scanAnother": "Scan another menu",
     "noItems": {
       "title": "No dishes could be extracted",

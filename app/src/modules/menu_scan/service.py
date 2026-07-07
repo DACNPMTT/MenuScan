@@ -275,7 +275,9 @@ class ScanService:
         *,
         user: User | None,
         scan_id: uuid.UUID,
-    ) -> ScanResultData:
+        page: int,
+        page_size: int,
+    ) -> tuple[ScanResultData, int]:
         """Build the completed-scan result: scan metadata + extracted menu.
 
         Returns 409 SCAN_NOT_READY unless the pipeline reached COMPLETED. The
@@ -296,7 +298,15 @@ class ScanService:
             )
 
         menu_data: MenuResultData | None = None
+        total_items = 0
         if scan.menu is not None:
+            sorted_items = sorted(
+                scan.menu.food_items,
+                key=lambda item: (item.sort_order, str(item.id)),
+            )
+            total_items = len(sorted_items)
+            offset = (page - 1) * page_size
+            paged_items = sorted_items[offset : offset + page_size]
             menu_data = MenuResultData(
                 id=scan.menu.id,
                 title=scan.menu.title,
@@ -304,25 +314,28 @@ class ScanService:
                 is_saved=scan.menu.is_saved,
                 items=[
                     MenuItemData.model_validate(item)
-                    for item in scan.menu.food_items
+                    for item in paged_items
                 ],
             )
 
-        return ScanResultData(
-            scan=ScanResultScanData(
-                id=scan.id,
-                status=scan.status,
-                source=ScanResultSourceData(
-                    file_name=scan.source_file_name,
-                    mime_type=scan.source_mime_type,
-                    file_size=scan.source_file_size,
-                    preview_url=f"/api/v1/scans/{scan.id}/source",
+        return (
+            ScanResultData(
+                scan=ScanResultScanData(
+                    id=scan.id,
+                    status=scan.status,
+                    source=ScanResultSourceData(
+                        file_name=scan.source_file_name,
+                        mime_type=scan.source_mime_type,
+                        file_size=scan.source_file_size,
+                        preview_url=f"/api/v1/scans/{scan.id}/source",
+                    ),
+                    detected_language=detected_language,
+                    target_language=scan.target_language,
+                    processing_time_ms=processing_time_ms,
                 ),
-                detected_language=detected_language,
-                target_language=scan.target_language,
-                processing_time_ms=processing_time_ms,
+                menu=menu_data,
             ),
-            menu=menu_data,
+            total_items,
         )
 
     def _get_accessible_scan(

@@ -346,6 +346,9 @@
     "saveMenu": "Lưu menu",
     "sourceFile": "File gốc",
     "extractedItems": "Món trích xuất",
+    "pageStatus": "Hi\u1ec3n th\u1ecb {{from}}-{{to}} / {{total}} m\u00f3n",
+    "prevPage": "Trang tr\u01b0\u1edbc",
+    "nextPage": "Trang sau",
     "scanAnother": "Quét menu khác",
     "noItems": {
       "title": "Không trích xuất được món nào",
