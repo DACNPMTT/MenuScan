@@ -9,6 +9,7 @@ from typing import Any
 
 import httpx
 
+from src.modules.menu_scan.menu_table import build_menu_table, rows_to_csv
 from src.modules.menu_scan.ocr_contract import OcrDocument, ParsedMenuDraft
 
 
@@ -37,6 +38,10 @@ class GeminiMenuParser:
     # the next key for the same model/request before giving up. Falls back to the
     # single ``api_key`` when empty.
     api_keys: tuple[str, ...] = ()
+    # When True, a deterministic geometry pass (menu_table) pre-pairs each dish
+    # with its price and size, and that CSV is embedded in the prompt as a strong
+    # name↔price anchor. Off falls back to the plain OCR text / coordinate dump.
+    prealign_csv: bool = True
 
     def parse(
         self,
@@ -90,6 +95,7 @@ class GeminiMenuParser:
             document=document,
             target_language=target_language,
             images=images,
+            prealign_csv=self.prealign_csv,
         )
         try:
             response = None
@@ -172,6 +178,7 @@ def _build_request(
     document: OcrDocument,
     target_language: str,
     images: Sequence[bytes] | None = None,
+    prealign_csv: bool = True,
 ) -> dict[str, Any]:
     image_list = [image for image in (images or []) if image]
     has_images = bool(image_list)
@@ -181,6 +188,7 @@ def _build_request(
                 document=document,
                 target_language=target_language,
                 has_images=has_images,
+                prealign_csv=prealign_csv,
             )
         }
     ]
@@ -201,6 +209,10 @@ def _build_request(
             "temperature": 0,
             "responseMimeType": "application/json",
             "responseSchema": _parsed_menu_schema(),
+            # Disable model "thinking" — this is a structured extraction with a
+            # response schema, not a reasoning task. Thinking multiplies latency
+            # on flash/flash-lite for no accuracy gain here. Keeps scans fast.
+            "thinkingConfig": {"thinkingBudget": 0},
         },
     }
 
@@ -218,13 +230,34 @@ _VARIANT_RULES = (
 )
 
 
+_CSV_ANCHOR_INTRO = (
+    "Pre-aligned candidate rows (CSV) — a deterministic geometry pass paired each "
+    "dish with its price and any detected size variant. Treat this name↔price "
+    "pairing as a STRONG PRIOR: keep each price with its dish unless the image or "
+    "OCR text clearly contradicts it. Do not drop rows and do not invent prices "
+    "that are not present here. Columns: sort_order,name,base_name,variant_name,"
+    "variant_group,price,currency,price_text.\n"
+)
+
+
+def _build_csv_anchor(document: OcrDocument, *, prealign_csv: bool) -> str:
+    if not prealign_csv:
+        return ""
+    rows = build_menu_table(document)
+    if not rows:
+        return ""
+    return f"{_CSV_ANCHOR_INTRO}{rows_to_csv(rows)}\n"
+
+
 def _build_prompt(
     *,
     document: OcrDocument,
     target_language: str,
     has_images: bool = False,
+    prealign_csv: bool = True,
 ) -> str:
     detected = document.detected_language or "unknown"
+    csv_anchor = _build_csv_anchor(document, prealign_csv=prealign_csv)
 
     common_rules = (
         "- Preserve unusual dish names verbatim in original_name.\n"
@@ -261,6 +294,7 @@ def _build_prompt(
             + "\n"
             f"Detected source language (UNRELIABLE hint, may be wrong): {detected}\n"
             f"Target language: {target_language}\n"
+            f"{csv_anchor}"
             "OCR transcription:\n"
             f"{document.text}"
         )
@@ -295,6 +329,7 @@ def _build_prompt(
         + "\n"
         f"Detected source language (UNRELIABLE hint, may be wrong): {detected}\n"
         f"Target language: {target_language}\n"
+        f"{csv_anchor}"
         "Structured OCR blocks:\n"
         f"{layout_text}\n\n"
         "Raw OCR text fallback:\n"

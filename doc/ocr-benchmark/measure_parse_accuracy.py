@@ -92,7 +92,7 @@ def _build(model: str) -> tuple[OcrService, GeminiMenuParser, DocumentPreprocess
 
 def main() -> int:
     only = set(sys.argv[1:])
-    model = os.getenv("LLM_MODEL", "gemini-2.5-flash")
+    model = os.getenv("LLM_MODEL", "gemini-3.1-flash-lite")
     image_dim = int(os.getenv("LLM_IMAGE_MAX_DIMENSION", "1536"))
 
     gt = json.loads((DATASET / "ground_truth.json").read_text(encoding="utf-8-sig"))

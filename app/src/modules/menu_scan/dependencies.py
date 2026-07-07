@@ -106,6 +106,7 @@ def _build_gemini_parser(model: str) -> GeminiMenuParser:
         api_base_url=config.api_base_url,
         model=model,
         timeout_seconds=config.timeout_seconds,
+        prealign_csv=config.prealign_csv,
     )
 
 

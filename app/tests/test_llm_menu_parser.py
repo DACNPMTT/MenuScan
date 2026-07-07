@@ -341,6 +341,78 @@ def test_gemini_parser_retries_transient_503_then_succeeds() -> None:
     assert draft.items[0].original_name == "Pho bo"
 
 
+def test_gemini_parser_prompt_includes_prealigned_csv_and_disables_thinking() -> None:
+    provider_body = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {
+                            "text": json.dumps(
+                                {
+                                    "items": [
+                                        {
+                                            "original_name": "Phở bò",
+                                            "price": "60000.00",
+                                            "currency": "VND",
+                                            "sort_order": 0,
+                                        }
+                                    ]
+                                }
+                            )
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+    client = FakeClient(FakeResponse(200, provider_body))
+    parser = GeminiMenuParser(
+        api_key="test-key",
+        api_base_url="https://gemini.example.test/v1beta",
+        model="gemini-2.5-flash",
+        timeout_seconds=5,
+        client=client,  # type: ignore[arg-type]
+    )
+
+    parser.parse(
+        make_single_column_document(["Phở bò 60.000đ", "Bún bò 55.000đ"]),
+        target_language="en",
+    )
+
+    body = client.calls[0]["json"]
+    prompt = body["contents"][0]["parts"][0]["text"]
+    assert "Pre-aligned candidate rows (CSV)" in prompt
+    assert "Phở bò" in prompt
+    # Latency: thinking is disabled for this structured extraction.
+    assert body["generationConfig"]["thinkingConfig"]["thinkingBudget"] == 0
+
+
+def test_gemini_parser_prealign_csv_off_omits_csv() -> None:
+    provider_body = {
+        "candidates": [
+            {"content": {"parts": [{"text": json.dumps({"items": []})}]}}
+        ]
+    }
+    client = FakeClient(FakeResponse(200, provider_body))
+    parser = GeminiMenuParser(
+        api_key="test-key",
+        api_base_url="https://gemini.example.test/v1beta",
+        model="gemini-2.5-flash",
+        timeout_seconds=5,
+        client=client,  # type: ignore[arg-type]
+        prealign_csv=False,
+    )
+
+    parser.parse(
+        make_single_column_document(["Phở bò 60.000đ", "Bún bò 55.000đ"]),
+        target_language="en",
+    )
+
+    prompt = client.calls[0]["json"]["contents"][0]["parts"][0]["text"]
+    assert "Pre-aligned candidate rows" not in prompt
+
+
 def _document(text: str) -> OcrDocument:
     return OcrDocument(
         provider="fixture",

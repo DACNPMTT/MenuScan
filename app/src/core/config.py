@@ -27,13 +27,13 @@ DEFAULT_OCR_CONTRAST_FACTOR = "1.1"
 DEFAULT_GOOGLE_VISION_API_BASE_URL = "https://vision.googleapis.com/v1"
 
 DEFAULT_LLM_PROVIDER = "rule_based"
-# Large menus (50+ items) can take ~135s for the model to generate the full
-# structured JSON. A low timeout trips LlmMenuParserTimeoutError and degrades to
-# the weaker fallback model, which under-extracts. Keep this comfortably above
-# real large-menu latency.
-DEFAULT_LLM_TIMEOUT_SECONDS = "180"
+# Per-parse ceiling. With model "thinking" disabled and the pre-aligned CSV
+# anchor, even large menus parse well under this on gemini-3.1-flash-lite, so a
+# call that exceeds it is stuck — fail fast to the fallback model instead of
+# dragging the scan out. Target: scan → menu in ~100s.
+DEFAULT_LLM_TIMEOUT_SECONDS = "100"
 DEFAULT_LLM_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
-DEFAULT_LLM_MODEL = "gemini-2.5-flash"
+DEFAULT_LLM_MODEL = "gemini-3.1-flash-lite"
 # Multimodal parsing: attach the menu page image(s) to the Gemini parse call
 # alongside OCR text (ADR 0003). The image drives layout / column-price
 # association / grouping; OCR text stays the character-and-price anchor. Only
@@ -42,10 +42,14 @@ DEFAULT_LLM_MULTIMODAL = "true"
 # Downscale ceiling for images sent to the LLM. Smaller than the OCR ceiling to
 # bound image-token cost and latency, since the model reads layout, not fine print.
 DEFAULT_LLM_IMAGE_MAX_DIMENSION = "1536"
-# Secondary Gemini model tried automatically when the primary model is quota-
-# exhausted (429) or unavailable, before degrading to the rule-based parser.
-# It has a separate, more generous free-tier daily quota than gemini-2.5-flash.
-DEFAULT_LLM_FALLBACK_MODEL = "gemini-2.5-flash-lite"
+# Pre-align OCR into a deterministic (name, price, size) CSV and embed it in the
+# parse prompt as a strong name↔price anchor (OCR → CSV → LLM). Off sends only
+# the plain OCR text / coordinate dump.
+DEFAULT_LLM_PREALIGN_CSV = "true"
+# Secondary Gemini model tried automatically when the primary model
+# (gemini-3.1-flash-lite) is quota-exhausted (429) or unavailable, before
+# degrading to the rule-based parser. It draws on a separate daily quota.
+DEFAULT_LLM_FALLBACK_MODEL = "gemini-2.5-flash"
 DEFAULT_SECRET_KEY = "menuscan-default-insecure-secret-key-change-this-in-production"
 DEFAULT_SCAN_STALE_TIMEOUT_MINUTES = "10"
 
@@ -174,6 +178,7 @@ class LlmConfig:
     timeout_seconds: float
     fallback_model: str | None = None
     multimodal: bool = True
+    prealign_csv: bool = True
     image_max_dimension: int = int(DEFAULT_LLM_IMAGE_MAX_DIMENSION)
     # Key pool tried in order; a 429/quota on one key rotates to the next for the
     # same model before degrading to the next model in ``models``.
@@ -413,6 +418,7 @@ def _load_llm_config() -> LlmConfig:
         ),
         fallback_model=fallback_model,
         multimodal=_env_bool("LLM_MULTIMODAL", DEFAULT_LLM_MULTIMODAL),
+        prealign_csv=_env_bool("LLM_PREALIGN_CSV", DEFAULT_LLM_PREALIGN_CSV),
         image_max_dimension=int(
             os.getenv("LLM_IMAGE_MAX_DIMENSION", DEFAULT_LLM_IMAGE_MAX_DIMENSION)
         ),

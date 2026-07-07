@@ -28,6 +28,7 @@ from src.modules.menu_scan.exceptions import (
     OcrTimeoutError,
 )
 from src.modules.menu_scan.menu_parser import MenuParser
+from src.modules.menu_scan.menu_validity import looks_like_menu
 from src.modules.menu_scan.models import OcrResult, ScanSession, ScanStatus
 from src.modules.menu_scan.ocr.document_preprocessor import DocumentPreprocessor
 from src.modules.menu_scan.ocr.service import OcrService, OcrSource
@@ -45,6 +46,7 @@ _ERROR_OCR_TIMEOUT = "OCR_TIMEOUT"
 _ERROR_OCR_PROVIDER_UNAVAILABLE = "OCR_PROVIDER_UNAVAILABLE"
 _ERROR_OCR_EMPTY_RESULT = "OCR_EMPTY_RESULT"
 _ERROR_OCR_PROCESSING_FAILED = "OCR_PROCESSING_FAILED"
+_ERROR_INVALID_DOCUMENT = "INVALID_DOCUMENT"
 _ERROR_PARSING_FAILED = "PARSING_FAILED"
 _ERROR_PROCESSING_FAILED = "PROCESSING_FAILED"
 
@@ -262,6 +264,15 @@ class ScanPipeline:
         images: list[bytes],
     ) -> ParsedMenuDraft:
         """Parse OCR document into structured menu draft."""
+        # Cheap "is this a menu?" gate before the expensive LLM parse: reject
+        # obviously-wrong photos (prose, no menu structure) fast instead of
+        # spending an LLM call on them.
+        if not looks_like_menu(ocr_document):
+            raise _PipelineError(
+                _ERROR_INVALID_DOCUMENT,
+                "The photo does not look like a menu.",
+            )
+
         with self.session_factory() as session:
             scan = self.scan_repository.get_scan_for_processing(
                 session,

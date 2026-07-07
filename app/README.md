@@ -122,7 +122,7 @@ such as the database.
 | `GOOGLE_VISION_API_KEY` | unset |
 | `LLM_PROVIDER` | `rule_based` |
 | `LLM_API_KEY` / `GEMINI_API_KEY` | unset |
-| `LLM_MODEL` | `gemini-2.5-flash` |
+| `LLM_MODEL` | `gemini-3.1-flash-lite` |
 | `LLM_TIMEOUT_SECONDS` | `20` |
 
 `CORS_ORIGINS` is a comma-separated allowlist. Do not combine wildcard origins
