@@ -189,6 +189,13 @@
     "retake": "Retake",
     "useThis": "Use this photo",
     "hint": "Place the menu in the frame, make sure it's well lit and not blurry.",
+    "quality": {
+      "ok": "Looks good — sharp and well lit.",
+      "warnTitle": "This photo may not be usable:",
+      "blurry": "The photo is blurry — hold steady and refocus.",
+      "dark": "The photo is too dark — add more light.",
+      "bright": "The photo is too bright or glared — avoid harsh light."
+    },
     "errors": {
       "denied": "Camera access was denied. Please allow camera access in your browser.",
       "notFound": "No camera was found on the device.",

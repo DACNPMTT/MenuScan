@@ -185,6 +185,13 @@
     "retake": "Chụp lại",
     "useThis": "Dùng ảnh này",
     "hint": "Đặt menu trong khung, đảm bảo đủ sáng và không bị mờ.",
+    "quality": {
+      "ok": "Ảnh đạt — rõ nét và đủ sáng.",
+      "warnTitle": "Ảnh có thể chưa đạt:",
+      "blurry": "Ảnh bị mờ — giữ máy chắc và lấy nét lại.",
+      "dark": "Ảnh quá tối — cần thêm ánh sáng.",
+      "bright": "Ảnh quá sáng hoặc bị loá — tránh ánh sáng gắt."
+    },
     "errors": {
       "denied": "Truy cập camera bị từ chối. Hãy cấp quyền camera trong trình duyệt.",
       "notFound": "Không tìm thấy camera trên thiết bị.",

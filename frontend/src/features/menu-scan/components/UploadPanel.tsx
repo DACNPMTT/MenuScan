@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type DragEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   AlertCircle,
+  AlertTriangle,
   Camera,
   Check,
   FileText,
@@ -19,6 +20,11 @@ import {
   type ScanData,
   type SelectedFile,
 } from '@/features/menu-scan/types'
+import {
+  assessImageFile,
+  QUALITY_REASON_I18N_KEY,
+  type QualityResult,
+} from '@/features/menu-scan/imageQuality'
 import { cn } from '@/shared/lib/cn'
 
 const ACCEPT_ATTR = ALLOWED_EXTENSIONS.map((ext) =>
@@ -68,11 +74,15 @@ export function UploadPanel() {
   }>
 
   const [selected, setSelected] = useState<SelectedFile | null>(null)
+  const [quality, setQuality] = useState<QualityResult | null>(null)
   const [targetLanguage, setTargetLanguage] = useState('vi')
   const [isDragging, setIsDragging] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  // Guards the async quality check: a slow decode from a replaced file must not
+  // overwrite the current result.
+  const currentFileRef = useRef<File | null>(null)
 
   // Revoke object URLs so we don't leak them on every replace/remove.
   useEffect(() => {
@@ -85,12 +95,22 @@ export function UploadPanel() {
     if (!file) return
     if (selected?.previewUrl) URL.revokeObjectURL(selected.previewUrl)
     const isImage = file.type.startsWith('image/')
+    const validationError = validateFile(file, t)
     setSelected({
       file,
       previewUrl: isImage ? URL.createObjectURL(file) : null,
-      error: validateFile(file, t),
+      error: validationError,
     })
     setSubmitError(null)
+    // Advisory sharpness/brightness check for valid images (PDF skipped). It
+    // never blocks upload — it only surfaces a "retake / choose another" hint.
+    currentFileRef.current = file
+    setQuality(null)
+    if (isImage && !validationError) {
+      void assessImageFile(file).then((result) => {
+        if (currentFileRef.current === file) setQuality(result)
+      })
+    }
   }
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,6 +127,8 @@ export function UploadPanel() {
   const handleRemove = () => {
     if (selected?.previewUrl) URL.revokeObjectURL(selected.previewUrl)
     setSelected(null)
+    setQuality(null)
+    currentFileRef.current = null
     setSubmitError(null)
   }
 
@@ -281,6 +303,24 @@ export function UploadPanel() {
                 <AlertCircle className="size-4 shrink-0" aria-hidden />
                 {selected.error.message}
               </p>
+            )}
+            {!selected.error && quality && !quality.ok && (
+              <div
+                role="status"
+                className="flex items-start gap-3 rounded-[8px] border border-[#e0a800]/50 bg-[#fff8e1] px-3 py-2.5 text-[14px] text-[#8a6d00]"
+              >
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-bold">{t('camera.quality.warnTitle')}</span>
+                  <ul className="flex flex-col gap-0.5">
+                    {quality.reasons.map((reason) => (
+                      <li key={reason}>
+                        • {t(`camera.quality.${QUALITY_REASON_I18N_KEY[reason]}`)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             )}
           </div>
         )}

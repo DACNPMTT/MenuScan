@@ -1,10 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AlertCircle, ArrowLeft, Camera, Loader2, RefreshCw } from 'lucide-react'
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowLeft,
+  Camera,
+  CheckCircle2,
+  Loader2,
+  RefreshCw,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import type { ScanData } from '@/features/menu-scan/types'
+import {
+  assessFrame,
+  QUALITY_REASON_I18N_KEY,
+  type QualityResult,
+} from '@/features/menu-scan/imageQuality'
 
 type CameraState = 'starting' | 'live' | 'captured' | 'submitting' | 'error'
 
@@ -18,6 +31,7 @@ export function CameraScanPage() {
   const [state, setState] = useState<CameraState>('starting')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null)
+  const [quality, setQuality] = useState<QualityResult | null>(null)
   const capturedBlob = useRef<Blob | null>(null)
 
   const stopStream = useCallback(() => {
@@ -78,6 +92,8 @@ export function CameraScanPage() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    // Assess the captured frame (sharpness + brightness) before we commit to it.
+    setQuality(assessFrame(canvas))
     canvas.toBlob((blob) => {
       if (!blob) return
       if (capturedUrl) URL.revokeObjectURL(capturedUrl)
@@ -92,6 +108,7 @@ export function CameraScanPage() {
   const handleRetake = () => {
     if (capturedUrl) URL.revokeObjectURL(capturedUrl)
     setCapturedUrl(null)
+    setQuality(null)
     capturedBlob.current = null
     void startCamera()
   }
@@ -194,6 +211,33 @@ export function CameraScanPage() {
           </div>
         )}
       </div>
+
+      {/* Quality gate feedback (soft block — user may still use the photo). */}
+      {state === 'captured' && quality && (
+        quality.ok ? (
+          <div className="mt-4 flex items-center gap-2 rounded-[8px] border border-[#2e6b00]/30 bg-[#2e6b00]/[0.06] px-4 py-2.5 text-[14px] text-[#2e6b00]">
+            <CheckCircle2 className="size-4 shrink-0" aria-hidden />
+            <span>{t('camera.quality.ok')}</span>
+          </div>
+        ) : (
+          <div
+            role="status"
+            className="mt-4 flex items-start gap-3 rounded-[8px] border border-[#e0a800]/50 bg-[#fff8e1] px-4 py-3 text-[14px] text-[#8a6d00]"
+          >
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <div className="flex flex-col gap-1">
+              <span className="font-bold">{t('camera.quality.warnTitle')}</span>
+              <ul className="flex flex-col gap-0.5">
+                {quality.reasons.map((reason) => (
+                  <li key={reason}>
+                    • {t(`camera.quality.${QUALITY_REASON_I18N_KEY[reason]}`)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )
+      )}
 
       {/* Controls */}
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
