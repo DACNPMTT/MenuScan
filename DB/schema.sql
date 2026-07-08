@@ -1,6 +1,8 @@
--- MenuScan MVP database schema reference.
+-- MenuScan database schema reference.
 -- PostgreSQL 16+.
--- Source of truth: app/alembic/versions/001_create_mvp_schema.py.
+-- Authoritative source of truth: the Alembic migrations in
+-- app/alembic/versions/. This file mirrors the schema through the latest
+-- migration (e5f6a7b8c9d0) for quick reference only.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
@@ -35,6 +37,8 @@ CREATE TABLE users (
     email VARCHAR(255) NOT NULL,
     display_name VARCHAR(150),
     preferred_language VARCHAR(10) NOT NULL DEFAULT 'vi',
+    allergies TEXT[] NOT NULL DEFAULT '{}',
+    dietary_preferences TEXT[] NOT NULL DEFAULT '{}',
     role user_role NOT NULL DEFAULT 'USER',
     status user_status NOT NULL DEFAULT 'ACTIVE',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -128,10 +132,10 @@ CREATE TABLE scan_sessions (
         CHECK (source_file_size BETWEEN 1 AND 10485760),
 
     CONSTRAINT ck_scan_sessions_page_count
-        CHECK (source_page_count BETWEEN 1 AND 5),
+        CHECK (source_page_count BETWEEN 1 AND 8),
 
     CONSTRAINT ck_scan_sessions_target_language
-        CHECK (target_language IN ('vi', 'en')),
+        CHECK (target_language ~ '^[a-z]{2,3}(-[a-z0-9]{2,8})*$'),
 
     CONSTRAINT ck_scan_sessions_progress
         CHECK (progress BETWEEN 0 AND 100),
@@ -196,7 +200,7 @@ CREATE TABLE menus (
         CHECK (NOT is_saved OR saved_at IS NOT NULL),
 
     CONSTRAINT ck_menus_target_language
-        CHECK (target_language IN ('vi', 'en'))
+        CHECK (target_language ~ '^[a-z]{2,3}(-[a-z0-9]{2,8})*$')
 );
 
 CREATE TABLE food_items (
@@ -209,6 +213,8 @@ CREATE TABLE food_items (
     price NUMERIC(14, 2),
     currency CHAR(3),
     category VARCHAR(100),
+    allergens TEXT[] NOT NULL DEFAULT '{}',
+    dietary_tags TEXT[] NOT NULL DEFAULT '{}',
     confidence_score NUMERIC(5, 4),
     sort_order INTEGER NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
