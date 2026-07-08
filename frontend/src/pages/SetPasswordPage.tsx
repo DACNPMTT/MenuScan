@@ -44,8 +44,8 @@ export function SetPasswordPage() {
     setPasswordError(null)
     try {
       await setPassword(password)
-      // Navigate to app dashboard on success
-      navigate('/app', { replace: true })
+      // Offer the optional dietary-preferences onboarding step next.
+      navigate('/auth/onboarding', { replace: true })
     } catch (err) {
       const message = err instanceof Error ? err.message : t('setPassword.errors.saveFailed')
       setPasswordError(message)

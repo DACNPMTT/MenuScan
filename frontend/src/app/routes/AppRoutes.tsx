@@ -15,6 +15,7 @@ import { ScanResultPage } from '@/pages/ScanResultPage'
 import { CameraScanPage } from '@/pages/CameraScanPage'
 import { ScanPage } from '@/pages/ScanPage'
 import { SetPasswordPage } from '@/pages/SetPasswordPage'
+import { OnboardingPage } from '@/pages/auth/OnboardingPage'
 import { BillReceiptPage } from '@/pages/BillReceiptPage'
 
 export function AppRoutes() {
@@ -26,6 +27,7 @@ export function AppRoutes() {
       <Route path="auth/check-email" element={<RequireGuest><CheckEmailPage /></RequireGuest>} />
       <Route path="auth/verify" element={<VerifyPage />} />
       <Route path="auth/set-password" element={<SetPasswordPage />} />
+      <Route path="auth/onboarding" element={<OnboardingPage />} />
       <Route path="app" element={<AuthenticatedLayout />}>
         <Route index element={<DashboardPage />} />
         <Route path="scan" element={<ScanPage />} />

@@ -291,6 +291,15 @@
       "no_alcohol": "Không rượu bia"
     }
   },
+  "onboarding": {
+    "docTitle": "Thiết lập sở thích",
+    "title": "Cho chúng tôi biết sở thích ăn uống",
+    "subtitle": "Chúng tôi sẽ cảnh báo món có dị ứng hoặc lệch khẩu phần của bạn. Có thể bỏ qua và chỉnh sau trong hồ sơ.",
+    "save": "Lưu & tiếp tục",
+    "saving": "Đang lưu…",
+    "skip": "Bỏ qua",
+    "saveError": "Không lưu được. Vui lòng thử lại."
+  },
   "billItem": {
     "lowConfidence": "OCR confidence thấp ({{value}}%).",
     "allergyWarning": "CẢNH BÁO: Phát hiện dị ứng (Hải sản)",

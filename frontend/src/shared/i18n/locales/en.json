@@ -301,6 +301,15 @@
       "no_alcohol": "No alcohol"
     }
   },
+  "onboarding": {
+    "docTitle": "Set preferences",
+    "title": "Tell us your dietary preferences",
+    "subtitle": "We'll flag dishes with your allergies or that don't fit your diet. You can skip this and change it later in your profile.",
+    "save": "Save & continue",
+    "saving": "Saving…",
+    "skip": "Skip for now",
+    "saveError": "Couldn't save. Please try again."
+  },
   "billItem": {
     "lowConfidence": "Low OCR confidence ({{value}}%).",
     "allergyWarning": "WARNING: Allergy Match Found (Seafood)",
