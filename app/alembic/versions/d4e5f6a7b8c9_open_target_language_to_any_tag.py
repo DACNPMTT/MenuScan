@@ -23,26 +23,30 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TABLE scan_sessions DROP CONSTRAINT ck_scan_sessions_target_language")
-    op.execute(
-        "ALTER TABLE scan_sessions ADD CONSTRAINT ck_scan_sessions_target_language "
-        "CHECK (target_language ~ '^[a-z]{2,3}(-[a-z0-9]{2,8})*$')"
+    op.drop_constraint("ck_scan_sessions_target_language", "scan_sessions", type_="check")
+    op.create_check_constraint(
+        "ck_scan_sessions_target_language",
+        "scan_sessions",
+        "target_language ~ '^[a-z]{2,3}(-[a-z0-9]{2,8})*$'"
     )
-    op.execute("ALTER TABLE menus DROP CONSTRAINT ck_menus_ck_menus_target_language")
-    op.execute(
-        "ALTER TABLE menus ADD CONSTRAINT ck_menus_ck_menus_target_language "
-        "CHECK (target_language ~ '^[a-z]{2,3}(-[a-z0-9]{2,8})*$')"
+    op.drop_constraint("ck_menus_target_language", "menus", type_="check")
+    op.create_check_constraint(
+        "ck_menus_target_language",
+        "menus",
+        "target_language ~ '^[a-z]{2,3}(-[a-z0-9]{2,8})*$'"
     )
 
 
 def downgrade() -> None:
-    op.execute("ALTER TABLE scan_sessions DROP CONSTRAINT ck_scan_sessions_target_language")
-    op.execute(
-        "ALTER TABLE scan_sessions ADD CONSTRAINT ck_scan_sessions_target_language "
-        "CHECK (target_language IN ('vi', 'en', 'zh', 'ja', 'ko', 'fr', 'th'))"
+    op.drop_constraint("ck_scan_sessions_target_language", "scan_sessions", type_="check")
+    op.create_check_constraint(
+        "ck_scan_sessions_target_language",
+        "scan_sessions",
+        "target_language IN ('vi', 'en', 'zh', 'ja', 'ko', 'fr', 'th')"
     )
-    op.execute("ALTER TABLE menus DROP CONSTRAINT ck_menus_ck_menus_target_language")
-    op.execute(
-        "ALTER TABLE menus ADD CONSTRAINT ck_menus_ck_menus_target_language "
-        "CHECK (target_language IN ('vi', 'en'))"
+    op.drop_constraint("ck_menus_target_language", "menus", type_="check")
+    op.create_check_constraint(
+        "ck_menus_target_language",
+        "menus",
+        "target_language IN ('vi', 'en', 'zh', 'ja', 'ko', 'fr', 'th')"
     )
