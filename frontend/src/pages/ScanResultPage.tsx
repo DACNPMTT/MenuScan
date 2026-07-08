@@ -585,21 +585,23 @@ function ItemsList({
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 2xl:grid-cols-3">
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex flex-col gap-2 rounded-[12px] border border-hairline bg-canvas p-4 transition-colors hover:border-primary/30 hover:bg-surface-muted/50"
+              className="flex h-full flex-col gap-2 rounded-[12px] border border-hairline bg-canvas p-4 transition-colors hover:border-primary/30 hover:bg-surface-muted/50"
             >
-              {item.category && (
-                <span className="w-fit rounded-[4px] bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.5px] text-ink-variant">
-                  {item.category}
-                </span>
-              )}
-              <div className="flex items-start justify-between gap-3">
-                <span className="text-[16px] font-bold leading-tight text-ink">
-                  {item.original_name}
-                </span>
+              {/* Price rides on the badge row: that row has a fixed height, so
+                  prices line up across every card and the name below gets the
+                  full card width (far fewer ragged line wraps). */}
+              <div className="flex min-h-[22px] items-center justify-between gap-3">
+                {item.category ? (
+                  <span className="w-fit rounded-[4px] bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.5px] text-ink-variant">
+                    {item.category}
+                  </span>
+                ) : (
+                  <span aria-hidden />
+                )}
                 <span className="shrink-0 text-[15px] font-semibold text-primary-dark">
                   {item.price
                     ? formatConvertedAmount(
@@ -611,22 +613,25 @@ function ItemsList({
                     : '—'}
                 </span>
               </div>
+              <p className="mb-0 break-words text-[16px] font-bold leading-snug text-ink">
+                {item.original_name}
+              </p>
               {item.translated_name && item.translated_name !== item.original_name && (
-                <span className="text-[14px] font-medium text-ink-variant">
+                <p className="mb-0 break-words text-[14px] font-medium text-ink-variant">
                   {item.translated_name}
-                </span>
+                </p>
               )}
               {(item.original_description || item.translated_description) && (
                 <div className="mt-1 flex flex-col gap-1.5 border-t border-hairline pt-2.5">
                   {item.original_description && (
-                    <span className="text-[13px] italic text-ink-variant">
+                    <p className="mb-0 text-[13px] italic leading-relaxed text-ink-variant">
                       {item.original_description}
-                    </span>
+                    </p>
                   )}
                   {item.translated_description && item.translated_description !== item.original_description && (
-                    <span className="text-[13px] text-ink-variant">
+                    <p className="mb-0 text-[13px] leading-relaxed text-ink-variant">
                       {item.translated_description}
-                    </span>
+                    </p>
                   )}
                 </div>
               )}
