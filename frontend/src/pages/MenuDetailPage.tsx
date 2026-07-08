@@ -4,6 +4,7 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
+  Coins,
   HandCoins,
   Loader2,
   Percent,
@@ -24,7 +25,8 @@ import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue'
 import { useExchangeRates } from '@/shared/hooks/useExchangeRates'
 import { CurrencySelect } from '@/shared/components/CurrencySelect'
-import { formatConvertedAmount } from '@/shared/lib/currency'
+import { CURRENCY_OPTIONS, convertAmount, formatConvertedAmount } from '@/shared/lib/currency'
+import { cn } from '@/shared/lib/cn'
 import {
   ALL_CATEGORY,
   ITEMS_PAGE_SIZE,
@@ -62,6 +64,63 @@ const ADJUSTMENT_FIELD = 'flex flex-col gap-1.5'
 const ADJUSTMENT_LABEL = 'flex items-center gap-1.5 text-[13px] font-medium text-ink'
 const ADJUSTMENT_INPUT =
   'h-9 w-full rounded-[8px] border border-hairline bg-white px-3 text-right text-[14px] text-ink outline-none focus:border-primary-dark'
+// A money field: a right-aligned number glued to a compact currency picker.
+const MONEY_GROUP =
+  'flex h-9 overflow-hidden rounded-[8px] border border-hairline bg-white focus-within:border-primary-dark'
+const MONEY_INPUT =
+  'min-w-0 flex-1 px-3 text-right text-[14px] text-ink outline-none'
+const MONEY_CURRENCY =
+  'shrink-0 border-l border-hairline bg-surface-muted px-1 text-[12px] font-bold text-primary-dark outline-none disabled:opacity-60'
+
+/** Round to the 2 decimals the backend stores (NUMERIC(14,2)). */
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100
+}
+
+/** A non-negative money amount plus the currency it is typed in. The currency
+ * picker is disabled while exchange rates are unavailable, so an amount can
+ * never be entered in a currency we cannot convert to the bill's. */
+function MoneyField({
+  value,
+  onValueChange,
+  currency,
+  onCurrencyChange,
+  currencyLabel,
+  currencyDisabled,
+}: {
+  value: number
+  onValueChange: (next: number) => void
+  currency: string
+  onCurrencyChange: (next: string) => void
+  currencyLabel: string
+  currencyDisabled: boolean
+}) {
+  return (
+    <div className={MONEY_GROUP}>
+      <input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        value={value}
+        onChange={(event) => onValueChange(Math.max(0, Number(event.target.value) || 0))}
+        className={MONEY_INPUT}
+      />
+      <select
+        value={currency}
+        onChange={(event) => onCurrencyChange(event.target.value)}
+        disabled={currencyDisabled}
+        aria-label={currencyLabel}
+        className={MONEY_CURRENCY}
+      >
+        {CURRENCY_OPTIONS.map((option) => (
+          <option key={option.code} value={option.code}>
+            {option.code}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
 
 export function MenuDetailPage() {
   const { t } = useTranslation()
@@ -111,9 +170,18 @@ export function MenuDetailPage() {
   // Bill adjustments. Percentages apply to the subtotal (same base the backend
   // uses), surcharge is a flat amount in the bill's own currency.
   const [vatPercent, setVatPercent] = useState(0)
-  const [tipPercent, setTipPercent] = useState(0)
-  const [surcharge, setSurcharge] = useState(0)
   const [discountPercent, setDiscountPercent] = useState(0)
+  // Tip can be a percentage of the subtotal or a flat amount. Flat amounts (tip
+  // and surcharge) are typed in a currency of the diner's choosing and converted
+  // to the bill's own currency before they reach the server.
+  // `currency` is derived further down (and is null until the menu loads), so the
+  // pickers start unset and fall back to the bill's currency.
+  const [tipMode, setTipMode] = useState<'PERCENT' | 'AMOUNT'>('PERCENT')
+  const [tipPercent, setTipPercent] = useState(0)
+  const [tipInput, setTipInput] = useState(0)
+  const [tipCurrency, setTipCurrency] = useState<string | null>(null)
+  const [surchargeInput, setSurchargeInput] = useState(0)
+  const [surchargeCurrency, setSurchargeCurrency] = useState<string | null>(null)
   const [billLines, setBillLines] = useState<Record<string, BillLineState>>({})
   const [addingManual, setAddingManual] = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -310,12 +378,24 @@ export function MenuDetailPage() {
 
   // Mirrors BillingService: percentage adjustments are computed on the subtotal
   // (never compounded), then summed into the total.
+  const billCurrency = currency ?? 'VND'
+  const tipMoneyCurrency = tipCurrency ?? billCurrency
+  const surchargeMoneyCurrency = surchargeCurrency ?? billCurrency
+  // Flat amounts are typed in the diner's chosen currency; every figure below is
+  // expressed in the bill's currency, which is what the server stores.
+  const toBill = (amount: number, from: string) =>
+    convertAmount(amount, from, billCurrency, exchangeRates) ?? 0
+
   const vatAmount = (subtotal * vatPercent) / 100
-  const tipAmount = (subtotal * tipPercent) / 100
+  const tipAmount =
+    tipMode === 'PERCENT'
+      ? (subtotal * tipPercent) / 100
+      : toBill(tipInput, tipMoneyCurrency)
+  const surchargeAmount = toBill(surchargeInput, surchargeMoneyCurrency)
   const discountAmount = (subtotal * discountPercent) / 100
   // Discount is capped at 100% of the subtotal, so the total can never go
   // negative (the server rejects a negative total).
-  const total = subtotal + vatAmount + tipAmount + surcharge - discountAmount
+  const total = subtotal + vatAmount + tipAmount + surchargeAmount - discountAmount
   const perPerson = peopleCount > 0 ? total / peopleCount : total
 
   const updateLine = (itemId: string, updater: (line: BillLineState) => BillLineState) => {
@@ -612,20 +692,28 @@ export function MenuDetailPage() {
           value: vatPercent,
         })
       }
-      if (tipPercent > 0) {
+      if (tipMode === 'PERCENT' && tipPercent > 0) {
         adjustments.push({
           type: 'SERVICE_CHARGE',
           calculation_type: 'PERCENTAGE',
           label: t('menuDetail.tip'),
           value: tipPercent,
         })
+      } else if (tipMode === 'AMOUNT' && tipAmount > 0) {
+        // Already converted to the bill's currency, which is what FIXED means.
+        adjustments.push({
+          type: 'SERVICE_CHARGE',
+          calculation_type: 'FIXED',
+          label: t('menuDetail.tip'),
+          value: roundMoney(tipAmount),
+        })
       }
-      if (surcharge > 0) {
+      if (surchargeAmount > 0) {
         adjustments.push({
           type: 'SURCHARGE',
           calculation_type: 'FIXED',
           label: t('menuDetail.surcharge'),
-          value: surcharge,
+          value: roundMoney(surchargeAmount),
         })
       }
       if (discountPercent > 0) {
@@ -920,46 +1008,70 @@ export function MenuDetailPage() {
                     className={ADJUSTMENT_INPUT}
                   />
                 </label>
-                <label className={ADJUSTMENT_FIELD}>
+                <div className={ADJUSTMENT_FIELD}>
                   <span className={ADJUSTMENT_LABEL}>
                     <HandCoins className="size-4 shrink-0 text-primary-dark" aria-hidden />
                     <span className="truncate">{t('menuDetail.tip')}</span>
-                    <span className="shrink-0 text-[12px] font-normal text-ink-variant">
-                      (%)
+                    <span className="ml-auto flex shrink-0 overflow-hidden rounded-[6px] border border-hairline">
+                      {(['PERCENT', 'AMOUNT'] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setTipMode(mode)}
+                          aria-pressed={tipMode === mode}
+                          title={t(
+                            mode === 'PERCENT'
+                              ? 'menuDetail.tipModePercent'
+                              : 'menuDetail.tipModeAmount',
+                          )}
+                          className={cn(
+                            'flex h-6 w-7 items-center justify-center text-[11px] font-bold transition-colors',
+                            tipMode === mode
+                              ? 'bg-primary-dark text-white'
+                              : 'bg-canvas text-ink-variant hover:bg-surface-muted',
+                          )}
+                        >
+                          {mode === 'PERCENT' ? '%' : <Coins className="size-3" aria-hidden />}
+                        </button>
+                      ))}
                     </span>
                   </span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={tipPercent}
-                    onChange={(event) => setTipPercent(clampPercent(event.target.value))}
-                    className={ADJUSTMENT_INPUT}
-                  />
-                </label>
-                <label className={ADJUSTMENT_FIELD}>
+                  {tipMode === 'PERCENT' ? (
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={tipPercent}
+                      onChange={(event) => setTipPercent(clampPercent(event.target.value))}
+                      className={ADJUSTMENT_INPUT}
+                    />
+                  ) : (
+                    <MoneyField
+                      value={tipInput}
+                      onValueChange={setTipInput}
+                      currency={tipMoneyCurrency}
+                      onCurrencyChange={setTipCurrency}
+                      currencyLabel={t('menuDetail.tipCurrencyAria')}
+                      currencyDisabled={!exchangeRates}
+                    />
+                  )}
+                </div>
+                <div className={ADJUSTMENT_FIELD}>
                   <span className={ADJUSTMENT_LABEL}>
                     <Receipt className="size-4 shrink-0 text-primary-dark" aria-hidden />
                     <span className="truncate">{t('menuDetail.surcharge')}</span>
-                    {currency && (
-                      <span className="shrink-0 text-[12px] font-normal text-ink-variant">
-                        ({currency})
-                      </span>
-                    )}
                   </span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    value={surcharge}
-                    onChange={(event) =>
-                      setSurcharge(Math.max(0, Number(event.target.value) || 0))
-                    }
-                    className={ADJUSTMENT_INPUT}
+                  <MoneyField
+                    value={surchargeInput}
+                    onValueChange={setSurchargeInput}
+                    currency={surchargeMoneyCurrency}
+                    onCurrencyChange={setSurchargeCurrency}
+                    currencyLabel={t('menuDetail.surchargeCurrencyAria')}
+                    currencyDisabled={!exchangeRates}
                   />
-                </label>
+                </div>
                 <label className={ADJUSTMENT_FIELD}>
                   <span className={ADJUSTMENT_LABEL}>
                     <Tag className="size-4 shrink-0 text-primary-dark" aria-hidden />
@@ -1034,18 +1146,19 @@ export function MenuDetailPage() {
                     {tipAmount > 0 && (
                       <div className="flex w-full justify-between gap-3 sm:w-[280px]">
                         <span className="text-ink-variant">
-                          {t('menuDetail.tip')} · {tipPercent}%
+                          {t('menuDetail.tip')}
+                          {tipMode === 'PERCENT' ? ` · ${tipPercent}%` : ''}
                         </span>
                         <span className="text-ink">
                           {formatConvertedAmount(tipAmount, currency, displayCurrency, exchangeRates)}
                         </span>
                       </div>
                     )}
-                    {surcharge > 0 && (
+                    {surchargeAmount > 0 && (
                       <div className="flex w-full justify-between gap-3 sm:w-[280px]">
                         <span className="text-ink-variant">{t('menuDetail.surcharge')}</span>
                         <span className="text-ink">
-                          {formatConvertedAmount(surcharge, currency, displayCurrency, exchangeRates)}
+                          {formatConvertedAmount(surchargeAmount, currency, displayCurrency, exchangeRates)}
                         </span>
                       </div>
                     )}
