@@ -468,7 +468,8 @@
     "nav": {
       "features": "Features",
       "howItWorks": "How it works",
-      "signup": "Sign up"
+      "signup": "Sign up",
+      "goToApp": "Go to app"
     },
     "hero": {
       "title": "Turn menu photos into structured data",

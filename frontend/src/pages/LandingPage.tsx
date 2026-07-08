@@ -7,6 +7,7 @@ import { Badge } from '@/shared/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/shared/components/ui/avatar'
 import { LanguageSwitcher } from '@/shared/components/LanguageSwitcher'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
+import { useAuth } from '@/app/providers/AuthProvider'
 
 const FEATURE_ICONS = [Upload, Camera, FileText]
 const STEP_NUMBERS = ['1', '2', '3', '4']
@@ -32,6 +33,7 @@ export function LandingPage() {
 
 function TopNav() {
   const { t } = useTranslation()
+  const { user } = useAuth()
   return (
     <header className="flex h-20 items-center justify-between px-5 md:px-[75px]">
       <Link
@@ -50,19 +52,30 @@ function TopNav() {
       </nav>
       <div className="flex items-center gap-3">
         <LanguageSwitcher />
-        <Button
-          asChild
-          variant="outline"
-          className="h-11 rounded-full border-ink px-6 text-ink hover:bg-ink/5"
-        >
-          <Link to="/auth/login">{t('common.login')}</Link>
-        </Button>
-        <Button
-          asChild
-          className="h-11 rounded-full bg-primary px-6 font-bold text-white hover:bg-primary/90"
-        >
-          <Link to="/auth/register">{t('landing.nav.signup')}</Link>
-        </Button>
+        {user ? (
+          <Button
+            asChild
+            className="h-11 rounded-full bg-primary px-6 font-bold text-white hover:bg-primary/90"
+          >
+            <Link to="/app">{t('landing.nav.goToApp')}</Link>
+          </Button>
+        ) : (
+          <>
+            <Button
+              asChild
+              variant="outline"
+              className="h-11 rounded-full border-ink px-6 text-ink hover:bg-ink/5"
+            >
+              <Link to="/auth/login">{t('common.login')}</Link>
+            </Button>
+            <Button
+              asChild
+              className="h-11 rounded-full bg-primary px-6 font-bold text-white hover:bg-primary/90"
+            >
+              <Link to="/auth/register">{t('landing.nav.signup')}</Link>
+            </Button>
+          </>
+        )}
       </div>
     </header>
   )
@@ -70,6 +83,7 @@ function TopNav() {
 
 function Hero() {
   const { t } = useTranslation()
+  const { user } = useAuth()
   return (
     <section className="px-5 py-16 md:px-[75px] md:py-24">
       <div className="mx-auto flex max-w-[896px] flex-col items-center text-center">
@@ -86,13 +100,15 @@ function Hero() {
           >
             <Link to="/app/scan">{t('landing.hero.startScanning')}</Link>
           </Button>
-          <Button
-            asChild
-            variant="outline"
-            className="h-12 rounded-full border-ink px-8 text-[17px] font-bold text-ink hover:bg-ink/5"
-          >
-            <Link to="/auth/login">{t('common.login')}</Link>
-          </Button>
+          {!user && (
+            <Button
+              asChild
+              variant="outline"
+              className="h-12 rounded-full border-ink px-8 text-[17px] font-bold text-ink hover:bg-ink/5"
+            >
+              <Link to="/auth/login">{t('common.login')}</Link>
+            </Button>
+          )}
         </div>
       </div>
 

@@ -456,7 +456,8 @@
     "nav": {
       "features": "Tính năng",
       "howItWorks": "Cách hoạt động",
-      "signup": "Đăng ký"
+      "signup": "Đăng ký",
+      "goToApp": "Vào ứng dụng"
     },
     "hero": {
       "title": "Biến ảnh thực đơn thành dữ liệu có cấu trúc",

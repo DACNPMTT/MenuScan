@@ -64,7 +64,6 @@ export function ProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [draftDisplayName, setDraftDisplayName] = useState('')
-  const [draftLanguage, setDraftLanguage] = useState('vi')
   const [draftDiet, setDraftDiet] = useState<DietPreferenceValue>({
     allergies: [],
     dietary_preferences: [],
@@ -111,16 +110,10 @@ export function ProfilePage() {
     : t('profile.notSet')
   const status = profile?.status ?? 'ACTIVE'
   const statusLabel = t(`profile.statusLabels.${status}`, { defaultValue: status })
-  const language = profile?.preferred_language
-    ? t(`profile.languageLabels.${profile.preferred_language}`, {
-        defaultValue: profile.preferred_language,
-      })
-    : t('profile.notSet')
   const statusStyle = STATUS_STYLES[status] ?? 'bg-secondary text-ink-variant'
 
   const startEditing = () => {
     setDraftDisplayName(profile?.display_name ?? '')
-    setDraftLanguage(profile?.preferred_language === 'en' ? 'en' : 'vi')
     setDraftDiet({
       allergies: profile?.allergies ?? [],
       dietary_preferences: profile?.dietary_preferences ?? [],
@@ -147,7 +140,6 @@ export function ProfilePage() {
     try {
       const updated = await updateProfile({
         display_name: normalizedDisplayName || null,
-        preferred_language: draftLanguage,
         allergies: draftDiet.allergies,
         dietary_preferences: draftDiet.dietary_preferences,
       })
@@ -314,28 +306,6 @@ export function ProfilePage() {
                 label={t('profile.email')}
                 value={displayValue(profile?.email, t('profile.noEmail'))}
               />
-              {editing ? (
-                <ProfileEditField
-                  icon={<Languages className="size-5" />}
-                  label={t('profile.preferredLanguage')}
-                >
-                  <select
-                    value={draftLanguage}
-                    onChange={(event) => setDraftLanguage(event.target.value)}
-                    disabled={saving}
-                    className="h-10 w-full min-w-0 rounded-[8px] border border-hairline bg-canvas px-3 text-[15px] font-bold text-ink outline-none transition-colors focus:border-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <option value="vi">Tiếng Việt</option>
-                    <option value="en">English</option>
-                  </select>
-                </ProfileEditField>
-              ) : (
-                <ProfileField
-                  icon={<Languages className="size-5" />}
-                  label={t('profile.preferredLanguage')}
-                  value={language}
-                />
-              )}
             </div>
             <div className="flex flex-col">
               <div className="flex min-h-[96px] gap-3 px-5 py-4">

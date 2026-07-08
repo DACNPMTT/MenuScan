@@ -1,4 +1,4 @@
-import { NavLink, Outlet, Navigate } from 'react-router-dom'
+import { NavLink, Outlet, Link } from 'react-router-dom'
 import { LayoutDashboard, LogOut, ScanLine, Utensils } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
@@ -10,15 +10,19 @@ import { RouteErrorFallback } from '@/shared/components/RouteErrorFallback'
 // Authenticated app shell matching the MenuScan Figma: a top header (logo +
 // primary nav + account actions) and a footer. No left sidebar.
 const navigationItems = [
-  { key: 'dashboard', to: '/app', icon: LayoutDashboard },
-  { key: 'scan', to: '/app/scan', icon: ScanLine },
-  { key: 'menus', to: '/app/menus', icon: Utensils },
+  { key: 'dashboard', to: '/app', icon: LayoutDashboard, authOnly: true },
+  { key: 'scan', to: '/app/scan', icon: ScanLine, authOnly: false },
+  { key: 'menus', to: '/app/menus', icon: Utensils, authOnly: true },
 ] as const
 
 export function AuthenticatedLayout() {
   const { user, loading, logout } = useAuth()
   const { t } = useTranslation()
   const accountLabel = user?.display_name || user?.email?.split('@')[0] || t('nav.profile')
+  // The app shell renders for guests too — they can scan without an account.
+  // Auth-only nav/actions are hidden for guests, and protected pages guard
+  // themselves via RequireAuth.
+  const navItems = navigationItems.filter((item) => user || !item.authOnly)
 
   if (loading) {
     return (
@@ -26,10 +30,6 @@ export function AuthenticatedLayout() {
         <Spinner />
       </div>
     )
-  }
-
-  if (!user) {
-    return <Navigate to="/auth/login" replace />
   }
 
   return (
@@ -45,19 +45,21 @@ export function AuthenticatedLayout() {
               MenuScan
             </span>
           </NavLink>
-          <NavLink
-            to="/app/profile"
-            className="mt-1 block max-w-[min(62vw,230px)] truncate text-[12px] font-medium leading-none text-ink-variant transition-colors hover:text-primary-dark sm:hidden"
-            title={user.email}
-          >
-            {accountLabel}
-          </NavLink>
+          {user && (
+            <NavLink
+              to="/app/profile"
+              className="mt-1 block max-w-[min(62vw,230px)] truncate text-[12px] font-medium leading-none text-ink-variant transition-colors hover:text-primary-dark sm:hidden"
+              title={user.email}
+            >
+              {accountLabel}
+            </NavLink>
+          )}
         </div>
         <nav
           className="hidden items-center gap-[24px] sm:flex sm:gap-[30px]"
           aria-label="App navigation"
         >
-          {navigationItems.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               end={item.to === '/app'}
               key={item.to}
@@ -74,21 +76,32 @@ export function AuthenticatedLayout() {
         </nav>
         <div className="flex shrink-0 items-center gap-2 sm:gap-4">
           <LanguageSwitcher className="hidden sm:inline-flex" />
-          <NavLink
-            to="/app/profile"
-            className="hidden max-w-[220px] truncate text-[14px] text-ink-variant transition-colors hover:text-primary-dark md:inline"
-            title={user.email}
-          >
-            {accountLabel}
-          </NavLink>
-          <button
-            type="button"
-            onClick={() => logout()}
-            className="flex size-10 items-center justify-center rounded-[8px] bg-primary-dark text-[15px] font-bold text-white transition-opacity hover:opacity-90 sm:size-auto sm:rounded-[4px] sm:px-[20px] sm:py-[8px]"
-          >
-            <LogOut className="size-4 sm:hidden" aria-hidden />
-            <span className="sr-only sm:not-sr-only">{t('common.logout')}</span>
-          </button>
+          {user ? (
+            <>
+              <NavLink
+                to="/app/profile"
+                className="hidden max-w-[220px] truncate text-[14px] text-ink-variant transition-colors hover:text-primary-dark md:inline"
+                title={user.email}
+              >
+                {accountLabel}
+              </NavLink>
+              <button
+                type="button"
+                onClick={() => logout()}
+                className="flex size-10 items-center justify-center rounded-[8px] bg-primary-dark text-[15px] font-bold text-white transition-opacity hover:opacity-90 sm:size-auto sm:rounded-[4px] sm:px-[20px] sm:py-[8px]"
+              >
+                <LogOut className="size-4 sm:hidden" aria-hidden />
+                <span className="sr-only sm:not-sr-only">{t('common.logout')}</span>
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/auth/login"
+              className="flex items-center justify-center rounded-[4px] bg-primary-dark px-[20px] py-[8px] text-[15px] font-bold text-white transition-opacity hover:opacity-90"
+            >
+              {t('common.login')}
+            </Link>
+          )}
         </div>
       </header>
       <nav
@@ -96,7 +109,7 @@ export function AuthenticatedLayout() {
         aria-label="App navigation"
       >
         <div className="grid grid-cols-3 gap-1 rounded-[10px] bg-canvas p-1">
-          {navigationItems.map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon
             return (
               <NavLink

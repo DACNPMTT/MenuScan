@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom'
 import { AuthenticatedLayout } from '@/layouts/AuthenticatedLayout'
 import { RequireGuest } from '@/app/routes/RequireGuest'
+import { RequireAuth } from '@/app/routes/RequireAuth'
 import { CheckEmailPage } from '@/pages/auth/CheckEmailPage'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterPage } from '@/pages/auth/RegisterPage'
@@ -29,14 +30,15 @@ export function AppRoutes() {
       <Route path="auth/set-password" element={<SetPasswordPage />} />
       <Route path="auth/onboarding" element={<OnboardingPage />} />
       <Route path="app" element={<AuthenticatedLayout />}>
-        <Route index element={<DashboardPage />} />
+        {/* Guests can scan without an account; the rest requires sign-in. */}
+        <Route index element={<RequireAuth><DashboardPage /></RequireAuth>} />
         <Route path="scan" element={<ScanPage />} />
         <Route path="scan/camera" element={<CameraScanPage />} />
         <Route path="scans/:scanId" element={<ScanResultPage />} />
-        <Route path="menus" element={<MenusPage />} />
-        <Route path="menus/:menuId" element={<MenuDetailPage />} />
-        <Route path="bills/:billId" element={<BillReceiptPage />} />
-        <Route path="profile" element={<ProfilePage />} />
+        <Route path="menus" element={<RequireAuth><MenusPage /></RequireAuth>} />
+        <Route path="menus/:menuId" element={<RequireAuth><MenuDetailPage /></RequireAuth>} />
+        <Route path="bills/:billId" element={<RequireAuth><BillReceiptPage /></RequireAuth>} />
+        <Route path="profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />
