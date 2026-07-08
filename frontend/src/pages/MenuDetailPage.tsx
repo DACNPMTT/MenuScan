@@ -55,6 +55,14 @@ import type {
   PaginationMeta,
 } from '@/features/menu-scan/types'
 
+// Bill-calculator adjustment fields (VAT / tip / surcharge / discount). The label
+// stacks above a full-width input so the boxes align across the row no matter how
+// long each label is.
+const ADJUSTMENT_FIELD = 'flex flex-col gap-1.5'
+const ADJUSTMENT_LABEL = 'flex items-center gap-1.5 text-[13px] font-medium text-ink'
+const ADJUSTMENT_INPUT =
+  'h-9 w-full rounded-[8px] border border-hairline bg-white px-3 text-right text-[14px] text-ink outline-none focus:border-primary-dark'
+
 export function MenuDetailPage() {
   const { t } = useTranslation()
   const { menuId } = useParams<{ menuId: string }>()
@@ -889,13 +897,17 @@ export function MenuDetailPage() {
                 </div>
               </div>
 
-              {/* VAT / tip / surcharge / discount — percentages apply to the subtotal. */}
-              <div className="mt-4 grid grid-cols-1 gap-3 border-t border-hairline pt-4 sm:grid-cols-2 lg:grid-cols-4">
-                <label className="flex items-center justify-between gap-3 text-[14px] font-medium text-ink">
-                  <span className="flex items-center gap-2">
-                    <Percent className="size-4 text-primary-dark" aria-hidden />
-                    {t('menuDetail.vat')}
-                    <span className="text-[12px] font-normal text-ink-variant">(%)</span>
+              {/* VAT / tip / surcharge / discount — percentages apply to the subtotal.
+                  Label sits above a full-width input so every field lines up, no
+                  matter how long its label is. */}
+              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-hairline pt-4 sm:grid-cols-4">
+                <label className={ADJUSTMENT_FIELD}>
+                  <span className={ADJUSTMENT_LABEL}>
+                    <Percent className="size-4 shrink-0 text-primary-dark" aria-hidden />
+                    <span className="truncate">{t('menuDetail.vat')}</span>
+                    <span className="shrink-0 text-[12px] font-normal text-ink-variant">
+                      (%)
+                    </span>
                   </span>
                   <input
                     type="number"
@@ -905,14 +917,16 @@ export function MenuDetailPage() {
                     step={0.5}
                     value={vatPercent}
                     onChange={(event) => setVatPercent(clampPercent(event.target.value))}
-                    className="h-9 w-24 rounded-[8px] border border-hairline bg-white px-3 text-right text-[14px] text-ink outline-none focus:border-primary-dark"
+                    className={ADJUSTMENT_INPUT}
                   />
                 </label>
-                <label className="flex items-center justify-between gap-3 text-[14px] font-medium text-ink">
-                  <span className="flex items-center gap-2">
-                    <HandCoins className="size-4 text-primary-dark" aria-hidden />
-                    {t('menuDetail.tip')}
-                    <span className="text-[12px] font-normal text-ink-variant">(%)</span>
+                <label className={ADJUSTMENT_FIELD}>
+                  <span className={ADJUSTMENT_LABEL}>
+                    <HandCoins className="size-4 shrink-0 text-primary-dark" aria-hidden />
+                    <span className="truncate">{t('menuDetail.tip')}</span>
+                    <span className="shrink-0 text-[12px] font-normal text-ink-variant">
+                      (%)
+                    </span>
                   </span>
                   <input
                     type="number"
@@ -922,15 +936,15 @@ export function MenuDetailPage() {
                     step={1}
                     value={tipPercent}
                     onChange={(event) => setTipPercent(clampPercent(event.target.value))}
-                    className="h-9 w-24 rounded-[8px] border border-hairline bg-white px-3 text-right text-[14px] text-ink outline-none focus:border-primary-dark"
+                    className={ADJUSTMENT_INPUT}
                   />
                 </label>
-                <label className="flex items-center justify-between gap-3 text-[14px] font-medium text-ink">
-                  <span className="flex items-center gap-2">
-                    <Receipt className="size-4 text-primary-dark" aria-hidden />
-                    {t('menuDetail.surcharge')}
+                <label className={ADJUSTMENT_FIELD}>
+                  <span className={ADJUSTMENT_LABEL}>
+                    <Receipt className="size-4 shrink-0 text-primary-dark" aria-hidden />
+                    <span className="truncate">{t('menuDetail.surcharge')}</span>
                     {currency && (
-                      <span className="text-[12px] font-normal text-ink-variant">
+                      <span className="shrink-0 text-[12px] font-normal text-ink-variant">
                         ({currency})
                       </span>
                     )}
@@ -943,14 +957,16 @@ export function MenuDetailPage() {
                     onChange={(event) =>
                       setSurcharge(Math.max(0, Number(event.target.value) || 0))
                     }
-                    className="h-9 w-24 rounded-[8px] border border-hairline bg-white px-3 text-right text-[14px] text-ink outline-none focus:border-primary-dark"
+                    className={ADJUSTMENT_INPUT}
                   />
                 </label>
-                <label className="flex items-center justify-between gap-3 text-[14px] font-medium text-ink">
-                  <span className="flex items-center gap-2">
-                    <Tag className="size-4 text-primary-dark" aria-hidden />
-                    {t('menuDetail.discount')}
-                    <span className="text-[12px] font-normal text-ink-variant">(%)</span>
+                <label className={ADJUSTMENT_FIELD}>
+                  <span className={ADJUSTMENT_LABEL}>
+                    <Tag className="size-4 shrink-0 text-primary-dark" aria-hidden />
+                    <span className="truncate">{t('menuDetail.discount')}</span>
+                    <span className="shrink-0 text-[12px] font-normal text-ink-variant">
+                      (%)
+                    </span>
                   </span>
                   <input
                     type="number"
@@ -960,7 +976,7 @@ export function MenuDetailPage() {
                     step={1}
                     value={discountPercent}
                     onChange={(event) => setDiscountPercent(clampPercent(event.target.value))}
-                    className="h-9 w-24 rounded-[8px] border border-hairline bg-white px-3 text-right text-[14px] text-ink outline-none focus:border-primary-dark"
+                    className={ADJUSTMENT_INPUT}
                   />
                 </label>
               </div>
