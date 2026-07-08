@@ -1,0 +1,21 @@
+meta {
+  name: Get Scan Source
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}{{api_prefix}}/scans/{{scan_id}}/source
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{access_token}}
+}
+
+script:post-response {
+  if (res.status !== 200 && res.status !== 302) {
+    throw new Error(`Expected 200 or 302 when reading scan source, got ${res.status}`);
+  }
+}

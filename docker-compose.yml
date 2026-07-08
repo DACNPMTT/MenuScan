@@ -1,0 +1,42 @@
+# MenuScan local development dependencies.
+#
+# The backend and frontend run natively through Makefile targets.
+# This compose file only provides services needed by local development.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: menuscan-db
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT:-54320}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-menuscan}
+      POSTGRES_USER: ${POSTGRES_USER:-menuscan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdev}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-menuscan} -d ${POSTGRES_DB:-menuscan}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: menuscan-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-63790}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+  redisdata:

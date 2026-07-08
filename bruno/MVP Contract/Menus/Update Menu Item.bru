@@ -1,0 +1,32 @@
+meta {
+  name: Update Menu Item
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{base_url}}{{api_prefix}}/menus/{{menu_id}}/items/{{menu_item_id}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{access_token}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "translated_name": "Beef pho noodle soup",
+    "price": "60000"
+  }
+}
+
+tests {
+  test("updates menu item fields", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data.id).to.equal(bru.getEnvVar("menu_item_id"));
+    expect(res.body.data.translated_name).to.equal("Beef pho noodle soup");
+  });
+}

@@ -1,0 +1,391 @@
+[
+  {
+    "sample_id": "ocr-001-vi-single-column",
+    "provider": "google_vision",
+    "text": "Menu Quán Phở Sen\nPhở bò đặc biệt 60.000₫\nBún bò Huế 55.000₫\nCà phê sữa đá 25.000₫",
+    "lines": [
+      "Menu Quán Phở Sen",
+      "Phở bò đặc biệt 60.000 ₫",
+      "Bún bò Huế 55.000 ₫",
+      "Cà phê sữa đá 25.000 ₫"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 890
+  },
+  {
+    "sample_id": "ocr-002-vi-street-drinks",
+    "provider": "google_vision",
+    "text": "Quán Nước Vỉa Hè\nNước mía 15.000₫\nTrà đá 5.000₫\nSữa đậu nành 12.000₫",
+    "lines": [
+      "Quán Nước Vỉa Hè",
+      "Nước mía 15.000 ₫",
+      "Trà đá 5.000 ₫",
+      "Sữa đậu nành 12.000 ₫"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 625
+  },
+  {
+    "sample_id": "ocr-003-bilingual-single-column",
+    "provider": "google_vision",
+    "text": "Sài Gòn Chay\nGỏi cuốn / Fresh rolls 45,000 VND\nCom chay / Vegan rice 70,000 VND\nTrà đào / Peach tea 30,000 VND",
+    "lines": [
+      "Sài Gòn Chay",
+      "Gỏi cuốn / Fresh rolls 45,000 VND",
+      "Com chay / Vegan rice 70,000 VND Trà đào / Peach tea 30,000 VND"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 452
+  },
+  {
+    "sample_id": "ocr-004-vi-two-column",
+    "provider": "google_vision",
+    "text": "Cơm Tấm Hai Cột\nCơm tấm sườn 65.000₫\nCanh chua 35.000₫\nBánh flan 20.000₫\nCơm gà xối mỡ 58.000₫\nTrà tắc 18.000₫\nNước suối 10.000₫",
+    "lines": [
+      "Cơm Tấm Hai Cột",
+      "Cơm tấm sườn 65.000 ₫",
+      "Canh chua 35.000 ₫",
+      "Bánh flan 20.000 ₫",
+      "Cơm gà xối mỡ 58.000 ₫",
+      "Trà tắc 18.000 ₫",
+      "Nước suối 10.000 ₫"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 469
+  },
+  {
+    "sample_id": "ocr-005-vi-seafood-two-column",
+    "provider": "google_vision",
+    "text": "Hải Sản Đà Nẵng\nMực nướng muối ớt 120.000₫\nGhe rang me 250.000₫\nCháo hàu 80.000₫\nTôm hấp bia 180.000₫\nỐc hương xào bơ 150.000₫\nRau muống xào tỏi 45.000₫",
+    "lines": [
+      "Hải Sản Đà Nẵng",
+      "Mực nướng muối ớt 120.000 ₫",
+      "Ghe rang me 250.000 ₫",
+      "Cháo hàu 80.000 ₫",
+      "Tôm hấp bia 180.000 ₫",
+      "Ốc hương xào bơ 150.000 ₫",
+      "Rau muống xào tỏi 45.000 ₫"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 437
+  },
+  {
+    "sample_id": "ocr-006-dot-leaders",
+    "provider": "google_vision",
+    "text": "Menu Dấu Chấm\nBánh mì thịt\n28.000₫\nMì Quảng\n52.000₫\nSữa đậu nành ........ 15.000₫",
+    "lines": [
+      "Menu Dấu Chấm",
+      "Bánh mì thịt",
+      "28.000 ₫",
+      "Mì Quảng",
+      "52.000 ₫",
+      "Sữa đậu nành ........ 15.000 ₫"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 467
+  },
+  {
+    "sample_id": "ocr-007-low-quality",
+    "provider": "google_vision",
+    "text": "Ảnh Menu Mờ\nHủ tiếu Nam Vang 59.000₫\nBò kho bánh mì 62.000₫\nĐá chanh 20.000₫",
+    "lines": [
+      "Ảnh Menu Mờ",
+      "Hủ tiếu Nam Vang 59.000 ₫",
+      "Bò kho bánh mì 62.000 ₫",
+      "Đá chanh 20.000 ₫"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 407
+  },
+  {
+    "sample_id": "ocr-008-skewed-photo",
+    "provider": "google_vision",
+    "text": "Ảnh Menu Nghiêng\nPhở gà 52.000₫\nMiến gà 50.000₫\nSữa bắp 18.000₫",
+    "lines": [
+      "Ảnh Menu Nghiêng",
+      "Phở gà 52.000 ₫",
+      "Miến gà 50.000 ₫",
+      "Sữa bắp 18.000 ₫"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 390
+  },
+  {
+    "sample_id": "ocr-009-dense-small-text",
+    "provider": "google_vision",
+    "text": "Menu Phố Nhỏ\nBún riêu 45.000₫\nBún mọc 45.000₫\nBún thịt nướng 50.000₫\nCơm chiên hải sản 70.000₫\nLẫu mini 99.000₫\nSinh tố bơ 35.000₫\nTrà sữa 32.000₫\nRau câu dừa 18.000₫",
+    "lines": [
+      "Menu Phố Nhỏ",
+      "Bún riêu 45.000 ₫",
+      "Bún mọc 45.000 ₫",
+      "Bún thịt nướng 50.000 ₫",
+      "Cơm chiên hải sản 70.000 ₫",
+      "Lẫu mini 99.000 ₫",
+      "Sinh tố bơ 35.000 ₫",
+      "Trà sữa 32.000 ₫",
+      "Rau câu dừa 18.000 ₫"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 452
+  },
+  {
+    "sample_id": "ocr-010-vi-tourist-price-board",
+    "provider": "google_vision",
+    "text": "Bảng Giá Phố Tây\nGỏi cuốn 45K\nPhở bò 3.50 USD\nCà phê dừa 60,000 VND",
+    "lines": [
+      "Bảng Giá Phố Tây",
+      "Gỏi cuốn 45K",
+      "Phở bò 3.50 USD",
+      "Cà phê dừa 60,000 VND"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 438
+  },
+  {
+    "sample_id": "ocr-011-no-price",
+    "provider": "google_vision",
+    "text": "Món Theo Mùa\nHỏi nhân viên về lẩu theo mùa\nHải sản tươi tính theo kg\nĐĩa rau chay",
+    "lines": [
+      "Món Theo Mùa",
+      "Hỏi nhân viên về lẩu theo mùa",
+      "Hải sản tươi tính theo kg",
+      "Đĩa rau chay"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 390
+  },
+  {
+    "sample_id": "ocr-012-many-price-formats",
+    "provider": "google_vision",
+    "text": "Định Dạng Giá\nPhở tái 60000\nBún chả 60.000 VND\nCombo tru'a 120k\nTrà sen 4,5 USD",
+    "lines": [
+      "Định Dạng Giá",
+      "Phở tái 60000",
+      "Bún chả 60.000 VND",
+      "Combo tru'a 120k",
+      "Trà sen 4,5 USD"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 420
+  },
+  {
+    "sample_id": "ocr-016-vi-long-single-column",
+    "provider": "google_vision",
+    "text": "Thực Đơn Quán Ăn Gia Đình\nPhở tái nạm 65.000₫\nPhở gà xé 58.000₫\nBún bò Huế 62.000₫\nBún riêu cua 55.000₫\nBún chả Hà Nội 70.000₫\nCơm tấm sườn bì 68.000₫\nCơm gà xối mỡ 60.000₫\nMì Quảng gà 59.000₫\nHủ tiếu Nam Vang 64.000₫\nBánh canh cua 72.000₫\nGỏi cuốn tôm thịt 45.000₫\nChả giò hải sản 48.000₫\nỐc hương xào bơ 120.000₫\nNghêu hấp sả 85.000₫\nLẩu thái nhỏ 180.000₫\nLẩu cá kèo 210.000₫\nRau muống xào tỏi 42.000₫\nCanh chua cá lóc 95.000₫\nCả kho tộ 110.000₫\nBò lúc lắc 135.000₫\nTrà đào cam sả 38.000₫\nCà phê sữa đá 29.000₫\nNước ép thơm 35.000₫\nChè khúc bạch 42.000₫",
+    "lines": [
+      "Thực Đơn Quán Ăn Gia Đình",
+      "Phở tái nạm 65.000 ₫ Phở gà xé 58.000 ₫ Bún bò Huế 62.000 ₫",
+      "Bún riêu cua 55.000 ₫",
+      "Bún chả Hà Nội 70.000 ₫ Cơm tấm sườn bì 68.000 ₫ Cơm gà xối mỡ 60.000 ₫",
+      "Mì Quảng gà 59.000 ₫",
+      "Hủ tiếu Nam Vang 64.000 ₫",
+      "Bánh canh cua 72.000 ₫",
+      "Gỏi cuốn tôm thịt 45.000 ₫ Chả giò hải sản 48.000 ₫ Ốc hương xào bơ 120.000 ₫ Nghêu hấp sả 85.000 ₫",
+      "Lẩu thái nhỏ 180.000 ₫",
+      "Lẩu cá kèo 210.000 ₫",
+      "Rau muống xào tỏi 42.000 ₫",
+      "Canh chua cá lóc 95.000 ₫",
+      "Cả kho tộ 110.000 ₫",
+      "Bò lúc lắc 135.000 ₫",
+      "Trà đào cam sả 38.000 ₫",
+      "Cà phê sữa đá 29.000 ₫ Nước ép thơm 35.000 ₫ Chè khúc bạch 42.000 ₫"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 547
+  },
+  {
+    "sample_id": "ocr-017-vi-long-two-column",
+    "provider": "google_vision",
+    "text": "Lẩu Nướng Hà Nội\nBa chỉ bò Mỹ 129.000₫\nThăn bò sốt tiêu 139.000₫\nGà nướng lá chanh 86.000₫\nTôm sú nướng 160.000₫\nCá hồi áp chảo 155.000₫\nĐậu hủ phô mai 52.000₫\nSalad rong bien 55.000₫\nLẫu nắm nhỏ 189.000₫\nLẩu riêu cua 239.000₫\nBún tươi 15.000₫\nSốt mè rang 12.000₫\nTrà tắc 25.000₫\nBia Sài Gòn 32.000₫\nKem dừa 45.000₫\nNạc vai bò 119.000₫\nSườn heo mật ong 98.000₫\nBạch tuộc sa tế 145.000₫\nMực ống nướng 135.000₫\nNấm kim châm 45.000₫\nKhoai lang kén 49.000₫\nKim chi cải thảo 35.000₫\nLẩu thái hải sản 249.000₫\nMì trứng 18.000₫\nRau lẩu thêm 35.000₫\nSốt chao cay 12.000₫\nNước sấu 28.000₫\nNước suối 12.000₫\nSữa chua nếp cẩm 39.000₫",
+    "lines": [
+      "Lẩu Nướng Hà Nội",
+      "Ba chỉ bò Mỹ 129.000 ₫ Thăn bò sốt tiêu 139.000 ₫ Gà nướng lá chanh 86.000 ₫",
+      "Tôm sú nướng 160.000 ₫ Cá hồi áp chảo 155.000 ₫ Đậu hủ phô mai 52.000 ₫",
+      "Salad rong bien 55.000 ₫",
+      "Lẫu nắm nhỏ 189.000 ₫ Lẩu riêu cua 239.000 ₫ Bún tươi 15.000 ₫",
+      "Sốt mè rang 12.000 ₫ Trà tắc 25.000 ₫",
+      "Bia Sài Gòn 32.000 ₫",
+      "Kem dừa 45.000 ₫",
+      "Nạc vai bò 119.000 ₫ Sườn heo mật ong 98.000 ₫ Bạch tuộc sa tế 145.000 ₫ Mực ống nướng 135.000 ₫ Nấm kim châm 45.000 ₫ Khoai lang kén 49.000 ₫",
+      "Kim chi cải thảo 35.000 ₫ Lẩu thái hải sản 249.000 ₫",
+      "Mì trứng 18.000 ₫ Rau lẩu thêm 35.000 ₫",
+      "Sốt chao cay 12.000 ₫ Nước sấu 28.000 ₫ Nước suối 12.000 ₫",
+      "Sữa chua nếp cẩm 39.000 ₫"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 641
+  },
+  {
+    "sample_id": "ocr-018-vi-long-drinks-dessert",
+    "provider": "google_vision",
+    "text": "Cà Phê Và Tráng Miệng\nCà phê đen đá 25.000₫\nCà phê sữa đá 29.000₫\nBạc xỉu 32.000₫\nCà phê trứng 45.000₫\nCà phê muối 39.000₫\nTrà sen vàng 42.000₫\nTrà vải hoa hồng 45.000₫\nTrà đào cam sả 38.000₫\nTrà tắc xí muội 28.000₫\nSinh tố bơ 45.000₫\nSinh tố xoài 42.000₫\nNước ép ổi 35.000₫\nNước ép các 35.000₫\nNước dừa tươi 32.000₫\nSữa chua đá 30.000₫\nSữa chua nếp cẩm 39.000₫\nChè đậu xanh 23.000₫\nChè khúc bạch 42.000₫\nBánh flan cà phê 25.000₫\nBánh chuối nướng 35.000₫\nRau câu dừa 22.000₫\nKem trái dừa 55.000₫",
+    "lines": [
+      "Cà Phê Và Tráng Miệng",
+      "Cà phê đen đá 25.000 ₫ Cà phê sữa đá 29.000 ₫ Bạc xỉu 32.000 ₫",
+      "Cà phê trứng 45.000 ₫ Cà phê muối 39.000 ₫ Trà sen vàng 42.000 ₫ Trà vải hoa hồng 45.000 ₫ Trà đào cam sả 38.000 ₫ Trà tắc xí muội 28.000 ₫ Sinh tố bơ 45.000 ₫ Sinh tố xoài 42.000 ₫ Nước ép ổi 35.000 ₫ Nước ép các 35.000 ₫ Nước dừa tươi 32.000 ₫ Sữa chua đá 30.000 ₫",
+      "Sữa chua nếp cẩm 39.000 ₫",
+      "Chè đậu xanh 23.000 ₫",
+      "Chè khúc bạch 42.000 ₫",
+      "Bánh flan cà phê 25.000 ₫ Bánh chuối nướng 35.000 ₫ Rau câu dừa 22.000 ₫",
+      "Kem trái dừa 55.000 ₫"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 608
+  },
+  {
+    "sample_id": "ocr-019-vi-bun-bo-variants",
+    "provider": "google_vision",
+    "text": "Bún Bò Huế Cô Ba\nBÚN BÒ\nTái 55.000₫\nNam 58.000₫\nGần 60.000₫\nBò viên 62.000₫\nTái nạm 65.000₫\nTái gần 66.000₫\nNam gần 67.000₫\nTái nạm gân 72.000₫\nTái nạm viên 75.000₫\nĐặc biệt 85.000₫\nTô nhỏ 45.000₫\nTô lớn 90.000₫",
+    "lines": [
+      "Bún Bò Huế Cô Ba",
+      "BÚN BÒ",
+      "Tái 55.000 ₫",
+      "Nam 58.000 ₫",
+      "Gần 60.000 ₫",
+      "Bò viên 62.000 ₫",
+      "Tái nạm 65.000 ₫",
+      "Tái gần 66.000 ₫",
+      "Nam gần 67.000 ₫",
+      "Tái nạm gân 72.000 ₫",
+      "Tái nạm viên 75.000 ₫",
+      "Đặc biệt 85.000 ₫",
+      "Tô nhỏ 45.000 ₫",
+      "Tô lớn 90.000 ₫"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 484
+  },
+  {
+    "sample_id": "ocr-020-vi-pho-size-topping-variants",
+    "provider": "google_vision",
+    "text": "Phở Bò Gia Truyền\nPHỞ BÒ\nChín 55.000₫\nTái gầu 65.000₫\nTái nạm gân 72.000₫\nĐặc biệt 85.000₫\nThêm bò viên 15.000₫\nTô trẻ em 40.000₫\nTô lớn 75.000₫\nTái 55.000₫\nTái nạm 62.000₫\nTái nạm gầu 70.000₫\nBò viên 60.000₫\nThêm trứng chần 10.000₫\nThêm quẩy 8.000₫\nTô thường 55.000₫",
+    "lines": [
+      "Phở Bò Gia Truyền",
+      "PHỞ BÒ",
+      "Chín 55.000 ₫",
+      "Tái gầu 65.000 ₫",
+      "Tái nạm gân 72.000 ₫",
+      "Đặc biệt 85.000 ₫",
+      "Thêm bò viên 15.000 ₫",
+      "Tô trẻ em 40.000 ₫",
+      "Tô lớn 75.000 ₫",
+      "Tái 55.000 ₫",
+      "Tái nạm 62.000 ₫",
+      "Tái nạm gầu 70.000 ₫",
+      "Bò viên 60.000 ₫",
+      "Thêm trứng chần 10.000 ₫",
+      "Thêm quẩy 8.000 ₫",
+      "Tô thường 55.000 ₫"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 467
+  },
+  {
+    "sample_id": "ocr-021-vi-unusual-dish-names",
+    "provider": "google_vision",
+    "text": "Tên Món Độc Lạ\nVũ nữ chân dài - khô nhái chiên mắm 95.000₫\nSỏi mầm - heo rừng nướng sỏi nóng 180.000₫\nCơm Âm Phủ - cơm trộn Huế nhiều màu 75.000₫\nCà xỉu muối chua ngọt 85.000₫\nGỏi cá nhảy Sơn La 120.000₫\nNậm pịa Tây Bắc 90.000₫\nCả tào lao nướng muối ớt 160.000₫\nBò leo núi Tân Châu 220.000₫\nCháo khoái Hải Phòng 45.000₫\nẾch núp lùm 115.000₫\nCơm gà trùm mền 68.000₫\nChân gà quái thú 79.000₫\nĐậu hũ lướt ván 55.000₫",
+    "lines": [
+      "Tên Món Độc Lạ",
+      "Vũ nữ chân dài - khô nhái chiên mắm 95.000 ₫ Sỏi mầm - heo rừng nướng sỏi nóng 180.000 ₫ Cơm Âm Phủ - cơm trộn Huế nhiều màu 75.000 ₫",
+      "Cà xỉu muối chua ngọt 85.000 ₫",
+      "Gỏi cá nhảy Sơn La 120.000 ₫ Nậm pịa Tây Bắc 90.000 ₫",
+      "Cả tào lao nướng muối ớt 160.000 ₫",
+      "Bò leo núi Tân Châu 220.000 ₫",
+      "Cháo khoái Hải Phòng 45.000 ₫",
+      "Ếch núp lùm 115.000 ₫ Cơm gà trùm mền 68.000 ₫",
+      "Chân gà quái thú 79.000 ₫ Đậu hũ lướt ván 55.000 ₫"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 579
+  },
+  {
+    "sample_id": "ocr-022-vi-regional-specialties-long",
+    "provider": "google_vision",
+    "text": "Đặc Sản Vùng Miền\nPhở bò Hà Nội 75.000₫\nBánh tôm Hồ Tây 95.000₫\nBánh cuốn Cao Bằng 45.000₫\nBánh đa cua Hải Phòng 55.000₫\nBún bò Huế 65.000₫\nMì Quảng Đà Nẵng 60.000₫\nBánh hỏi lòng heo Bình Định 75.000₫\nLẫu thả Bình Thuận 220.000₫\nBún mắm cua Gia Lai 55.000₫\nHủ tiếu Mỹ Tho 55.000₫\nLẫu chua cá linh Đồng Tháp 180.000₫\nBò leo núi An Giang 220.000₫\nBún chả Hà Nội 70.000₫\nChả cá Lã Vọng 180.000₫\nThắng cố Hà Giang 120.000₫\nChả mực Hạ Long 160.000₫\nCơm hến Huế 45.000₫\nCao lầu Hội An 65.000₫\nBún súa Nha Trang 68.000₫\nGỏi lá Kon Tum 150.000₫\nBánh khọt Vũng Tàu 80.000₫\nCơm trái dừa Bến Tre 95.000₫\nBún nước lèo Sóc Trăng 60.000₫\nBún quậy Phú Quốc 75.000₫",
+    "lines": [
+      "Đặc Sản Vùng Miền",
+      "Phở bò Hà Nội 75.000 ₫ Bánh tôm Hồ Tây 95.000 ₫ Bánh cuốn Cao Bằng 45.000 ₫",
+      "Bánh đa cua Hải Phòng 55.000 ₫ Bún bò Huế 65.000 ₫",
+      "Mì Quảng Đà Nẵng 60.000 ₫",
+      "Bánh hỏi lòng heo Bình Định 75.000 ₫",
+      "Lẫu thả Bình Thuận 220.000 ₫",
+      "Bún mắm cua Gia Lai 55.000 ₫",
+      "Hủ tiếu Mỹ Tho 55.000 ₫",
+      "Lẫu chua cá linh Đồng Tháp 180.000 ₫",
+      "Bò leo núi An Giang 220.000 ₫",
+      "Bún chả Hà Nội 70.000 ₫ Chả cá Lã Vọng 180.000 ₫ Thắng cố Hà Giang 120.000 ₫ Chả mực Hạ Long 160.000 ₫ Cơm hến Huế 45.000 ₫ Cao lầu Hội An 65.000 ₫",
+      "Bún súa Nha Trang 68.000 ₫",
+      "Gỏi lá Kon Tum 150.000 ₫ Bánh khọt Vũng Tàu 80.000 ₫ Cơm trái dừa Bến Tre 95.000 ₫",
+      "Bún nước lèo Sóc Trăng 60.000 ₫",
+      "Bún quậy Phú Quốc 75.000 ₫"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 545
+  },
+  {
+    "sample_id": "ocr-013-multi-page-vi-pdf",
+    "provider": "google_vision",
+    "text": "Menu Trang 1\nPhở bò 60000 VND\nBún bò Huế 55000 VND\n\nMenu Trang 2\nCà phê sữa đá 25000 VND\nTrà đá 5000 VND",
+    "lines": [
+      "Menu Trang 1",
+      "Phở bò 60000 VND",
+      "Bún bò Huế 55000 VND",
+      "Menu Trang 2",
+      "Cà phê sữa đá 25000 VND",
+      "Trà đá 5000 VND"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 1375
+  },
+  {
+    "sample_id": "ocr-014-multi-page-vi-tourist-pdf",
+    "provider": "google_vision",
+    "text": "Trang Điểm Tâm\nBánh mì ốp la 45000 VND\nXôi gà 40000 VND\n\nTrang Đồ Uống\nCà phê muối 35000 VND\nNước dừa 30000 VND",
+    "lines": [
+      "Trang Điểm Tâm",
+      "Bánh mì ốp la 45000 VND Xôi gà 40000 VND",
+      "Trang Đồ Uống",
+      "Cà phê muối 35000 VND",
+      "Nước dừa 30000 VND"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 1329
+  },
+  {
+    "sample_id": "ocr-015-two-page-mixed-price-pdf",
+    "provider": "google_vision",
+    "text": "Cơm Bộ\nCombo gia đình 250000 VND\nCombo sinh viên 79000 VND\n\nTráng Miệng\nBánh flan 20000 VND\nChè xoài 45000 VND",
+    "lines": [
+      "Cơm Bộ",
+      "Combo gia đình 250000 VND",
+      "Combo sinh viên 79000 VND",
+      "Tráng Miệng",
+      "Bánh flan 20000 VND",
+      "Chè xoài 45000 VND"
+    ],
+    "prices": null,
+    "column_count": null,
+    "processing_time_ms": 1344
+  }
+]

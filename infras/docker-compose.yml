@@ -1,8 +1,7 @@
-# ============================================
-#  MenuScan — Docker Compose (Development)
-#  Chạy lệnh: docker compose up --build
-# ============================================
-
+﻿# MenuScan full-stack compose for infrastructure and future CI/CD use.
+#
+# Local development uses the root docker-compose.yml for dependencies only
+# and runs backend/frontend natively through Makefile targets.
 services:
   # ─────────────────────────────────────
   # PostgreSQL Database
@@ -37,9 +36,15 @@ services:
     ports:
       - "${BE_PORT:-8000}:8000"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-menuscan}:${POSTGRES_PASSWORD:-menuscan123}@db:5432/${POSTGRES_DB:-menuscan}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-menuscan}:${POSTGRES_PASSWORD:-menuscan123}@db:5432/${POSTGRES_DB:-menuscan}}
     volumes:
       - ../app:/app
+      - /app/.venv
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     depends_on:
       db:
         condition: service_healthy
@@ -56,12 +61,13 @@ services:
     ports:
       - "${FE_PORT:-5173}:5173"
     environment:
-      VITE_API_URL: http://localhost:${BE_PORT:-8000}
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:${BE_PORT:-8000}}
     volumes:
       - ../frontend:/app
       - /app/node_modules
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   pgdata:

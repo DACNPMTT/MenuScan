@@ -1,0 +1,33 @@
+meta {
+  name: Verify Magic Link
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}{{api_prefix}}/auth/magic-links/verify
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "token": "{{magic_link_token}}"
+  }
+}
+
+vars:pre-request {
+  magic_link_token: xarRKDRZY_NVOq_mmB5PWfxm9ttwntXyBN6kzjAS-nA
+  api_prefix: /api/v1
+  base_url: http://localhost:8000
+}
+
+script:post-response {
+  if (res.status === 200 && res.body && res.body.success && res.body.data.access_token) {
+    bru.setEnvVar("access_token", res.body.data.access_token);
+  }
+}

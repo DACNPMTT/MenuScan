@@ -1,0 +1,472 @@
+{
+  "image_samples": [
+    {
+      "id": "ocr-001-vi-single-column",
+      "file": "ocr-001-vi-single-column.png",
+      "title": "Menu Quán Phở Sen",
+      "tags": ["single_column", "price_formats", "accented_vietnamese"],
+      "lines": [
+        "Phở bò đặc biệt 60.000đ",
+        "Bún bò Huế 55.000đ",
+        "Cà phê sữa đá 25.000đ"
+      ],
+      "items": [
+        {"name": "Phở bò đặc biệt", "price_text": "60.000đ", "price": "60000.00", "currency": "VND"},
+        {"name": "Bún bò Huế", "price_text": "55.000đ", "price": "55000.00", "currency": "VND"},
+        {"name": "Cà phê sữa đá", "price_text": "25.000đ", "price": "25000.00", "currency": "VND"}
+      ]
+    },
+    {
+      "id": "ocr-002-vi-street-drinks",
+      "file": "ocr-002-vi-street-drinks.png",
+      "title": "Quán Nước Vỉa Hè",
+      "tags": ["single_column", "price_formats", "accented_vietnamese"],
+      "lines": [
+        "Nước mía 15.000đ",
+        "Trà đá 5.000đ",
+        "Sữa đậu nành 12.000đ"
+      ],
+      "items": [
+        {"name": "Nước mía", "price_text": "15.000đ", "price": "15000.00", "currency": "VND"},
+        {"name": "Trà đá", "price_text": "5.000đ", "price": "5000.00", "currency": "VND"},
+        {"name": "Sữa đậu nành", "price_text": "12.000đ", "price": "12000.00", "currency": "VND"}
+      ]
+    },
+    {
+      "id": "ocr-003-bilingual-single-column",
+      "file": "ocr-003-bilingual-single-column.png",
+      "title": "Sài Gòn Chay",
+      "tags": ["single_column", "price_formats", "accented_vietnamese", "bilingual_gloss"],
+      "lines": [
+        "Gỏi cuốn / Fresh rolls 45,000 VND",
+        "Cơm chay / Vegan rice 70,000 VND",
+        "Trà đào / Peach tea 30,000 VND"
+      ],
+      "items": [
+        {"name": "Gỏi cuốn / Fresh rolls", "price_text": "45,000 VND", "price": "45000.00", "currency": "VND"},
+        {"name": "Cơm chay / Vegan rice", "price_text": "70,000 VND", "price": "70000.00", "currency": "VND"},
+        {"name": "Trà đào / Peach tea", "price_text": "30,000 VND", "price": "30000.00", "currency": "VND"}
+      ]
+    },
+    {
+      "id": "ocr-004-vi-two-column",
+      "file": "ocr-004-vi-two-column.png",
+      "title": "Cơm Tấm Hai Cột",
+      "tags": ["multi_column", "price_formats", "accented_vietnamese"],
+      "column_count": 2,
+      "lines": [
+        "Cơm tấm sườn 65.000đ",
+        "Cơm gà xối mỡ 58.000đ",
+        "Canh chua 35.000đ",
+        "Trà tắc 18.000đ",
+        "Bánh flan 20.000đ",
+        "Nước suối 10.000đ"
+      ]
+    },
+    {
+      "id": "ocr-005-vi-seafood-two-column",
+      "file": "ocr-005-vi-seafood-two-column.png",
+      "title": "Hải Sản Đà Nẵng",
+      "tags": ["multi_column", "price_formats", "accented_vietnamese"],
+      "column_count": 2,
+      "lines": [
+        "Mực nướng muối ớt 120.000đ",
+        "Tôm hấp bia 180.000đ",
+        "Ghẹ rang me 250.000đ",
+        "Ốc hương xào bơ 150.000đ",
+        "Cháo hàu 80.000đ",
+        "Rau muống xào tỏi 45.000đ"
+      ]
+    },
+    {
+      "id": "ocr-006-dot-leaders",
+      "file": "ocr-006-dot-leaders.png",
+      "title": "Menu Dấu Chấm",
+      "tags": ["single_column", "price_formats", "accented_vietnamese"],
+      "lines": [
+        "Bánh mì thịt ........ 28.000đ",
+        "Mì Quảng ............ 52.000đ",
+        "Sữa đậu nành ........ 15.000đ"
+      ]
+    },
+    {
+      "id": "ocr-007-low-quality",
+      "file": "ocr-007-low-quality.png",
+      "title": "Ảnh Menu Mờ",
+      "tags": ["single_column", "low_quality", "price_formats", "accented_vietnamese"],
+      "low_quality": true,
+      "lines": [
+        "Hủ tiếu Nam Vang 59.000đ",
+        "Bò kho bánh mì 62.000đ",
+        "Đá chanh 20.000đ"
+      ]
+    },
+    {
+      "id": "ocr-008-skewed-photo",
+      "file": "ocr-008-skewed-photo.png",
+      "title": "Ảnh Menu Nghiêng",
+      "tags": ["single_column", "skewed", "price_formats", "accented_vietnamese"],
+      "skewed": true,
+      "lines": [
+        "Phở gà 52.000đ",
+        "Miến gà 50.000đ",
+        "Sữa bắp 18.000đ"
+      ]
+    },
+    {
+      "id": "ocr-009-dense-small-text",
+      "file": "ocr-009-dense-small-text.png",
+      "title": "Menu Phố Nhỏ",
+      "tags": ["single_column", "low_quality", "price_formats", "accented_vietnamese"],
+      "dense": true,
+      "lines": [
+        "Bún riêu 45.000đ",
+        "Bún mọc 45.000đ",
+        "Bún thịt nướng 50.000đ",
+        "Cơm chiên hải sản 70.000đ",
+        "Lẩu mini 99.000đ",
+        "Sinh tố bơ 35.000đ",
+        "Trà sữa 32.000đ",
+        "Rau câu dừa 18.000đ"
+      ]
+    },
+    {
+      "id": "ocr-010-vi-tourist-price-board",
+      "file": "ocr-010-vi-tourist-price-board.png",
+      "title": "Bảng Giá Phố Tây",
+      "tags": ["single_column", "price_formats", "accented_vietnamese", "tourist_area"],
+      "lines": [
+        "Gỏi cuốn 45K",
+        "Phở bò 3.50 USD",
+        "Cà phê dừa 60,000 VND"
+      ]
+    },
+    {
+      "id": "ocr-011-no-price",
+      "file": "ocr-011-no-price.png",
+      "title": "Món Theo Mùa",
+      "tags": ["single_column", "accented_vietnamese"],
+      "lines": [
+        "Hỏi nhân viên về lẩu theo mùa",
+        "Hải sản tươi tính theo kg",
+        "Đĩa rau chay"
+      ]
+    },
+    {
+      "id": "ocr-012-many-price-formats",
+      "file": "ocr-012-many-price-formats.png",
+      "title": "Định Dạng Giá",
+      "tags": ["single_column", "price_formats", "accented_vietnamese"],
+      "lines": [
+        "Phở tái 60000",
+        "Bún chả 60.000 VND",
+        "Combo trưa 120k",
+        "Trà sen 4,5 USD"
+      ]
+    },
+    {
+      "id": "ocr-016-vi-long-single-column",
+      "file": "ocr-016-vi-long-single-column.png",
+      "title": "Thực Đơn Quán Ăn Gia Đình",
+      "tags": ["single_column", "price_formats", "accented_vietnamese", "long_menu"],
+      "dense": true,
+      "lines": [
+        "Phở tái nạm 65.000đ",
+        "Phở gà xé 58.000đ",
+        "Bún bò Huế 62.000đ",
+        "Bún riêu cua 55.000đ",
+        "Bún chả Hà Nội 70.000đ",
+        "Cơm tấm sườn bì 68.000đ",
+        "Cơm gà xối mỡ 60.000đ",
+        "Mì Quảng gà 59.000đ",
+        "Hủ tiếu Nam Vang 64.000đ",
+        "Bánh canh cua 72.000đ",
+        "Gỏi cuốn tôm thịt 45.000đ",
+        "Chả giò hải sản 48.000đ",
+        "Ốc hương xào bơ 120.000đ",
+        "Nghêu hấp sả 85.000đ",
+        "Lẩu thái nhỏ 180.000đ",
+        "Lẩu cá kèo 210.000đ",
+        "Rau muống xào tỏi 42.000đ",
+        "Canh chua cá lóc 95.000đ",
+        "Cá kho tộ 110.000đ",
+        "Bò lúc lắc 135.000đ",
+        "Trà đào cam sả 38.000đ",
+        "Cà phê sữa đá 29.000đ",
+        "Nước ép thơm 35.000đ",
+        "Chè khúc bạch 42.000đ"
+      ]
+    },
+    {
+      "id": "ocr-017-vi-long-two-column",
+      "file": "ocr-017-vi-long-two-column.png",
+      "title": "Lẩu Nướng Hà Nội",
+      "tags": ["multi_column", "price_formats", "accented_vietnamese", "long_menu"],
+      "column_count": 2,
+      "dense": true,
+      "lines": [
+        "Ba chỉ bò Mỹ 129.000đ",
+        "Nạc vai bò 119.000đ",
+        "Thăn bò sốt tiêu 139.000đ",
+        "Sườn heo mật ong 98.000đ",
+        "Gà nướng lá chanh 86.000đ",
+        "Bạch tuộc sa tế 145.000đ",
+        "Tôm sú nướng 160.000đ",
+        "Mực ống nướng 135.000đ",
+        "Cá hồi áp chảo 155.000đ",
+        "Nấm kim châm 45.000đ",
+        "Đậu hũ phô mai 52.000đ",
+        "Khoai lang kén 49.000đ",
+        "Salad rong biển 55.000đ",
+        "Kim chi cải thảo 35.000đ",
+        "Lẩu nấm nhỏ 189.000đ",
+        "Lẩu thái hải sản 249.000đ",
+        "Lẩu riêu cua 239.000đ",
+        "Mì trứng 18.000đ",
+        "Bún tươi 15.000đ",
+        "Rau lẩu thêm 35.000đ",
+        "Sốt mè rang 12.000đ",
+        "Sốt chao cay 12.000đ",
+        "Trà tắc 25.000đ",
+        "Nước sấu 28.000đ",
+        "Bia Sài Gòn 32.000đ",
+        "Nước suối 12.000đ",
+        "Kem dừa 45.000đ",
+        "Sữa chua nếp cẩm 39.000đ"
+      ]
+    },
+    {
+      "id": "ocr-018-vi-long-drinks-dessert",
+      "file": "ocr-018-vi-long-drinks-dessert.png",
+      "title": "Cà Phê Và Tráng Miệng",
+      "tags": ["single_column", "low_quality", "price_formats", "accented_vietnamese", "long_menu"],
+      "dense": true,
+      "low_quality": true,
+      "lines": [
+        "Cà phê đen đá 25.000đ",
+        "Cà phê sữa đá 29.000đ",
+        "Bạc xỉu 32.000đ",
+        "Cà phê trứng 45.000đ",
+        "Cà phê muối 39.000đ",
+        "Trà sen vàng 42.000đ",
+        "Trà vải hoa hồng 45.000đ",
+        "Trà đào cam sả 38.000đ",
+        "Trà tắc xí muội 28.000đ",
+        "Sinh tố bơ 45.000đ",
+        "Sinh tố xoài 42.000đ",
+        "Nước ép ổi 35.000đ",
+        "Nước ép cóc 35.000đ",
+        "Nước dừa tươi 32.000đ",
+        "Sữa chua đá 30.000đ",
+        "Sữa chua nếp cẩm 39.000đ",
+        "Chè đậu xanh 28.000đ",
+        "Chè khúc bạch 42.000đ",
+        "Bánh flan cà phê 25.000đ",
+        "Bánh chuối nướng 35.000đ",
+        "Rau câu dừa 22.000đ",
+        "Kem trái dừa 55.000đ"
+      ]
+    },
+    {
+      "id": "ocr-019-vi-bun-bo-variants",
+      "file": "ocr-019-vi-bun-bo-variants.png",
+      "title": "Bún Bò Huế Cô Ba",
+      "tags": ["single_column", "price_formats", "accented_vietnamese", "variant_menu"],
+      "lines": [
+        "BÚN BÒ",
+        "Tái 55.000đ",
+        "Nạm 58.000đ",
+        "Gân 60.000đ",
+        "Bò viên 62.000đ",
+        "Tái nạm 65.000đ",
+        "Tái gân 66.000đ",
+        "Nạm gân 67.000đ",
+        "Tái nạm gân 72.000đ",
+        "Tái nạm viên 75.000đ",
+        "Đặc biệt 85.000đ",
+        "Tô nhỏ 45.000đ",
+        "Tô lớn 90.000đ"
+      ],
+      "items": [
+        {"name": "Bún bò tái", "base_name": "Bún bò", "variant_name": "tái", "variant_group": "loại thịt", "price_text": "55.000đ", "price": "55000.00", "currency": "VND"},
+        {"name": "Bún bò nạm", "base_name": "Bún bò", "variant_name": "nạm", "variant_group": "loại thịt", "price_text": "58.000đ", "price": "58000.00", "currency": "VND"},
+        {"name": "Bún bò gân", "base_name": "Bún bò", "variant_name": "gân", "variant_group": "loại thịt", "price_text": "60.000đ", "price": "60000.00", "currency": "VND"},
+        {"name": "Bún bò bò viên", "base_name": "Bún bò", "variant_name": "bò viên", "variant_group": "loại thịt", "price_text": "62.000đ", "price": "62000.00", "currency": "VND"},
+        {"name": "Bún bò tái nạm", "base_name": "Bún bò", "variant_name": "tái nạm", "variant_group": "loại thịt", "price_text": "65.000đ", "price": "65000.00", "currency": "VND"},
+        {"name": "Bún bò tái gân", "base_name": "Bún bò", "variant_name": "tái gân", "variant_group": "loại thịt", "price_text": "66.000đ", "price": "66000.00", "currency": "VND"},
+        {"name": "Bún bò nạm gân", "base_name": "Bún bò", "variant_name": "nạm gân", "variant_group": "loại thịt", "price_text": "67.000đ", "price": "67000.00", "currency": "VND"},
+        {"name": "Bún bò tái nạm gân", "base_name": "Bún bò", "variant_name": "tái nạm gân", "variant_group": "loại thịt", "price_text": "72.000đ", "price": "72000.00", "currency": "VND"},
+        {"name": "Bún bò tái nạm viên", "base_name": "Bún bò", "variant_name": "tái nạm viên", "variant_group": "loại thịt", "price_text": "75.000đ", "price": "75000.00", "currency": "VND"},
+        {"name": "Bún bò đặc biệt", "base_name": "Bún bò", "variant_name": "đặc biệt", "variant_group": "loại thịt", "price_text": "85.000đ", "price": "85000.00", "currency": "VND"},
+        {"name": "Bún bò tô nhỏ", "base_name": "Bún bò", "variant_name": "tô nhỏ", "variant_group": "cỡ phần", "price_text": "45.000đ", "price": "45000.00", "currency": "VND"},
+        {"name": "Bún bò tô lớn", "base_name": "Bún bò", "variant_name": "tô lớn", "variant_group": "cỡ phần", "price_text": "90.000đ", "price": "90000.00", "currency": "VND"}
+      ]
+    },
+    {
+      "id": "ocr-020-vi-pho-size-topping-variants",
+      "file": "ocr-020-vi-pho-size-topping-variants.png",
+      "title": "Phở Bò Gia Truyền",
+      "tags": ["multi_column", "price_formats", "accented_vietnamese", "variant_menu"],
+      "column_count": 2,
+      "lines": [
+        "PHỞ BÒ",
+        "Tái 55.000đ",
+        "Chín 55.000đ",
+        "Tái nạm 62.000đ",
+        "Tái gầu 65.000đ",
+        "Tái nạm gầu 70.000đ",
+        "Tái nạm gân 72.000đ",
+        "Bò viên 60.000đ",
+        "Đặc biệt 85.000đ",
+        "Thêm trứng chần 10.000đ",
+        "Thêm bò viên 15.000đ",
+        "Thêm quẩy 8.000đ",
+        "Tô trẻ em 40.000đ",
+        "Tô thường 55.000đ",
+        "Tô lớn 75.000đ"
+      ],
+      "items": [
+        {"name": "Phở bò tái", "base_name": "Phở bò", "variant_name": "tái", "variant_group": "loại thịt", "price_text": "55.000đ", "price": "55000.00", "currency": "VND"},
+        {"name": "Phở bò chín", "base_name": "Phở bò", "variant_name": "chín", "variant_group": "loại thịt", "price_text": "55.000đ", "price": "55000.00", "currency": "VND"},
+        {"name": "Phở bò tái nạm", "base_name": "Phở bò", "variant_name": "tái nạm", "variant_group": "loại thịt", "price_text": "62.000đ", "price": "62000.00", "currency": "VND"},
+        {"name": "Phở bò tái gầu", "base_name": "Phở bò", "variant_name": "tái gầu", "variant_group": "loại thịt", "price_text": "65.000đ", "price": "65000.00", "currency": "VND"},
+        {"name": "Phở bò tái nạm gầu", "base_name": "Phở bò", "variant_name": "tái nạm gầu", "variant_group": "loại thịt", "price_text": "70.000đ", "price": "70000.00", "currency": "VND"},
+        {"name": "Phở bò tái nạm gân", "base_name": "Phở bò", "variant_name": "tái nạm gân", "variant_group": "loại thịt", "price_text": "72.000đ", "price": "72000.00", "currency": "VND"},
+        {"name": "Phở bò bò viên", "base_name": "Phở bò", "variant_name": "bò viên", "variant_group": "loại thịt", "price_text": "60.000đ", "price": "60000.00", "currency": "VND"},
+        {"name": "Phở bò đặc biệt", "base_name": "Phở bò", "variant_name": "đặc biệt", "variant_group": "loại thịt", "price_text": "85.000đ", "price": "85000.00", "currency": "VND"},
+        {"name": "Phở bò thêm trứng chần", "base_name": "Phở bò", "variant_name": "thêm trứng chần", "variant_group": "topping", "price_text": "10.000đ", "price": "10000.00", "currency": "VND"},
+        {"name": "Phở bò thêm bò viên", "base_name": "Phở bò", "variant_name": "thêm bò viên", "variant_group": "topping", "price_text": "15.000đ", "price": "15000.00", "currency": "VND"},
+        {"name": "Phở bò thêm quẩy", "base_name": "Phở bò", "variant_name": "thêm quẩy", "variant_group": "topping", "price_text": "8.000đ", "price": "8000.00", "currency": "VND"},
+        {"name": "Phở bò tô trẻ em", "base_name": "Phở bò", "variant_name": "tô trẻ em", "variant_group": "cỡ phần", "price_text": "40.000đ", "price": "40000.00", "currency": "VND"},
+        {"name": "Phở bò tô thường", "base_name": "Phở bò", "variant_name": "tô thường", "variant_group": "cỡ phần", "price_text": "55.000đ", "price": "55000.00", "currency": "VND"},
+        {"name": "Phở bò tô lớn", "base_name": "Phở bò", "variant_name": "tô lớn", "variant_group": "cỡ phần", "price_text": "75.000đ", "price": "75000.00", "currency": "VND"}
+      ]
+    },
+    {
+      "id": "ocr-021-vi-unusual-dish-names",
+      "file": "ocr-021-vi-unusual-dish-names.png",
+      "title": "Tên Món Độc Lạ",
+      "tags": ["single_column", "price_formats", "accented_vietnamese", "unusual_name", "figurative_name"],
+      "dense": true,
+      "lines": [
+        "Vũ nữ chân dài - khô nhái chiên mắm 95.000đ",
+        "Sỏi mầm - heo rừng nướng sỏi nóng 180.000đ",
+        "Cơm Âm Phủ - cơm trộn Huế nhiều màu 75.000đ",
+        "Cà xỉu muối chua ngọt 85.000đ",
+        "Gỏi cá nhảy Sơn La 120.000đ",
+        "Nậm pịa Tây Bắc 90.000đ",
+        "Cá tào lao nướng muối ớt 160.000đ",
+        "Bò leo núi Tân Châu 220.000đ",
+        "Cháo khoái Hải Phòng 45.000đ",
+        "Ếch núp lùm 115.000đ",
+        "Cơm gà trùm mền 68.000đ",
+        "Chân gà quái thú 79.000đ",
+        "Đậu hũ lướt ván 55.000đ"
+      ],
+      "items": [
+        {"name": "Vũ nữ chân dài", "original_description": "khô nhái chiên mắm", "price_text": "95.000đ", "price": "95000.00", "currency": "VND"},
+        {"name": "Sỏi mầm", "original_description": "heo rừng nướng sỏi nóng", "price_text": "180.000đ", "price": "180000.00", "currency": "VND"},
+        {"name": "Cơm Âm Phủ", "original_description": "cơm trộn Huế nhiều màu", "price_text": "75.000đ", "price": "75000.00", "currency": "VND"},
+        {"name": "Cà xỉu muối chua ngọt", "price_text": "85.000đ", "price": "85000.00", "currency": "VND"},
+        {"name": "Gỏi cá nhảy Sơn La", "price_text": "120.000đ", "price": "120000.00", "currency": "VND"},
+        {"name": "Nậm pịa Tây Bắc", "price_text": "90.000đ", "price": "90000.00", "currency": "VND"},
+        {"name": "Cá tào lao nướng muối ớt", "price_text": "160.000đ", "price": "160000.00", "currency": "VND"},
+        {"name": "Bò leo núi Tân Châu", "price_text": "220.000đ", "price": "220000.00", "currency": "VND"},
+        {"name": "Cháo khoái Hải Phòng", "price_text": "45.000đ", "price": "45000.00", "currency": "VND"},
+        {"name": "Ếch núp lùm", "price_text": "115.000đ", "price": "115000.00", "currency": "VND"},
+        {"name": "Cơm gà trùm mền", "price_text": "68.000đ", "price": "68000.00", "currency": "VND"},
+        {"name": "Chân gà quái thú", "price_text": "79.000đ", "price": "79000.00", "currency": "VND"},
+        {"name": "Đậu hũ lướt ván", "price_text": "55.000đ", "price": "55000.00", "currency": "VND"}
+      ]
+    },
+    {
+      "id": "ocr-022-vi-regional-specialties-long",
+      "file": "ocr-022-vi-regional-specialties-long.png",
+      "title": "Đặc Sản Vùng Miền",
+      "tags": ["multi_column", "price_formats", "accented_vietnamese", "regional_specialty", "long_menu"],
+      "column_count": 2,
+      "dense": true,
+      "lines": [
+        "Phở bò Hà Nội 75.000đ",
+        "Bún chả Hà Nội 70.000đ",
+        "Bánh tôm Hồ Tây 95.000đ",
+        "Chả cá Lã Vọng 180.000đ",
+        "Bánh cuốn Cao Bằng 45.000đ",
+        "Thắng cố Hà Giang 120.000đ",
+        "Bánh đa cua Hải Phòng 55.000đ",
+        "Chả mực Hạ Long 160.000đ",
+        "Bún bò Huế 65.000đ",
+        "Cơm hến Huế 45.000đ",
+        "Mì Quảng Đà Nẵng 60.000đ",
+        "Cao lầu Hội An 65.000đ",
+        "Bánh hỏi lòng heo Bình Định 75.000đ",
+        "Bún sứa Nha Trang 68.000đ",
+        "Lẩu thả Bình Thuận 220.000đ",
+        "Gỏi lá Kon Tum 150.000đ",
+        "Bún mắm cua Gia Lai 55.000đ",
+        "Bánh khọt Vũng Tàu 80.000đ",
+        "Hủ tiếu Mỹ Tho 55.000đ",
+        "Cơm trái dừa Bến Tre 95.000đ",
+        "Lẩu chua cá linh Đồng Tháp 180.000đ",
+        "Bún nước lèo Sóc Trăng 60.000đ",
+        "Bò leo núi An Giang 220.000đ",
+        "Bún quậy Phú Quốc 75.000đ"
+      ],
+      "items": [
+        {"name": "Phở bò Hà Nội", "price_text": "75.000đ", "price": "75000.00", "currency": "VND"},
+        {"name": "Bún chả Hà Nội", "price_text": "70.000đ", "price": "70000.00", "currency": "VND"},
+        {"name": "Bánh tôm Hồ Tây", "price_text": "95.000đ", "price": "95000.00", "currency": "VND"},
+        {"name": "Chả cá Lã Vọng", "price_text": "180.000đ", "price": "180000.00", "currency": "VND"},
+        {"name": "Bánh cuốn Cao Bằng", "price_text": "45.000đ", "price": "45000.00", "currency": "VND"},
+        {"name": "Thắng cố Hà Giang", "price_text": "120.000đ", "price": "120000.00", "currency": "VND"},
+        {"name": "Bánh đa cua Hải Phòng", "price_text": "55.000đ", "price": "55000.00", "currency": "VND"},
+        {"name": "Chả mực Hạ Long", "price_text": "160.000đ", "price": "160000.00", "currency": "VND"},
+        {"name": "Bún bò Huế", "price_text": "65.000đ", "price": "65000.00", "currency": "VND"},
+        {"name": "Cơm hến Huế", "price_text": "45.000đ", "price": "45000.00", "currency": "VND"},
+        {"name": "Mì Quảng Đà Nẵng", "price_text": "60.000đ", "price": "60000.00", "currency": "VND"},
+        {"name": "Cao lầu Hội An", "price_text": "65.000đ", "price": "65000.00", "currency": "VND"},
+        {"name": "Bánh hỏi lòng heo Bình Định", "price_text": "75.000đ", "price": "75000.00", "currency": "VND"},
+        {"name": "Bún sứa Nha Trang", "price_text": "68.000đ", "price": "68000.00", "currency": "VND"},
+        {"name": "Lẩu thả Bình Thuận", "price_text": "220.000đ", "price": "220000.00", "currency": "VND"},
+        {"name": "Gỏi lá Kon Tum", "price_text": "150.000đ", "price": "150000.00", "currency": "VND"},
+        {"name": "Bún mắm cua Gia Lai", "price_text": "55.000đ", "price": "55000.00", "currency": "VND"},
+        {"name": "Bánh khọt Vũng Tàu", "price_text": "80.000đ", "price": "80000.00", "currency": "VND"},
+        {"name": "Hủ tiếu Mỹ Tho", "price_text": "55.000đ", "price": "55000.00", "currency": "VND"},
+        {"name": "Cơm trái dừa Bến Tre", "price_text": "95.000đ", "price": "95000.00", "currency": "VND"},
+        {"name": "Lẩu chua cá linh Đồng Tháp", "price_text": "180.000đ", "price": "180000.00", "currency": "VND"},
+        {"name": "Bún nước lèo Sóc Trăng", "price_text": "60.000đ", "price": "60000.00", "currency": "VND"},
+        {"name": "Bò leo núi An Giang", "price_text": "220.000đ", "price": "220000.00", "currency": "VND"},
+        {"name": "Bún quậy Phú Quốc", "price_text": "75.000đ", "price": "75000.00", "currency": "VND"}
+      ]
+    }
+  ],
+  "pdf_samples": [
+    {
+      "id": "ocr-013-multi-page-vi-pdf",
+      "file": "ocr-013-multi-page-vi-pdf.pdf",
+      "tags": ["multi_page", "price_formats", "accented_vietnamese"],
+      "pages": [
+        "Menu Trang 1\nPhở bò 60000 VND\nBún bò Huế 55000 VND",
+        "Menu Trang 2\nCà phê sữa đá 25000 VND\nTrà đá 5000 VND"
+      ]
+    },
+    {
+      "id": "ocr-014-multi-page-vi-tourist-pdf",
+      "file": "ocr-014-multi-page-vi-tourist-pdf.pdf",
+      "tags": ["multi_page", "price_formats", "accented_vietnamese"],
+      "pages": [
+        "Trang Điểm Tâm\nBánh mì ốp la 45000 VND\nXôi gà 40000 VND",
+        "Trang Đồ Uống\nCà phê muối 35000 VND\nNước dừa 30000 VND"
+      ]
+    },
+    {
+      "id": "ocr-015-two-page-mixed-price-pdf",
+      "file": "ocr-015-two-page-mixed-price-pdf.pdf",
+      "tags": ["multi_page", "price_formats", "accented_vietnamese"],
+      "pages": [
+        "Cơm Bộ\nCombo gia đình 250000 VND\nCombo sinh viên 79000 VND",
+        "Tráng Miệng\nBánh flan 20000 VND\nChè xoài 45000 VND"
+      ]
+    }
+  ]
+}

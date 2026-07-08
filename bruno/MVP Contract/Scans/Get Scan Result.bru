@@ -1,0 +1,21 @@
+meta {
+  name: Get Scan Result
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{base_url}}{{api_prefix}}/scans/{{scan_id}}/result
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{access_token}}
+}
+
+script:post-response {
+  if (res.status === 200 && res.body && res.body.success && res.body.data && res.body.data.menu && res.body.data.menu.id) {
+    bru.setEnvVar("menu_id", res.body.data.menu.id);
+  }
+}

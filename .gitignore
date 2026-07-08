@@ -10,3 +10,77 @@
 # OS
 .DS_Store
 Thumbs.db
+
+# ========================
+# Environment Variables
+# ========================
+.env
+.env.*
+!.env.example
+!.env.local.example
+env/.env.*
+!env/.env.*.example
+.envrc
+
+# Local credentials and private keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+.npmrc.local
+.pypirc
+secrets/
+credentials/
+
+# ========================
+# Python / Backend
+# ========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+!/env/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# ========================
+# Node / Frontend
+# ========================
+node_modules/
+dist/
+build/
+.next/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ========================
+# Docker
+# ========================
+*.env.prod
+
+# ========================
+# Uploads (ảnh do user upload)
+# ========================
+app/uploads/
+uploads/
+storage/

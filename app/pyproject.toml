@@ -5,8 +5,27 @@ description = "MenuScan Backend API"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.115.0",
-    "uvicorn[standard]>=0.30.0",
+    "alembic>=1.13.0",
+    "email-validator>=2.0.0",
+    "fastapi>=0.139.0",
+    "httpx>=0.28.0",
+    "starlette>=1.3.0",
+    "uvicorn[standard]>=0.50.2",
     "psycopg2-binary>=2.9.0",
     "sqlalchemy>=2.0.0",
+    "pyjwt>=2.13.0",
+    "bcrypt>=5.0.0",
+    "python-multipart>=0.0.20",
+    "pillow>=12.3.0",
+    "pymupdf>=1.28.0",
+    "langdetect>=1.0.9",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.15.20",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

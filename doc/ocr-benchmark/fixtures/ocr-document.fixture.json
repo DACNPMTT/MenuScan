@@ -1,0 +1,52 @@
+{
+  "schema_version": "ocr-document.v1",
+  "provider": "fixture",
+  "provider_model": "synthetic-v1",
+  "source_object_key": "users/00000000-0000-0000-0000-000000000001/scans/00000000-0000-0000-0000-000000000002/source",
+  "detected_language": "vi",
+  "text": "Menu Quán Phở Sen\nPhở bò đặc biệt 60.000đ\nBún bò Huế 55.000đ\nCà phê sữa đá 25.000đ",
+  "confidence": 0.98,
+  "processing_time_ms": 120,
+  "metadata": {
+    "page_count": 1,
+    "safe_provider_request_id": "fixture-request"
+  },
+  "pages": [
+    {
+      "page_index": 0,
+      "width": 1200,
+      "height": 850,
+      "unit": "pixel",
+      "text": "Menu Quán Phở Sen\nPhở bò đặc biệt 60.000đ\nBún bò Huế 55.000đ\nCà phê sữa đá 25.000đ",
+      "confidence": 0.98,
+      "blocks": [
+        {
+          "id": "p0-b0",
+          "text": "Phở bò đặc biệt 60.000đ",
+          "confidence": 0.98,
+          "bounding_box": {
+            "left": 0.04,
+            "top": 0.16,
+            "width": 0.42,
+            "height": 0.06
+          },
+          "column_index": 0,
+          "lines": [
+            {
+              "id": "p0-l0",
+              "text": "Phở bò đặc biệt 60.000đ",
+              "confidence": 0.98,
+              "bounding_box": {
+                "left": 0.04,
+                "top": 0.16,
+                "width": 0.42,
+                "height": 0.06
+              },
+              "words": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

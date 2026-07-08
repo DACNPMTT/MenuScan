@@ -1,0 +1,33 @@
+meta {
+  name: Login with Password
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}{{api_prefix}}/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "nguyentrongduc447@gmail.com",
+    "password": "secure_password_123"
+  }
+}
+
+vars:pre-request {
+  api_prefix: /api/v1
+  base_url: http://localhost:8000
+}
+
+script:post-response {
+  if (res.status === 200 && res.body && res.body.success && res.body.data.access_token) {
+    bru.setEnvVar("access_token", res.body.data.access_token);
+  }
+}

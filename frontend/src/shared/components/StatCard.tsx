@@ -1,3 +1,5 @@
+import { Card } from '@/shared/components/Card'
+
 type StatCardProps = {
   label: string
   value: string
@@ -5,9 +7,9 @@ type StatCardProps = {
 
 export function StatCard({ label, value }: StatCardProps) {
   return (
-    <article className="stat-card">
+    <Card className="stat-card">
       <strong>{value}</strong>
       <span>{label}</span>
-    </article>
+    </Card>
   )
 }

@@ -1,0 +1,32 @@
+meta {
+  name: Create Scan
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}{{api_prefix}}/scans
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{access_token}}
+}
+
+body:multipart-form {
+  file: @../../fixtures/sample-menu.pdf
+  target_language: en
+}
+
+script:post-response {
+  if (res.status !== 202) {
+    throw new Error(`Expected 202 when creating scan, got ${res.status}`);
+  }
+
+  if (!res.body || !res.body.success || !res.body.data || !res.body.data.id) {
+    throw new Error("Create Scan response did not include data.id");
+  }
+
+  bru.setEnvVar("scan_id", res.body.data.id);
+}
