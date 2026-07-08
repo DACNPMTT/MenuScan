@@ -87,7 +87,7 @@ class Menu(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "target_language IN ('vi', 'en')",
+            "target_language IN ('vi', 'en', 'zh', 'ja', 'ko', 'fr', 'th')",
             name="target_language",
         ),
         CheckConstraint(
