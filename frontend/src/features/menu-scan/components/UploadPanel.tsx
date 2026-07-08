@@ -65,7 +65,7 @@ const TARGET_LANGUAGES = [
 ] as const
 
 export function UploadPanel() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   useDocumentTitle(`${t('scan.title')} | MenuScan`)
   const navigate = useNavigate()
   const steps = t('scan.steps', { returnObjects: true }) as Array<{
@@ -75,7 +75,14 @@ export function UploadPanel() {
 
   const [selected, setSelected] = useState<SelectedFile | null>(null)
   const [quality, setQuality] = useState<QualityResult | null>(null)
-  const [targetLanguage, setTargetLanguage] = useState('vi')
+  // Default the scan target to the user's interface language (set at login /
+  // in the language switcher); they can still override it per scan below.
+  const [targetLanguage, setTargetLanguage] = useState(() => {
+    const uiLanguage = i18n.resolvedLanguage ?? 'vi'
+    return TARGET_LANGUAGES.some((lang) => lang.code === uiLanguage)
+      ? uiLanguage
+      : 'vi'
+  })
   const [isDragging, setIsDragging] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
