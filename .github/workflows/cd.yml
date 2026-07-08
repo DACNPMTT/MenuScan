@@ -59,7 +59,7 @@ jobs:
           gcloud run jobs create menuscan-migrate \
             --image ${{ env.IMAGE }}:sha-${{ steps.vars.outputs.sha_short }} \
             --region ${{ env.REGION }} \
-            --add-cloudsql-instances ${{ env.PROJECT_ID }}:${{ env.REGION }}:menuscan-db \
+            --set-cloudsql-instances ${{ env.PROJECT_ID }}:${{ env.REGION }}:menuscan-db \
             --set-env-vars "DATABASE_URL=${{ secrets.DEV_DATABASE_URL }}" \
             --set-env-vars "APP_ENV=production" \
             --command "uv" \
@@ -79,7 +79,7 @@ jobs:
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
-            --add-cloudsql-instances ${{ env.PROJECT_ID }}:${{ env.REGION }}:menuscan-db \
+            --set-cloudsql-instances ${{ env.PROJECT_ID }}:${{ env.REGION }}:menuscan-db \
             --set-env-vars "APP_ENV=production" \
             --set-env-vars "LOG_LEVEL=INFO" \
             --set-env-vars "API_V1_PREFIX=/api/v1" \
