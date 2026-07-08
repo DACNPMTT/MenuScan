@@ -52,7 +52,12 @@ MAX_PAGES_PER_SCAN = 8
 # One scan may bundle several files (multiple photos or a multi-page PDF). Cap
 # the combined payload so a scan can't hold 8 × 10 MB in memory at once.
 MAX_TOTAL_UPLOAD_BYTES = 40 * 1024 * 1024
-SUPPORTED_TARGET_LANGUAGES = {"vi", "en", "zh", "ja", "ko", "fr", "th"}
+# The scan target language is open-ended: the LLM can translate to any language,
+# so we validate the SHAPE of a lowercase language tag (e.g. "vi", "en", "zh",
+# "pt-br") rather than gating on a fixed list. The UI offers a curated set, but
+# the API/DB accept any well-formed tag (bounded to the column's 10 chars).
+_TARGET_LANGUAGE_RE = re.compile(r"[a-z]{2,3}(?:-[a-z0-9]{2,8})*")
+_MAX_TARGET_LANGUAGE_LEN = 10
 SUPPORTED_MIME_TYPES = {
     "application/pdf",
     "image/jpeg",
@@ -383,7 +388,10 @@ def build_source_object_key(
 def _resolve_target_language(user: User | None, target_language: str | None) -> str:
     preferred = user.preferred_language if user is not None else None
     language = (target_language or preferred or "vi").strip().lower()
-    if language not in SUPPORTED_TARGET_LANGUAGES:
+    if (
+        len(language) > _MAX_TARGET_LANGUAGE_LEN
+        or _TARGET_LANGUAGE_RE.fullmatch(language) is None
+    ):
         raise InvalidTargetLanguageError()
     return language
 

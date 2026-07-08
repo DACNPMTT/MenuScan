@@ -110,7 +110,7 @@ class ScanSession(Base):
             name="page_count",
         ),
         CheckConstraint(
-            "target_language IN ('vi', 'en', 'zh', 'ja', 'ko', 'fr', 'th')",
+            "target_language ~ '^[a-z]{2,3}(-[a-z0-9]{2,8})*$'",
             name="target_language",
         ),
         CheckConstraint("progress BETWEEN 0 AND 100", name="progress"),

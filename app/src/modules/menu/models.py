@@ -87,7 +87,7 @@ class Menu(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "target_language IN ('vi', 'en', 'zh', 'ja', 'ko', 'fr', 'th')",
+            "target_language ~ '^[a-z]{2,3}(-[a-z0-9]{2,8})*$'",
             name="target_language",
         ),
         CheckConstraint(

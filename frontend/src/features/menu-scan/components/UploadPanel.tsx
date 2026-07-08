@@ -54,6 +54,9 @@ function validateFile(
   return null
 }
 
+// The scan can translate to any language the model supports; this is just the
+// curated pick-list. The backend accepts any well-formed tag, so adding a row
+// here (or a future free-text entry) needs no backend/DB change.
 const TARGET_LANGUAGES = [
   { code: 'vi', label: '🇻🇳 Tiếng Việt' },
   { code: 'en', label: '🇺🇸 English' },
@@ -62,6 +65,15 @@ const TARGET_LANGUAGES = [
   { code: 'ko', label: '🇰🇷 한국어' },
   { code: 'fr', label: '🇫🇷 Français' },
   { code: 'th', label: '🇹🇭 ภาษาไทย' },
+  { code: 'es', label: '🇪🇸 Español' },
+  { code: 'de', label: '🇩🇪 Deutsch' },
+  { code: 'it', label: '🇮🇹 Italiano' },
+  { code: 'pt', label: '🇵🇹 Português' },
+  { code: 'ru', label: '🇷🇺 Русский' },
+  { code: 'id', label: '🇮🇩 Bahasa Indonesia' },
+  { code: 'ms', label: '🇲🇾 Bahasa Melayu' },
+  { code: 'hi', label: '🇮🇳 हिन्दी' },
+  { code: 'ar', label: '🇸🇦 العربية' },
 ] as const
 
 export function UploadPanel() {
