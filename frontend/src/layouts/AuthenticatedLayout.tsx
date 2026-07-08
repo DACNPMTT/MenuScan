@@ -38,7 +38,7 @@ export function AuthenticatedLayout() {
       <header className="flex min-h-[64px] shrink-0 items-center justify-between gap-2 border-b border-hairline bg-canvas px-3 py-2 sm:h-[75px] sm:gap-6 sm:px-[50px] sm:py-0">
         <div className="min-w-0 shrink">
           <NavLink
-            to={user ? '/app' : '/'}
+            to="/"
             aria-label="MenuScan app"
             className="block text-primary-dark"
           >

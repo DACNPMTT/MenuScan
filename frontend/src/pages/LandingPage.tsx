@@ -38,7 +38,7 @@ function TopNav() {
     <header className="flex h-20 items-center justify-between px-5 md:px-[75px]">
       <Link
         to="/"
-        className="text-[24px] font-bold tracking-[-0.5px] text-primary-dark"
+        className="text-[24px] font-bold tracking-normal text-primary-dark"
       >
         MenuScan
       </Link>
@@ -55,7 +55,8 @@ function TopNav() {
         {user ? (
           <Button
             asChild
-            className="h-11 rounded-full bg-primary px-6 font-bold text-white hover:bg-primary/90"
+            variant="outline"
+            className="h-11 rounded-full border-2 border-primary bg-transparent px-6 font-bold text-primary hover:bg-primary/10"
           >
             <Link to="/app">{t('landing.nav.goToApp')}</Link>
           </Button>
@@ -98,7 +99,7 @@ function Hero() {
           <Sparkles className="size-4" aria-hidden />
           {t('landing.hero.badge')}
         </span>
-        <h1 className="text-[40px] font-bold leading-[48px] tracking-[-1px] text-ink md:text-[62px] md:leading-[70px]">
+        <h1 className="text-[40px] font-bold leading-[48px] tracking-normal text-ink md:text-[62px] md:leading-[70px]">
           {t('landing.hero.title')}
         </h1>
         <p className="mt-6 max-w-[672px] text-[16px] leading-[24px] text-ink-variant md:text-[18px] md:leading-[28px]">
@@ -107,7 +108,7 @@ function Hero() {
         <div className="mt-9 flex flex-col gap-4 sm:flex-row">
           <Button
             asChild
-            className="h-12 rounded-full bg-primary px-8 text-[17px] font-bold text-white shadow-lg shadow-primary/30 transition-transform duration-200 hover:scale-[1.03] hover:bg-primary/90"
+            className="h-14 rounded-full bg-primary px-10 text-[18px] font-bold text-white shadow-xl shadow-primary/40 transition-transform duration-200 hover:scale-[1.04] hover:bg-primary/90"
           >
             <Link to="/app/scan">{t('landing.hero.startScanning')}</Link>
           </Button>
@@ -186,7 +187,7 @@ function HowItWorks() {
       className="bg-surface-muted px-5 py-16 md:px-[75px] md:py-24"
     >
       <div className="mx-auto max-w-[1152px]">
-        <h2 className="text-center text-[36px] font-bold leading-[44px] tracking-[-0.75px] text-ink md:text-[48px]">
+        <h2 className="text-center text-[36px] font-bold leading-[44px] tracking-normal text-ink md:text-[48px]">
           {t('landing.how.title')}
         </h2>
         <div className="relative mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
@@ -256,7 +257,7 @@ function Stats() {
               key={value}
               className="rounded-[16px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm transition-transform duration-200 hover:-translate-y-1"
             >
-              <div className="text-[40px] font-bold leading-none tracking-[-0.5px] md:text-[52px]">
+              <div className="text-[40px] font-bold leading-none tracking-normal md:text-[52px]">
                 {value}
               </div>
               <div className="mt-2 text-[14px] text-white/80">{labels[index]}</div>
@@ -279,7 +280,7 @@ function Testimonials() {
   return (
     <section id="testimonials" className="px-5 py-16 md:px-[75px] md:py-24">
       <div className="mx-auto max-w-[1152px]">
-        <h2 className="text-center text-[36px] font-bold leading-[44px] tracking-[-0.75px] text-ink md:text-[48px] md:leading-[56px]">
+        <h2 className="text-center text-[36px] font-bold leading-[44px] tracking-normal text-ink md:text-[48px] md:leading-[56px]">
           {t('landing.testimonials.title')}
         </h2>
         <p className="mt-3 text-center text-[16px] leading-[22px] text-ink-variant">

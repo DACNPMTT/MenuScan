@@ -74,7 +74,7 @@ export function VerifyPage() {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-app-bg px-5 font-sans">
         <div className="flex w-full max-w-[400px] flex-col items-center gap-6 border border-hairline bg-canvas p-[50px] text-center">
-          <h1 className="text-[30px] font-bold tracking-[-0.75px] text-primary-dark">
+          <h1 className="text-[30px] font-bold tracking-normal text-primary-dark">
             MenuScan
           </h1>
           <h2 className="text-[24px] text-ink">{t('verify.errorTitle')}</h2>
@@ -98,7 +98,7 @@ export function VerifyPage() {
       <div className="pointer-events-none absolute -bottom-48 -right-48 size-96 rounded-full bg-primary-dark opacity-5 blur-2xl" />
       <div className="relative flex w-full max-w-[400px] flex-col">
         <div className="flex flex-col items-center gap-[30px] border border-hairline bg-canvas py-[50px]">
-          <h1 className="text-center text-[30px] font-bold leading-[34px] tracking-[-0.75px] text-primary-dark">
+          <h1 className="text-center text-[30px] font-bold leading-[34px] tracking-normal text-primary-dark">
             MenuScan
           </h1>
 

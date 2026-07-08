@@ -11,9 +11,8 @@ export function PublicLayout() {
   return (
     <div className="public-layout">
       <header className="public-layout__header">
-        <Link className="brand-link" to="/" aria-label="MenuScan home">
-          <span className="brand-link__mark" style={{ background: '#3F7A1A' }}>MS</span>
-          <span style={{ color: '#3F7A1A' }}>MenuScan</span>
+        <Link to="/" aria-label="MenuScan home" style={{ textDecoration: 'none' }}>
+          <span style={{ color: '#3F7A1A', fontWeight: 700, fontSize: '22px', letterSpacing: 0 }}>MenuScan</span>
         </Link>
         <nav className="public-layout__nav" aria-label="Public navigation">
           <LanguageSwitcher />

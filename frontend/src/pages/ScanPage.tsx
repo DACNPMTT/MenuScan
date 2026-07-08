@@ -17,7 +17,7 @@ export function ScanPage() {
           <ArrowLeft className="size-4" aria-hidden />
           {user ? t('common.backToDashboard') : t('common.backToHome')}
         </Link>
-        <h1 className="text-[48px] font-bold leading-[56px] tracking-[-0.5px] text-primary-dark">
+        <h1 className="text-[48px] font-bold leading-[56px] tracking-normal text-primary-dark">
           {t('scan.title')}
         </h1>
       </div>

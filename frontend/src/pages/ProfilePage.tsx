@@ -36,11 +36,14 @@ function displayValue(value: string | null | undefined, fallback = 'Chưa thiế
   return value?.trim() ? value : fallback
 }
 
-function formatDate(value: string | undefined) {
-  if (!value) return 'Chưa có dữ liệu'
+const LOCALE_MAP: Record<string, string> = { vi: 'vi-VN', en: 'en-GB' }
+
+function formatDate(value: string | undefined, lang: string) {
+  if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('vi-VN', {
+  const locale = LOCALE_MAP[lang] ?? 'en-GB'
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date)
@@ -55,7 +58,7 @@ function initialsFrom(name: string) {
 }
 
 export function ProfilePage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   useDocumentTitle('Profile | MenuScan')
   const { user, accessToken, updateProfile } = useAuth()
   const [fullProfile, setFullProfile] = useState<User | null>(null)
@@ -309,11 +312,11 @@ export function ProfilePage() {
             </div>
             <div className="flex flex-col">
               <div className="flex min-h-[96px] gap-3 px-5 py-4">
-                <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-[8px] bg-surface-muted text-primary-dark">
+                <span className="mt-1 flex size-5 shrink-0 text-[#5f6368]">
                   <Languages className="size-5" />
                 </span>
                 <div className="min-w-0">
-                  <p className="mb-2 text-[13px] font-bold uppercase tracking-[0.5px] text-ink-variant">
+                  <p className="mb-2 text-[13px] uppercase tracking-[0.5px] text-[#5f6368]">
                     {t('profile.interfaceLanguage')}
                   </p>
                   <LanguageSwitcher />
@@ -332,14 +335,14 @@ export function ProfilePage() {
               <ProfileField
                 icon={<CalendarDays className="size-5" />}
                 label={t('profile.createdAt')}
-                value={formatDate(profile?.created_at)}
+                value={formatDate(profile?.created_at, i18n.language)}
               />
             </div>
           </div>
 
           {/* Dietary preferences & allergies */}
           <div className="border-t border-hairline px-5 py-4">
-            <p className="mb-3 flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.5px] text-ink-variant">
+            <p className="mb-3 flex items-center gap-2 text-[13px] uppercase tracking-[0.5px] text-[#5f6368]">
               <UtensilsCrossed className="size-4" aria-hidden />
               {t('diet.sectionTitle')}
             </p>
@@ -352,7 +355,7 @@ export function ProfilePage() {
             ) : (
               <div className="flex flex-col gap-2 text-[14px] text-ink">
                 <p>
-                  <span className="font-bold text-ink-variant">
+                  <span className="text-[#5f6368]">
                     {t('diet.allergiesLabel')}:{' '}
                   </span>
                   {(profile?.allergies ?? []).length
@@ -362,7 +365,7 @@ export function ProfilePage() {
                     : t('diet.none')}
                 </p>
                 <p>
-                  <span className="font-bold text-ink-variant">
+                  <span className="text-[#5f6368]">
                     {t('diet.preferencesLabel')}:{' '}
                   </span>
                   {(profile?.dietary_preferences ?? []).length
@@ -391,11 +394,11 @@ function ProfileField({
 }) {
   return (
     <div className="flex min-h-[96px] gap-3 px-5 py-4">
-      <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-[8px] bg-surface-muted text-primary-dark">
+      <span className="mt-1 flex size-5 shrink-0 text-[#5f6368]">
         {icon}
       </span>
       <div className="min-w-0">
-        <p className="mb-1 text-[13px] font-bold uppercase tracking-[0.5px] text-ink-variant">
+        <p className="mb-1 text-[13px] uppercase tracking-[0.5px] text-[#5f6368]">
           {label}
         </p>
         <p className="break-words text-[16px] font-bold leading-[24px] text-ink">
@@ -417,11 +420,11 @@ function ProfileEditField({
 }) {
   return (
     <div className="flex min-h-[96px] gap-3 px-5 py-4">
-      <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-[8px] bg-surface-muted text-primary-dark">
+      <span className="mt-1 flex size-5 shrink-0 text-[#5f6368]">
         {icon}
       </span>
       <label className="min-w-0 flex-1">
-        <span className="mb-2 block text-[13px] font-bold uppercase tracking-[0.5px] text-ink-variant">
+        <span className="mb-2 block text-[13px] uppercase tracking-[0.5px] text-[#5f6368]">
           {label}
         </span>
         {children}

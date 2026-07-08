@@ -57,7 +57,7 @@ export function LoginPage() {
     <div className="flex min-h-dvh flex-col items-center justify-center bg-canvas px-5 py-[75px] font-sans">
       <div className="flex w-full max-w-[400px] flex-col">
         <header className="mb-[50px] flex flex-col gap-[5px]">
-          <h1 className="text-center text-[30px] font-bold leading-[34px] tracking-[-0.75px] text-primary-dark">
+          <h1 className="text-center text-[30px] font-bold leading-[34px] tracking-normal text-primary-dark">
             MenuScan
           </h1>
           <p className="text-center text-[20px] leading-[30px] text-ink">

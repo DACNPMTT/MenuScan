@@ -62,7 +62,7 @@ export function SetPasswordPage() {
     <div className="flex min-h-dvh flex-col items-center justify-center bg-canvas px-5 py-[75px] font-sans">
       <div className="flex w-full max-w-[400px] flex-col">
         <header className="mb-[45px] flex flex-col items-center gap-[18px] text-center">
-          <h1 className="text-[30px] font-bold leading-[34px] tracking-[-0.75px] text-primary-dark">
+          <h1 className="text-[30px] font-bold leading-[34px] tracking-normal text-primary-dark">
             MenuScan
           </h1>
           <div className="flex size-16 items-center justify-center rounded-full bg-primary">

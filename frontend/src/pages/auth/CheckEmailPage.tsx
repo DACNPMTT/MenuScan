@@ -25,7 +25,7 @@ export function CheckEmailPage() {
     <div className="flex min-h-dvh items-center justify-center bg-ink px-5 py-[95px] font-sans">
       <div className="flex w-full max-w-[400px] flex-col">
         <div className="flex flex-col items-center gap-[30px] border border-hairline bg-canvas p-[50px]">
-          <h1 className="text-center text-[30px] font-bold leading-[34px] tracking-[-0.75px] text-primary-dark">
+          <h1 className="text-center text-[30px] font-bold leading-[34px] tracking-normal text-primary-dark">
             MenuScan
           </h1>
 
