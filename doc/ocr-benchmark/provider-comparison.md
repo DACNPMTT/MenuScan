@@ -1,9 +1,8 @@
 # OCR Provider Comparison
 
 The table below is desk research from official provider documentation checked on
-2026-06-26. Live benchmark metrics must be filled by running the same
-`dataset/ground_truth.json` against each provider adapter once credentials are
-available.
+2026-06-26. Google Vision has since been implemented and measured against the
+same `dataset/ground_truth.json`; other providers remain desk-research only.
 
 MenuScan's MVP user is a foreign visitor eating in Vietnam. The OCR source
 language is therefore Vietnamese restaurant-menu text first. English support is
@@ -12,7 +11,7 @@ provider selection.
 
 | Provider | Vietnamese menu fit | Layout preservation | Images/PDF | Speed/deploy | Cost shape | MVP decision |
 | --- | --- | --- | --- | --- | --- | --- |
-| Google Cloud Vision `DOCUMENT_TEXT_DETECTION` | Officially lists Vietnamese `vi`; supports language hints. English support is secondary for occasional bilingual text. | Page/block/paragraph/word style OCR geometry via document text detection. | Images and async file/PDF OCR flows. | Managed API, low ops burden. | Per-feature unit pricing, with free monthly quota on many Vision features. | **Primary candidate** pending live benchmark. |
+| Google Cloud Vision `DOCUMENT_TEXT_DETECTION` | Officially lists Vietnamese `vi`; supports language hints. English support is secondary for occasional bilingual text. | Page/block/paragraph/word style OCR geometry via document text detection. | Images/PDF via MenuScan preprocessing to per-page PNGs. | Managed API, low ops burden. | Per-feature unit pricing, with free monthly quota on many Vision features. | Implemented behind `OCR_PROVIDER=google_vision`; current benchmark is below quality gates. |
 | Azure AI Vision Read | Read supports mixed-language documents and printed Vietnamese. | Read returns lines/words with bounding polygons. | Images and documents; multipage PDF counts per page. | Managed API and container options. | Transaction-based pricing; Read has free tier and paid tiers. | Secondary managed fallback. |
 | PaddleOCR | Open-source multilingual OCR; current docs highlight broad language support and self-hosted deployment. | PP-Structure can emit structured coordinates/JSON/Markdown. | Images/PDF workflows supported by toolkit. | Requires packaging, CPU/GPU sizing, model download, and ops ownership. | No per-page API fee, but infra/ops cost. | Offline/self-hosted fallback after live benchmark. |
 | Amazon Textract DetectDocumentText | Official Textract language support excludes Vietnamese. | Strong document block geometry. | JPEG, PNG, PDF, TIFF; async supports large multipage files. | Managed AWS API. | Per-page pricing; DetectDocumentText examples list per-page rates. | Rejected for MVP Vietnamese OCR. |
@@ -21,7 +20,7 @@ provider selection.
 
 | Provider | Samples | CER | WER | Price accuracy | Line recall | Column accuracy | p95 ms/page | Result |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| google_vision | 22 Vietnamese-source | pending | pending | pending | pending | pending | pending | Must run before production integration |
+| google_vision | 22 Vietnamese-source | 0.146 | 0.269 | 0.318 | 0.369 | 0.000 | 1344 | Implemented, but below MVP quality gates |
 | azure_read | 22 | pending | pending | pending | pending | pending | pending | Must run before fallback approval |
 | paddle_ocr | 22 | pending | pending | pending | pending | pending | pending | Must run before self-hosted approval |
 

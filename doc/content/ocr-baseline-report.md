@@ -39,4 +39,4 @@
    Hiện tại `GoogleVisionOcrProvider` chưa trả về được `column_index` cho từng block, dẫn đến Column Accuracy = 0.
 
 3. **Variant Menus**:
-   `RuleBasedMenuParser` chưa hỗ trợ trích xuất `base_name` và `variant_name` cho các menu biến thể (ví dụ: Bún bò nạm, Bún bò đặc biệt). Test case `test_variant_menu_extracts_base_and_variants` hiện đang xfail.
+   `RuleBasedMenuParser` và `menu_table.build_menu_table` hiện đã hỗ trợ một số layout biến thể phổ biến: header món nền + các dòng biến thể có giá, có `base_name`, `variant_name`, và `variant_group="size"` khi nhận diện kích cỡ. Giới hạn còn lại nằm ở chất lượng OCR/line grouping của provider trên ảnh thật.

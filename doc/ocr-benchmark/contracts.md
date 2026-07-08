@@ -4,7 +4,9 @@
 
 ```text
 Scan Orchestrator
-  -> OCR adapter: source object key, MIME, page limit
+  -> OcrService: source object key, MIME, validated source bytes
+  -> DocumentPreprocessor: normalized per-page PNGs
+  -> OcrProvider: preprocessed pages
   <- OcrDocument: raw text, pages, blocks, lines, boxes, confidence, safe metadata
 
 Parser (LLM or rule-based)
@@ -39,8 +41,8 @@ Required behavior:
 - Keep provider metadata safe: no API keys, access tokens, full provider raw
   payloads, signed URLs, or customer data beyond OCR text already stored in
   `raw_text`.
-- `provider` is an internal short code such as `google_vision`, `azure_read`,
-  `paddle_ocr`, or `fixture`.
+- `provider` is an internal short code. Code currently supports `fake` and
+  `google_vision`; `azure_read` and `paddle_ocr` remain research candidates.
 
 ## `ParsedMenuDraft`
 
@@ -70,15 +72,16 @@ Required behavior:
   When the parser is an LLM that translates in the same call, these are
   populated directly. When translation is a separate step, they start as `null`
   and are filled later.
-- `parsing_provider` identifies who produced the draft (e.g. `gemini-2.5-flash`,
-  `rule-based`, `fixture`) for debug and benchmark traceability.
+- `parsing_provider` identifies who produced the draft (e.g.
+  `gemini-3.1-flash-lite`, `gemini-2.5-flash`, `rule-based-python`, `fixture`)
+  for debug and benchmark traceability.
 - Fixture and benchmark data should preserve Vietnamese diacritics and include
   long menus with at least 20 priced items, because that is the expected
   production shape for many restaurants in Vietnam.
-- Draft data is not persisted directly as final menu data until scan completion
-  validates at least one item.
+- Draft data is not persisted directly as final menu data until scan completion;
+  a completed scan may still have zero items if parsing found no safe rows.
 
-## Standard OCR Error Codes
+## Standard OCR Contract Codes
 
 | Code | Meaning |
 | --- | --- |
@@ -91,3 +94,8 @@ Required behavior:
 | `LOW_CONFIDENCE` | OCR completed but confidence is below MVP threshold. |
 | `NO_TEXT_FOUND` | Provider returned no usable text. |
 | `UNSAFE_PROVIDER_METADATA` | Adapter attempted to persist unsafe metadata. |
+
+Runtime scan records use stable scan error codes derived from these failures,
+including `OCR_EMPTY_RESULT`, `OCR_TIMEOUT`, `OCR_PROVIDER_UNAVAILABLE`,
+`OCR_PROCESSING_FAILED`, `INVALID_DOCUMENT`, `PARSING_FAILED`,
+`SOURCE_FILE_NOT_FOUND`, and `STORAGE_UNAVAILABLE`.

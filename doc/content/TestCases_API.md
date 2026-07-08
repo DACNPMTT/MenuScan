@@ -21,15 +21,15 @@
 
 | ID | Trường hợp | Kỳ vọng |
 | --- | --- | --- |
-| SCAN-01 | Guest upload | `401 UNAUTHORIZED`. |
-| SCAN-02 | JPG/JPEG/PNG/WEBP hợp lệ <= 10 MB | `202`, tạo đúng một scan. |
-| SCAN-03 | PDF hợp lệ <= 10 MB và <= 5 trang | `202`, tạo đúng một scan. |
+| SCAN-01 | Guest upload | `202`, tạo scan guest có thể poll bằng `scan_id`. |
+| SCAN-02 | JPG/JPEG/PNG/WEBP hợp lệ <= 10 MB/file | `202`, tạo đúng một scan. |
+| SCAN-03 | PDF hợp lệ <= 10 MB và tổng scan <= 8 trang | `202`, tạo đúng một scan. |
 | SCAN-04 | File rỗng | `400 VALIDATION_ERROR`. |
 | SCAN-05 | File > 10 MB | `413 FILE_TOO_LARGE`. |
 | SCAN-06 | DOCX/TXT/GIF hoặc MIME giả | `415 UNSUPPORTED_FILE_TYPE`. |
-| SCAN-07 | PDF > 5 trang hoặc có mật khẩu | `422 INVALID_PDF`. |
-| SCAN-08 | `target_language` ngoài `vi`, `en` | `400 VALIDATION_ERROR`. |
-| SCAN-09 | Ảnh không có nội dung menu | Scan `FAILED`, `UNREADABLE_MENU`. |
+| SCAN-07 | PDF > 8 trang, tổng scan > 8 trang hoặc PDF có mật khẩu | `422 INVALID_PDF` hoặc `422 TOO_MANY_PAGES`. |
+| SCAN-08 | `target_language` không đúng language-tag hoặc dài hơn 10 ký tự | `400 VALIDATION_ERROR`. |
+| SCAN-09 | Ảnh không có nội dung menu | Scan `FAILED`, `OCR_EMPTY_RESULT` hoặc `INVALID_DOCUMENT`. |
 | SCAN-10 | Scan của user khác | `403 FORBIDDEN`. |
 | SCAN-11 | Lấy result khi đang xử lý | `409 SCAN_NOT_READY`. |
 | SCAN-12 | OCR thành công | State đi `PENDING -> PROCESSING -> COMPLETED`. |
@@ -38,9 +38,9 @@
 
 | ID | Trường hợp | Kỳ vọng |
 | --- | --- | --- |
-| RESULT-01 | Result thành công | Có `scan.source.preview_url`, menu và ít nhất một item. |
-| RESULT-02 | Mở source ảnh | Trả ảnh đúng MIME và chỉ owner truy cập được. |
-| RESULT-03 | Mở source PDF | Trả/redirect PDF đúng MIME và chỉ owner truy cập được. |
+| RESULT-01 | Result thành công | Có `scan.source.preview_url` và menu; item có thể rỗng nếu parser không tìm được món chắc chắn. |
+| RESULT-02 | Mở source ảnh | Trả ảnh đúng MIME; scan có owner chỉ owner truy cập, scan guest truy cập bằng `scan_id`. |
+| RESULT-03 | Mở source PDF | Trả/redirect PDF đúng MIME; scan có owner chỉ owner truy cập, scan guest truy cập bằng `scan_id`. |
 | RESULT-04 | Trường OCR không chắc chắn | Trả `null`, không tự tạo dữ liệu giả. |
 | RESULT-05 | Giá món | Trả chuỗi decimal và currency khi nhận diện được. |
 | RESULT-06 | Lưu menu | `PATCH` cập nhật `is_saved=true`. |

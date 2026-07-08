@@ -123,7 +123,10 @@ such as the database.
 | `LLM_PROVIDER` | `rule_based` |
 | `LLM_API_KEY` / `GEMINI_API_KEY` | unset |
 | `LLM_MODEL` | `gemini-3.1-flash-lite` |
-| `LLM_TIMEOUT_SECONDS` | `20` |
+| `LLM_FALLBACK_MODEL` | `gemini-2.5-flash` |
+| `LLM_TIMEOUT_SECONDS` | `100` |
+| `LLM_MULTIMODAL` | `true` |
+| `LLM_PREALIGN_CSV` | `true` |
 
 `CORS_ORIGINS` is a comma-separated allowlist. Do not combine wildcard origins
 with credentialed CORS requests.
@@ -135,6 +138,13 @@ setting `STORAGE_PROVIDER=s3`, `STORAGE_BUCKET_NAME`, `STORAGE_ENDPOINT_URL`,
 Buckets must remain private; source access is authorized by the backend and
 production responses redirect to a short-lived signed URL.
 
+OCR uses the `fake` provider by default for local development. To run real OCR,
+set `OCR_PROVIDER=google_vision` and provide `GOOGLE_VISION_API_KEY`; the
+Google Vision adapter uses `DOCUMENT_TEXT_DETECTION` on preprocessed PNG pages.
+
 The parsed-menu stage uses the rule-based parser by default. To enable Gemini
 for the LLM parser after the Google project has active billing/credits, set
 `LLM_PROVIDER=gemini` and provide either `LLM_API_KEY` or `GEMINI_API_KEY`.
+Gemini parsing uses the primary model first, rotates configured keys on quota,
+falls back through `LLM_MODELS` or `LLM_FALLBACK_MODEL`, then degrades to the
+rule-based parser on timeout/unavailability.

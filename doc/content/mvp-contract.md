@@ -2,7 +2,7 @@
 
 > Trạng thái: Đồng bộ với code hiện tại  
 > Phiên bản: 2.0  
-> Cập nhật: 2026-07-06  
+> Cập nhật: 2026-07-08
 > Phạm vi áp dụng: Sprint 1 và Sprint 2 (đã triển khai: camera, sửa món, billing/chia bill, đổi tiền tệ, chỉnh sửa profile)
 
 Tài liệu này là nguồn sự thật duy nhất cho phạm vi sản phẩm, luồng người dùng,
@@ -32,17 +32,17 @@ Luồng chính:
 
 | Nội dung | Quyết định |
 | --- | --- |
-| Quyền scan | Bắt buộc đăng nhập. Guest chỉ xem Landing Page và gửi yêu cầu Magic Link. |
+| Quyền scan | Guest được tạo scan và xem lại scan bằng `scan_id`; chỉ user đã đăng nhập có lịch sử scan/menu theo tài khoản. |
 | Tạo tài khoản | Tự động tạo user khi email xác minh Magic Link lần đầu. Không có màn hình đăng ký riêng. |
 | Đăng nhập | Magic Link (không mật khẩu) hoặc email + mật khẩu. Mật khẩu được đặt qua `/auth/set-password` sau khi đã đăng nhập; lưu dưới dạng bcrypt hash. |
-| File đầu vào | Mỗi phiên scan nhận đúng một file JPG, PNG, WEBP hoặc PDF. |
-| Dung lượng | Tối đa 10 MB/file. PDF tối đa 5 trang. |
+| File đầu vào | Mỗi phiên scan nhận một hoặc nhiều source file JPG, PNG, WEBP hoặc PDF; trường `file` legacy và `files` đều được hỗ trợ. |
+| Dung lượng | Tối đa 10 MB/file, 40 MB/phiên; tổng số trang tối đa 8. |
 | Ngôn ngữ nguồn | Hệ thống tự nhận diện. Ưu tiên menu tiếng Việt tại Việt Nam; tiếng Anh khi menu có gloss song ngữ. |
-| Ngôn ngữ đích | `vi`, `en`, `zh`, `ja`, `ko`, `fr`, `th`; mặc định theo ngôn ngữ ưu tiên của user, fallback `vi`. |
+| Ngôn ngữ đích | Language tag chữ thường hợp lệ như `vi`, `en`, `zh`, `pt-br` (tối đa 10 ký tự); mặc định theo ngôn ngữ ưu tiên của user, fallback `vi`. |
 | Tiền tệ hiển thị | Giá lưu theo tiền gốc của menu (thường VND). Người dùng có thể đổi tiền tệ hiển thị ở client (quy đổi theo tỷ giá, không ghi đè dữ liệu gốc). |
-| Thời gian kỳ vọng | Ảnh một trang: tối đa 30 giây; PDF tối đa 5 trang: tối đa 60 giây trong điều kiện dịch vụ bình thường. |
+| Thời gian kỳ vọng | Ảnh một trang kỳ vọng nhanh; pipeline Gemini hiện có timeout mặc định 100 giây và fallback parser/model khi provider timeout hoặc quota lỗi. |
 | Ảnh trong kết quả | Hiển thị file menu gốc cạnh dữ liệu trích xuất. MVP không tìm hoặc sinh ảnh riêng cho từng món. |
-| Lưu menu | Kết quả chỉ vào lịch sử sau khi user xác nhận lưu. File/phiên chưa lưu có thể được dọn theo chính sách lưu trữ. |
+| Lưu menu | Scan của user xuất hiện trong lịch sử sau khi tạo; `is_saved` đánh dấu menu đã được user xác nhận lưu. Guest không có danh sách lịch sử theo tài khoản. |
 
 ## 3. In scope
 
@@ -50,10 +50,10 @@ Luồng chính:
 - Đăng nhập bằng Magic Link **và** email + mật khẩu; đặt mật khẩu; chỉnh sửa profile (tên hiển thị, ngôn ngữ ưu tiên).
 - Access token, refresh token rotation, đăng xuất và lấy user hiện tại.
 - Dashboard entry cho người dùng đã đăng nhập.
-- Upload một ảnh/PDF menu, hoặc chụp trực tiếp bằng camera, theo quy tắc đã chốt.
+- Upload một hoặc nhiều ảnh/PDF menu trong một scan, hoặc chụp trực tiếp bằng camera, theo quy tắc đã chốt.
 - Lưu và truy cập an toàn file menu gốc.
 - OCR, nhận diện ngôn ngữ, phân tích tên món, mô tả, giá và tiền tệ.
-- Dịch nội dung menu sang ngôn ngữ đích (`vi`, `en`, `zh`, `ja`, `ko`, `fr`, `th`).
+- Dịch nội dung menu sang language tag đích hợp lệ mà user chọn.
 - Theo dõi trạng thái `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`.
 - Hiển thị file menu gốc và danh sách món có cấu trúc; đổi tiền tệ hiển thị theo tỷ giá.
 - Chỉnh sửa kết quả OCR: sửa/thêm/xóa món, xác nhận và lưu menu.
@@ -64,9 +64,9 @@ Luồng chính:
 ## 4. Out of scope
 
 - Quên hoặc reset mật khẩu (chỉ có đặt mật khẩu sau khi đã đăng nhập).
-- Guest history (lịch sử scan của khách chưa đăng nhập).
+- Guest history theo tài khoản (guest chỉ truy cập lại bằng `scan_id`, không có danh sách lịch sử).
 - Đăng nhập Google và các social provider khác.
-- Batch upload nhiều file trong một phiên.
+- Batch nhiều phiên scan độc lập; trong một scan hiện chỉ gom tối đa 8 page/source file.
 - Dashboard analytics nâng cao.
 - Thanh toán online hoặc gửi đơn đến nhà hàng.
 - Tìm ảnh món từ Internet hoặc sinh ảnh món bằng AI.
@@ -117,13 +117,13 @@ token đến endpoint verify. Token trên URL phải được xóa bằng
 
 | Thuộc tính | Giá trị |
 | --- | --- |
-| Field | `file` |
-| Số file | `1` |
+| Field | `files` (multi-file) hoặc `file` legacy |
+| Số file | `>= 1`, tổng số trang `<= 8` |
 | MIME type | `image/jpeg`, `image/png`, `image/webp`, `application/pdf` |
 | Extension | `.jpg`, `.jpeg`, `.png`, `.webp`, `.pdf` |
 | Kích thước | `> 0` và `<= 10 MB` |
-| PDF | Tối đa 5 trang, không nhận file có mật khẩu |
-| Target language | `vi`, `en`, `zh`, `ja`, `ko`, `fr`, `th` (mặc định theo user, fallback `vi`) |
+| PDF | Tối đa 8 trang trong tổng scan, không nhận file có mật khẩu |
+| Target language | Language tag chữ thường hợp lệ, tối đa 10 ký tự (mặc định theo user, fallback `vi`) |
 
 Backend phải kiểm tra MIME type từ nội dung file, không chỉ dựa vào tên file.
 File không đọc được, ảnh không có chữ hoặc PDF không hợp lệ phải kết thúc phiên
@@ -144,8 +144,8 @@ trách nhiệm điều phối upload, OCR, phân tích và dịch.
 
 Xử lý OCR chạy nền (FastAPI background task). Một watchdog định kỳ đánh dấu
 `FAILED` các phiên bị kẹt ở `PROCESSING` quá lâu (ví dụ khi tiến trình chết
-giữa chừng). Parser LLM có chuỗi dự phòng theo model (Gemini `flash` →
-`flash-lite`) rồi mới về parser theo luật, để một model hết quota không làm
+giữa chừng). Parser LLM có chuỗi dự phòng theo model (mặc định
+`gemini-3.1-flash-lite` → `gemini-2.5-flash`) rồi mới về parser theo luật, để một model hết quota không làm
 hỏng toàn bộ kết quả.
 
 ### 6.3 Menu management endpoints
@@ -197,7 +197,7 @@ PENDING -> PROCESSING -> COMPLETED
 
 - `PENDING`: file hợp lệ và phiên đã được tạo.
 - `PROCESSING`: OCR/phân tích/dịch đang chạy.
-- `COMPLETED`: đã có ít nhất một món hợp lệ và có thể lấy result.
+- `COMPLETED`: Pipeline đã tạo menu/result và có thể lấy result; danh sách món có thể rỗng nếu parser không tìm được item chắc chắn.
 - `FAILED`: không thể hoàn tất; có `error.code` và thông điệp an toàn cho user.
 - Phiên `COMPLETED` hoặc `FAILED` không quay lại trạng thái trước đó.
 
@@ -270,13 +270,20 @@ Quy tắc:
           "price": "60000.00",
           "currency": "VND",
           "category": null,
+          "allergens": [],
+          "dietary_tags": [],
           "confidence_score": 0.94,
           "sort_order": 1
         }
       ]
     }
   },
-  "meta": null
+  "meta": {
+    "page": 1,
+    "page_size": 6,
+    "total": 1,
+    "total_pages": 1
+  }
 }
 ```
 
@@ -298,10 +305,12 @@ vì tự suy đoán.
 | `409` | `SCAN_NOT_READY` | Result chưa sẵn sàng. |
 | `413` | `FILE_TOO_LARGE` | File lớn hơn 10 MB. |
 | `415` | `UNSUPPORTED_FILE_TYPE` | MIME type không hỗ trợ. |
-| `422` | `UNREADABLE_MENU` | File hợp lệ nhưng không đọc được menu. |
+| `422` | `OCR_EMPTY_RESULT` | OCR không trả về text dùng được. |
+| `422` | `INVALID_DOCUMENT` | Text OCR rõ ràng không giống menu. |
+| `422` | `TOO_MANY_PAGES` / `INVALID_PDF` | Scan hoặc PDF vượt giới hạn trang / PDF không hợp lệ. |
 | `429` | `RATE_LIMITED` | Gửi link hoặc gọi API quá nhanh. |
 | `500` | `INTERNAL_ERROR` | Lỗi không dự kiến. |
-| `503` | `PROCESSING_SERVICE_UNAVAILABLE` | OCR/dịch vụ phụ thuộc tạm thời không sẵn sàng. |
+| `503` | `OCR_PROVIDER_UNAVAILABLE` / `STORAGE_UNAVAILABLE` | OCR hoặc object storage tạm thời không sẵn sàng. |
 
 ## 10. Đồng bộ Figma
 
@@ -314,7 +323,7 @@ Các màn hình MVP phải map theo contract:
 | Pending verification | Dùng cho trạng thái đã gửi email; có resend với cooldown 60 giây. |
 | Verification success | Sau khi verify thành công chuyển thẳng đến Dashboard, không quay lại Login. |
 | Dashboard | Chỉ user đã đăng nhập truy cập được. |
-| Add Menu | Hiển thị đúng định dạng, giới hạn 10 MB và PDF tối đa 5 trang; có chọn ngôn ngữ đích và tùy chọn chụp camera. |
+| Add Menu | Hiển thị đúng định dạng, giới hạn 10 MB/file, 40 MB/phiên và tối đa 8 trang; có chọn ngôn ngữ đích và tùy chọn chụp camera. |
 | Processing | Hiển thị state từ API; không giả định thời gian `0.8s`. |
 | Scan Results | Hiển thị file gốc từ `source.preview_url` cùng các item; có ô đổi tiền tệ; không dùng ảnh món giả. |
 | Menu detail | Sửa/thêm/xóa món, tìm kiếm/lọc, chọn món để tính tiền; ô đổi tiền tệ. |

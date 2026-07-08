@@ -61,8 +61,8 @@ consumes images; the rule-based parser ignores them.
   the parsing improvement quantitatively.
 - Cost: one (down-scaled) image per page of input token cost per scan; latency
   per parse increases. Image-heavy calls are more rate-limited on the Gemini free
-  tier — the retry/backoff and the fallback-model chain (`gemini-3.1-flash-lite`)
-  remain important.
+  tier — retry/backoff and the model chain (`gemini-3.1-flash-lite` primary,
+  `gemini-2.5-flash` fallback by default) remain important.
 - `source_references` and per-item `confidence` from the LLM parser remain
   empty/null (unchanged from ADR 0002) — the model still does not emit geometry.
 - The grouped-variant prompt rules map header + numbered variants into

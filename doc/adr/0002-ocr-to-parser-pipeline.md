@@ -14,8 +14,8 @@ language. Two pipeline architectures were considered.
 **Option A — OCR then LLM (two-step)**
 
 ```text
-file bytes → OcrAdapter.run() → OcrDocument
-           → LLM parser (Gemini) with OcrDocument.text
+file bytes → DocumentPreprocessor → OcrProvider.extract_document() → OcrDocument
+           → parser (rule-based or Gemini) with OcrDocument.text
            → ParsedMenuDraft (with translated_name/translated_description)
            → persist Menu + FoodItem rows
 ```
@@ -32,7 +32,8 @@ file bytes → Gemini multimodal (image + text prompt)
 
 Use **Option A** — OCR then LLM.
 
-For the LLM parsing step, use **Google Gemini** (`gemini-2.5-flash` default)
+For the LLM parsing step, use **Google Gemini** (`gemini-3.1-flash-lite`
+default, `gemini-2.5-flash` fallback)
 with `responseMimeType: "application/json"` and an explicit `responseSchema`
 matching `ParsedMenuDraft`. The parser call combines extraction and
 translation in a single prompt, populating `translated_name` and
@@ -56,7 +57,8 @@ translation in a single prompt, populating `translated_name` and
 - Supports structured JSON output via `responseMimeType` + `responseSchema`,
   eliminating fragile markdown code-block parsing.
 - Handles Vietnamese text well and can produce translations in the same call.
-- `gemini-2.5-flash` is fast and cost-effective for text-only prompts.
+- `gemini-3.1-flash-lite` is the current fast default; `gemini-2.5-flash` is the
+  default fallback model.
 - The model name is configurable via `settings.llm.model`; the parser does
   not hardcode it.
 
@@ -75,23 +77,24 @@ Storage — inline base64 PDF is not supported. To keep the upload flow simple
 `pymupdf` is a pure-Python wheel with no system-level Poppler or Ghostscript
 dependency, which simplifies Docker build and local development.
 
-The upload validator already enforces a page limit (`max_pages` from
-`settings`). Adapters must honour this limit and raise
-`OcrAdapterError(OcrErrorCode.INPUT_TOO_LARGE)` if the PDF exceeds it.
+The upload validator enforces a maximum of 8 total pages per scan. The
+preprocessor rejects unsupported, empty, password-protected, or over-limit PDFs
+before the provider call.
 
 ## Consequences
 
-- The `OcrAdapter` base class in `ocr_contract.py` is the only interface the
-  worker imports; adapters implement `run(file_bytes, mime_type,
-  source_object_key) → OcrDocument`.
+- `OcrService` owns preprocessing/error mapping. Provider adapters implement
+  the `OcrProvider.extract_document(pages, source_object_key) → OcrDocument`
+  protocol and receive already-preprocessed pages.
 - Parser and translation code must never import an adapter module.
 - `pymupdf` must be added to `app/pyproject.toml` dependencies before any
   adapter handles PDFs.
 - LLM parsing prompt must instruct the model to set `price = null` when
   confidence is low, and to preserve unusual dish names verbatim in
   `original_name`.
-- `parsing_provider` in `ParsedMenuDraft` must be set to the Gemini model
-  string (e.g. `"gemini-2.5-flash"`) for benchmark traceability.
+- `parsing_provider` in `ParsedMenuDraft` must be set to the parser/model string
+  (e.g. `"gemini-3.1-flash-lite"` or `"rule-based-python"`) for benchmark
+  traceability.
 - `source_references` and per-item `confidence` in `ParsedMenuItemDraft` will
   be empty/null when using the LLM parser, because the model receives only
   text and has no access to bounding box geometry. This is an accepted
@@ -102,9 +105,10 @@ The upload validator already enforces a page limit (`max_pages` from
   per-item confidence remain empty. See
   [ADR 0003](0003-multimodal-menu-parser.md).
 - A live OCR benchmark (CER/WER, price accuracy, line recall) against
-  `doc/ocr-benchmark/dataset/ground_truth.json` must pass the quality gates
-  in `doc/ocr-benchmark/README.md` before any adapter is wired to production
-  scan orchestration.
+  `doc/ocr-benchmark/dataset/ground_truth.json` should be used before relying
+  on a provider in production. Google Vision is wired behind
+  `OCR_PROVIDER=google_vision`, but the checked-in benchmark remains below the
+  quality gates, so deployment should account for review/fallback behavior.
 
 ## Sources
 

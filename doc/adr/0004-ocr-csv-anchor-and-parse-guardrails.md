@@ -34,8 +34,9 @@ hardcoded dish names**), tagging size variants. It serialises to JSON/CSV.
 
 The CSV is embedded in the parse prompt as a **strong name↔price anchor**
 (`LLM_PREALIGN_CSV`, default on). The model is told to keep each price with its
-dish unless the image/OCR clearly contradicts. The coordinate dump is retained
-for now (additive change); dropping it once measured is a follow-up.
+dish unless the image/OCR clearly contradicts. In multimodal mode the image is
+used for layout and the coordinate dump is dropped; in text-only mode the
+structured OCR block dump is still included.
 
 ### 2. Pre-LLM menu-validity gate
 
