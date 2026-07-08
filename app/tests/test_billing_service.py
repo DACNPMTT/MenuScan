@@ -29,6 +29,7 @@ from src.modules.billing.exceptions import (
     BillNotFoundError,
     CurrencyMismatchError,
     EmptyBillError,
+    FoodItemMissingPriceError,
     FoodItemNotFoundError,
     InvalidPeopleCountError,
     InvalidPercentageRangeError,
@@ -134,6 +135,51 @@ def test_total_is_computed_by_service_not_trusted_from_client(db_session):
     assert bill.subtotal_amount == Decimal("175000.00")
     assert bill.adjustment_total == Decimal("0.00")
     assert bill.total_amount == Decimal("175000.00")
+
+
+def test_add_item_falls_back_to_menu_default_currency(db_session):
+    """A priced item with a null currency bills at the menu's default_currency.
+
+    Regression: such items previously raised FoodItemMissingPriceError even
+    though they have a price, breaking "create receipt".
+    """
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user, currency="VND")
+    item = FoodItem(
+        menu_id=menu.id,
+        original_name="Trà đá",
+        price=Decimal("5000.00"),
+        currency=None,  # only the menu-level default_currency is set
+        sort_order=2,
+    )
+    db_session.add(item)
+    db_session.flush()
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+
+    line = service.add_item(bill_id=bill.id, food_item_id=item.id, quantity=2)
+
+    assert line.currency == "VND"
+    assert line.line_total == Decimal("10000.00")
+
+
+def test_add_item_still_rejects_item_without_a_price(db_session):
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user, currency="VND")
+    item = FoodItem(
+        menu_id=menu.id,
+        original_name="Món chưa có giá",
+        price=None,
+        currency=None,
+        sort_order=2,
+    )
+    db_session.add(item)
+    db_session.flush()
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+
+    with pytest.raises(FoodItemMissingPriceError):
+        service.add_item(bill_id=bill.id, food_item_id=item.id, quantity=1)
 
 
 def test_bill_item_stores_name_and_price_snapshot(db_session):

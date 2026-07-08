@@ -210,6 +210,19 @@ class BillingService:
 
     # --- Line items ---------------------------------------------------------
 
+    @staticmethod
+    def _resolve_currency(food_item: FoodItem) -> str | None:
+        """The item's currency, falling back to its menu's default_currency.
+
+        A parsed item often carries a price but a null ``currency`` (only the
+        menu-level ``default_currency`` was inferred). Treating that as "no
+        price" wrongly blocks billing, so resolve it against the menu here.
+        """
+        if food_item.currency:
+            return food_item.currency
+        menu = food_item.menu
+        return menu.default_currency if menu else None
+
     def add_item(
         self,
         *,
@@ -231,12 +244,13 @@ class BillingService:
         food_item = self._session.get(FoodItem, food_item_id)
         if food_item is None or food_item.menu_id != bill.menu_id:
             raise FoodItemNotFoundError()
-        if food_item.price is None or food_item.currency is None:
+        currency = self._resolve_currency(food_item)
+        if food_item.price is None or currency is None:
             raise FoodItemMissingPriceError()
 
-        self._ensure_currency(bill, food_item.currency)
+        self._ensure_currency(bill, currency)
         if not bill.items:
-            bill.currency = food_item.currency
+            bill.currency = currency
 
         line_total = _round_money(food_item.price * quantity)
         next_sort_order = len(bill.items)
@@ -246,7 +260,7 @@ class BillingService:
             food_item_id=food_item.id,
             name_snapshot=food_item.translated_name or food_item.original_name,
             unit_price_snapshot=food_item.price,
-            currency=food_item.currency,
+            currency=currency,
             quantity=quantity,
             line_total=line_total,
             sort_order=next_sort_order,
@@ -294,12 +308,13 @@ class BillingService:
             food_item = self._session.get(FoodItem, food_item_id)
             if food_item is None or food_item.menu_id != bill.menu_id:
                 raise FoodItemNotFoundError()
-            if food_item.price is None or food_item.currency is None:
+            currency = self._resolve_currency(food_item)
+            if food_item.price is None or currency is None:
                 raise FoodItemMissingPriceError()
 
             if new_currency is None:
-                new_currency = food_item.currency
-            elif food_item.currency != new_currency:
+                new_currency = currency
+            elif currency != new_currency:
                 raise CurrencyMismatchError()
 
             line_total = _round_money(food_item.price * quantity)
@@ -308,7 +323,7 @@ class BillingService:
                 food_item_id=food_item.id,
                 name_snapshot=food_item.translated_name or food_item.original_name,
                 unit_price_snapshot=food_item.price,
-                currency=food_item.currency,
+                currency=currency,
                 quantity=quantity,
                 line_total=line_total,
                 sort_order=sort_order,
