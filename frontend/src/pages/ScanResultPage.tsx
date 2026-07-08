@@ -54,7 +54,7 @@ const LANGUAGE_MAP: Record<string, string> = {
 
 export function ScanResultPage() {
   const { scanId } = useParams<{ scanId: string }>()
-  const { accessToken } = useAuth()
+  const { accessToken, user } = useAuth()
   const { t } = useTranslation()
   useDocumentTitle(`${t('scanResult.title')} | MenuScan`)
 
@@ -185,11 +185,11 @@ export function ScanResultPage() {
   return (
     <div className="mx-auto w-full max-w-[900px] px-[30px] py-[40px] sm:px-[50px]">
       <Link
-        to="/app"
+        to={user ? '/app' : '/'}
         className="mb-6 flex w-fit items-center gap-2 text-[14px] text-ink-variant transition-colors hover:text-primary-dark"
       >
         <ArrowLeft className="size-4" aria-hidden />
-        {t('common.backToDashboard')}
+        {user ? t('common.backToDashboard') : t('common.backToHome')}
       </Link>
 
       {error && (

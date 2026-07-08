@@ -16,7 +16,8 @@
     "close": "Đóng",
     "yes": "Có",
     "no": "Không",
-    "backToDashboard": "Về Dashboard"
+    "backToDashboard": "Về Dashboard",
+    "backToHome": "Về trang chủ"
   },
   "scan": {
     "title": "Thêm menu",

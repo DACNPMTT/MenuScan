@@ -16,7 +16,8 @@
     "close": "Close",
     "yes": "Yes",
     "no": "No",
-    "backToDashboard": "Back to Dashboard"
+    "backToDashboard": "Back to Dashboard",
+    "backToHome": "Back to home"
   },
   "scan": {
     "title": "Add menu",
