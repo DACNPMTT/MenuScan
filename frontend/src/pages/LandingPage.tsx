@@ -155,9 +155,9 @@ function Features() {
           return (
             <Card
               key={feature.title}
-              className="gap-0 rounded-none border-transparent bg-transparent p-0 shadow-none"
+              className="gap-0 rounded-[16px] border border-hairline bg-canvas p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10"
             >
-              <div className="flex size-12 items-center justify-center rounded-full bg-surface-muted">
+              <div className="flex size-12 items-center justify-center rounded-[14px] bg-gradient-to-br from-primary/20 to-primary/5 ring-1 ring-primary/15">
                 <Icon className="size-6 text-primary-dark" aria-hidden />
               </div>
               <h3 className="mt-5 text-[20px] font-bold leading-[30px] text-ink">
@@ -190,10 +190,10 @@ function HowItWorks() {
           {t('landing.how.title')}
         </h2>
         <div className="relative mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="absolute left-0 right-0 top-7 hidden h-px bg-hairline lg:block" />
+          <div className="absolute left-0 right-0 top-7 hidden h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent lg:block" />
           {steps.map((step, index) => (
             <div key={step.title} className="relative flex flex-col items-center text-center">
-              <div className="flex size-14 items-center justify-center rounded-full border border-hairline bg-canvas text-[24px] font-bold text-primary-dark">
+              <div className="flex size-14 items-center justify-center rounded-full bg-canvas text-[24px] font-bold text-primary-dark shadow-md shadow-primary/15 ring-2 ring-primary/25 transition-transform duration-200 hover:scale-105">
                 {STEP_NUMBERS[index] ?? index + 1}
               </div>
               <h3 className="mt-4 text-[20px] font-bold leading-[30px] text-ink">
@@ -241,15 +241,22 @@ function Stats() {
   const { t } = useTranslation()
   const labels = t('landing.stats.labels', { returnObjects: true }) as string[]
   return (
-    <section className="bg-primary px-5 py-16 text-white md:px-[75px] md:py-20">
-      <div className="mx-auto max-w-[1152px]">
+    <section className="relative overflow-hidden bg-gradient-to-br from-primary via-primary to-primary-dark px-5 py-16 text-white md:px-[75px] md:py-20">
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-24 top-[-20%] h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute -right-16 bottom-[-40%] h-80 w-80 rounded-full bg-white/5 blur-3xl" />
+      </div>
+      <div className="relative mx-auto max-w-[1152px]">
         <Badge className="mb-6 rounded-full bg-white/15 px-3 py-1 text-[12px] text-white hover:bg-white/20">
           {t('landing.stats.badge')}
         </Badge>
-        <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
           {STAT_VALUES.map((value, index) => (
-            <div key={value}>
-              <div className="text-[40px] font-bold leading-none tracking-[-0.5px] md:text-[56px]">
+            <div
+              key={value}
+              className="rounded-[16px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm transition-transform duration-200 hover:-translate-y-1"
+            >
+              <div className="text-[40px] font-bold leading-none tracking-[-0.5px] md:text-[52px]">
                 {value}
               </div>
               <div className="mt-2 text-[14px] text-white/80">{labels[index]}</div>
