@@ -134,6 +134,8 @@ class ParsedMenuItemDraft(BaseModel):
     price: str | None = None
     currency: str | None = None
     category: str | None = None
+    allergens: list[str] = Field(default_factory=list)
+    dietary_tags: list[str] = Field(default_factory=list)
     confidence: float | None = Field(default=None, ge=0, le=1)
     source_references: list[OcrSourceReference] = Field(default_factory=list)
     sort_order: int = Field(ge=0)

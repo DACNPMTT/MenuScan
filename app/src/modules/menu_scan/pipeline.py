@@ -58,6 +58,21 @@ STAGE_ANALYZING = "ANALYZING"
 STAGE_TRANSLATING = "TRANSLATING"
 STAGE_FINALIZING = "FINALIZING"
 
+# Dietary taxonomy — the parser may only emit these; anything else is dropped so
+# the stored tags stay matchable against a diner's declared allergies / diet.
+_KNOWN_ALLERGENS = frozenset(
+    {
+        "seafood", "shellfish", "fish", "peanut", "tree_nut",
+        "egg", "dairy", "gluten", "soy", "sesame",
+    }
+)
+_KNOWN_DIETARY_TAGS = frozenset(
+    {
+        "contains_pork", "contains_beef", "contains_seafood",
+        "contains_alcohol", "vegetarian", "vegan",
+    }
+)
+
 
 @dataclass(frozen=True, slots=True)
 class ScanPipeline:
@@ -383,6 +398,8 @@ class ScanPipeline:
                     price=_safe_decimal(item.price),
                     currency=_safe_currency(item.currency),
                     category=(item.category[:100] if item.category else None),
+                    allergens=_clean_tags(item.allergens, _KNOWN_ALLERGENS),
+                    dietary_tags=_clean_tags(item.dietary_tags, _KNOWN_DIETARY_TAGS),
                     confidence_score=(
                         Decimal(str(item.confidence))
                         if item.confidence is not None
@@ -512,6 +529,16 @@ def _merge_ocr_documents(documents: list[OcrDocument]) -> OcrDocument:
             "metadata": metadata,
         }
     )
+
+
+def _clean_tags(values: list[str], allowed: frozenset[str]) -> list[str]:
+    """Keep only known taxonomy codes, lowercased and de-duplicated in order."""
+    cleaned: list[str] = []
+    for value in values:
+        code = value.strip().lower()
+        if code in allowed and code not in cleaned:
+            cleaned.append(code)
+    return cleaned
 
 
 def _safe_decimal(value: str | None) -> Decimal | None:

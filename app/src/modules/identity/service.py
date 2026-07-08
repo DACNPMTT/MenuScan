@@ -276,6 +276,8 @@ class MagicLinkService:
         *,
         display_name: str | None | object = _UNSET,
         preferred_language: str | object = _UNSET,
+        allergies: list[str] | object = _UNSET,
+        dietary_preferences: list[str] | object = _UNSET,
     ) -> User:
         """Update editable profile fields for the currently authenticated user."""
         now = self._clock()
@@ -283,6 +285,10 @@ class MagicLinkService:
             user.display_name = display_name if isinstance(display_name, str) else None
         if preferred_language is not _UNSET and isinstance(preferred_language, str):
             user.preferred_language = preferred_language
+        if allergies is not _UNSET and isinstance(allergies, list):
+            user.allergies = allergies
+        if dietary_preferences is not _UNSET and isinstance(dietary_preferences, list):
+            user.dietary_preferences = dietary_preferences
         user.updated_at = now
         self._session.commit()
         return user

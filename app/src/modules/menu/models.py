@@ -18,8 +18,9 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.database import Base
@@ -123,6 +124,20 @@ class FoodItem(Base):
     price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     currency: Mapped[str | None] = mapped_column(CHAR(3))
     category: Mapped[str | None] = mapped_column(String(100))
+    # LLM-inferred dietary metadata (shared taxonomy). Matched against the diner's
+    # declared allergies / dietary_preferences to warn or flag dishes.
+    allergens: Mapped[list[str]] = mapped_column(
+        ARRAY(Text),
+        nullable=False,
+        default=list,
+        server_default=text("'{}'::text[]"),
+    )
+    dietary_tags: Mapped[list[str]] = mapped_column(
+        ARRAY(Text),
+        nullable=False,
+        default=list,
+        server_default=text("'{}'::text[]"),
+    )
     confidence_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

@@ -12,8 +12,9 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    text,
 )
-from sqlalchemy.dialects.postgresql import INET, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, INET, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.database import Base
@@ -45,6 +46,20 @@ class User(Base):
         String(10),
         nullable=False,
         server_default="vi",
+    )
+    # Dietary profile (optional). Codes come from the shared taxonomy; matched
+    # against each dish's allergens / dietary_tags to warn or flag.
+    allergies: Mapped[list[str]] = mapped_column(
+        ARRAY(Text),
+        nullable=False,
+        default=list,
+        server_default=text("'{}'::text[]"),
+    )
+    dietary_preferences: Mapped[list[str]] = mapped_column(
+        ARRAY(Text),
+        nullable=False,
+        default=list,
+        server_default=text("'{}'::text[]"),
     )
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role"),

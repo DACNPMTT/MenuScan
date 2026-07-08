@@ -273,14 +273,21 @@ def _build_prompt(
         f"already in {target_language}, copy it verbatim.\n"
         f"- ALWAYS fill translated_description in {target_language}. If the menu "
         "prints a description, translate it. If it does NOT, WRITE a concise one "
-        "yourself: main ingredients, and/or how it is cooked, and/or its taste — "
-        "ONE short sentence. Describing an existing dish this way is required and "
-        "allowed; it is NOT inventing a new item. Leave original_description "
-        "empty when the menu printed none (never fabricate source-language "
-        "text).\n"
+        "yourself, in this order: the main INGREDIENTS, then briefly how it is "
+        "cooked, then its taste — ONE or two short sentences. Naming ingredients "
+        "is required (it powers allergy matching). Describing an existing dish "
+        "this way is allowed; it is NOT inventing a new item. Leave "
+        "original_description empty when the menu printed none (never fabricate "
+        "source-language text).\n"
         f"- category: a short label in the target language ({target_language}); "
         f"if the menu prints it bilingually, keep only the {target_language} "
         "side.\n"
+        "- allergens: from THIS fixed set only, list every one the dish likely "
+        "contains — seafood, shellfish, fish, peanut, tree_nut, egg, dairy, "
+        "gluten, soy, sesame. Use [] if none or unknown.\n"
+        "- dietary_tags: from THIS fixed set only, list every one that applies — "
+        "contains_pork, contains_beef, contains_seafood, contains_alcohol, "
+        "vegetarian, vegan. Use [] if none apply.\n"
         "- Omit other optional fields when unknown.\n"
     )
 
@@ -411,6 +418,8 @@ def _parsed_menu_schema() -> dict[str, Any]:
             "price": {"type": "STRING"},
             "currency": {"type": "STRING"},
             "category": {"type": "STRING"},
+            "allergens": {"type": "ARRAY", "items": {"type": "STRING"}},
+            "dietary_tags": {"type": "ARRAY", "items": {"type": "STRING"}},
             "confidence": {"type": "NUMBER"},
             "sort_order": {"type": "INTEGER"},
         },
