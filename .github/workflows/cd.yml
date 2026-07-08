@@ -97,7 +97,7 @@ jobs:
             --set-env-vars "GOOGLE_VISION_MODEL=DOCUMENT_TEXT_DETECTION" \
             --set-env-vars "LLM_PROVIDER=gemini" \
             --set-env-vars "LLM_MODEL=gemini-3.1-flash-lite" \
-            --set-env-vars "LLM_MODELS=gemini-3.1-flash-lite,gemini-2.5-flash" \
+            --set-env-vars "^@^LLM_MODELS=gemini-3.1-flash-lite,gemini-2.5-flash" \
             --set-env-vars "LLM_FALLBACK_MODEL=gemini-2.5-flash" \
             --set-env-vars "GEMINI_API_KEY=${{ secrets.DEV_GEMINI_API_KEY }}" \
             --set-env-vars "GEMINI_API_KEYS=${{ secrets.DEV_GEMINI_API_KEYS }}" \
