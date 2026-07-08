@@ -30,6 +30,7 @@ from src.modules.menu_scan.exceptions import (
 from src.modules.menu_scan.menu_parser import MenuParser
 from src.modules.menu_scan.menu_validity import looks_like_menu
 from src.modules.menu_scan.models import OcrResult, ScanSession, ScanStatus
+from src.modules.menu_scan.output_verifier import verify_draft
 from src.modules.menu_scan.ocr.document_preprocessor import DocumentPreprocessor
 from src.modules.menu_scan.ocr.service import OcrService, OcrSource
 from src.modules.menu_scan.ocr_contract import OcrDocument, ParsedMenuDraft
@@ -292,6 +293,17 @@ class ScanPipeline:
                 _ERROR_PARSING_FAILED,
                 "Menu parsing failed.",
             ) from error
+
+        # Drop items the parser hallucinated (no name/price grounding in the OCR
+        # text). Diacritic-safe and never empties a non-empty draft.
+        draft, dropped = verify_draft(draft, ocr_document)
+        if dropped:
+            logger.info(
+                "pipeline_verify_dropped scan_id=%s dropped=%d kept=%d",
+                scan_id,
+                dropped,
+                len(draft.items),
+            )
 
         with self.session_factory() as session:
             scan = self.scan_repository.get_scan_for_processing(
