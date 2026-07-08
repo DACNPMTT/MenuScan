@@ -1,13 +1,13 @@
-import { AlertCircle, Loader2, Minus, Pencil, Plus, RotateCcw, Save, Trash2 } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Loader2, Minus, Pencil, Plus, RotateCcw, Save, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ItemDisplayName } from '@/features/menu-scan/components/menu-detail/ItemDisplayName'
 import {
   LOW_CONFIDENCE_THRESHOLD,
   confidenceValue,
-  hasAllergySignal,
   itemCategory,
   itemPrice,
 } from '@/features/menu-scan/lib'
+import { assessDish, type DietProfile } from '@/features/menu-scan/dietary'
 import { formatConvertedAmount, type ExchangeRates } from '@/shared/lib/currency'
 import type {
   BillItem,
@@ -18,6 +18,7 @@ import type {
 
 export interface BillItemCardProps {
   item: BillItem
+  dietProfile: DietProfile
   draft: ItemDraft
   editing: boolean
   dirty: boolean
@@ -42,6 +43,7 @@ export interface BillItemCardProps {
  * quantity / note bill-line controls pinned to the bottom. */
 export function BillItemCard({
   item,
+  dietProfile,
   draft,
   editing,
   dirty,
@@ -62,6 +64,7 @@ export function BillItemCard({
   onNoteChange,
 }: BillItemCardProps) {
   const { t } = useTranslation()
+  const risk = assessDish(item, dietProfile)
   const confidence = confidenceValue(item)
   const lowConfidenceLabel =
     confidence !== null && confidence < LOW_CONFIDENCE_THRESHOLD
@@ -80,10 +83,20 @@ export function BillItemCard({
 
   return (
     <article className="flex min-h-[190px] flex-col gap-3 rounded-[8px] border border-hairline bg-canvas p-5">
-      {hasAllergySignal(item) && (
+      {risk.allergens.length > 0 && (
         <div className="flex items-center gap-2 rounded-[6px] bg-destructive px-3 py-1.5 text-[12px] font-bold text-white">
-          <AlertCircle className="size-3.5" aria-hidden />
-          {t('billItem.allergyWarning')}
+          <AlertCircle className="size-3.5 shrink-0" aria-hidden />
+          {t('billItem.allergyMatch', {
+            list: risk.allergens.map((code) => t(`diet.allergens.${code}`)).join(', '),
+          })}
+        </div>
+      )}
+      {risk.dietFlags.length > 0 && (
+        <div className="flex items-center gap-2 rounded-[6px] border border-[#e0a800]/50 bg-[#fff8e1] px-3 py-1.5 text-[12px] font-bold text-[#8a6d00]">
+          <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
+          {t('billItem.dietMatch', {
+            list: risk.dietFlags.map((code) => t(`diet.preferences.${code}`)).join(', '),
+          })}
         </div>
       )}
       {lowConfidenceLabel !== null && (

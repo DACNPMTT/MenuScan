@@ -276,9 +276,36 @@
     "addItem": "Add dish",
     "allCategories": "All"
   },
+  "diet": {
+    "sectionTitle": "Allergies & dietary preferences",
+    "allergiesLabel": "Allergies",
+    "preferencesLabel": "Diet",
+    "none": "Not set",
+    "allergens": {
+      "seafood": "Seafood",
+      "shellfish": "Shellfish",
+      "fish": "Fish",
+      "peanut": "Peanut",
+      "tree_nut": "Tree nuts",
+      "egg": "Egg",
+      "dairy": "Dairy",
+      "gluten": "Gluten",
+      "soy": "Soy",
+      "sesame": "Sesame"
+    },
+    "preferences": {
+      "vegetarian": "Vegetarian",
+      "vegan": "Vegan",
+      "no_pork": "No pork",
+      "no_beef": "No beef",
+      "no_alcohol": "No alcohol"
+    }
+  },
   "billItem": {
     "lowConfidence": "Low OCR confidence ({{value}}%).",
     "allergyWarning": "WARNING: Allergy Match Found (Seafood)",
+    "allergyMatch": "WARNING: Contains {{list}}",
+    "dietMatch": "Doesn't match your diet: {{list}}",
     "namePlaceholder": "Dish name",
     "originalNamePlaceholder": "Name on the image",
     "pricePlaceholder": "Price",

@@ -14,6 +14,8 @@ export interface User {
   email: string
   display_name: string | null
   preferred_language: string
+  allergies: string[]
+  dietary_preferences: string[]
   role: string
   status?: string
   created_at?: string
@@ -22,6 +24,8 @@ export interface User {
 export interface UpdateProfilePayload {
   display_name?: string | null
   preferred_language?: string
+  allergies?: string[]
+  dietary_preferences?: string[]
 }
 
 interface AuthContextType {

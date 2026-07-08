@@ -118,6 +118,8 @@ export interface MenuItemResult {
   price: string | null
   currency: string | null
   category: string | null
+  allergens: string[]
+  dietary_tags: string[]
   confidence_score: number | string | null
   sort_order: number
 }

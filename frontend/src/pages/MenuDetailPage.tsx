@@ -33,6 +33,7 @@ import {
   normalizePrice,
   validateDraft,
 } from '@/features/menu-scan/lib'
+import { type DietProfile } from '@/features/menu-scan/dietary'
 import { BillItemCard } from '@/features/menu-scan/components/menu-detail/BillItemCard'
 import { ItemDisplayName } from '@/features/menu-scan/components/menu-detail/ItemDisplayName'
 import { ManualItemCard } from '@/features/menu-scan/components/menu-detail/ManualItemCard'
@@ -53,7 +54,14 @@ export function MenuDetailPage() {
   const { t } = useTranslation()
   const { menuId } = useParams<{ menuId: string }>()
   const navigate = useNavigate()
-  const { accessToken } = useAuth()
+  const { accessToken, user } = useAuth()
+  const dietProfile = useMemo<DietProfile>(
+    () => ({
+      allergies: user?.allergies ?? [],
+      dietary_preferences: user?.dietary_preferences ?? [],
+    }),
+    [user?.allergies, user?.dietary_preferences],
+  )
   const toast = useToast()
   const [menu, setMenu] = useState<MenuDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -683,6 +691,7 @@ export function MenuDetailPage() {
                 <BillItemCard
                   key={item.id}
                   item={item}
+                  dietProfile={dietProfile}
                   draft={itemDrafts[item.id] ?? draftFromItem(item, currency)}
                   editing={editingItemIds.has(item.id)}
                   dirty={

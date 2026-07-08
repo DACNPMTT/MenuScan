@@ -13,12 +13,17 @@ import {
   Save,
   ShieldCheck,
   UserCircle,
+  UtensilsCrossed,
   X,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth, type User } from '@/app/providers/AuthProvider'
 import { ApiError, apiRequest } from '@/shared/lib/api'
 import { LanguageSwitcher } from '@/shared/components/LanguageSwitcher'
+import {
+  DietPreferencePicker,
+  type DietPreferenceValue,
+} from '@/features/menu-scan/components/DietPreferencePicker'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 
 const STATUS_STYLES: Record<string, string> = {
@@ -60,6 +65,10 @@ export function ProfilePage() {
   const [editing, setEditing] = useState(false)
   const [draftDisplayName, setDraftDisplayName] = useState('')
   const [draftLanguage, setDraftLanguage] = useState('vi')
+  const [draftDiet, setDraftDiet] = useState<DietPreferenceValue>({
+    allergies: [],
+    dietary_preferences: [],
+  })
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -112,6 +121,10 @@ export function ProfilePage() {
   const startEditing = () => {
     setDraftDisplayName(profile?.display_name ?? '')
     setDraftLanguage(profile?.preferred_language === 'en' ? 'en' : 'vi')
+    setDraftDiet({
+      allergies: profile?.allergies ?? [],
+      dietary_preferences: profile?.dietary_preferences ?? [],
+    })
     setSaveError(null)
     setEditing(true)
   }
@@ -135,6 +148,8 @@ export function ProfilePage() {
       const updated = await updateProfile({
         display_name: normalizedDisplayName || null,
         preferred_language: draftLanguage,
+        allergies: draftDiet.allergies,
+        dietary_preferences: draftDiet.dietary_preferences,
       })
       setFullProfile(updated)
       setEditing(false)
@@ -350,6 +365,44 @@ export function ProfilePage() {
                 value={formatDate(profile?.created_at)}
               />
             </div>
+          </div>
+
+          {/* Dietary preferences & allergies */}
+          <div className="border-t border-hairline px-5 py-4">
+            <p className="mb-3 flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.5px] text-ink-variant">
+              <UtensilsCrossed className="size-4" aria-hidden />
+              {t('diet.sectionTitle')}
+            </p>
+            {editing ? (
+              <DietPreferencePicker
+                value={draftDiet}
+                onChange={setDraftDiet}
+                disabled={saving}
+              />
+            ) : (
+              <div className="flex flex-col gap-2 text-[14px] text-ink">
+                <p>
+                  <span className="font-bold text-ink-variant">
+                    {t('diet.allergiesLabel')}:{' '}
+                  </span>
+                  {(profile?.allergies ?? []).length
+                    ? (profile?.allergies ?? [])
+                        .map((code) => t(`diet.allergens.${code}`))
+                        .join(', ')
+                    : t('diet.none')}
+                </p>
+                <p>
+                  <span className="font-bold text-ink-variant">
+                    {t('diet.preferencesLabel')}:{' '}
+                  </span>
+                  {(profile?.dietary_preferences ?? []).length
+                    ? (profile?.dietary_preferences ?? [])
+                        .map((code) => t(`diet.preferences.${code}`))
+                        .join(', ')
+                    : t('diet.none')}
+                </p>
+              </div>
+            )}
           </div>
         </form>
       </div>

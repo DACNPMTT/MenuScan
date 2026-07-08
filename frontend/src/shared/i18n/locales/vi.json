@@ -266,9 +266,36 @@
     "addItem": "Thêm món",
     "allCategories": "Tất cả"
   },
+  "diet": {
+    "sectionTitle": "Dị ứng & sở thích ăn uống",
+    "allergiesLabel": "Dị ứng",
+    "preferencesLabel": "Ăn kiêng",
+    "none": "Chưa thiết lập",
+    "allergens": {
+      "seafood": "Hải sản",
+      "shellfish": "Động vật có vỏ",
+      "fish": "Cá",
+      "peanut": "Đậu phộng",
+      "tree_nut": "Hạt cây",
+      "egg": "Trứng",
+      "dairy": "Sữa",
+      "gluten": "Gluten",
+      "soy": "Đậu nành",
+      "sesame": "Mè"
+    },
+    "preferences": {
+      "vegetarian": "Ăn chay",
+      "vegan": "Thuần chay",
+      "no_pork": "Không thịt heo",
+      "no_beef": "Không thịt bò",
+      "no_alcohol": "Không rượu bia"
+    }
+  },
   "billItem": {
     "lowConfidence": "OCR confidence thấp ({{value}}%).",
     "allergyWarning": "CẢNH BÁO: Phát hiện dị ứng (Hải sản)",
+    "allergyMatch": "CẢNH BÁO: Chứa {{list}}",
+    "dietMatch": "Không hợp khẩu phần: {{list}}",
     "namePlaceholder": "Tên món",
     "originalNamePlaceholder": "Tên trên ảnh",
     "pricePlaceholder": "Giá",
