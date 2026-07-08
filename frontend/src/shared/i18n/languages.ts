@@ -1,13 +1,9 @@
-// Supported UI languages. The codes mirror the backend's target-language set so
-// a user's preferred_language (vi/en/…) maps 1:1 to the interface language.
+// Supported UI (interface) languages — only the ones with a full translation
+// catalog. This is intentionally just vi/en; the *scan target* language is
+// separate and open-ended (any language the model can translate to).
 export const SUPPORTED_LANGUAGES = [
   { code: 'vi', label: 'Tiếng Việt', flag: '🇻🇳' },
   { code: 'en', label: 'English', flag: '🇬🇧' },
-  { code: 'zh', label: '中文', flag: '🇨🇳' },
-  { code: 'ja', label: '日本語', flag: '🇯🇵' },
-  { code: 'ko', label: '한국어', flag: '🇰🇷' },
-  { code: 'fr', label: 'Français', flag: '🇫🇷' },
-  { code: 'th', label: 'ไทย', flag: '🇹🇭' },
 ] as const
 
 export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number]['code']
