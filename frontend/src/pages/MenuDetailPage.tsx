@@ -4,8 +4,11 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
+  HandCoins,
   Loader2,
+  Percent,
   Plus,
+  Receipt,
   ReceiptText,
   RefreshCw,
   Trash2,
@@ -25,6 +28,7 @@ import {
   ALL_CATEGORY,
   ITEMS_PAGE_SIZE,
   SEARCH_DEBOUNCE_MS,
+  clampPercent,
   draftFromItem,
   draftMatchesItem,
   itemCategory,
@@ -95,6 +99,11 @@ export function MenuDetailPage() {
   const requestIdRef = useRef(0)
   const abortRef = useRef<AbortController | null>(null)
   const [peopleCount, setPeopleCount] = useState(1)
+  // Bill adjustments. Percentages apply to the subtotal (same base the backend
+  // uses), surcharge is a flat amount in the bill's own currency.
+  const [vatPercent, setVatPercent] = useState(0)
+  const [tipPercent, setTipPercent] = useState(0)
+  const [surcharge, setSurcharge] = useState(0)
   const [billLines, setBillLines] = useState<Record<string, BillLineState>>({})
   const [addingManual, setAddingManual] = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -289,7 +298,12 @@ export function MenuDetailPage() {
     [selectedLines],
   )
 
-  const perPerson = peopleCount > 0 ? subtotal / peopleCount : subtotal
+  // Mirrors BillingService: percentage adjustments are computed on the subtotal
+  // (never compounded), then summed into the total.
+  const vatAmount = (subtotal * vatPercent) / 100
+  const tipAmount = (subtotal * tipPercent) / 100
+  const total = subtotal + vatAmount + tipAmount + surcharge
+  const perPerson = peopleCount > 0 ? total / peopleCount : total
 
   const updateLine = (itemId: string, updater: (line: BillLineState) => BillLineState) => {
     setBillLines((current) => {
@@ -568,6 +582,47 @@ export function MenuDetailPage() {
           })),
         }),
       })
+
+      // Persist the calculator's VAT / tip / surcharge so the receipt matches the
+      // preview. The server recomputes every amount from these values.
+      const adjustments: Array<{
+        type: string
+        calculation_type: string
+        label: string
+        value: number
+      }> = []
+      if (vatPercent > 0) {
+        adjustments.push({
+          type: 'TAX',
+          calculation_type: 'PERCENTAGE',
+          label: t('menuDetail.vat'),
+          value: vatPercent,
+        })
+      }
+      if (tipPercent > 0) {
+        adjustments.push({
+          type: 'SERVICE_CHARGE',
+          calculation_type: 'PERCENTAGE',
+          label: t('menuDetail.tip'),
+          value: tipPercent,
+        })
+      }
+      if (surcharge > 0) {
+        adjustments.push({
+          type: 'SURCHARGE',
+          calculation_type: 'FIXED',
+          label: t('menuDetail.surcharge'),
+          value: surcharge,
+        })
+      }
+      for (const adjustment of adjustments) {
+        await apiRequest<unknown>(`/api/v1/bills/${bill.id}/adjustments`, {
+          method: 'POST',
+          token: accessToken ?? undefined,
+          body: JSON.stringify(adjustment),
+        })
+      }
+
       navigate(`/app/bills/${bill.id}?people=${peopleCount}`)
     } catch (err) {
       const description = err instanceof ApiError ? err.message : undefined
@@ -820,6 +875,66 @@ export function MenuDetailPage() {
                   </strong>
                 </div>
               </div>
+
+              {/* VAT / tip / surcharge — percentages apply to the subtotal. */}
+              <div className="mt-4 grid grid-cols-1 gap-3 border-t border-hairline pt-4 sm:grid-cols-3">
+                <label className="flex items-center justify-between gap-3 text-[14px] font-medium text-ink">
+                  <span className="flex items-center gap-2">
+                    <Percent className="size-4 text-primary-dark" aria-hidden />
+                    {t('menuDetail.vat')}
+                    <span className="text-[12px] font-normal text-ink-variant">(%)</span>
+                  </span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={vatPercent}
+                    onChange={(event) => setVatPercent(clampPercent(event.target.value))}
+                    className="h-9 w-24 rounded-[8px] border border-hairline bg-white px-3 text-right text-[14px] text-ink outline-none focus:border-primary-dark"
+                  />
+                </label>
+                <label className="flex items-center justify-between gap-3 text-[14px] font-medium text-ink">
+                  <span className="flex items-center gap-2">
+                    <HandCoins className="size-4 text-primary-dark" aria-hidden />
+                    {t('menuDetail.tip')}
+                    <span className="text-[12px] font-normal text-ink-variant">(%)</span>
+                  </span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={tipPercent}
+                    onChange={(event) => setTipPercent(clampPercent(event.target.value))}
+                    className="h-9 w-24 rounded-[8px] border border-hairline bg-white px-3 text-right text-[14px] text-ink outline-none focus:border-primary-dark"
+                  />
+                </label>
+                <label className="flex items-center justify-between gap-3 text-[14px] font-medium text-ink">
+                  <span className="flex items-center gap-2">
+                    <Receipt className="size-4 text-primary-dark" aria-hidden />
+                    {t('menuDetail.surcharge')}
+                    {currency && (
+                      <span className="text-[12px] font-normal text-ink-variant">
+                        ({currency})
+                      </span>
+                    )}
+                  </span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    value={surcharge}
+                    onChange={(event) =>
+                      setSurcharge(Math.max(0, Number(event.target.value) || 0))
+                    }
+                    className="h-9 w-24 rounded-[8px] border border-hairline bg-white px-3 text-right text-[14px] text-ink outline-none focus:border-primary-dark"
+                  />
+                </label>
+              </div>
+
               {selectedLines.length > 0 && (
                 <div className="mt-4 border-t border-hairline pt-4">
                   <div className="flex flex-col gap-2">
@@ -858,6 +973,40 @@ export function MenuDetailPage() {
                       <span className="text-ink-variant">{t('menuDetail.subtotal')}</span>
                       <strong className="text-ink">
                         {formatConvertedAmount(subtotal, currency, displayCurrency, exchangeRates)}
+                      </strong>
+                    </div>
+                    {vatAmount > 0 && (
+                      <div className="flex w-full justify-between gap-3 sm:w-[280px]">
+                        <span className="text-ink-variant">
+                          {t('menuDetail.vat')} · {vatPercent}%
+                        </span>
+                        <span className="text-ink">
+                          {formatConvertedAmount(vatAmount, currency, displayCurrency, exchangeRates)}
+                        </span>
+                      </div>
+                    )}
+                    {tipAmount > 0 && (
+                      <div className="flex w-full justify-between gap-3 sm:w-[280px]">
+                        <span className="text-ink-variant">
+                          {t('menuDetail.tip')} · {tipPercent}%
+                        </span>
+                        <span className="text-ink">
+                          {formatConvertedAmount(tipAmount, currency, displayCurrency, exchangeRates)}
+                        </span>
+                      </div>
+                    )}
+                    {surcharge > 0 && (
+                      <div className="flex w-full justify-between gap-3 sm:w-[280px]">
+                        <span className="text-ink-variant">{t('menuDetail.surcharge')}</span>
+                        <span className="text-ink">
+                          {formatConvertedAmount(surcharge, currency, displayCurrency, exchangeRates)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex w-full justify-between gap-3 border-t border-hairline pt-2 sm:w-[280px]">
+                      <span className="font-bold text-ink">{t('menuDetail.total')}</span>
+                      <strong className="text-[16px] text-ink">
+                        {formatConvertedAmount(total, currency, displayCurrency, exchangeRates)}
                       </strong>
                     </div>
                     <div className="flex w-full justify-between gap-3 sm:w-[280px]">

@@ -28,6 +28,13 @@ export function normalizePrice(raw: string): string {
   return Number.isFinite(value) && value >= 0 ? trimmed : ''
 }
 
+/** Clamp a percentage input (VAT / tip) to 0-100; non-numeric becomes 0. */
+export function clampPercent(raw: string | number): number {
+  const value = Number(raw)
+  if (!Number.isFinite(value)) return 0
+  return Math.min(100, Math.max(0, value))
+}
+
 export function formatMoney(amount: number, currency: string | null): string {
   const resolvedCurrency = currency ?? 'VND'
   if (resolvedCurrency === 'VND') {

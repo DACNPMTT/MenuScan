@@ -163,6 +163,48 @@ def test_add_item_falls_back_to_menu_default_currency(db_session):
     assert line.line_total == Decimal("10000.00")
 
 
+def test_vat_tip_and_surcharge_stack_on_the_subtotal(db_session):
+    """The bill-calculator combo: VAT % + tip % (both on subtotal) + flat surcharge.
+
+    Mirrors what MenuDetailPage previews client-side, so the receipt must match.
+    """
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user, currency="VND")
+    pho, com = _items(db_session, menu)
+    service = BillingService(session=db_session)
+
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+    service.add_item(bill_id=bill.id, food_item_id=pho.id, quantity=1)  # 65000
+    service.add_item(bill_id=bill.id, food_item_id=com.id, quantity=1)  # 45000
+
+    service.add_adjustment(
+        bill_id=bill.id,
+        adjustment_type=BillAdjustmentType.TAX,
+        calculation_type=BillAdjustmentCalculationType.PERCENTAGE,
+        label="VAT",
+        value=Decimal("10"),
+    )
+    service.add_adjustment(
+        bill_id=bill.id,
+        adjustment_type=BillAdjustmentType.SERVICE_CHARGE,
+        calculation_type=BillAdjustmentCalculationType.PERCENTAGE,
+        label="Tip",
+        value=Decimal("5"),
+    )
+    service.add_adjustment(
+        bill_id=bill.id,
+        adjustment_type=BillAdjustmentType.SURCHARGE,
+        calculation_type=BillAdjustmentCalculationType.FIXED,
+        label="Surcharge",
+        value=Decimal("20000"),
+    )
+
+    # 110000 subtotal + 11000 VAT + 5500 tip + 20000 surcharge
+    assert bill.subtotal_amount == Decimal("110000.00")
+    assert bill.adjustment_total == Decimal("36500.00")
+    assert bill.total_amount == Decimal("146500.00")
+
+
 def test_add_item_still_rejects_item_without_a_price(db_session):
     user = _make_user(db_session)
     menu = _make_menu_with_items(db_session, user, currency="VND")
