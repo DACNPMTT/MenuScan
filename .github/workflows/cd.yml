@@ -84,7 +84,7 @@ jobs:
             --set-env-vars "LOG_LEVEL=INFO" \
             --set-env-vars "API_V1_PREFIX=/api/v1" \
             --set-env-vars "MAGIC_LINK_BASE_URL=${{ secrets.DEV_FRONTEND_URL }}" \
-            --set-env-vars "CORS_ORIGINS=${{ secrets.DEV_FRONTEND_URL }}" \
+            --set-env-vars "^|^CORS_ORIGINS=${{ secrets.DEV_FRONTEND_URL }}" \
             --set-env-vars "DATABASE_URL=${{ secrets.DEV_DATABASE_URL }}" \
             --set-env-vars "SECRET_KEY=${{ secrets.DEV_SECRET_KEY }}" \
             --set-env-vars "EMAIL_PROVIDER=resend" \
@@ -100,7 +100,7 @@ jobs:
             --set-env-vars "^@^LLM_MODELS=gemini-3.1-flash-lite,gemini-2.5-flash" \
             --set-env-vars "LLM_FALLBACK_MODEL=gemini-2.5-flash" \
             --set-env-vars "GEMINI_API_KEY=${{ secrets.DEV_GEMINI_API_KEY }}" \
-            --set-env-vars "GEMINI_API_KEYS=${{ secrets.DEV_GEMINI_API_KEYS }}" \
+            --set-env-vars "^|^GEMINI_API_KEYS=${{ secrets.DEV_GEMINI_API_KEYS }}" \
             --set-env-vars "LLM_TIMEOUT_SECONDS=100" \
             --set-env-vars "LLM_MULTIMODAL=true" \
             --set-env-vars "LLM_IMAGE_MAX_DIMENSION=1536" \
