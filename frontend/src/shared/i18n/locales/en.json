@@ -51,6 +51,7 @@
     "dashboard": "Dashboard",
     "scan": "Scan",
     "menus": "Menus",
+    "bills": "Bills",
     "profile": "Profile"
   },
   "footer": {
@@ -181,6 +182,17 @@
       "deleteFailed": "Couldn't delete the menu."
     }
   },
+  "bills": {
+    "title": "Bills",
+    "subtitle": "Review the receipts you have created.",
+    "loading": "Loading bills…",
+    "empty": "No bills yet. Pick dishes on a menu, then hit Review / Confirm to create one.",
+    "goToMenus": "Go to menus",
+    "dishCount_one": "{{count}} dish",
+    "dishCount_other": "{{count}} dishes",
+    "status": { "DRAFT": "Draft", "FINALIZED": "Finalized" },
+    "errors": { "loadFailed": "Couldn't load your bills." }
+  },
   "camera": {
     "title": "Scan with camera",
     "backToUpload": "Back to upload",
@@ -238,6 +250,7 @@
     "vat": "VAT",
     "tip": "Tip",
     "surcharge": "Surcharge",
+    "discount": "Discount",
     "total": "Total",
     "splitAmong_one": "Split among {{count}} person",
     "splitAmong_other": "Split among {{count}} people",

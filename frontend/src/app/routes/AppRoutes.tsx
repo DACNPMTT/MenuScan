@@ -18,6 +18,7 @@ import { ScanPage } from '@/pages/ScanPage'
 import { SetPasswordPage } from '@/pages/SetPasswordPage'
 import { OnboardingPage } from '@/pages/auth/OnboardingPage'
 import { BillReceiptPage } from '@/pages/BillReceiptPage'
+import { BillsPage } from '@/pages/BillsPage'
 
 export function AppRoutes() {
   return (
@@ -37,6 +38,7 @@ export function AppRoutes() {
         <Route path="scans/:scanId" element={<ScanResultPage />} />
         <Route path="menus" element={<RequireAuth><MenusPage /></RequireAuth>} />
         <Route path="menus/:menuId" element={<RequireAuth><MenuDetailPage /></RequireAuth>} />
+        <Route path="bills" element={<RequireAuth><BillsPage /></RequireAuth>} />
         <Route path="bills/:billId" element={<RequireAuth><BillReceiptPage /></RequireAuth>} />
         <Route path="profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
       </Route>

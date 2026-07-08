@@ -11,6 +11,7 @@ import {
   Receipt,
   ReceiptText,
   RefreshCw,
+  Tag,
   Trash2,
   Users,
   XCircle,
@@ -104,6 +105,7 @@ export function MenuDetailPage() {
   const [vatPercent, setVatPercent] = useState(0)
   const [tipPercent, setTipPercent] = useState(0)
   const [surcharge, setSurcharge] = useState(0)
+  const [discountPercent, setDiscountPercent] = useState(0)
   const [billLines, setBillLines] = useState<Record<string, BillLineState>>({})
   const [addingManual, setAddingManual] = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -302,7 +304,10 @@ export function MenuDetailPage() {
   // (never compounded), then summed into the total.
   const vatAmount = (subtotal * vatPercent) / 100
   const tipAmount = (subtotal * tipPercent) / 100
-  const total = subtotal + vatAmount + tipAmount + surcharge
+  const discountAmount = (subtotal * discountPercent) / 100
+  // Discount is capped at 100% of the subtotal, so the total can never go
+  // negative (the server rejects a negative total).
+  const total = subtotal + vatAmount + tipAmount + surcharge - discountAmount
   const perPerson = peopleCount > 0 ? total / peopleCount : total
 
   const updateLine = (itemId: string, updater: (line: BillLineState) => BillLineState) => {
@@ -615,6 +620,14 @@ export function MenuDetailPage() {
           value: surcharge,
         })
       }
+      if (discountPercent > 0) {
+        adjustments.push({
+          type: 'DISCOUNT',
+          calculation_type: 'PERCENTAGE',
+          label: t('menuDetail.discount'),
+          value: discountPercent,
+        })
+      }
       for (const adjustment of adjustments) {
         await apiRequest<unknown>(`/api/v1/bills/${bill.id}/adjustments`, {
           method: 'POST',
@@ -876,8 +889,8 @@ export function MenuDetailPage() {
                 </div>
               </div>
 
-              {/* VAT / tip / surcharge — percentages apply to the subtotal. */}
-              <div className="mt-4 grid grid-cols-1 gap-3 border-t border-hairline pt-4 sm:grid-cols-3">
+              {/* VAT / tip / surcharge / discount — percentages apply to the subtotal. */}
+              <div className="mt-4 grid grid-cols-1 gap-3 border-t border-hairline pt-4 sm:grid-cols-2 lg:grid-cols-4">
                 <label className="flex items-center justify-between gap-3 text-[14px] font-medium text-ink">
                   <span className="flex items-center gap-2">
                     <Percent className="size-4 text-primary-dark" aria-hidden />
@@ -930,6 +943,23 @@ export function MenuDetailPage() {
                     onChange={(event) =>
                       setSurcharge(Math.max(0, Number(event.target.value) || 0))
                     }
+                    className="h-9 w-24 rounded-[8px] border border-hairline bg-white px-3 text-right text-[14px] text-ink outline-none focus:border-primary-dark"
+                  />
+                </label>
+                <label className="flex items-center justify-between gap-3 text-[14px] font-medium text-ink">
+                  <span className="flex items-center gap-2">
+                    <Tag className="size-4 text-primary-dark" aria-hidden />
+                    {t('menuDetail.discount')}
+                    <span className="text-[12px] font-normal text-ink-variant">(%)</span>
+                  </span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={discountPercent}
+                    onChange={(event) => setDiscountPercent(clampPercent(event.target.value))}
                     className="h-9 w-24 rounded-[8px] border border-hairline bg-white px-3 text-right text-[14px] text-ink outline-none focus:border-primary-dark"
                   />
                 </label>
@@ -1000,6 +1030,16 @@ export function MenuDetailPage() {
                         <span className="text-ink-variant">{t('menuDetail.surcharge')}</span>
                         <span className="text-ink">
                           {formatConvertedAmount(surcharge, currency, displayCurrency, exchangeRates)}
+                        </span>
+                      </div>
+                    )}
+                    {discountAmount > 0 && (
+                      <div className="flex w-full justify-between gap-3 sm:w-[280px]">
+                        <span className="text-ink-variant">
+                          {t('menuDetail.discount')} · {discountPercent}%
+                        </span>
+                        <span className="text-primary-dark">
+                          −{formatConvertedAmount(discountAmount, currency, displayCurrency, exchangeRates)}
                         </span>
                       </div>
                     )}

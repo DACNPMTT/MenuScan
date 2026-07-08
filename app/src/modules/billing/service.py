@@ -165,6 +165,10 @@ class BillingService:
             raise BillNotFoundError()
         return bill
 
+    def list_bills_for_user(self, *, user_id: uuid.UUID) -> list[Bill]:
+        """Every bill owned by ``user_id``, most recent first (bill history)."""
+        return self._repository.list_for_user(self._session, user_id)
+
     def split_bill(
         self,
         *,

@@ -23,6 +23,18 @@ export const ADJUSTMENT_TYPE_LABELS = {
   ROUNDING: 'Làm tròn',
 } satisfies Record<BillAdjustmentType, string>
 
+/** Compact bill row returned by `GET /api/v1/bills` (bill history). */
+export interface BillSummary {
+  id: string
+  menu_id: string
+  status: BillStatus
+  currency: string
+  total_amount: string
+  item_count: number
+  created_at: string
+  finalized_at: string | null
+}
+
 /** One immutable line item on a bill. `name_snapshot` / `unit_price_snapshot`
  * are fixed at add-time so later menu edits never change a billed amount. */
 export interface BillItemResponse {

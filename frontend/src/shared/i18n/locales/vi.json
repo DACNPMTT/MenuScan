@@ -51,6 +51,7 @@
     "dashboard": "Tổng quan",
     "scan": "Quét",
     "menus": "Thực đơn",
+    "bills": "Hóa đơn",
     "profile": "Tài khoản"
   },
   "footer": {
@@ -177,6 +178,16 @@
       "deleteFailed": "Không thể xóa menu."
     }
   },
+  "bills": {
+    "title": "Hóa đơn",
+    "subtitle": "Xem lại các hóa đơn bạn đã tạo.",
+    "loading": "Đang tải hóa đơn…",
+    "empty": "Chưa có hóa đơn nào. Chọn món trong một thực đơn rồi bấm Review / Confirm để tạo hóa đơn.",
+    "goToMenus": "Tới thực đơn",
+    "dishCount_other": "{{count}} món",
+    "status": { "DRAFT": "Bản nháp", "FINALIZED": "Đã chốt" },
+    "errors": { "loadFailed": "Không thể tải danh sách hóa đơn." }
+  },
   "camera": {
     "title": "Quét bằng camera",
     "backToUpload": "Về trang upload",
@@ -229,6 +240,7 @@
     "vat": "Thuế VAT",
     "tip": "Tiền tip",
     "surcharge": "Phụ phí",
+    "discount": "Giảm giá",
     "total": "Tổng cộng",
     "splitAmong_other": "Chia cho {{count}} người",
     "scanAnother": "Quét menu khác",

@@ -163,6 +163,29 @@ def test_add_item_falls_back_to_menu_default_currency(db_session):
     assert line.line_total == Decimal("10000.00")
 
 
+def test_list_bills_for_user_returns_only_own_bills_newest_first(db_session):
+    user = _make_user(db_session)
+    other = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    other_menu = _make_menu_with_items(db_session, other)
+    service = BillingService(session=db_session)
+
+    older = service.create_bill(user_id=user.id, menu_id=menu.id)
+    newer = service.create_bill(user_id=user.id, menu_id=menu.id)
+    foreign = service.create_bill(user_id=other.id, menu_id=other_menu.id)
+
+    # Postgres now() is transaction-scoped, so every row shares a timestamp.
+    # Force distinct values to assert the ordering deterministically.
+    older.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    newer.created_at = datetime(2026, 6, 1, tzinfo=timezone.utc)
+    db_session.flush()
+
+    bills = service.list_bills_for_user(user_id=user.id)
+
+    assert [bill.id for bill in bills] == [newer.id, older.id]
+    assert foreign.id not in {bill.id for bill in bills}
+
+
 def test_vat_tip_and_surcharge_stack_on_the_subtotal(db_session):
     """The bill-calculator combo: VAT % + tip % (both on subtotal) + flat surcharge.
 
@@ -859,6 +882,8 @@ def test_billing_service_has_no_send_order_to_restaurant_capability():
         "create_bill",
         "finalize_bill",
         "get_bill_for_user",
+        # Read-only bill history listing; still no restaurant-order operation.
+        "list_bills_for_user",
         "remove_adjustment",
         "replace_items",
         "split_bill",

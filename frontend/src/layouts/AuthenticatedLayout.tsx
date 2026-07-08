@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link } from 'react-router-dom'
-import { LayoutDashboard, LogOut, ScanLine, Utensils } from 'lucide-react'
+import { LayoutDashboard, LogOut, ReceiptText, ScanLine, Utensils } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Spinner } from '@/shared/components/Spinner'
@@ -13,6 +13,7 @@ const navigationItems = [
   { key: 'dashboard', to: '/app', icon: LayoutDashboard, authOnly: true },
   { key: 'scan', to: '/app/scan', icon: ScanLine, authOnly: false },
   { key: 'menus', to: '/app/menus', icon: Utensils, authOnly: true },
+  { key: 'bills', to: '/app/bills', icon: ReceiptText, authOnly: true },
 ] as const
 
 export function AuthenticatedLayout() {
@@ -108,7 +109,7 @@ export function AuthenticatedLayout() {
         className="shrink-0 border-b border-hairline bg-surface-muted px-3 py-2 sm:hidden"
         aria-label="App navigation"
       >
-        <div className="grid grid-cols-3 gap-1 rounded-[10px] bg-canvas p-1">
+        <div className="flex gap-1 rounded-[10px] bg-canvas p-1">
           {navItems.map((item) => {
             const Icon = item.icon
             return (
@@ -118,7 +119,7 @@ export function AuthenticatedLayout() {
                 to={item.to}
                 className={({ isActive }) =>
                   [
-                    'flex min-h-11 items-center justify-center gap-1.5 rounded-[8px] px-2 text-[12px] font-semibold transition-colors',
+                    'flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-[8px] px-2 text-[12px] font-semibold transition-colors',
                     isActive
                       ? 'bg-primary-dark text-white shadow-sm'
                       : 'text-ink-variant hover:bg-surface-muted hover:text-primary-dark',
