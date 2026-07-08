@@ -7,7 +7,37 @@ data:
   APP_ENV: development
   LOG_LEVEL: INFO
   API_V1_PREFIX: /api/v1
+
+  # --- Frontend URL (used to build magic-link in emails) ---
+  MAGIC_LINK_BASE_URL: https://menuscan-dev.example.com
+  CORS_ORIGINS: https://menuscan-dev.example.com
+
+  # --- Email: console prints the link to stdout (no real mail sent in dev) ---
   EMAIL_PROVIDER: console
+
+  # --- Storage: local volume inside pod ---
   STORAGE_PROVIDER: local
   STORAGE_LOCAL_ROOT: /app/storage/objects
   STORAGE_SIGNED_URL_SECONDS: "300"
+
+  # --- OCR: Google Vision ---
+  OCR_PROVIDER: google_vision
+  GOOGLE_VISION_MODEL: DOCUMENT_TEXT_DETECTION
+
+  # --- LLM: Gemini with model failover ---
+  LLM_PROVIDER: gemini
+  LLM_MODEL: gemini-3.1-flash-lite
+  LLM_MODELS: gemini-3.1-flash-lite,gemini-2.5-flash
+  LLM_FALLBACK_MODEL: gemini-2.5-flash
+  LLM_TIMEOUT_SECONDS: "100"
+  LLM_MULTIMODAL: "true"
+  LLM_IMAGE_MAX_DIMENSION: "1536"
+  LLM_PREALIGN_CSV: "true"
+
+  # --- Scan watchdog ---
+  SCAN_STALE_TIMEOUT_MINUTES: "10"
+
+  # --- Exchange rate ---
+  EXCHANGE_RATE_API_BASE_URL: https://open.er-api.com/v6
+  EXCHANGE_RATE_TIMEOUT_SECONDS: "10"
+  EXCHANGE_RATE_CACHE_TTL_SECONDS: "3600"

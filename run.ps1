@@ -92,10 +92,11 @@ function Get-ListeningProcessId([int]$Port) {
 }
 
 function Wait-DockerReady {
-    docker info *> $null
-    if ($LASTEXITCODE -eq 0) {
+    try {
+        docker info *> $null
         return
     }
+    catch {}
 
     $dockerDesktop = "C:\Program Files\Docker\Docker\Docker Desktop.exe"
     if (Test-Path $dockerDesktop) {
@@ -106,10 +107,11 @@ function Wait-DockerReady {
     $deadline = (Get-Date).AddMinutes(3)
     do {
         Start-Sleep -Seconds 5
-        docker info *> $null
-        if ($LASTEXITCODE -eq 0) {
+        try {
+            docker info *> $null
             return
         }
+        catch {}
     } while ((Get-Date) -lt $deadline)
 
     throw "Docker is not ready. Open Docker Desktop, then run .\run.ps1 start again."
