@@ -474,8 +474,10 @@
     },
     "hero": {
       "title": "Turn menu photos into structured data",
+      "badge": "AI-powered menu translation",
       "subtitle": "Automatically extract dishes, prices, descriptions, and dietary information from any physical menu image in seconds.",
-      "startScanning": "Start scanning"
+      "startScanning": "Start scanning",
+      "imageAlt": "The MenuScan app scanning a printed menu"
     },
     "stats": {
       "badge": "By the numbers",

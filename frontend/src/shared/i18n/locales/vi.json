@@ -462,8 +462,10 @@
     },
     "hero": {
       "title": "Biến ảnh thực đơn thành dữ liệu có cấu trúc",
+      "badge": "Dịch thực đơn bằng AI",
       "subtitle": "Tự động trích xuất món ăn, giá, mô tả và thông tin dinh dưỡng từ bất kỳ ảnh thực đơn nào chỉ trong vài giây.",
-      "startScanning": "Bắt đầu quét"
+      "startScanning": "Bắt đầu quét",
+      "imageAlt": "Ứng dụng MenuScan đang quét một tờ thực đơn"
     },
     "stats": {
       "badge": "Những con số",

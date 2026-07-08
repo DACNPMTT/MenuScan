@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Camera, FileText, Upload } from 'lucide-react'
+import { Camera, FileText, Sparkles, Upload } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card'
@@ -85,18 +85,29 @@ function Hero() {
   const { t } = useTranslation()
   const { user } = useAuth()
   return (
-    <section className="px-5 py-16 md:px-[75px] md:py-24">
+    <section className="relative overflow-hidden px-5 py-16 md:px-[75px] md:py-24">
+      {/* Soft brand-coloured light behind the hero — pure CSS, no assets. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+        <div className="motion-glow absolute left-1/2 top-[-14%] h-[560px] w-[820px] max-w-[130vw] -translate-x-1/2 rounded-full bg-gradient-to-br from-primary/30 via-primary/10 to-transparent blur-3xl [animation:glow-pulse_7s_ease-in-out_infinite]" />
+        <div className="absolute right-[-10%] top-[28%] h-[340px] w-[340px] rounded-full bg-primary-dark/10 blur-3xl" />
+        <div className="absolute bottom-[-12%] left-[-8%] h-[300px] w-[300px] rounded-full bg-primary/15 blur-3xl" />
+      </div>
+
       <div className="mx-auto flex max-w-[896px] flex-col items-center text-center">
-        <h1 className="text-[40px] font-bold leading-[48px] tracking-[-1px] text-ink md:text-[60px] md:leading-[72px]">
+        <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary-dark/20 bg-canvas/80 px-4 py-1.5 text-[13px] font-bold text-primary-dark shadow-sm backdrop-blur">
+          <Sparkles className="size-4" aria-hidden />
+          {t('landing.hero.badge')}
+        </span>
+        <h1 className="text-[40px] font-bold leading-[48px] tracking-[-1px] text-ink md:text-[62px] md:leading-[70px]">
           {t('landing.hero.title')}
         </h1>
-        <p className="mt-6 max-w-[672px] text-[16px] leading-[22px] text-ink-variant md:text-[18px]">
+        <p className="mt-6 max-w-[672px] text-[16px] leading-[24px] text-ink-variant md:text-[18px] md:leading-[28px]">
           {t('landing.hero.subtitle')}
         </p>
-        <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+        <div className="mt-9 flex flex-col gap-4 sm:flex-row">
           <Button
             asChild
-            className="h-12 rounded-full bg-primary px-8 text-[17px] font-bold text-white hover:bg-primary/90"
+            className="h-12 rounded-full bg-primary px-8 text-[17px] font-bold text-white shadow-lg shadow-primary/30 transition-transform duration-200 hover:scale-[1.03] hover:bg-primary/90"
           >
             <Link to="/app/scan">{t('landing.hero.startScanning')}</Link>
           </Button>
@@ -104,7 +115,7 @@ function Hero() {
             <Button
               asChild
               variant="outline"
-              className="h-12 rounded-full border-ink px-8 text-[17px] font-bold text-ink hover:bg-ink/5"
+              className="h-12 rounded-full border-ink/20 bg-canvas/70 px-8 text-[17px] font-bold text-ink backdrop-blur transition-transform duration-200 hover:scale-[1.03] hover:bg-ink/5"
             >
               <Link to="/auth/login">{t('common.login')}</Link>
             </Button>
@@ -112,10 +123,19 @@ function Hero() {
         </div>
       </div>
 
-      <div className="mx-auto mt-12 aspect-[16/7] w-full max-w-[896px] overflow-hidden bg-surface-muted">
-        <div className="flex h-full w-full items-center justify-center">
-          <div className="h-full w-full bg-[url('MenuScan.jpg')] bg-cover bg-center" />
-        </div>
+      {/* Product shot: floats gently over a soft glow. */}
+      <div className="relative mx-auto mt-16 w-full max-w-[960px]">
+        <div
+          aria-hidden
+          className="absolute inset-x-10 bottom-6 -z-10 h-3/4 rounded-[48px] bg-primary/25 blur-3xl"
+        />
+        <img
+          src="/MenuScan.jpg"
+          alt={t('landing.hero.imageAlt')}
+          width={1400}
+          height={760}
+          className="motion-float w-full rounded-[28px] shadow-2xl shadow-ink/10 [animation:float_7s_ease-in-out_infinite]"
+        />
       </div>
     </section>
   )
