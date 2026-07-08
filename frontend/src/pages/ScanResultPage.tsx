@@ -64,6 +64,18 @@ export function ScanResultPage() {
   const [error, setError] = useState<string | null>(null)
   const startedAt = useRef(0)
 
+  // Clear stale results the moment the route points at a different scan, using
+  // the documented React pattern for resetting state on a prop change (compare a
+  // stored value during render). This keeps the polling effect free of
+  // synchronous setState calls.
+  const [shownScanId, setShownScanId] = useState(scanId)
+  if (shownScanId !== scanId) {
+    setShownScanId(scanId)
+    setResult(null)
+    setResultMeta(null)
+    setError(null)
+  }
+
   const fetchResultPage = useCallback(
     async (page: number) => {
       if (!scanId) return
@@ -88,9 +100,6 @@ export function ScanResultPage() {
   useEffect(() => {
     if (!scanId) return
     startedAt.current = Date.now()
-    setResult(null)
-    setResultMeta(null)
-    setError(null)
     let cancelled = false
     let timer = 0
 
