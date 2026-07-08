@@ -185,8 +185,18 @@
     "empty": "Chưa có hóa đơn nào. Chọn món trong một thực đơn rồi bấm Review / Confirm để tạo hóa đơn.",
     "goToMenus": "Tới thực đơn",
     "dishCount_other": "{{count}} món",
+    "filterAll": "Tất cả",
+    "from": "Từ ngày",
+    "to": "Đến ngày",
+    "clearFilters": "Xóa bộ lọc",
+    "noMatch": "Không có hóa đơn nào khớp bộ lọc.",
+    "deleteAria": "Xóa hóa đơn ngày {{date}}",
     "status": { "DRAFT": "Bản nháp", "FINALIZED": "Đã chốt" },
-    "errors": { "loadFailed": "Không thể tải danh sách hóa đơn." }
+    "toast": { "deleted": "Đã xóa hóa đơn" },
+    "errors": {
+      "loadFailed": "Không thể tải danh sách hóa đơn.",
+      "deleteFailed": "Không thể xóa hóa đơn."
+    }
   },
   "camera": {
     "title": "Quét bằng camera",

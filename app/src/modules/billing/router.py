@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 
 from src.core.responses import success_response
 from src.modules.billing.dependencies import get_billing_service
@@ -63,6 +63,17 @@ def list_bills(
         for bill in bills
     ]
     return success_response(data=data)
+
+
+@router.delete("/{bill_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_bill(
+    bill_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    service: BillingService = Depends(get_billing_service),
+) -> Response:
+    """Delete one of the caller's own bills. Only the owner may delete it."""
+    service.delete_bill(bill_id=bill_id, user_id=current_user.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/{bill_id}", status_code=status.HTTP_200_OK)

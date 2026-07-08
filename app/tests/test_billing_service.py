@@ -186,6 +186,37 @@ def test_list_bills_for_user_returns_only_own_bills_newest_first(db_session):
     assert foreign.id not in {bill.id for bill in bills}
 
 
+def test_delete_bill_removes_it_with_its_items(db_session):
+    user = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, user)
+    pho, _com = _items(db_session, menu)
+    service = BillingService(session=db_session)
+
+    bill = service.create_bill(user_id=user.id, menu_id=menu.id)
+    service.add_item(bill_id=bill.id, food_item_id=pho.id, quantity=1)
+    bill_id = bill.id
+
+    service.delete_bill(bill_id=bill_id, user_id=user.id)
+
+    assert service.list_bills_for_user(user_id=user.id) == []
+    with pytest.raises(BillNotFoundError):
+        service.get_bill_for_user(bill_id=bill_id, user_id=user.id)
+
+
+def test_delete_bill_rejects_a_non_owner(db_session):
+    owner = _make_user(db_session)
+    intruder = _make_user(db_session)
+    menu = _make_menu_with_items(db_session, owner)
+    service = BillingService(session=db_session)
+    bill = service.create_bill(user_id=owner.id, menu_id=menu.id)
+
+    with pytest.raises(BillNotFoundError):
+        service.delete_bill(bill_id=bill.id, user_id=intruder.id)
+
+    # Still there for its owner.
+    assert service.get_bill_for_user(bill_id=bill.id, user_id=owner.id).id == bill.id
+
+
 def test_vat_tip_and_surcharge_stack_on_the_subtotal(db_session):
     """The bill-calculator combo: VAT % + tip % (both on subtotal) + flat surcharge.
 
@@ -880,6 +911,8 @@ def test_billing_service_has_no_send_order_to_restaurant_capability():
         "add_adjustment",
         "add_item",
         "create_bill",
+        # Owner-scoped removal of the diner's own bill.
+        "delete_bill",
         "finalize_bill",
         "get_bill_for_user",
         # Read-only bill history listing; still no restaurant-order operation.

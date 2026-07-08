@@ -64,6 +64,11 @@ class BillRepository:
         session.flush()
         return bill
 
+    def delete(self, session: Session, bill: Bill) -> None:
+        """Stage the bill for deletion; its items/adjustments cascade with it."""
+        session.delete(bill)
+        session.flush()
+
     def add_item(self, session: Session, item: BillItem) -> BillItem:
         """Stage a new bill item and flush."""
         session.add(item)

@@ -169,6 +169,17 @@ class BillingService:
         """Every bill owned by ``user_id``, most recent first (bill history)."""
         return self._repository.list_for_user(self._session, user_id)
 
+    def delete_bill(self, *, bill_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        """Delete one of the user's own bills; items/adjustments cascade.
+
+        A non-owner (or missing bill) gets ``BillNotFoundError``, never a
+        confirmation that the bill exists. Finalized bills may be deleted too --
+        the receipt is the diner's own record, not the restaurant's.
+        """
+        bill = self.get_bill_for_user(bill_id=bill_id, user_id=user_id)
+        self._repository.delete(self._session, bill)
+        self._session.commit()
+
     def split_bill(
         self,
         *,

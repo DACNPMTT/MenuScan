@@ -190,8 +190,18 @@
     "goToMenus": "Go to menus",
     "dishCount_one": "{{count}} dish",
     "dishCount_other": "{{count}} dishes",
+    "filterAll": "All",
+    "from": "From",
+    "to": "To",
+    "clearFilters": "Clear filters",
+    "noMatch": "No bills match these filters.",
+    "deleteAria": "Delete the bill from {{date}}",
     "status": { "DRAFT": "Draft", "FINALIZED": "Finalized" },
-    "errors": { "loadFailed": "Couldn't load your bills." }
+    "toast": { "deleted": "Bill deleted" },
+    "errors": {
+      "loadFailed": "Couldn't load your bills.",
+      "deleteFailed": "Couldn't delete the bill."
+    }
   },
   "camera": {
     "title": "Scan with camera",
