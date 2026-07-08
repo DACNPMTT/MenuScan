@@ -14,9 +14,14 @@ erDiagram
     USERS ||--o{ MAGIC_LINK_TOKENS : requests
     USERS ||--o{ USER_SESSIONS : owns
     USERS ||--o{ SCAN_SESSIONS : creates
+    SCAN_SESSIONS ||--o{ SCAN_SOURCE_FILES : stores
     SCAN_SESSIONS ||--o| OCR_RESULTS : produces
     SCAN_SESSIONS ||--o| MENUS : creates
     MENUS ||--o{ FOOD_ITEMS : contains
+    USERS ||--o{ BILLS : creates
+    MENUS ||--o{ BILLS : sourced_by
+    BILLS ||--o{ BILL_ITEMS : contains
+    BILLS ||--o{ BILL_ADJUSTMENTS : adjusts
 ```
 
 ## Ownership map
@@ -27,9 +32,13 @@ erDiagram
 | `magic_link_tokens` / `MagicLinkToken` | `identity` | `MagicLinkTokenRepository` | request/verify Magic Link |
 | `user_sessions` / `UserSession` | `identity` | `UserSessionRepository` | verify, refresh, logout/revoke |
 | `scan_sessions` / `ScanSession` | `menu_scan` | `ScanSessionRepository` | create/process scan |
-| `ocr_results` / `OcrResult` | `menu_scan` | `OcrResultRepository` | OCR processing |
+| `scan_source_files` / `ScanSourceFile` | `menu_scan` | `ScanSessionRepository` | create scan, OCR source merge |
+| `ocr_results` / `OcrResult` | `menu_scan` | `ScanSessionRepository` | OCR processing |
 | `menus` / `Menu` | `menu` | `MenuRepository` | finish scan, save menu |
-| `food_items` / `FoodItem` | `menu` | `FoodItemRepository` | finish scan |
+| `food_items` / `FoodItem` | `menu` | `MenuRepository` | finish scan |
+| `bills` / `Bill` | `billing` | `BillRepository` | create/finalize bill |
+| `bill_items` / `BillItem` | `billing` | `BillRepository` | replace items on bill |
+| `bill_adjustments` / `BillAdjustment` | `billing` | `BillRepository` | add/update/remove adjustment |
 
 Tên class là boundary đề xuất; không tạo class/interface trống nếu task chưa cần.
 Module không query table owner khác qua repository riêng của nó.
@@ -55,9 +64,12 @@ storage hoặc OCR không chạy trong transaction mở nếu có thể tách ph
 | Request Magic Link | `magic_link_tokens`, đọc `users` | cooldown + invalidate token cũ |
 | Verify Magic Link | `magic_link_tokens`, `users`, `user_sessions` | consume một lần + create user/session |
 | Refresh | `user_sessions` | rotate hash; reuse thì revoke family |
-| Create scan | `scan_sessions` | chỉ sau auth + metadata hợp lệ |
-| Finish scan | `scan_sessions`, `ocr_results`, `menus`, `food_items` | guarded terminal transition; menu có item |
+| Create scan | `scan_sessions`, `scan_source_files` | metadata hợp lệ; `user_id` nullable cho guest scan |
+| Finish scan | `scan_sessions`, `ocr_results`, `menus`, `food_items` | guarded terminal transition; menu được tạo, item có thể rỗng |
 | Save menu | `menus`, đọc owner qua scan/user | `is_saved` + `saved_at` nhất quán |
+| Create bill | `bills`, đọc `menus` owner | bill gắn menu của chính user |
+| Replace bill items | `bill_items`, đọc `food_items` giá | clear + insert + recompute totals |
+| Finalize bill | `bills` | DRAFT → FINALIZED, ≥ 1 item; terminal, không quay lui |
 
 Contract yêu cầu phát hiện refresh-token reuse và revoke session family, nhưng
 database specification hiện chưa có field biểu diễn family/token lineage. Task
