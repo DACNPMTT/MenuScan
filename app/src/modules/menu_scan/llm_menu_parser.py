@@ -423,7 +423,18 @@ def _parsed_menu_schema() -> dict[str, Any]:
             "confidence": {"type": "NUMBER"},
             "sort_order": {"type": "INTEGER"},
         },
-        "required": ["original_name", "sort_order"],
+        # Mark the generated/inferred fields required: a terse lite model omits
+        # optional fields (especially translated_description it must *write*, and
+        # the allergen/diet tags it must *infer*), leaving them null. Requiring
+        # them forces the model to actually produce them.
+        "required": [
+            "original_name",
+            "translated_name",
+            "translated_description",
+            "allergens",
+            "dietary_tags",
+            "sort_order",
+        ],
     }
     return {
         "type": "OBJECT",
