@@ -142,6 +142,37 @@ def test_no_price_document_yields_no_rows() -> None:
     assert build_menu_table(document) == []
 
 
+def test_price_on_its_own_line_pairs_with_name_above() -> None:
+    # Name and price on separate stacked lines (OCR split them).
+    document = make_single_column_document(
+        ["Phở bò", "60.000đ", "Bún bò Huế", "55.000đ"],
+    )
+
+    rows = build_menu_table(document)
+    by_name = _by_name(rows)
+
+    assert set(by_name) == {"Phở bò", "Bún bò Huế"}
+    assert by_name["Phở bò"].price == "60000.00"
+    assert by_name["Bún bò Huế"].price == "55000.00"
+    # The bare price lines must not survive as nameless rows.
+    assert all(row.name not in {"60.000đ", "55.000đ"} for row in rows)
+
+
+def test_right_hand_price_column_pairs_across_columns() -> None:
+    # Names in the left column, prices in a separate right column, same rows.
+    document = make_multi_column_document(
+        ["Phở bò", "Bún bò Huế"],
+        ["60.000đ", "55.000đ"],
+    )
+
+    rows = build_menu_table(document)
+    by_name = _by_name(rows)
+
+    assert set(by_name) == {"Phở bò", "Bún bò Huế"}
+    assert by_name["Phở bò"].price == "60000.00"
+    assert by_name["Bún bò Huế"].price == "55000.00"
+
+
 def test_rows_to_json_round_trips() -> None:
     document = make_single_column_document(["Phở bò đặc biệt 60.000đ"])
 

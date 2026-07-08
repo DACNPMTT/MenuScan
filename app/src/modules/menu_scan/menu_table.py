@@ -65,6 +65,7 @@ class _Line:
     text: str
     top: float
     left: float
+    height: float
     column: int
     priced: bool
     name_part: str | None
@@ -241,6 +242,7 @@ def _collect_lines(document: OcrDocument) -> list[_Line]:
                 text=line.text,
                 top=box.top,
                 left=box.left,
+                height=box.height,
                 column=column,
                 priced=priced,
                 name_part=name_part,
@@ -250,8 +252,115 @@ def _collect_lines(document: OcrDocument) -> list[_Line]:
             )
         )
 
+    lines = _pair_detached_prices(lines)
     lines.sort(key=lambda item: (item.column, item.top, item.left))
     return lines
+
+
+def _pair_detached_prices(lines: list[_Line]) -> list[_Line]:
+    """Attach a name to each detached price token.
+
+    Handles the two layouts ``split_name_description_price`` alone misses: a price
+    printed on its **own line** below the dish name, and a price in a separate
+    **right-hand column** at the same row. Each such price borrows the nearest
+    name — same row band to its left (cross-column), else the closest name-like
+    line directly above in its column (own-line) — and that name is consumed so
+    it is not also emitted as a nameless row. No-op when every price is inline.
+    """
+    tolerance = _row_tolerance(lines)
+    adjacent_gap = tolerance * 3.2
+    consumed: set[int] = set()
+    result = list(lines)
+
+    for price_index, price in enumerate(lines):
+        if not _is_price_only(price):
+            continue
+        name_index = _find_name_for_price(
+            price, lines, consumed, tolerance, adjacent_gap
+        )
+        if name_index is None:
+            continue
+        consumed.add(name_index)
+        result[price_index] = _paired_line(lines[name_index], price)
+
+    return [line for index, line in enumerate(result) if index not in consumed]
+
+
+def _find_name_for_price(
+    price: _Line,
+    lines: list[_Line],
+    consumed: set[int],
+    tolerance: float,
+    adjacent_gap: float,
+) -> int | None:
+    price_center_y = _center_y(price)
+
+    # 1) Same row band, to the left → a right-hand price column.
+    best_index: int | None = None
+    best_left = -1.0
+    for index, candidate in enumerate(lines):
+        if index in consumed or candidate.priced or not _is_name_like(candidate):
+            continue
+        if (
+            candidate.left < price.left
+            and abs(_center_y(candidate) - price_center_y) <= tolerance
+            and candidate.left > best_left
+        ):
+            best_left = candidate.left
+            best_index = index
+    if best_index is not None:
+        return best_index
+
+    # 2) Nearest name-like line directly above in the same column → own-line price.
+    best_gap = adjacent_gap
+    for index, candidate in enumerate(lines):
+        if index in consumed or candidate.priced or not _is_name_like(candidate):
+            continue
+        if candidate.column != price.column:
+            continue
+        gap = price.top - candidate.top
+        if 0 < gap <= best_gap:
+            best_gap = gap
+            best_index = index
+    return best_index
+
+
+def _paired_line(name: _Line, price: _Line) -> _Line:
+    return _Line(
+        text=name.text,
+        top=min(name.top, price.top),
+        left=name.left,
+        height=name.height,
+        column=name.column,
+        priced=True,
+        name_part=name.text,
+        price=price.price,
+        currency=price.currency,
+        price_text=price.price_text,
+    )
+
+
+def _is_price_only(line: _Line) -> bool:
+    return line.priced and not (line.name_part or "").strip()
+
+
+def _is_name_like(line: _Line) -> bool:
+    text = line.text.strip()
+    if not any(char.isalpha() for char in text):
+        return False
+    return 1 <= len(text.split()) <= 8
+
+
+def _center_y(line: _Line) -> float:
+    return line.top + line.height / 2
+
+
+def _row_tolerance(lines: list[_Line]) -> float:
+    heights = sorted(line.height for line in lines if line.height > 0)
+    if not heights:
+        return 0.02
+    median = heights[len(heights) // 2]
+    return max(median * 0.7, 0.012)
 
 
 def _column_split(centers: list[float]) -> float | None:
