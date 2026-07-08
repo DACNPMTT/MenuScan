@@ -1,14 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AlertCircle, ArrowLeft, Camera, Loader2, RefreshCw } from 'lucide-react'
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowLeft,
+  Camera,
+  CheckCircle2,
+  Loader2,
+  RefreshCw,
+} from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import type { ScanData } from '@/features/menu-scan/types'
+import {
+  assessFrame,
+  QUALITY_REASON_I18N_KEY,
+  type QualityResult,
+} from '@/features/menu-scan/imageQuality'
 
 type CameraState = 'starting' | 'live' | 'captured' | 'submitting' | 'error'
 
 export function CameraScanPage() {
-  useDocumentTitle('Quét bằng camera | MenuScan')
+  const { t } = useTranslation()
+  useDocumentTitle(`${t('camera.title')} | MenuScan`)
   const navigate = useNavigate()
 
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -16,6 +31,7 @@ export function CameraScanPage() {
   const [state, setState] = useState<CameraState>('starting')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null)
+  const [quality, setQuality] = useState<QualityResult | null>(null)
   const capturedBlob = useRef<Blob | null>(null)
 
   const stopStream = useCallback(() => {
@@ -43,14 +59,14 @@ export function CameraScanPage() {
       const name = (err as DOMException)?.name
       setErrorMessage(
         name === 'NotAllowedError'
-          ? 'Truy cập camera bị từ chối. Hãy cấp quyền camera trong trình duyệt.'
+          ? t('camera.errors.denied')
           : name === 'NotFoundError'
-            ? 'Không tìm thấy camera trên thiết bị.'
-            : 'Không mở được camera. Vui lòng thử lại.',
+            ? t('camera.errors.notFound')
+            : t('camera.errors.openFailed'),
       )
       setState('error')
     }
-  }, [stopStream])
+  }, [stopStream, t])
 
   useEffect(() => {
     // Defer to a microtask so the setState inside startCamera doesn't run
@@ -76,6 +92,8 @@ export function CameraScanPage() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    // Assess the captured frame (sharpness + brightness) before we commit to it.
+    setQuality(assessFrame(canvas))
     canvas.toBlob((blob) => {
       if (!blob) return
       if (capturedUrl) URL.revokeObjectURL(capturedUrl)
@@ -90,6 +108,7 @@ export function CameraScanPage() {
   const handleRetake = () => {
     if (capturedUrl) URL.revokeObjectURL(capturedUrl)
     setCapturedUrl(null)
+    setQuality(null)
     capturedBlob.current = null
     void startCamera()
   }
@@ -114,7 +133,7 @@ export function CameraScanPage() {
       setErrorMessage(
         error instanceof ApiError
           ? error.message
-          : 'Không thể tải ảnh lên. Vui lòng thử lại.',
+          : t('camera.errors.uploadFailed'),
       )
     }
   }
@@ -126,11 +145,11 @@ export function CameraScanPage() {
         className="mb-6 flex w-fit items-center gap-2 text-[14px] text-ink-variant transition-colors hover:text-primary-dark"
       >
         <ArrowLeft className="size-4" aria-hidden />
-        Về trang upload
+        {t('camera.backToUpload')}
       </Link>
 
       <h1 className="mb-6 text-[32px] font-bold leading-[38px] text-primary-dark">
-        Quét bằng camera
+        {t('camera.title')}
       </h1>
 
       {errorMessage && (
@@ -148,7 +167,7 @@ export function CameraScanPage() {
         {capturedUrl ? (
           <img
             src={capturedUrl}
-            alt="Ảnh đã chụp"
+            alt={t('camera.capturedAlt')}
             className="h-full w-full object-contain"
           />
         ) : (
@@ -180,18 +199,45 @@ export function CameraScanPage() {
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
             <Camera className="size-8 text-white/80" aria-hidden />
             <p className="text-[14px] text-white/80">
-              Camera không khả dụng.
+              {t('camera.unavailable')}
             </p>
             <button
               type="button"
               onClick={() => void startCamera()}
               className="rounded-[8px] bg-white px-4 py-2 text-[14px] font-bold text-primary-dark"
             >
-              Thử lại
+              {t('common.retry')}
             </button>
           </div>
         )}
       </div>
+
+      {/* Quality gate feedback (soft block — user may still use the photo). */}
+      {state === 'captured' && quality && (
+        quality.ok ? (
+          <div className="mt-4 flex items-center gap-2 rounded-[8px] border border-[#2e6b00]/30 bg-[#2e6b00]/[0.06] px-4 py-2.5 text-[14px] text-[#2e6b00]">
+            <CheckCircle2 className="size-4 shrink-0" aria-hidden />
+            <span>{t('camera.quality.ok')}</span>
+          </div>
+        ) : (
+          <div
+            role="status"
+            className="mt-4 flex items-start gap-3 rounded-[8px] border border-[#e0a800]/50 bg-[#fff8e1] px-4 py-3 text-[14px] text-[#8a6d00]"
+          >
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <div className="flex flex-col gap-1">
+              <span className="font-bold">{t('camera.quality.warnTitle')}</span>
+              <ul className="flex flex-col gap-0.5">
+                {quality.reasons.map((reason) => (
+                  <li key={reason}>
+                    • {t(`camera.quality.${QUALITY_REASON_I18N_KEY[reason]}`)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )
+      )}
 
       {/* Controls */}
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
@@ -202,7 +248,7 @@ export function CameraScanPage() {
             className="flex items-center gap-2 rounded-full border-4 border-hairline bg-canvas px-6 py-3 text-[15px] font-bold text-primary-dark transition-colors hover:bg-surface-muted"
           >
             <Camera className="size-5" aria-hidden />
-            Chụp ảnh
+            {t('camera.capture')}
           </button>
         )}
         {state === 'captured' && (
@@ -213,21 +259,21 @@ export function CameraScanPage() {
               className="flex items-center gap-2 rounded-[8px] border border-hairline bg-canvas px-5 py-3 text-[15px] font-bold text-ink-variant transition-colors hover:bg-surface-muted"
             >
               <RefreshCw className="size-5" aria-hidden />
-              Chụp lại
+              {t('camera.retake')}
             </button>
             <button
               type="button"
               onClick={handleSubmit}
               className="rounded-[8px] bg-primary-dark px-6 py-3 text-[15px] font-bold text-white transition-opacity hover:opacity-90"
             >
-              Dùng ảnh này
+              {t('camera.useThis')}
             </button>
           </>
         )}
       </div>
 
       <p className="mt-4 text-center text-[13px] text-ink-variant">
-        Đặt menu trong khung, đảm bảo đủ sáng và không bị mờ.
+        {t('camera.hint')}
       </p>
     </div>
   )

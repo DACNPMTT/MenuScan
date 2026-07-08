@@ -24,6 +24,7 @@ EXPECTED_TABLES = {
     "magic_link_tokens",
     "user_sessions",
     "scan_sessions",
+    "scan_source_files",
     "ocr_results",
     "menus",
     "food_items",

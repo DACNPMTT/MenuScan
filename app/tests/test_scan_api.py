@@ -128,23 +128,20 @@ class StubScanService:
         self,
         *,
         user: User | None,
-        file_name: str | None,
-        content: bytes,
+        files: list,
         target_language: str | None,
     ) -> ScanCreatedData:
         self.calls.append(
             {
                 "user": user,
-                "file_name": file_name,
-                "content_len": len(content),
+                "file_count": len(files),
                 "target_language": target_language,
             }
         )
         if self._effect is not None:
             return self._effect(
                 user=user,
-                file_name=file_name,
-                content=content,
+                files=files,
                 target_language=target_language,
             )
         return _default_scan_created(user or self._user)
@@ -223,6 +220,32 @@ def test_valid_jpeg_returns_202() -> None:
 
     assert response.status_code == 202
     assert response.json()["success"] is True
+
+
+def test_multiple_files_forwarded_to_service() -> None:
+    stub = StubScanService()
+    client = _make_client(stub)
+
+    response = client.post(
+        "/api/v1/scans",
+        files=[
+            ("files", ("p1.png", PNG_BYTES, "application/octet-stream")),
+            ("files", ("p2.jpg", JPEG_BYTES, "application/octet-stream")),
+        ],
+    )
+
+    assert response.status_code == 202
+    assert stub.calls[0]["file_count"] == 2
+
+
+def test_single_legacy_file_field_still_works() -> None:
+    stub = StubScanService()
+    client = _make_client(stub)
+
+    response = _post_scan(client)
+
+    assert response.status_code == 202
+    assert stub.calls[0]["file_count"] == 1
 
 
 def test_unauthenticated_request_creates_guest_scan() -> None:

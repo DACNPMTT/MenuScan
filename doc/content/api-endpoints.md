@@ -83,13 +83,15 @@ Response `200 OK`:
     "access_token": "eyJ...",
     "token_type": "Bearer",
     "expires_in": 900,
-    "user": {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "email": "user@example.com",
-      "display_name": null,
-      "preferred_language": "vi",
-      "role": "USER"
-    }
+      "user": {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "email": "user@example.com",
+        "display_name": null,
+        "preferred_language": "vi",
+        "allergies": [],
+        "dietary_preferences": [],
+        "role": "USER"
+      }
   },
   "meta": null
 }
@@ -137,6 +139,8 @@ Response `200 OK`:
     "email": "user@example.com",
     "display_name": null,
     "preferred_language": "vi",
+    "allergies": [],
+    "dietary_preferences": [],
     "role": "USER",
     "status": "ACTIVE",
     "created_at": "2026-06-20T08:30:00Z"
@@ -144,6 +148,76 @@ Response `200 OK`:
   "meta": null
 }
 ```
+
+### POST `/auth/login`
+
+Đăng nhập bằng email và mật khẩu. Chỉ dùng được sau khi user đã đặt mật khẩu
+qua `/auth/set-password`. Sai email/mật khẩu hoặc user chưa đặt mật khẩu đều trả
+lỗi xác thực chung.
+
+```json
+{
+  "email": "user@example.com",
+  "password": "your-password"
+}
+```
+
+Response `200 OK`: cùng shape với `POST /auth/magic-links/verify` (access token,
+user object, refresh cookie).
+
+Lỗi: `401 INVALID_CREDENTIALS`, `400 VALIDATION_ERROR`.
+
+### POST `/auth/set-password`
+
+Auth bắt buộc. Đặt hoặc đổi mật khẩu cho user hiện tại. Mật khẩu lưu dưới dạng
+bcrypt hash.
+
+```json
+{
+  "password": "new-password"
+}
+```
+
+Response `200 OK`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Password set successfully."
+  },
+  "meta": null
+}
+```
+
+Lỗi: `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`.
+
+### PATCH `/auth/me`
+
+Auth bắt buộc. Cập nhật profile user hiện tại.
+
+```json
+{
+  "display_name": "Nguyễn Văn A",
+  "preferred_language": "en",
+  "allergies": ["seafood", "peanut"],
+  "dietary_preferences": ["no_pork"]
+}
+```
+
+Tất cả trường đều optional. `preferred_language` chỉ chấp nhận `vi` hoặc `en`.
+`allergies` validate theo tập: `seafood`, `shellfish`, `fish`, `peanut`,
+`tree_nut`, `egg`, `dairy`, `gluten`, `soy`, `sesame`. `dietary_preferences`
+validate theo tập: `vegetarian`, `vegan`, `no_pork`, `no_beef`, `no_alcohol`.
+
+Response `200 OK`: cùng shape với `GET /auth/me`.
+
+Lỗi: `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`.
+
+### POST `/auth/me/profile`
+
+Auth bắt buộc. Tương đương `PATCH /auth/me` — bản POST cho client hoặc proxy
+chặn PATCH. Cùng body và response.
 
 ## 3. Scan
 
@@ -198,12 +272,17 @@ Lỗi: `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`.
 
 ### POST `/scans`
 
-Auth bắt buộc. Content-Type `multipart/form-data`.
+Auth không bắt buộc. User đã đăng nhập sẽ có lịch sử scan; guest vẫn tạo được
+scan nhưng không xuất hiện trong `GET /scans`. Content-Type `multipart/form-data`.
 
 | Field | Bắt buộc | Giá trị |
 | --- | --- | --- |
-| `file` | Có | Một JPG/JPEG/PNG/WEBP/PDF, tối đa 10 MB; PDF tối đa 5 trang |
-| `target_language` | Không | `vi` hoặc `en`; mặc định theo user, fallback `en` cho khách nước ngoài |
+| `files` | Không | Danh sách JPG/JPEG/PNG/WEBP/PDF; mỗi file tối đa 10 MB; tổng payload tối đa 40 MB; tổng số trang tối đa 8 |
+| `file` | Không | Trường legacy cho một file; nếu gửi cùng `files` thì được nối vào cuối danh sách |
+| `target_language` | Không | Language tag chữ thường như `vi`, `en`, `zh`, `pt-br`; tối đa 10 ký tự; mặc định theo user, fallback `vi` |
+
+Request phải có ít nhất một file. Backend xác thực MIME từ bytes thật, không tin
+tên file hoặc `Content-Type` client gửi.
 
 Response `202 Accepted`:
 
@@ -226,12 +305,14 @@ Response `202 Accepted`:
 }
 ```
 
-Lỗi: `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`, `413 FILE_TOO_LARGE`,
-`415 UNSUPPORTED_FILE_TYPE`, `422 INVALID_PDF`.
+Lỗi: `400 EMPTY_FILE`, `400 VALIDATION_ERROR`, `413 FILE_TOO_LARGE`,
+`415 UNSUPPORTED_FILE_TYPE`, `422 INVALID_PDF`, `422 TOO_MANY_PAGES`,
+`503 STORAGE_UNAVAILABLE`.
 
 ### GET `/scans/{scan_id}`
 
-Auth bắt buộc. Chỉ owner được truy cập.
+Auth không bắt buộc. Scan có `user_id` chỉ owner được truy cập; guest scan có
+thể được đọc bằng `scan_id`.
 
 Response `200 OK`:
 
@@ -251,23 +332,24 @@ Response `200 OK`:
 }
 ```
 
-`progress` chỉ dùng hiển thị và nằm trong `0..100`. `stage` có thể là
-`UPLOADING`, `OCR`, `ANALYZING`, `TRANSLATING`, `FINALIZING`.
+`progress` chỉ dùng hiển thị và nằm trong `0..100`. `stage` có thể là `null`
+hoặc một trong `OCR`, `ANALYZING`, `TRANSLATING`, `FINALIZING`.
 
-Lỗi: `401 UNAUTHORIZED`, `403 FORBIDDEN`, `404 SCAN_NOT_FOUND`.
+Lỗi: `403 FORBIDDEN`, `404 SCAN_NOT_FOUND`.
 
 ### GET `/scans/{scan_id}/source`
 
-Auth bắt buộc. Trả file gốc hoặc `302` đến signed URL sống ngắn. Response phải
+Auth không bắt buộc theo cùng quy tắc truy cập của `GET /scans/{scan_id}`. Trả file gốc hoặc `302` đến signed URL sống ngắn. Response phải
 có đúng `Content-Type`; PDF hiển thị bằng PDF viewer, ảnh hiển thị bằng image
 preview.
 
-Lỗi: `401 UNAUTHORIZED`, `403 FORBIDDEN`, `404 SCAN_NOT_FOUND`,
+Lỗi: `403 FORBIDDEN`, `404 SCAN_NOT_FOUND`,
 `404 SOURCE_FILE_NOT_FOUND`.
 
 ### GET `/scans/{scan_id}/result`
 
-Auth bắt buộc. Chỉ gọi khi status là `COMPLETED`.
+Auth không bắt buộc theo cùng quy tắc truy cập của `GET /scans/{scan_id}`. Chỉ
+gọi khi status là `COMPLETED`.
 
 Response `200 OK`:
 
@@ -303,18 +385,24 @@ Response `200 OK`:
           "price": "60000.00",
           "currency": "VND",
           "category": null,
+          "allergens": [],
+          "dietary_tags": [],
           "confidence_score": 0.94,
           "sort_order": 1
         }
       ]
     }
   },
-  "meta": null
+  "meta": {
+    "page": 1,
+    "page_size": 6,
+    "total": 1,
+    "total_pages": 1
+  }
 }
 ```
 
-Lỗi: `401 UNAUTHORIZED`, `403 FORBIDDEN`, `404 SCAN_NOT_FOUND`,
-`409 SCAN_NOT_READY`.
+Lỗi: `403 FORBIDDEN`, `404 SCAN_NOT_FOUND`, `409 SCAN_NOT_READY`.
 
 ## 4. Bill
 
@@ -512,6 +600,122 @@ Lỗi: `400 VALIDATION_ERROR` (`people_count < 1`), `400 INVALID_PEOPLE_COUNT`,
 
 ## 5. Menu
 
+### GET `/menus`
+
+Auth bắt buộc. Trả danh sách menu của user, mới nhất trước.
+
+Query:
+
+| Field | Bắt buộc | Giá trị |
+| --- | --- | --- |
+| `page` | Không | Số trang, mặc định `1`, tối thiểu `1` |
+| `page_size` | Không | Số item mỗi trang, mặc định `20`, tối đa `50` |
+
+Response `200 OK`:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "d837618b-c842-4778-b0bb-d1178dcff634",
+      "title": "Menu Nhà hàng Hoa Sen",
+      "status": "DRAFT",
+      "is_saved": true,
+      "item_count": 12,
+      "default_currency": "VND",
+      "source": {
+        "scan_id": "71151f64-39c7-4419-810a-c0835bafe341",
+        "file_name": "menu.jpg",
+        "mime_type": "image/jpeg",
+        "file_size": 2458912,
+        "preview_url": "/api/v1/scans/71151f64-39c7-4419-810a-c0835bafe341/source"
+      },
+      "created_at": "2026-06-20T08:35:00Z",
+      "updated_at": "2026-06-20T08:40:00Z",
+      "confirmed_at": null
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "page_size": 20,
+    "total": 1,
+    "total_pages": 1
+  }
+}
+```
+
+Lỗi: `401 UNAUTHORIZED`.
+
+### GET `/menus/{menu_id}`
+
+Auth bắt buộc. Trả chi tiết menu bao gồm danh sách món.
+
+Response `200 OK`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "d837618b-c842-4778-b0bb-d1178dcff634",
+    "title": "Menu Nhà hàng Hoa Sen",
+    "status": "DRAFT",
+    "is_saved": true,
+    "source_language": "vi",
+    "target_language": "en",
+    "default_currency": "VND",
+    "source": {
+      "scan_id": "71151f64-39c7-4419-810a-c0835bafe341",
+      "file_name": "menu.jpg",
+      "mime_type": "image/jpeg",
+      "file_size": 2458912,
+      "preview_url": "/api/v1/scans/71151f64-39c7-4419-810a-c0835bafe341/source"
+    },
+    "items": [
+      {
+        "id": "a2f20df8-5570-411d-aad6-59308a295f65",
+        "original_name": "Phở bò",
+        "translated_name": "Beef noodle soup",
+        "original_description": null,
+        "translated_description": null,
+        "price": "60000.00",
+        "currency": "VND",
+        "category": null,
+        "allergens": [],
+        "dietary_tags": [],
+        "confidence_score": 0.94,
+        "sort_order": 1
+      }
+    ],
+    "created_at": "2026-06-20T08:35:00Z",
+    "updated_at": "2026-06-20T08:40:00Z",
+    "confirmed_at": null
+  },
+  "meta": null
+}
+```
+
+Lỗi: `401 UNAUTHORIZED`, `403 FORBIDDEN`, `404 MENU_NOT_FOUND`.
+
+### GET `/menus/{menu_id}/items`
+
+Auth bắt buộc. Trả danh sách món với tìm kiếm và lọc.
+
+Query:
+
+| Field | Bắt buộc | Giá trị |
+| --- | --- | --- |
+| `search` | Không | Tìm theo `original_name` hoặc `translated_name` (case-insensitive LIKE) |
+| `min_price` | Không | Giá tối thiểu, `>=0` |
+| `max_price` | Không | Giá tối đa, `>=0`, phải `>= min_price` |
+| `page` | Không | Số trang, mặc định `1` |
+| `page_size` | Không | Số item mỗi trang, mặc định `20`, tối đa `50` |
+
+Response `200 OK`: danh sách `MenuItemResponse` với pagination meta.
+
+Lỗi: `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`, `403 FORBIDDEN`,
+`404 MENU_NOT_FOUND`.
+
 ### PATCH `/menus/{menu_id}`
 
 Auth bắt buộc. Xác nhận lưu hoặc bỏ lưu menu.
@@ -539,12 +743,101 @@ Response `200 OK`:
 Lỗi: `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`, `403 FORBIDDEN`,
 `404 MENU_NOT_FOUND`.
 
-## 6. Endpoint nội bộ
+### POST `/menus/{menu_id}/confirm`
+
+Auth bắt buộc. Chuyển menu từ `DRAFT` sang `CONFIRMED`, tự động đánh dấu
+`is_saved = true`.
+
+Response `200 OK`: cùng shape với `GET /menus/{menu_id}`.
+
+Lỗi: `401 UNAUTHORIZED`, `403 FORBIDDEN`, `404 MENU_NOT_FOUND`.
+
+### POST `/menus/{menu_id}/items`
+
+Auth bắt buộc. Thêm một món thủ công vào menu.
+
+```json
+{
+  "original_name": "Cơm tấm",
+  "translated_name": "Broken rice",
+  "original_description": null,
+  "translated_description": null,
+  "price": "45000.00",
+  "currency": "VND",
+  "category": "Cơm"
+}
+```
+
+Response `201 Created`: `MenuItemResponse`.
+
+Lỗi: `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`, `403 FORBIDDEN`,
+`404 MENU_NOT_FOUND`.
+
+### PATCH `/menus/{menu_id}/items/{item_id}`
+
+Auth bắt buộc. Sửa một món. Body giống `POST` nhưng tất cả trường đều optional
+(partial update).
+
+Response `200 OK`: `MenuItemResponse`.
+
+Lỗi: `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`, `403 FORBIDDEN`,
+`404 MENU_NOT_FOUND`, `404 MENU_ITEM_NOT_FOUND`.
+
+### DELETE `/menus/{menu_id}/items/{item_id}`
+
+Auth bắt buộc. Xóa một món.
+
+Response `204 No Content`.
+
+Lỗi: `401 UNAUTHORIZED`, `403 FORBIDDEN`, `404 MENU_NOT_FOUND`,
+`404 MENU_ITEM_NOT_FOUND`.
+
+### DELETE `/menus/{menu_id}`
+
+Auth bắt buộc. Soft-delete menu và phiên scan liên quan.
+
+Response `204 No Content`.
+
+Lỗi: `401 UNAUTHORIZED`, `403 FORBIDDEN`, `404 MENU_NOT_FOUND`.
+
+## 6. Exchange Rate
+
+### GET `/exchange-rates`
+
+Auth không bắt buộc. Trả tỷ giá quy đổi theo đồng tiền cơ sở.
+
+Query:
+
+| Field | Bắt buộc | Giá trị |
+| --- | --- | --- |
+| `base` | Không | Mã tiền tệ 3 ký tự, mặc định `VND` |
+
+Response `200 OK`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "base": "VND",
+    "rates": {
+      "USD": 0.00004,
+      "EUR": 0.000037
+    },
+    "updated_at": "2026-06-20T08:00:00Z"
+  },
+  "meta": null
+}
+```
+
+Backend proxy nhà cung cấp tỷ giá bên ngoài và cache trong tiến trình theo TTL.
+Khi upstream lỗi trả `503 DEPENDENCY_UNAVAILABLE`.
+
+## 7. Endpoint nội bộ
 
 OCR, parser và translation là module nội bộ do Scan service điều phối. MVP
 không công khai endpoint để frontend chọn provider hoặc tự bắt đầu OCR.
 
-## 7. Health
+## 8. Health
 
 - `GET /health`: process API đang chạy, không phụ thuộc database.
 - `GET /ready`: API và database đã sẵn sàng nhận request.

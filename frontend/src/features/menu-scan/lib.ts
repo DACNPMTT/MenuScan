@@ -18,8 +18,6 @@ export const LOW_CONFIDENCE_THRESHOLD = 0.75
 export const SEARCH_DEBOUNCE_MS = 300
 export const ITEMS_PAGE_SIZE = 50
 export const ALL_CATEGORY = 'All'
-export const UNSAVED_CHANGES_MESSAGE =
-  'Bạn có thay đổi chưa lưu. Rời trang sẽ mất các chỉnh sửa này?'
 
 /** Normalize a price-filter input into a non-negative decimal string the API
  * accepts (`min_price`/`max_price`), or '' when empty/invalid. */
@@ -28,6 +26,13 @@ export function normalizePrice(raw: string): string {
   if (trimmed === '') return ''
   const value = Number(trimmed)
   return Number.isFinite(value) && value >= 0 ? trimmed : ''
+}
+
+/** Clamp a percentage input (VAT / tip) to 0-100; non-numeric becomes 0. */
+export function clampPercent(raw: string | number): number {
+  const value = Number(raw)
+  if (!Number.isFinite(value)) return 0
+  return Math.min(100, Math.max(0, value))
 }
 
 export function formatMoney(amount: number, currency: string | null): string {
@@ -84,16 +89,19 @@ export function draftMatchesItem(
   )
 }
 
-export function validateDraft(draft: ItemDraft): ItemValidationErrors {
+export function validateDraft(
+  draft: ItemDraft,
+  t: (key: string) => string,
+): ItemValidationErrors {
   const errors: ItemValidationErrors = {}
   if (!draft.original_name.trim()) {
-    errors.original_name = 'Tên gốc không được để trống.'
+    errors.original_name = t('billItem.errors.nameRequired')
   }
   const price = draft.price.trim()
   if (price) {
     const numericPrice = Number(price)
     if (!Number.isFinite(numericPrice) || numericPrice < 0) {
-      errors.price = 'Giá phải là số không âm.'
+      errors.price = t('billItem.errors.priceInvalid')
     }
   }
   return errors

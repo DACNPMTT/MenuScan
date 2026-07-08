@@ -22,15 +22,19 @@ class FakeResponse:
 
 
 class FakeClient:
-    def __init__(self, response: FakeResponse | Exception) -> None:
+    def __init__(
+        self, response: FakeResponse | list[FakeResponse] | Exception
+    ) -> None:
         self.calls: list[dict[str, Any]] = []
-        self._response = response
+        self._responses = response if isinstance(response, list) else [response]
 
     def post(self, url: str, **kwargs: Any) -> FakeResponse:
         self.calls.append({"url": url, **kwargs})
-        if isinstance(self._response, Exception):
-            raise self._response
-        return self._response
+        index = min(len(self.calls) - 1, len(self._responses) - 1)
+        response = self._responses[index]
+        if isinstance(response, Exception):
+            raise response
+        return response
 
     def close(self) -> None:
         pass
@@ -86,6 +90,33 @@ def test_gemini_translation_maps_429_to_unavailable() -> None:
             source_language="vi",
             target_language="en",
         )
+
+
+def test_gemini_translation_rotates_key_on_429() -> None:
+    provider_body = {
+        "candidates": [{"content": {"parts": [{"text": json.dumps(["Beef pho"])}]}}]
+    }
+    client = FakeClient([FakeResponse(429), FakeResponse(200, provider_body)])
+    provider = GeminiTranslationProvider(
+        api_key="unused",
+        api_keys=("key-1", "key-2"),
+        api_base_url="https://gemini.example.test/v1beta",
+        model="models/gemini-2.5-flash",
+        timeout_seconds=5,
+        client=client,  # type: ignore[arg-type]
+        retry_backoff_seconds=0,
+    )
+
+    result = provider.translate_batch(
+        texts=["Phá»Ÿ bÃ²"],
+        source_language="vi",
+        target_language="en",
+    )
+
+    assert result == ["Beef pho"]
+    assert len(client.calls) == 2
+    assert client.calls[0]["params"] == {"key": "key-1"}
+    assert client.calls[1]["params"] == {"key": "key-2"}
 
 
 def test_gemini_translation_maps_timeout() -> None:

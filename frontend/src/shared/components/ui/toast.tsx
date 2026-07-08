@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react'
 import { CheckCircle2, Info, X, XCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/shared/lib/cn'
 
 export type ToastVariant = 'success' | 'error' | 'info'
@@ -31,6 +32,7 @@ const toastAccent: Record<ToastVariant, string> = {
  * the close button is always available so error toasts (which the provider
  * never auto-dismisses) can still be cleared by the user. */
 export function Toast({ id, variant, title, description, onDismiss }: ToastProps) {
+  const { t } = useTranslation()
   return (
     <div
       role={variant === 'error' ? 'alert' : 'status'}
@@ -52,7 +54,7 @@ export function Toast({ id, variant, title, description, onDismiss }: ToastProps
       <button
         type="button"
         onClick={() => onDismiss(id)}
-        aria-label="Đóng thông báo"
+        aria-label={t('toast.closeAria')}
         className="-mr-1 shrink-0 rounded-[4px] p-1 text-ink-variant transition-colors hover:bg-surface-muted hover:text-ink"
       >
         <X className="size-4" aria-hidden />
@@ -69,10 +71,11 @@ interface ToastViewportProps {
 /** Fixed container for the toast stack. New toasts on top, max 5 visible;
  * older toasts are dropped to keep the region glanceable. */
 export function ToastViewport({ toasts, onDismiss }: ToastViewportProps) {
+  const { t } = useTranslation()
   const visible = toasts.slice(-5)
   return (
     <div
-      aria-label="Thông báo"
+      aria-label={t('toast.regionAria')}
       className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex flex-col items-center gap-2 px-3 py-3 sm:inset-x-auto sm:left-auto sm:right-4 sm:top-4 sm:w-[380px] sm:items-stretch sm:px-0 sm:py-0"
     >
       {visible.map((toast) => (

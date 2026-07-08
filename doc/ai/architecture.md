@@ -10,13 +10,15 @@
 ```text
 React/Vite -- HTTPS /api/v1 --> FastAPI modular monolith
                                     |-- PostgreSQL 16   source of truth
-                                    |-- Redis           planned cache/coordination
-                                    |-- Object Storage  planned private files
-                                    `-- OCR/AI          planned extraction/translation
+                                    |-- Redis           local dependency, future cache/coordination
+                                    |-- Object Storage  private source files (local or S3)
+                                    `-- OCR/AI          OCR, parser, translation pipeline
 ```
 
-Hiện repository có React/FastAPI scaffold và PostgreSQL Compose. Redis, object
-storage, worker/queue và OCR/AI cần code, dependency, config và test trước khi dùng.
+Hiện repository có React/FastAPI app, PostgreSQL Compose, object-storage adapter,
+OCR provider wiring (`fake`, `google_vision`), parser wiring (`rule_based`,
+`gemini`) và scan pipeline chạy bằng FastAPI background task. Redis có container
+local nhưng chưa là dependency runtime của business flow.
 
 ## Frontend
 
@@ -58,7 +60,8 @@ features/<feature>/
 - `menu-scan`: upload, validation, progress polling, terminal state.
 - `menu-review`: source preview, structured result, save confirmation.
 - `dashboard`: authenticated entry; analytics nâng cao ngoài MVP.
-- `billing`: future scaffold, ngoài MVP cho tới khi contract thay đổi.
+- `billing`: chọn món, tính tiền, chia bill, điều chỉnh phí/thuế/giảm giá.
+- `exchange`: đổi tiền tệ hiển thị theo tỷ giá thời gian thực.
 
 State ownership: visual state ở component; reusable feature behavior ở hook;
 auth/session ở app provider; shareable filter/page ở URL. API call nằm trong
@@ -93,7 +96,8 @@ HTTP -> router + schemas -> service -> repository -> models/PostgreSQL
 | `identity` | user, Magic Link, refresh session | `users`, `magic_link_tokens`, `user_sessions` |
 | `menu_scan` | upload, scan lifecycle, OCR orchestration | `scan_sessions`, `ocr_results` |
 | `menu` | structured menu, food item, save state | `menus`, `food_items` |
-| `billing` | ngoài MVP | không thêm table/flow khi contract chưa duyệt |
+| `billing` | bill lifecycle, items, adjustments, split | `bills`, `bill_items`, `bill_adjustments` |
+| `exchange` | exchange rate proxy, in-process cache | không có table riêng |
 
 ### Module shape and dependencies
 
@@ -139,9 +143,11 @@ Verify consume token và tạo session atomically. Chỉ lưu token hash.
 React -> scan router/service -> validate + private storage
       -> scan_sessions(PENDING) -> background trigger
 
-worker/service -> PROCESSING -> OCR/AI
-               -> ocr_results + menus + food_items
-               -> COMPLETED | FAILED
+background pipeline -> PROCESSING/OCR
+                    -> OCR service/provider -> ocr_results
+                    -> menu validity gate -> parser -> verifier
+                    -> translation -> menus + food_items
+                    -> COMPLETED | FAILED
 
 React polls status -> authorized source/result
 ```

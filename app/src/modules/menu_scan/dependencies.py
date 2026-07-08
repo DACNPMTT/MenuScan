@@ -39,16 +39,21 @@ class _FallbackMenuParser:
         document: object,
         *,
         target_language: str = "en",
+        images: object = None,
     ) -> object:
         from src.modules.menu_scan.llm_menu_parser import LlmMenuParserUnavailableError, LlmMenuParserTimeoutError
         try:
-            return self._primary.parse(document, target_language=target_language)  # type: ignore[arg-type]
+            return self._primary.parse(  # type: ignore[arg-type]
+                document, target_language=target_language, images=images
+            )
         except (LlmMenuParserUnavailableError, LlmMenuParserTimeoutError) as exc:
             logger.warning(
                 "menu_parser_primary_unavailable falling_back=rule_based reason=%s",
                 exc,
             )
-            return self._fallback.parse(document, target_language=target_language)  # type: ignore[arg-type]
+            return self._fallback.parse(  # type: ignore[arg-type]
+                document, target_language=target_language, images=images
+            )
 
 
 @lru_cache
@@ -95,12 +100,13 @@ def get_ocr_service(
 
 def _build_gemini_parser(model: str) -> GeminiMenuParser:
     config = settings.llm
-    assert config.api_key is not None  # noqa: S101
     return GeminiMenuParser(
-        api_key=config.api_key,
+        api_key=config.api_key or "",
+        api_keys=config.api_keys,
         api_base_url=config.api_base_url,
         model=model,
         timeout_seconds=config.timeout_seconds,
+        prealign_csv=config.prealign_csv,
     )
 
 
@@ -109,20 +115,18 @@ def get_menu_parser() -> MenuParser:
     if config.provider == "rule_based":
         return RuleBasedMenuParser()
     if config.provider == "gemini":
-        # Fallback chain: primary Gemini model → secondary Gemini model (a
-        # separate quota pool, used when the primary is 429/unavailable) →
-        # rule-based parser (last resort, no external dependency). Each hop is
-        # taken only on LlmMenuParserUnavailableError/Timeout.
-        fallback: MenuParser = RuleBasedMenuParser()
-        if config.fallback_model and config.fallback_model != config.model:
-            fallback = _FallbackMenuParser(
-                primary=_build_gemini_parser(config.fallback_model),
-                fallback=fallback,
+        # Failover chain built from the model list (strongest first). Each model
+        # rotates the full key pool on 429/quota before the chain degrades to the
+        # next model, and finally to the rule-based parser (no external
+        # dependency). Each hop is taken only on Unavailable/Timeout.
+        models = config.models or (config.model,)
+        chain: MenuParser = RuleBasedMenuParser()
+        for model in reversed(models):
+            chain = _FallbackMenuParser(
+                primary=_build_gemini_parser(model),
+                fallback=chain,
             )
-        return _FallbackMenuParser(
-            primary=_build_gemini_parser(config.model),
-            fallback=fallback,
-        )
+        return chain
     raise ValueError(f"Unsupported LLM_PROVIDER={config.provider!r}")
 
 
@@ -131,6 +135,7 @@ def get_translation_service() -> TranslationService:
     if config.api_key:
         provider = GeminiTranslationProvider(
             api_key=config.api_key,
+            api_keys=config.api_keys,
             api_base_url=config.api_base_url,
             model=config.model,
             timeout_seconds=config.timeout_seconds,
@@ -141,6 +146,8 @@ def get_translation_service() -> TranslationService:
 
 
 def get_scan_pipeline() -> ScanPipeline:
+    # Only the Gemini parser consumes images; keep the rule-based path text-only.
+    attach_images = settings.llm.multimodal and settings.llm.provider == "gemini"
     return ScanPipeline(
         session_factory=SessionLocal,
         storage=get_object_storage(),
@@ -149,4 +156,6 @@ def get_scan_pipeline() -> ScanPipeline:
         translation_service=get_translation_service(),
         scan_repository=ScanSessionRepository(),
         menu_repository=MenuRepository(),
+        attach_images=attach_images,
+        image_max_dimension=settings.llm.image_max_dimension,
     )

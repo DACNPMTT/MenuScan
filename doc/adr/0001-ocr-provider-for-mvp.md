@@ -20,6 +20,12 @@ Use Google Cloud Vision `DOCUMENT_TEXT_DETECTION` as the primary MVP OCR
 candidate. Keep Azure AI Vision Read as the managed fallback and PaddleOCR as
 the offline/self-hosted fallback. Reject Amazon Textract for MVP Vietnamese OCR.
 
+Current implementation note (2026-07-08): Google Vision is implemented behind
+`OCR_PROVIDER=google_vision`, while local development defaults to
+`OCR_PROVIDER=fake`. The checked-in benchmark run is fast but below the current
+MVP quality gates for CER/WER, price accuracy, and line recall, so production
+use should include review/fallback expectations.
+
 This chooses the primary provider for MVP adapter planning. Production
 integration still requires a live run against
 `doc/ocr-benchmark/dataset/ground_truth.json` that passes the quality gates in

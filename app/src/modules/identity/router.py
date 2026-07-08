@@ -25,6 +25,8 @@ def _user_response_data(user: User, *, include_profile_details: bool = False) ->
         "email": user.email,
         "display_name": user.display_name,
         "preferred_language": user.preferred_language,
+        "allergies": list(user.allergies or []),
+        "dietary_preferences": list(user.dietary_preferences or []),
         "role": user.role.value if hasattr(user.role, "value") else str(user.role),
     }
     if include_profile_details:

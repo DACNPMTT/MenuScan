@@ -71,8 +71,13 @@ def db_session_factory(db_engine: Engine) -> Iterator[sessionmaker[Session]]:
     """
     factory = sessionmaker(bind=db_engine, autoflush=False, expire_on_commit=False)
     yield factory
-    # Cleanup: truncate pipeline-related tables after each test
+    # Cleanup: truncate pipeline-related tables after each test. Billing tables
+    # reference menus (fk_bills_menu_id_menus), so clear children first to avoid
+    # a FK violation on DELETE FROM menus when bill rows exist.
     with factory() as session:
+        session.execute(text("DELETE FROM bill_adjustments"))
+        session.execute(text("DELETE FROM bill_items"))
+        session.execute(text("DELETE FROM bills"))
         session.execute(text("DELETE FROM food_items"))
         session.execute(text("DELETE FROM menus"))
         session.execute(text("DELETE FROM ocr_results"))

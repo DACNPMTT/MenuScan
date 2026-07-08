@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -12,6 +13,7 @@ interface LocationState {
 }
 
 export function LoginPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const { user, login } = useAuth()
@@ -33,7 +35,7 @@ export function LoginPage() {
     setErrorMessage(null)
 
     if (!email || !password) {
-      setErrorMessage('Vui lòng nhập đầy đủ email và mật khẩu.')
+      setErrorMessage(t('auth.fillEmailPassword'))
       return
     }
 
@@ -44,7 +46,7 @@ export function LoginPage() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : 'Email hoặc mật khẩu không chính xác.',
+          : t('auth.invalidCredentials'),
       )
     } finally {
       setIsSubmitting(false)
@@ -55,17 +57,17 @@ export function LoginPage() {
     <div className="flex min-h-dvh flex-col items-center justify-center bg-canvas px-5 py-[75px] font-sans">
       <div className="flex w-full max-w-[400px] flex-col">
         <header className="mb-[50px] flex flex-col gap-[5px]">
-          <h1 className="text-center text-[30px] font-bold leading-[34px] tracking-[-0.75px] text-primary-dark">
+          <h1 className="text-center text-[30px] font-bold leading-[34px] tracking-normal text-primary-dark">
             MenuScan
           </h1>
           <p className="text-center text-[20px] leading-[30px] text-ink">
-            Welcome back
+            {t('auth.welcomeBack')}
           </p>
         </header>
 
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-[30px] pb-4">
           <label className="flex flex-col gap-[5px]">
-            <span className="text-[14px] leading-[14px] text-ink">Email Address</span>
+            <span className="text-[14px] leading-[14px] text-ink">{t('auth.emailLabel')}</span>
             <Input
               type="email"
               required
@@ -73,13 +75,13 @@ export function LoginPage() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
-              aria-label="Email Address"
+              aria-label={t('auth.emailLabel')}
               className="rounded-none border-0 border-b border-hairline bg-transparent px-0 py-1 text-[16px] text-ink shadow-none placeholder:text-placeholder focus-visible:border-primary-dark focus-visible:ring-0"
             />
           </label>
 
           <label className="flex flex-col gap-[5px]">
-            <span className="text-[14px] leading-[14px] text-ink">Password</span>
+            <span className="text-[14px] leading-[14px] text-ink">{t('auth.passwordLabel')}</span>
             <div className="relative">
               <Input
                 type={showPassword ? 'text' : 'password'}
@@ -87,15 +89,15 @@ export function LoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="Enter your password"
-                aria-label="Password"
+                placeholder={t('auth.passwordPlaceholder')}
+                aria-label={t('auth.passwordLabel')}
                 className="rounded-none border-0 border-b border-hairline bg-transparent px-0 py-1 pr-10 text-[16px] text-ink shadow-none placeholder:text-placeholder focus-visible:border-primary-dark focus-visible:ring-0"
               />
               <button
                 type="button"
                 className="absolute right-0 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center text-ink-variant transition-colors hover:text-primary-dark"
                 onClick={() => setShowPassword((current) => !current)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
               >
                 {showPassword ? (
                   <EyeOff className="size-5" aria-hidden />
@@ -117,14 +119,14 @@ export function LoginPage() {
             disabled={isSubmitting}
             className="h-12 rounded-full bg-primary text-[17px] font-bold text-white hover:bg-primary/90"
           >
-            {isSubmitting ? 'Đang đăng nhập...' : 'Log In'}
+            {isSubmitting ? t('auth.loggingIn') : t('auth.logIn')}
           </Button>
         </form>
 
         <p className="pt-[50px] text-center text-[14px] leading-[21px] text-ink-variant">
-          Don&apos;t have an account?{' '}
+          {t('auth.noAccount')}{' '}
           <Link to="/auth/register" className="font-bold text-primary-dark">
-            Sign up
+            {t('auth.signUp')}
           </Link>
         </p>
       </div>

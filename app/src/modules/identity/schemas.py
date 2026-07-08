@@ -6,7 +6,20 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, ValidationInfo, field_validator
+
+# Dietary taxonomy the diner may declare. Allergies mirror the allergen tags the
+# parser assigns to dishes; dietary preferences are avoidance rules matched
+# against each dish's dietary_tags.
+ALLERGEN_CODES = frozenset(
+    {
+        "seafood", "shellfish", "fish", "peanut", "tree_nut",
+        "egg", "dairy", "gluten", "soy", "sesame",
+    }
+)
+DIETARY_PREFERENCE_CODES = frozenset(
+    {"vegetarian", "vegan", "no_pork", "no_beef", "no_alcohol"}
+)
 
 
 class MagicLinkRequest(BaseModel):
@@ -56,6 +69,30 @@ class UpdateUserProfileRequest(BaseModel):
 
     display_name: str | None = None
     preferred_language: Literal["vi", "en"] | None = None
+    allergies: list[str] | None = None
+    dietary_preferences: list[str] | None = None
+
+    @field_validator("allergies", "dietary_preferences", mode="after")
+    @classmethod
+    def _validate_dietary_codes(
+        cls, value: list[str] | None, info: ValidationInfo
+    ) -> list[str] | None:
+        if value is None:
+            return None
+        allowed = (
+            ALLERGEN_CODES
+            if info.field_name == "allergies"
+            else DIETARY_PREFERENCE_CODES
+        )
+        cleaned: list[str] = []
+        for raw in value:
+            code = str(raw).strip().lower()
+            if not code or code in cleaned:
+                continue
+            if code not in allowed:
+                raise ValueError(f"Unknown {info.field_name} code: {code}")
+            cleaned.append(code)
+        return cleaned
 
     @field_validator("display_name", mode="before")
     @classmethod
@@ -108,6 +145,8 @@ class UserResponse(BaseModel):
     email: str
     display_name: str | None
     preferred_language: str
+    allergies: list[str] = Field(default_factory=list)
+    dietary_preferences: list[str] = Field(default_factory=list)
     role: str
 
     class Config:
@@ -138,6 +177,8 @@ class UserMeResponse(BaseModel):
     email: str
     display_name: str | None
     preferred_language: str
+    allergies: list[str] = Field(default_factory=list)
+    dietary_preferences: list[str] = Field(default_factory=list)
     role: str
     status: str
     created_at: datetime

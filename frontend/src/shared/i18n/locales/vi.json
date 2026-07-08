@@ -1,0 +1,528 @@
+{
+  "common": {
+    "appName": "MenuScan",
+    "login": "Đăng nhập",
+    "logout": "Đăng xuất",
+    "enterApp": "Vào ứng dụng",
+    "loading": "Đang tải…",
+    "save": "Lưu",
+    "saveChanges": "Lưu thay đổi",
+    "cancel": "Hủy",
+    "back": "Quay lại",
+    "retry": "Thử lại",
+    "edit": "Sửa",
+    "delete": "Xóa",
+    "confirm": "Xác nhận",
+    "close": "Đóng",
+    "yes": "Có",
+    "no": "Không",
+    "backToDashboard": "Về Dashboard",
+    "backToHome": "Về trang chủ"
+  },
+  "scan": {
+    "title": "Thêm menu",
+    "uploadCard": { "title": "Tải ảnh / PDF lên", "desc": "Kéo thả hoặc chọn file" },
+    "cameraCard": { "title": "Quét bằng camera", "desc": "Chụp menu vật lý" },
+    "dropzone": {
+      "title": "Kéo thả hoặc nhấn để chọn file",
+      "hint": "Hỗ trợ JPG, JPEG, PNG, WEBP, PDF — tối đa 10 MB",
+      "aria": "Kéo thả file vào đây hoặc nhấn để chọn file"
+    },
+    "selectedFile": "File đã chọn",
+    "removeAria": "Xóa file {{name}}",
+    "statusTitle": "Trạng thái xử lý",
+    "steps": [
+      { "title": "Tải lên", "desc": "File đã được đính kèm." },
+      { "title": "Phân tích AI", "desc": "Nhận dạng & phân tích menu." },
+      { "title": "Trích xuất", "desc": "Lấy món và giá." },
+      { "title": "Kết quả", "desc": "Hiển thị danh sách món." }
+    ],
+    "readyToStart": "Sẵn sàng để bắt đầu…",
+    "translateTo": "Dịch sang ngôn ngữ:",
+    "uploading": "Đang tải lên…",
+    "start": "Bắt đầu quét",
+    "errors": {
+      "fileTooLarge": "File quá lớn. Dung lượng tối đa là 10 MB.",
+      "unsupportedType": "Định dạng không được hỗ trợ. Chỉ chấp nhận JPG, PNG, WEBP, PDF.",
+      "genericPrefix": "Lỗi: "
+    }
+  },
+  "nav": {
+    "dashboard": "Tổng quan",
+    "scan": "Quét",
+    "menus": "Thực đơn",
+    "bills": "Hóa đơn",
+    "profile": "Tài khoản"
+  },
+  "footer": {
+    "rights": "© {{year}} MenuScan. Đã đăng ký bản quyền."
+  },
+  "language": {
+    "label": "Ngôn ngữ",
+    "select": "Chọn ngôn ngữ"
+  },
+  "currencySelect": {
+    "label": "Tiền tệ",
+    "changeAria": "Đổi tiền tệ hiển thị"
+  },
+  "toast": {
+    "closeAria": "Đóng thông báo",
+    "regionAria": "Thông báo"
+  },
+  "errorFallback": {
+    "title": "Đã có lỗi xảy ra",
+    "body": "Hệ thống gặp sự cố không mong muốn. Vui lòng tải lại trang; nếu lỗi tiếp tục, quay lại trang chủ và thử lại sau.",
+    "reload": "Tải lại trang",
+    "toHome": "Về trang chủ"
+  },
+  "routeError": {
+    "title": "Trang này gặp lỗi",
+    "body": "Nội dung không tải được do lỗi bất ngờ. Tải lại trang để thử lại, hoặc quay lại Dashboard để tiếp tục."
+  },
+  "verify": {
+    "docTitle": "Xác thực",
+    "verifyingAria": "Đang xác thực",
+    "errorTitle": "Xác thực chưa khả dụng",
+    "errorBody": "Liên kết xác thực không hợp lệ, đã hết hạn, hoặc đã được sử dụng. Vui lòng yêu cầu liên kết đăng nhập mới.",
+    "successTitle": "Xác thực email thành công!",
+    "successBody": "Tài khoản của bạn đã được thiết lập đầy đủ. Bạn có thể bắt đầu khám phá thực đơn.",
+    "continue": "Tiếp tục"
+  },
+  "checkEmail": {
+    "bodyWithEmail": "Chúng tôi đã gửi liên kết xác thực đến {{email}}. Vui lòng nhấn vào liên kết để kích hoạt tài khoản.",
+    "bodyNoEmail": "Chúng tôi đã gửi liên kết xác thực đến email của bạn. Vui lòng nhấn vào liên kết để kích hoạt tài khoản.",
+    "sending": "Đang gửi…"
+  },
+  "register": {
+    "heading": "Tạo tài khoản của bạn"
+  },
+  "magicLink": {
+    "rateLimited": "Vui lòng đợi trước khi gửi lại yêu cầu.",
+    "emailUnavailable": "Dịch vụ email tạm thời không khả dụng.",
+    "invalidEmail": "Email không hợp lệ.",
+    "generic": "Đã có lỗi xảy ra. Vui lòng thử lại."
+  },
+  "authVerify": {
+    "docTitle": "Xác thực tài khoản",
+    "tokenMissing": "Mã xác thực (token) không tìm thấy trong URL. Vui lòng kiểm tra lại liên kết trong email.",
+    "linkInvalid": "Liên kết xác thực đã hết hạn hoặc không hợp lệ.",
+    "verifying": "Đang xác thực liên kết đăng nhập của bạn…",
+    "failedTitle": "Xác thực thất bại",
+    "errorTitle": "Lỗi xác thực"
+  },
+  "setPassword": {
+    "docTitle": "Thiết lập mật khẩu",
+    "emailVerified": "Xác thực email thành công!",
+    "subtitle": "Thiết lập mật khẩu để đăng nhập trực tiếp lần sau.",
+    "newPassword": "Mật khẩu mới",
+    "confirmPassword": "Xác nhận mật khẩu",
+    "minCharsPlaceholder": "Tối thiểu 6 ký tự",
+    "reenterPlaceholder": "Nhập lại mật khẩu",
+    "saving": "Đang lưu…",
+    "save": "Lưu mật khẩu",
+    "errors": {
+      "enterPassword": "Vui lòng nhập mật khẩu.",
+      "minLength": "Mật khẩu phải chứa ít nhất 6 ký tự.",
+      "mismatch": "Mật khẩu xác nhận không khớp.",
+      "saveFailed": "Có lỗi xảy ra khi lưu mật khẩu. Vui lòng thử lại."
+    }
+  },
+  "dashboard": {
+    "fallbackName": "bạn",
+    "welcome": "Chào mừng trở lại, {{name}}",
+    "systemStatus": "Trạng thái hệ thống: mọi dịch vụ đang hoạt động",
+    "upload": { "title": "Tải ảnh / PDF lên", "desc": "Kéo thả hoặc chọn file từ máy" },
+    "camera": { "title": "Quét bằng camera", "desc": "Chụp menu vật lý tức thì" },
+    "metrics": {
+      "scanned": "Menu đã quét",
+      "itemsLoaded": "Món đã tải",
+      "historyPage": "Trang lịch sử"
+    },
+    "recent": "Phiên quét gần đây",
+    "sessionCount_other": "{{count}} phiên scan",
+    "loadingHistory": "Đang tải lịch sử scan…",
+    "loadMore": "Tải thêm",
+    "historyError": "Không thể tải lịch sử scan.",
+    "dishCount_other": "{{count}} món",
+    "saved": "Đã lưu",
+    "viewResult": "Xem kết quả",
+    "status": {
+      "PENDING": "Đang chờ",
+      "PROCESSING": "Đang xử lý",
+      "COMPLETED": "Hoàn tất",
+      "FAILED": "Thất bại"
+    },
+    "empty": {
+      "title": "Chưa có phiên quét nào",
+      "body": "Tải lên menu đầu tiên của bạn để MenuScan trích xuất danh sách món.",
+      "scanNow": "Quét menu ngay"
+    }
+  },
+  "menus": {
+    "savedMenus": "Menu đã lưu",
+    "title": "Menus",
+    "scanNew": "Quét menu mới",
+    "finalReview": "Review cuối",
+    "menuCount_other": "{{count}} menu",
+    "loading": "Đang tải menu…",
+    "loadMore": "Tải thêm",
+    "empty": "Chưa có menu nào. Sau khi scan xong, hãy xác nhận review cuối để menu xuất hiện ở đây.",
+    "confirmed": "Đã xác nhận",
+    "draft": "Bản nháp",
+    "dishCount_other": "{{count}} món",
+    "view": "Xem",
+    "deleteAria": "Xóa {{title}}",
+    "toast": { "deleted": "Đã xóa menu" },
+    "errors": {
+      "loadFailed": "Không thể tải danh sách menu.",
+      "deleteFailed": "Không thể xóa menu."
+    }
+  },
+  "bills": {
+    "title": "Hóa đơn",
+    "subtitle": "Xem lại các hóa đơn bạn đã tạo.",
+    "loading": "Đang tải hóa đơn…",
+    "empty": "Chưa có hóa đơn nào. Chọn món trong một thực đơn rồi bấm Review / Confirm để tạo hóa đơn.",
+    "goToMenus": "Tới thực đơn",
+    "dishCount_other": "{{count}} món",
+    "filterAll": "Tất cả",
+    "from": "Từ ngày",
+    "to": "Đến ngày",
+    "clearFilters": "Xóa bộ lọc",
+    "noMatch": "Không có hóa đơn nào khớp bộ lọc.",
+    "deleteAria": "Xóa hóa đơn ngày {{date}}",
+    "status": { "DRAFT": "Bản nháp", "FINALIZED": "Đã chốt" },
+    "toast": { "deleted": "Đã xóa hóa đơn" },
+    "errors": {
+      "loadFailed": "Không thể tải danh sách hóa đơn.",
+      "deleteFailed": "Không thể xóa hóa đơn."
+    }
+  },
+  "camera": {
+    "title": "Quét bằng camera",
+    "backToUpload": "Về trang upload",
+    "capturedAlt": "Ảnh đã chụp",
+    "unavailable": "Camera không khả dụng.",
+    "capture": "Chụp ảnh",
+    "retake": "Chụp lại",
+    "useThis": "Dùng ảnh này",
+    "hint": "Đặt menu trong khung, đảm bảo đủ sáng và không bị mờ.",
+    "quality": {
+      "ok": "Ảnh đạt — rõ nét và đủ sáng.",
+      "warnTitle": "Ảnh có thể chưa đạt:",
+      "blurry": "Ảnh bị mờ — giữ máy chắc và lấy nét lại.",
+      "dark": "Ảnh quá tối — cần thêm ánh sáng.",
+      "bright": "Ảnh quá sáng hoặc bị loá — tránh ánh sáng gắt."
+    },
+    "errors": {
+      "denied": "Truy cập camera bị từ chối. Hãy cấp quyền camera trong trình duyệt.",
+      "notFound": "Không tìm thấy camera trên thiết bị.",
+      "openFailed": "Không mở được camera. Vui lòng thử lại.",
+      "uploadFailed": "Không thể tải ảnh lên. Vui lòng thử lại."
+    }
+  },
+  "menuDetail": {
+    "backToMenus": "Về Menus",
+    "loading": "Đang tải menu…",
+    "loadingShort": "Đang tải…",
+    "loadMore": "Tải thêm",
+    "notFound": "Không tìm thấy menu.",
+    "sourceImage": "Ảnh menu gốc",
+    "sourceLoadFailed": "Không thể tải ảnh gốc.",
+    "unsavedConfirm": "Bạn có thay đổi chưa lưu. Rời trang sẽ mất các chỉnh sửa này?",
+    "deleteMenu": "Xóa menu",
+    "confirmed": "Đã xác nhận",
+    "draft": "Bản nháp",
+    "dishCount_other": "{{count}} món",
+    "unsavedChanges_other": "Có {{count}} món đang chỉnh sửa chưa lưu.",
+    "searching": "Đang tìm món phù hợp…",
+    "resultCount_other": "{{count}} món",
+    "resultCountOf_other": "{{count}} món trên {{total}}",
+    "noFilterMatch": "Không có món phù hợp với bộ lọc.",
+    "clearFilters": "Xóa bộ lọc",
+    "noItems": "Chưa có món nào trong menu.",
+    "calcTitle": "Bảng tính toán",
+    "selectedCount_other": "{{count}} món đã chọn",
+    "selectPrompt": "Chọn món để xem tạm tính.",
+    "peopleCount": "Số người",
+    "perPerson": "Mỗi người dự tính:",
+    "subtotal": "Tạm tính",
+    "vat": "Thuế VAT",
+    "tip": "Tiền tip",
+    "surcharge": "Phụ phí",
+    "tipModePercent": "Tip theo phần trăm",
+    "tipModeAmount": "Tip theo số tiền",
+    "tipCurrencyAria": "Chọn hệ tiền cho tiền tip",
+    "surchargeCurrencyAria": "Chọn hệ tiền cho phụ phí",
+    "discount": "Giảm giá",
+    "total": "Tổng cộng",
+    "splitAmong_other": "Chia cho {{count}} người",
+    "scanAnother": "Quét menu khác",
+    "showBill": "Xem hóa đơn",
+    "confirmedBtn": "Đã xác nhận",
+    "reviewConfirm": "Xem lại / Xác nhận",
+    "confirmDeleteItem": "Xóa món \"{{name}}\" khỏi menu?",
+    "toast": {
+      "itemSaved": "Đã lưu món",
+      "itemDeleted": "Đã xóa món",
+      "itemAdded": "Đã thêm món",
+      "menuConfirmed": "Đã xác nhận menu",
+      "createReceiptFailed": "Không thể tạo biên nhận"
+    },
+    "errors": {
+      "loadFailed": "Không thể tải menu.",
+      "loadItemsFailed": "Không thể tải danh sách món.",
+      "saveItemFailed": "Không thể lưu món.",
+      "deleteItemFailed": "Không thể xóa món.",
+      "deleteMenuFailed": "Không thể xóa menu.",
+      "addManualFailed": "Không thể lưu món thủ công.",
+      "confirmMenuFailed": "Không thể xác nhận menu.",
+      "tryAgain": "Vui lòng thử lại."
+    }
+  },
+  "manualItem": {
+    "name": "Tên món",
+    "price": "Giá",
+    "note": "Mô tả/Ghi chú",
+    "save": "Lưu món"
+  },
+  "filter": {
+    "searchPlaceholder": "Tìm món theo tên hoặc mô tả…",
+    "searchAria": "Tìm kiếm món",
+    "clearSearchAria": "Xóa tìm kiếm",
+    "minPrice": "Giá từ",
+    "minPriceAria": "Giá tối thiểu",
+    "maxPrice": "đến",
+    "maxPriceAria": "Giá tối đa",
+    "addItem": "Thêm món",
+    "allCategories": "Tất cả"
+  },
+  "diet": {
+    "sectionTitle": "Dị ứng & sở thích ăn uống",
+    "allergiesLabel": "Dị ứng",
+    "preferencesLabel": "Ăn kiêng",
+    "none": "Chưa thiết lập",
+    "allergens": {
+      "seafood": "Hải sản",
+      "shellfish": "Động vật có vỏ",
+      "fish": "Cá",
+      "peanut": "Đậu phộng",
+      "tree_nut": "Hạt cây",
+      "egg": "Trứng",
+      "dairy": "Sữa",
+      "gluten": "Gluten",
+      "soy": "Đậu nành",
+      "sesame": "Mè"
+    },
+    "preferences": {
+      "vegetarian": "Ăn chay",
+      "vegan": "Thuần chay",
+      "no_pork": "Không thịt heo",
+      "no_beef": "Không thịt bò",
+      "no_alcohol": "Không rượu bia"
+    }
+  },
+  "onboarding": {
+    "docTitle": "Thiết lập sở thích",
+    "title": "Cho chúng tôi biết sở thích ăn uống",
+    "subtitle": "Chúng tôi sẽ cảnh báo món có dị ứng hoặc lệch khẩu phần của bạn. Có thể bỏ qua và chỉnh sau trong hồ sơ.",
+    "save": "Lưu & tiếp tục",
+    "saving": "Đang lưu…",
+    "skip": "Bỏ qua",
+    "saveError": "Không lưu được. Vui lòng thử lại."
+  },
+  "billItem": {
+    "lowConfidence": "OCR confidence thấp ({{value}}%).",
+    "allergyWarning": "CẢNH BÁO: Phát hiện dị ứng (Hải sản)",
+    "allergyMatch": "CẢNH BÁO: Chứa {{list}}",
+    "dietMatch": "Không hợp khẩu phần: {{list}}",
+    "namePlaceholder": "Tên món",
+    "originalNamePlaceholder": "Tên trên ảnh",
+    "pricePlaceholder": "Giá",
+    "categoryPlaceholder": "Danh mục",
+    "currencyPlaceholder": "Tiền tệ",
+    "descPlaceholder": "Mô tả",
+    "originalDescPlaceholder": "Mô tả trên ảnh",
+    "addNote": "Thêm ghi chú…",
+    "editAria": "Sửa {{name}}",
+    "decreaseAria": "Giảm {{name}}",
+    "increaseAria": "Tăng {{name}}",
+    "errors": {
+      "nameRequired": "Tên gốc không được để trống.",
+      "priceInvalid": "Giá phải là số không âm."
+    }
+  },
+  "receipt": {
+    "ticket": "Phiếu đặt món điện tử",
+    "order": "Đơn {{id}}",
+    "subtotal": "Tạm tính",
+    "total": "Tổng cộng",
+    "splitAmong": "Chia cho",
+    "people_other": "{{count}} người",
+    "perPersonPays": "Mỗi người trả",
+    "finalizing": "Đang chốt…",
+    "finalize": "Xuất hóa đơn",
+    "backToEdit": "Quay lại chỉnh bill",
+    "finalized": "Đã chốt · không thể chỉnh sửa"
+  },
+  "billReceipt": {
+    "docTitle": "Biên nhận",
+    "backToMenu": "Về menu",
+    "backToMenus": "Về Menus",
+    "loading": "Đang tải biên nhận…",
+    "toast": { "finalized": "Đã chốt biên nhận", "finalizeFailed": "Không thể chốt biên nhận" },
+    "errors": { "loadFailed": "Không thể tải biên nhận." }
+  },
+  "profile": {
+    "interfaceLanguage": "Ngôn ngữ giao diện",
+    "account": "Tài khoản",
+    "refresh": "Làm mới",
+    "loading": "Đang tải profile…",
+    "setPassword": "Đặt mật khẩu",
+    "infoTitle": "Thông tin hồ sơ",
+    "displayName": "Tên hiển thị",
+    "enterDisplayName": "Nhập tên hiển thị",
+    "email": "Email",
+    "noEmail": "Chưa có email",
+    "notSet": "Chưa thiết lập",
+    "fallbackUser": "Người dùng",
+    "preferredLanguage": "Ngôn ngữ ưu tiên",
+    "role": "Vai trò",
+    "statusLabel": "Trạng thái",
+    "createdAt": "Ngày tạo",
+    "roleLabels": { "USER": "Người dùng", "ADMIN": "Quản trị viên" },
+    "statusLabels": { "ACTIVE": "Đang hoạt động", "LOCKED": "Đã khóa", "DISABLED": "Đã tắt" },
+    "languageLabels": { "vi": "Tiếng Việt", "en": "English" },
+    "errors": {
+      "nameTooLong": "Tên hiển thị tối đa 150 ký tự.",
+      "updateFailed": "Không thể cập nhật profile. Vui lòng thử lại.",
+      "loadFailed": "Không thể tải đầy đủ thông tin tài khoản."
+    }
+  },
+  "scanResult": {
+    "title": "Kết quả quét",
+    "retryScan": "Thử quét lại",
+    "processing": { "title": "Đang xử lý menu", "default": "Đang xử lý" },
+    "stages": {
+      "UPLOADING": "Đang tải file lên",
+      "OCR": "Đang nhận dạng văn bản (OCR)",
+      "ANALYZING": "Đang phân tích bố cục menu",
+      "TRANSLATING": "Đang dịch các món",
+      "FINALIZING": "Đang hoàn tất"
+    },
+    "dishCount_other": "{{count}} món",
+    "detected": "Phát hiện:",
+    "translatedTo": "Dịch sang:",
+    "chooseAndSplit": "Chọn món & chia hóa đơn",
+    "confirmed": "Đã xác nhận",
+    "confirmMenu": "Xác nhận menu",
+    "saved": "Đã lưu",
+    "saveMenu": "Lưu menu",
+    "sourceFile": "File gốc",
+    "extractedItems": "Món trích xuất",
+    "pageStatus": "Hi\u1ec3n th\u1ecb {{from}}-{{to}} / {{total}} m\u00f3n",
+    "prevPage": "Trang tr\u01b0\u1edbc",
+    "nextPage": "Trang sau",
+    "scanAnother": "Quét menu khác",
+    "noItems": {
+      "title": "Không trích xuất được món nào",
+      "body": "Ảnh có thể không rõ, không phải menu, hoặc nhà cung cấp OCR chưa được cấu hình. Thử lại với menu rõ hơn."
+    },
+    "toast": {
+      "saved": "Đã lưu menu",
+      "unsaved": "Đã bỏ lưu menu",
+      "confirmed": "Đã xác nhận menu"
+    },
+    "errors": {
+      "resultLoadFailed": "Quét hoàn tất nhưng không tải được kết quả.",
+      "scanFailed": "Quét thất bại. Vui lòng thử lại.",
+      "statusFailed": "Không thể lấy trạng thái quét.",
+      "tookTooLong": "Quét đang mất nhiều thời gian hơn dự kiến. Vui lòng quay lại sau.",
+      "saveFailed": "Không thể cập nhật trạng thái lưu menu.",
+      "confirmFailed": "Không thể xác nhận bản review cuối."
+    }
+  },
+  "notFound": {
+    "title": "Không tìm thấy trang",
+    "body": "Trang bạn mở không tồn tại trong MenuScan.",
+    "toDashboard": "Về Dashboard",
+    "toHome": "Về trang chủ",
+    "home": "Trang chủ MenuScan"
+  },
+  "auth": {
+    "welcomeBack": "Chào mừng trở lại",
+    "signinSubtitle": "Đăng nhập vào hệ thống MenuScan",
+    "registerSubtitle": "Đăng ký tài khoản mới của bạn",
+    "continueGoogle": "Tiếp tục với Google",
+    "googleUnavailable": "Tính năng đăng nhập với Google hiện chưa khả dụng ở bản MVP.",
+    "or": "HOẶC",
+    "errorTitle": "Lỗi",
+    "successTitle": "Thành công",
+    "emailLabel": "Địa chỉ email",
+    "passwordLabel": "Mật khẩu",
+    "passwordPlaceholder": "Nhập mật khẩu của bạn",
+    "loggingIn": "Đang đăng nhập…",
+    "showPassword": "Hiện mật khẩu",
+    "hidePassword": "Ẩn mật khẩu",
+    "forgotPassword": "Quên mật khẩu?",
+    "forgotPasswordHint": "Để khôi phục tài khoản, vui lòng chọn \"Đăng ký / Đăng nhập không mật khẩu\" để nhận Magic Link đăng nhập nhanh.",
+    "processing": "Đang xử lý…",
+    "signUp": "Đăng ký",
+    "logIn": "Đăng nhập",
+    "haveAccount": "Đã có tài khoản?",
+    "noAccount": "Chưa có tài khoản?",
+    "checkInbox": "Kiểm tra hộp thư của bạn!",
+    "inboxTextBefore": "Chúng tôi đã gửi một liên kết xác thực đến địa chỉ email",
+    "inboxTextAfter": "Vui lòng nhấn vào liên kết trong email để kích hoạt tài khoản của bạn.",
+    "resendIn": "Gửi lại sau ({{seconds}}s)",
+    "resendEmail": "Gửi lại email xác thực",
+    "backToLogin": "Quay lại trang đăng nhập",
+    "fillEmailPassword": "Vui lòng nhập đầy đủ email và mật khẩu.",
+    "invalidCredentials": "Email hoặc mật khẩu không chính xác.",
+    "fillEmail": "Vui lòng nhập email để tiếp tục.",
+    "linkSent": "Liên kết đăng nhập đã được gửi!",
+    "sendFailed": "Không thể gửi email. Vui lòng thử lại sau."
+  },
+  "landing": {
+    "nav": {
+      "features": "Tính năng",
+      "howItWorks": "Cách hoạt động",
+      "signup": "Đăng ký",
+      "goToApp": "Vào ứng dụng"
+    },
+    "hero": {
+      "title": "Biến ảnh thực đơn thành dữ liệu có cấu trúc",
+      "badge": "Dịch thực đơn bằng AI",
+      "subtitle": "Tự động trích xuất món ăn, giá, mô tả và thông tin dinh dưỡng từ bất kỳ ảnh thực đơn nào chỉ trong vài giây.",
+      "startScanning": "Bắt đầu quét",
+      "imageAlt": "Ứng dụng MenuScan đang quét một tờ thực đơn"
+    },
+    "stats": {
+      "badge": "Những con số",
+      "labels": ["Thực đơn đã số hóa", "Thời gian xử lý TB", "Độ chính xác trường", "Luôn sẵn sàng"]
+    },
+    "features": [
+      { "title": "Tải ảnh lên", "body": "Kéo thả hoặc chọn ảnh của bất kỳ thực đơn nhà hàng nào." },
+      { "title": "Quét bằng camera", "body": "Dùng camera của thiết bị để chụp thực đơn trực tiếp theo thời gian thực." },
+      { "title": "Trích xuất dữ liệu", "body": "Nhận ngay JSON có cấu trúc gồm món ăn, giá và danh mục." }
+    ],
+    "how": {
+      "title": "Cách hoạt động",
+      "steps": [
+        { "title": "Tải lên", "body": "Cung cấp ảnh thực đơn." },
+        { "title": "Phân tích AI", "body": "Bộ máy xử lý ảnh." },
+        { "title": "Trích xuất", "body": "Ánh xạ dữ liệu có cấu trúc." },
+        { "title": "Xem lại", "body": "Xuất hoặc chỉnh sửa kết quả." }
+      ]
+    },
+    "testimonials": {
+      "title": "Khách hàng nói gì",
+      "subtitle": "Người dùng trên khắp nơi đang số hóa menu với MenuScan.",
+      "items": [
+        { "quote": "MenuScan giảm 80% thời gian nhập menu cho quán mình.", "name": "Minh Anh", "role": "Quản lý · Cafe Sài Gòn", "initials": "MA" },
+        { "quote": "OCR nhận diện tốt cả menu tiếng Việt có dấu, ít phải sửa.", "name": "Hoàng Nguyên", "role": "Chủ · Phở 24", "initials": "HN" },
+        { "quote": "Có dữ liệu JSON ngay sau khi upload, tích hợp rất nhanh.", "name": "Trần Vy", "role": "Dev · FoodApp", "initials": "TV" }
+      ]
+    }
+  }
+}

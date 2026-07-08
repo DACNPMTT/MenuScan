@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   AlertCircle,
@@ -6,14 +6,17 @@ import {
   Bookmark,
   BookmarkCheck,
   Check,
+  ChevronLeft,
+  ChevronRight,
   ListChecks,
   Loader2,
   RefreshCw,
   XCircle,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
-import { apiRequest, ApiError } from '@/shared/lib/api'
+import { apiRequest, apiRequestWithMeta, ApiError } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { useExchangeRates } from '@/shared/hooks/useExchangeRates'
 import { CurrencySelect } from '@/shared/components/CurrencySelect'
@@ -22,6 +25,7 @@ import type {
   MenuItemResult,
   MenuDetail,
   MenuSavedState,
+  PaginationMeta,
   ScanDetail,
   ScanError,
   ScanResult,
@@ -36,14 +40,7 @@ function resolveUrl(path: string): string {
 
 const POLL_INTERVAL_MS = 1500
 const MAX_POLL_MS = 180_000 // 3 min cap; the pipeline finishes well under this.
-
-const STAGE_LABELS: Record<string, string> = {
-  UPLOADING: 'Đang tải file lên',
-  OCR: 'Đang nhận dạng văn bản (OCR)',
-  ANALYZING: 'Đang phân tích bố cục menu',
-  TRANSLATING: 'Đang dịch các món',
-  FINALIZING: 'Đang hoàn tất',
-}
+const SCAN_RESULT_ITEMS_PAGE_SIZE = 6
 
 const LANGUAGE_MAP: Record<string, string> = {
   vi: '🇻🇳 Tiếng Việt',
@@ -57,13 +54,48 @@ const LANGUAGE_MAP: Record<string, string> = {
 
 export function ScanResultPage() {
   const { scanId } = useParams<{ scanId: string }>()
-  const { accessToken } = useAuth()
-  useDocumentTitle('Kết quả quét | MenuScan')
+  const { accessToken, user } = useAuth()
+  const { t } = useTranslation()
+  useDocumentTitle(`${t('scanResult.title')} | MenuScan`)
 
   const [detail, setDetail] = useState<ScanDetail | null>(null)
   const [result, setResult] = useState<ScanResult | null>(null)
+  const [resultMeta, setResultMeta] = useState<PaginationMeta | null>(null)
   const [error, setError] = useState<string | null>(null)
   const startedAt = useRef(0)
+
+  // Clear stale results the moment the route points at a different scan, using
+  // the documented React pattern for resetting state on a prop change (compare a
+  // stored value during render). This keeps the polling effect free of
+  // synchronous setState calls.
+  const [shownScanId, setShownScanId] = useState(scanId)
+  if (shownScanId !== scanId) {
+    setShownScanId(scanId)
+    setResult(null)
+    setResultMeta(null)
+    setError(null)
+  }
+
+  const fetchResultPage = useCallback(
+    async (page: number) => {
+      if (!scanId) return
+      return apiRequestWithMeta<ScanResult, PaginationMeta>(
+        `/api/v1/scans/${scanId}/result?page=${page}&page_size=${SCAN_RESULT_ITEMS_PAGE_SIZE}`,
+        { method: 'GET', token: accessToken ?? undefined },
+      )
+    },
+    [accessToken, scanId],
+  )
+
+  const loadResultPage = useCallback(
+    async (page: number) => {
+      const response = await fetchResultPage(page)
+      if (!response) return
+      setResult(response.data)
+      setResultMeta(response.meta)
+    },
+    [fetchResultPage],
+  )
 
   useEffect(() => {
     if (!scanId) return
@@ -82,17 +114,17 @@ export function ScanResultPage() {
 
         if (current.status === 'COMPLETED') {
           try {
-            const res = await apiRequest<ScanResult>(
-              `/api/v1/scans/${scanId}/result`,
-              { method: 'GET', token: accessToken ?? undefined },
-            )
-            if (!cancelled) setResult(res)
+            const response = await fetchResultPage(1)
+            if (!cancelled && response) {
+              setResult(response.data)
+              setResultMeta(response.meta)
+            }
           } catch (err) {
             if (!cancelled) {
               setError(
                 err instanceof ApiError
                   ? err.message
-                  : 'Quét hoàn tất nhưng không tải được kết quả.',
+                  : t('scanResult.errors.resultLoadFailed'),
               )
             }
           }
@@ -104,10 +136,10 @@ export function ScanResultPage() {
             const err = current.error
             const msg =
               err == null
-                ? 'Quét thất bại. Vui lòng thử lại.'
+                ? t('scanResult.errors.scanFailed')
                 : typeof err === 'string'
                   ? err
-                  : (err as ScanError).message || 'Quét thất bại. Vui lòng thử lại.'
+                  : (err as ScanError).message || t('scanResult.errors.scanFailed')
             setError(msg)
           }
           return
@@ -116,12 +148,12 @@ export function ScanResultPage() {
         if (Date.now() - startedAt.current < MAX_POLL_MS) {
           timer = window.setTimeout(poll, POLL_INTERVAL_MS)
         } else {
-          setError('Quét đang mất nhiều thời gian hơn dự kiến. Vui lòng quay lại sau.')
+          setError(t('scanResult.errors.tookTooLong'))
         }
       } catch (err) {
         if (cancelled) return
         setError(
-          err instanceof ApiError ? err.message : 'Không thể lấy trạng thái quét.',
+          err instanceof ApiError ? err.message : t('scanResult.errors.statusFailed'),
         )
       }
     }
@@ -131,7 +163,7 @@ export function ScanResultPage() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [scanId, accessToken])
+  }, [scanId, accessToken, fetchResultPage, t])
 
   const status = detail?.status
   const handleSavedChange = (isSaved: boolean) => {
@@ -152,7 +184,7 @@ export function ScanResultPage() {
               is_saved: menu.is_saved,
               title: menu.title,
               default_currency: menu.default_currency,
-              items: menu.items,
+              items: current.menu.items,
             },
           }
         : current,
@@ -162,11 +194,11 @@ export function ScanResultPage() {
   return (
     <div className="mx-auto w-full max-w-[900px] px-[30px] py-[40px] sm:px-[50px]">
       <Link
-        to="/app"
+        to={user ? '/app' : '/'}
         className="mb-6 flex w-fit items-center gap-2 text-[14px] text-ink-variant transition-colors hover:text-primary-dark"
       >
         <ArrowLeft className="size-4" aria-hidden />
-        Về Dashboard
+        {user ? t('common.backToDashboard') : t('common.backToHome')}
       </Link>
 
       {error && (
@@ -183,7 +215,7 @@ export function ScanResultPage() {
             className="flex w-fit items-center gap-2 rounded-[8px] border border-destructive/30 px-4 py-2 text-[14px] font-medium text-destructive transition-colors hover:bg-destructive/10"
           >
             <RefreshCw className="size-4" aria-hidden />
-            Thử quét lại
+            {t('scanResult.retryScan')}
           </Link>
         </div>
       )}
@@ -193,9 +225,11 @@ export function ScanResultPage() {
       {status === 'COMPLETED' && result && (
         <ResultView
           result={result}
+          itemsMeta={resultMeta}
           accessToken={accessToken}
           onSavedChange={handleSavedChange}
           onConfirmed={handleConfirmed}
+          onItemsPageChange={loadResultPage}
         />
       )}
     </div>
@@ -203,17 +237,19 @@ export function ScanResultPage() {
 }
 
 function ProcessingView({ detail }: { detail: ScanDetail | null }) {
+  const { t } = useTranslation()
   const progress = detail?.progress ?? 0
+  const fallbackStage = t('scanResult.processing.default')
   const stageLabel = detail?.stage
-    ? (STAGE_LABELS[detail.stage] ?? 'Đang xử lý')
-    : 'Đang xử lý'
+    ? t(`scanResult.stages.${detail.stage}`, { defaultValue: fallbackStage })
+    : fallbackStage
   return (
     <div className="flex flex-col gap-6 rounded-[12px] border border-hairline bg-canvas p-[30px]">
       <div className="flex items-center gap-3">
         <Loader2 className="size-6 animate-spin text-primary-dark" aria-hidden />
         <div className="flex flex-col">
           <h1 className="text-[24px] font-bold leading-[30px] text-primary-dark">
-            Đang xử lý menu
+            {t('scanResult.processing.title')}
           </h1>
           <p className="text-[14px] text-ink-variant">{stageLabel}</p>
         </div>
@@ -233,15 +269,20 @@ function ProcessingView({ detail }: { detail: ScanDetail | null }) {
 
 function ResultView({
   result,
+  itemsMeta,
   accessToken,
   onSavedChange,
   onConfirmed,
+  onItemsPageChange,
 }: {
   result: ScanResult
+  itemsMeta: PaginationMeta | null
   accessToken: string | null
   onSavedChange: (isSaved: boolean) => void
   onConfirmed: (menu: MenuDetail) => void
+  onItemsPageChange: (page: number) => Promise<void>
 }) {
+  const { t } = useTranslation()
   const items = result.menu?.items ?? []
   const toast = useToast()
   const source = result.scan.source
@@ -250,8 +291,27 @@ function ResultView({
   const { rates } = useExchangeRates(baseCurrency)
   const [saving, setSaving] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [itemsLoading, setItemsLoading] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [confirmError, setConfirmError] = useState<string | null>(null)
+  const totalItems = itemsMeta?.total ?? items.length
+
+  const handleItemsPageChange = async (page: number) => {
+    if (itemsLoading) return
+    setItemsLoading(true)
+    try {
+      await onItemsPageChange(page)
+    } catch (err) {
+      const description = err instanceof ApiError ? err.message : undefined
+      toast.show({
+        variant: 'error',
+        title: t('scanResult.errors.resultLoadFailed'),
+        description,
+      })
+    } finally {
+      setItemsLoading(false)
+    }
+  }
 
   const handleToggleSaved = async () => {
     if (!result.menu || saving) return
@@ -270,13 +330,13 @@ function ResultView({
       onSavedChange(updated.is_saved)
       toast.show({
         variant: 'success',
-        title: nextSaved ? 'Đã lưu menu' : 'Đã bỏ lưu menu',
+        title: nextSaved ? t('scanResult.toast.saved') : t('scanResult.toast.unsaved'),
       })
     } catch (err) {
       setSaveError(
         err instanceof ApiError
           ? err.message
-          : 'Không thể cập nhật trạng thái lưu menu.',
+          : t('scanResult.errors.saveFailed'),
       )
     } finally {
       setSaving(false)
@@ -296,12 +356,12 @@ function ResultView({
         },
       )
       onConfirmed(confirmed)
-      toast.show({ variant: 'success', title: 'Đã xác nhận menu' })
+      toast.show({ variant: 'success', title: t('scanResult.toast.confirmed') })
     } catch (err) {
       setConfirmError(
         err instanceof ApiError
           ? err.message
-          : 'Không thể xác nhận bản review cuối.',
+          : t('scanResult.errors.confirmFailed'),
       )
     } finally {
       setConfirming(false)
@@ -317,20 +377,20 @@ function ResultView({
           </span>
           <div className="flex flex-col">
             <h1 className="text-[28px] font-bold leading-[34px] text-primary-dark">
-              {result.menu?.title || 'Kết quả quét'}
+              {result.menu?.title || t('scanResult.title')}
             </h1>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <span className="text-[14px] text-ink-variant">
-                {items.length} món · {source.file_name}
+                {t('scanResult.dishCount', { count: totalItems })} · {source.file_name}
               </span>
               <span className="hidden text-[14px] text-ink-variant sm:inline">•</span>
               {result.scan.detected_language && (
                 <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[12px] font-medium text-ink-variant">
-                  Phát hiện: {LANGUAGE_MAP[result.scan.detected_language] || result.scan.detected_language.toUpperCase()}
+                  {t('scanResult.detected')} {LANGUAGE_MAP[result.scan.detected_language] || result.scan.detected_language.toUpperCase()}
                 </span>
               )}
               <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[12px] font-medium text-primary-dark">
-                Dịch sang: {LANGUAGE_MAP[result.scan.target_language] || result.scan.target_language.toUpperCase()}
+                {t('scanResult.translatedTo')} {LANGUAGE_MAP[result.scan.target_language] || result.scan.target_language.toUpperCase()}
               </span>
             </div>
           </div>
@@ -342,7 +402,7 @@ function ResultView({
               className="flex min-h-10 items-center gap-2 rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
             >
               <ListChecks className="size-4" aria-hidden />
-              Chọn món &amp; chia hóa đơn
+              {t('scanResult.chooseAndSplit')}
             </Link>
             <button
               type="button"
@@ -355,7 +415,7 @@ function ResultView({
               ) : (
                 <Check className="size-4" aria-hidden />
               )}
-              {result.menu.status === 'CONFIRMED' ? 'Đã xác nhận' : 'Xác nhận menu'}
+              {result.menu.status === 'CONFIRMED' ? t('scanResult.confirmed') : t('scanResult.confirmMenu')}
             </button>
             <button
               type="button"
@@ -371,7 +431,7 @@ function ResultView({
               ) : (
                 <Bookmark className="size-4" aria-hidden />
               )}
-              {result.menu.is_saved ? 'Đã lưu' : 'Lưu menu'}
+              {result.menu.is_saved ? t('scanResult.saved') : t('scanResult.saveMenu')}
             </button>
             {saveError && (
               <span role="alert" className="text-[13px] text-destructive">
@@ -395,6 +455,9 @@ function ResultView({
           displayCurrency={displayCurrency}
           rates={rates}
           onCurrencyChange={setDisplayCurrency}
+          itemsMeta={itemsMeta}
+          itemsLoading={itemsLoading}
+          onPageChange={(page) => void handleItemsPageChange(page)}
         />
       </div>
     </div>
@@ -410,6 +473,7 @@ function SourcePreview({
   source: ScanResult['scan']['source']
   accessToken: string | null
 }) {
+  const { t } = useTranslation()
   const [objectUrl, setObjectUrl] = useState<string | null>(null)
   const isImage = source.mime_type.startsWith('image/')
 
@@ -435,7 +499,7 @@ function SourcePreview({
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[14px] font-medium uppercase tracking-[0.7px] text-ink-variant">
-        File gốc
+        {t('scanResult.sourceFile')}
       </p>
       <div className="overflow-hidden rounded-[12px] border border-hairline bg-surface-muted">
         {isImage ? (
@@ -469,18 +533,33 @@ function ItemsList({
   displayCurrency,
   rates,
   onCurrencyChange,
+  itemsMeta,
+  itemsLoading,
+  onPageChange,
 }: {
   items: MenuItemResult[]
   baseCurrency: string
   displayCurrency: string
   rates: ExchangeRates | null
   onCurrencyChange: (currency: string) => void
+  itemsMeta: PaginationMeta | null
+  itemsLoading: boolean
+  onPageChange: (page: number) => void
 }) {
+  const { t } = useTranslation()
+  const showPagination = itemsMeta !== null && itemsMeta.total_pages > 1
+  const pageStart =
+    itemsMeta && items.length > 0
+      ? (itemsMeta.page - 1) * itemsMeta.page_size + 1
+      : 0
+  const pageEnd = itemsMeta
+    ? Math.min(itemsMeta.page * itemsMeta.page_size, itemsMeta.total)
+    : items.length
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-[14px] font-medium uppercase tracking-[0.7px] text-ink-variant">
-          Món trích xuất
+          {t('scanResult.extractedItems')}
         </p>
         {items.length > 0 && (
           <CurrencySelect value={displayCurrency} onChange={onCurrencyChange} />
@@ -491,36 +570,38 @@ function ItemsList({
           <XCircle className="size-8 text-ink-variant" aria-hidden />
           <div className="flex flex-col gap-1">
             <p className="text-[15px] font-medium text-ink">
-              Không trích xuất được món nào
+              {t('scanResult.noItems.title')}
             </p>
             <p className="max-w-[340px] text-[14px] text-ink-variant">
-              Ảnh có thể không rõ, không phải menu, hoặc nhà cung cấp OCR chưa
-              được cấu hình. Thử lại với menu rõ hơn.
+              {t('scanResult.noItems.body')}
             </p>
           </div>
           <Link
             to="/app/scan"
             className="mt-1 rounded-[8px] bg-primary-dark px-[20px] py-[10px] text-[15px] font-bold text-white transition-opacity hover:opacity-90"
           >
-            Quét menu khác
+            {t('scanResult.scanAnother')}
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <>
+          <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 2xl:grid-cols-3">
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex flex-col gap-2 rounded-[12px] border border-hairline bg-canvas p-4 transition-colors hover:border-primary/30 hover:bg-surface-muted/50"
+              className="flex h-full flex-col gap-2 rounded-[12px] border border-hairline bg-canvas p-4 transition-colors hover:border-primary/30 hover:bg-surface-muted/50"
             >
-              {item.category && (
-                <span className="w-fit rounded-[4px] bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.5px] text-ink-variant">
-                  {item.category}
-                </span>
-              )}
-              <div className="flex items-start justify-between gap-3">
-                <span className="text-[16px] font-bold leading-tight text-ink">
-                  {item.original_name}
-                </span>
+              {/* Price rides on the badge row: that row has a fixed height, so
+                  prices line up across every card and the name below gets the
+                  full card width (far fewer ragged line wraps). */}
+              <div className="flex min-h-[22px] items-center justify-between gap-3">
+                {item.category ? (
+                  <span className="w-fit rounded-[4px] bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.5px] text-ink-variant">
+                    {item.category}
+                  </span>
+                ) : (
+                  <span aria-hidden />
+                )}
                 <span className="shrink-0 text-[15px] font-semibold text-primary-dark">
                   {item.price
                     ? formatConvertedAmount(
@@ -532,28 +613,70 @@ function ItemsList({
                     : '—'}
                 </span>
               </div>
+              <p className="mb-0 break-words text-[16px] font-bold leading-snug text-ink">
+                {item.original_name}
+              </p>
               {item.translated_name && item.translated_name !== item.original_name && (
-                <span className="text-[14px] font-medium text-ink-variant">
+                <p className="mb-0 break-words text-[14px] font-medium text-ink-variant">
                   {item.translated_name}
-                </span>
+                </p>
               )}
               {(item.original_description || item.translated_description) && (
                 <div className="mt-1 flex flex-col gap-1.5 border-t border-hairline pt-2.5">
                   {item.original_description && (
-                    <span className="text-[13px] italic text-ink-variant">
+                    <p className="mb-0 text-[13px] italic leading-relaxed text-ink-variant">
                       {item.original_description}
-                    </span>
+                    </p>
                   )}
                   {item.translated_description && item.translated_description !== item.original_description && (
-                    <span className="text-[13px] text-ink-variant">
+                    <p className="mb-0 text-[13px] leading-relaxed text-ink-variant">
                       {item.translated_description}
-                    </span>
+                    </p>
                   )}
                 </div>
               )}
             </div>
           ))}
-        </div>
+          </div>
+          {showPagination && itemsMeta && (
+            <div className="flex flex-col items-center justify-between gap-3 rounded-[8px] border border-hairline bg-canvas px-3 py-2 sm:flex-row">
+              <p className="text-[13px] text-ink-variant" aria-live="polite">
+                {t('scanResult.pageStatus', {
+                  from: pageStart,
+                  to: pageEnd,
+                  total: itemsMeta.total,
+                })}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onPageChange(itemsMeta.page - 1)}
+                  disabled={itemsLoading || itemsMeta.page <= 1}
+                  aria-label={t('scanResult.prevPage')}
+                  className="flex size-9 items-center justify-center rounded-[8px] border border-hairline text-primary-dark transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <ChevronLeft className="size-4" aria-hidden />
+                </button>
+                <span className="min-w-[72px] text-center text-[13px] font-bold text-ink">
+                  {itemsMeta.page} / {itemsMeta.total_pages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onPageChange(itemsMeta.page + 1)}
+                  disabled={itemsLoading || itemsMeta.page >= itemsMeta.total_pages}
+                  aria-label={t('scanResult.nextPage')}
+                  className="flex size-9 items-center justify-center rounded-[8px] border border-hairline text-primary-dark transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {itemsLoading ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <ChevronRight className="size-4" aria-hidden />
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

@@ -27,13 +27,29 @@ DEFAULT_OCR_CONTRAST_FACTOR = "1.1"
 DEFAULT_GOOGLE_VISION_API_BASE_URL = "https://vision.googleapis.com/v1"
 
 DEFAULT_LLM_PROVIDER = "rule_based"
-DEFAULT_LLM_TIMEOUT_SECONDS = "20"
+# Per-parse ceiling. With model "thinking" disabled and the pre-aligned CSV
+# anchor, even large menus parse well under this on gemini-3.1-flash-lite, so a
+# call that exceeds it is stuck — fail fast to the fallback model instead of
+# dragging the scan out. Target: scan → menu in ~100s.
+DEFAULT_LLM_TIMEOUT_SECONDS = "100"
 DEFAULT_LLM_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
-DEFAULT_LLM_MODEL = "gemini-2.5-flash"
-# Secondary Gemini model tried automatically when the primary model is quota-
-# exhausted (429) or unavailable, before degrading to the rule-based parser.
-# It has a separate, more generous free-tier daily quota than gemini-2.5-flash.
-DEFAULT_LLM_FALLBACK_MODEL = "gemini-2.5-flash-lite"
+DEFAULT_LLM_MODEL = "gemini-3.1-flash-lite"
+# Multimodal parsing: attach the menu page image(s) to the Gemini parse call
+# alongside OCR text (ADR 0003). The image drives layout / column-price
+# association / grouping; OCR text stays the character-and-price anchor. Only
+# the "gemini" provider consumes it; rule-based ignores images.
+DEFAULT_LLM_MULTIMODAL = "true"
+# Downscale ceiling for images sent to the LLM. Smaller than the OCR ceiling to
+# bound image-token cost and latency, since the model reads layout, not fine print.
+DEFAULT_LLM_IMAGE_MAX_DIMENSION = "1536"
+# Pre-align OCR into a deterministic (name, price, size) CSV and embed it in the
+# parse prompt as a strong name↔price anchor (OCR → CSV → LLM). Off sends only
+# the plain OCR text / coordinate dump.
+DEFAULT_LLM_PREALIGN_CSV = "true"
+# Secondary Gemini model tried automatically when the primary model
+# (gemini-3.1-flash-lite) is quota-exhausted (429) or unavailable, before
+# degrading to the rule-based parser. It draws on a separate daily quota.
+DEFAULT_LLM_FALLBACK_MODEL = "gemini-2.5-flash"
 DEFAULT_SECRET_KEY = "menuscan-default-insecure-secret-key-change-this-in-production"
 DEFAULT_SCAN_STALE_TIMEOUT_MINUTES = "10"
 
@@ -161,6 +177,14 @@ class LlmConfig:
     api_base_url: str
     timeout_seconds: float
     fallback_model: str | None = None
+    multimodal: bool = True
+    prealign_csv: bool = True
+    image_max_dimension: int = int(DEFAULT_LLM_IMAGE_MAX_DIMENSION)
+    # Key pool tried in order; a 429/quota on one key rotates to the next for the
+    # same model before degrading to the next model in ``models``.
+    api_keys: tuple[str, ...] = ()
+    # Model failover chain (strongest first). Each model uses the full key pool.
+    models: tuple[str, ...] = ()
 
     def is_configured(self) -> bool:
         if self.provider == "rule_based":
@@ -365,10 +389,26 @@ def _load_ocr_config() -> OcrConfig:
 
 
 def _load_llm_config() -> LlmConfig:
+    model = os.getenv("LLM_MODEL", DEFAULT_LLM_MODEL)
+    fallback_model = os.getenv("LLM_FALLBACK_MODEL", DEFAULT_LLM_FALLBACK_MODEL) or None
+
+    # Key pool: GEMINI_API_KEYS (comma-separated) wins; otherwise the single key.
+    single_key = os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY")
+    pool = _split_csv(os.getenv("GEMINI_API_KEYS"))
+    api_keys = tuple(pool) if pool else (tuple([single_key]) if single_key else ())
+
+    # Model failover chain: LLM_MODELS (comma-separated) wins; otherwise the
+    # primary model followed by the distinct fallback model.
+    models_env = _split_csv(os.getenv("LLM_MODELS"))
+    if models_env:
+        models = tuple(models_env)
+    else:
+        models = (model,) + ((fallback_model,) if fallback_model and fallback_model != model else ())
+
     return LlmConfig(
         provider=os.getenv("LLM_PROVIDER", DEFAULT_LLM_PROVIDER),
-        model=os.getenv("LLM_MODEL", DEFAULT_LLM_MODEL),
-        api_key=os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY"),
+        model=models[0] if models else model,
+        api_key=api_keys[0] if api_keys else None,
         api_base_url=os.getenv(
             "LLM_API_BASE_URL",
             DEFAULT_LLM_API_BASE_URL,
@@ -376,10 +416,21 @@ def _load_llm_config() -> LlmConfig:
         timeout_seconds=float(
             os.getenv("LLM_TIMEOUT_SECONDS", DEFAULT_LLM_TIMEOUT_SECONDS)
         ),
-        fallback_model=(
-            os.getenv("LLM_FALLBACK_MODEL", DEFAULT_LLM_FALLBACK_MODEL) or None
+        fallback_model=fallback_model,
+        multimodal=_env_bool("LLM_MULTIMODAL", DEFAULT_LLM_MULTIMODAL),
+        prealign_csv=_env_bool("LLM_PREALIGN_CSV", DEFAULT_LLM_PREALIGN_CSV),
+        image_max_dimension=int(
+            os.getenv("LLM_IMAGE_MAX_DIMENSION", DEFAULT_LLM_IMAGE_MAX_DIMENSION)
         ),
+        api_keys=api_keys,
+        models=models,
     )
+
+
+def _split_csv(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 def _load_scan_stale_timeout_minutes() -> int:
@@ -396,6 +447,11 @@ def _env_or_default(name: str, default: str) -> str:
     if value is None or not value.strip():
         return default
     return value
+
+
+def _env_bool(name: str, default: str) -> bool:
+    value = os.getenv(name, default).strip().lower()
+    return value in {"1", "true", "yes", "on"}
 
 
 _load_local_env_file()

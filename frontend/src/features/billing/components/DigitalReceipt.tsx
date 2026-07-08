@@ -1,5 +1,6 @@
 import { ArrowLeft, CheckCircle2, ReceiptText } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { formatMoney } from '@/features/menu-scan/lib'
 import type { Bill, BillSplit } from '@/features/billing/types'
 
@@ -26,6 +27,7 @@ export function DigitalReceipt({
   onFinalize,
   backToEditHref,
 }: DigitalReceiptProps) {
+  const { t } = useTranslation()
   const isDraft = bill.status === 'DRAFT'
   const created = new Date(bill.created_at)
   const dateLabel = created.toLocaleDateString('vi-VN', {
@@ -58,14 +60,14 @@ export function DigitalReceipt({
           MenuScan
         </h1>
         <p className="text-[14px] font-semibold text-ink-variant">
-          Digital Order Ticket
+          {t('receipt.ticket')}
         </p>
         <div className="mt-3 flex items-center justify-center gap-4 text-[13px] text-ink-variant">
           <span>{dateLabel}</span>
           <span aria-hidden>·</span>
           <span>{timeLabel}</span>
         </div>
-        <div className="mt-1 text-[13px] text-ink-variant">Order {orderLabel}</div>
+        <div className="mt-1 text-[13px] text-ink-variant">{t('receipt.order', { id: orderLabel })}</div>
       </header>
 
       {/* Line items */}
@@ -105,25 +107,25 @@ export function DigitalReceipt({
         )}
 
         <div className="flex items-center justify-between text-[14px] text-ink-variant">
-          <span>Tạm tính</span>
+          <span>{t('receipt.subtotal')}</span>
           <span>{formatLine(bill.subtotal_amount, bill.currency)}</span>
         </div>
 
         <div className="flex items-center justify-between text-[18px] font-bold text-ink">
-          <span>Tổng cộng</span>
+          <span>{t('receipt.total')}</span>
           <span>{formatLine(bill.total_amount, bill.currency)}</span>
         </div>
 
         {split && split.people_count > 1 && (
           <div className="mt-3 border-t border-[#e6e6e6] pt-3">
             <div className="flex items-center justify-between text-[13px] text-ink-variant">
-              <span>Chia cho</span>
+              <span>{t('receipt.splitAmong')}</span>
               <span className="font-bold text-ink">
-                {split.people_count} người
+                {t('receipt.people', { count: split.people_count })}
               </span>
             </div>
             <div className="mt-2 flex items-center justify-between rounded-[8px] bg-[rgba(65,134,19,0.2)] px-3 py-2">
-              <span className="text-[16px] text-[#2e6b00]">Mỗi người trả</span>
+              <span className="text-[16px] text-[#2e6b00]">{t('receipt.perPersonPays')}</span>
               <span className="text-[16px] font-bold text-[#2e6b00]">
                 {formatLine(split.base_share, bill.currency)}
               </span>
@@ -142,20 +144,20 @@ export function DigitalReceipt({
               disabled={finalizing}
               className="flex h-12 w-full items-center justify-center rounded-full bg-primary-dark text-[15px] font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {finalizing ? 'Đang chốt…' : 'Xuất hóa đơn'}
+              {finalizing ? t('receipt.finalizing') : t('receipt.finalize')}
             </button>
             <Link
               to={backToEditHref}
               className="flex h-12 w-full items-center justify-center gap-2 rounded-full border border-hairline bg-white text-[15px] font-bold text-ink transition-colors hover:bg-surface-muted"
             >
               <ArrowLeft className="size-4" aria-hidden />
-              Quay lại chỉnh bill
+              {t('receipt.backToEdit')}
             </Link>
           </>
         ) : (
           <div className="flex items-center justify-center gap-2 rounded-full bg-[#eef6e9] px-4 py-3 text-[15px] font-bold text-[#256b2b]">
             <CheckCircle2 className="size-5" aria-hidden />
-            Đã chốt · không thể chỉnh sửa
+            {t('receipt.finalized')}
           </div>
         )}
       </div>

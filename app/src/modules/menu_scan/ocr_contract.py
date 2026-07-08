@@ -2,15 +2,16 @@
 
 Dependency rule
 ---------------
-OCR adapter  → produces  OcrDocument
-Parser       → consumes  OcrDocument, produces ParsedMenuDraft
-Worker       → calls     OcrAdapter.run(), passes OcrDocument to parser
+DocumentPreprocessor → produces prepared PNG pages
+OCR provider         → consumes prepared pages, produces OcrDocument
+Parser               → consumes OcrDocument, produces ParsedMenuDraft
+Pipeline             → calls OcrService, passes OcrDocument to parser
 Translation  → consumes  ParsedMenuDraft.items, writes translated_name /
                translated_description (or LLM parser populates them in one call)
 
 No layer below the adapter boundary may import a provider SDK or raw response
 type.  All provider-specific code lives in a single adapter module that
-implements the OcrAdapter protocol defined at the bottom of this file.
+implements the OcrProvider protocol in ``ocr/provider.py``.
 
 The OCR provider adapter maps proprietary responses into these DTOs. Parser and
 translation code should only depend on this module, not on provider SDK shapes.
@@ -134,6 +135,8 @@ class ParsedMenuItemDraft(BaseModel):
     price: str | None = None
     currency: str | None = None
     category: str | None = None
+    allergens: list[str] = Field(default_factory=list)
+    dietary_tags: list[str] = Field(default_factory=list)
     confidence: float | None = Field(default=None, ge=0, le=1)
     source_references: list[OcrSourceReference] = Field(default_factory=list)
     sort_order: int = Field(ge=0)
@@ -185,9 +188,15 @@ class OcrAdapterError(Exception):
 
 
 class OcrAdapter:
-    """Protocol every OCR provider adapter must satisfy.
+    """Legacy raw-file adapter sketch kept for contract history.
 
-    Adapters live in ``app/src/modules/menu_scan/adapters/<provider>.py``.
+    Runtime code currently uses ``OcrService`` plus the ``OcrProvider`` protocol
+    in ``ocr/provider.py``; provider implementations live under
+    ``app/src/modules/menu_scan/ocr/adapters/`` and receive already-preprocessed
+    pages. This class documents the older raw-file adapter boundary used by ADR
+    discussions and should not be used for new wiring.
+
+    Adapters live in ``app/src/modules/menu_scan/ocr/adapters/<provider>.py``.
     They must not be imported by the parser, translation layer, or API
     routers — only by the scan worker.
 
@@ -227,8 +236,8 @@ class OcrAdapter:
     2. Subclass or duck-type ``OcrAdapter``; implement ``run()``.
     3. Add ``provider_code`` as a string constant matching the ``provider``
        field written into ``OcrDocument``.
-    4. Register the adapter in the worker's factory (not yet implemented —
-       worker picks the adapter from ``settings.ocr.provider``).
+    4. Register the provider in ``get_ocr_provider`` so
+       ``settings.ocr.provider`` can select it.
     5. Add a fixture output file to ``doc/ocr-benchmark/fixtures/`` and run
        ``measure_provider_output.py`` against the ground truth before
        opening a PR.

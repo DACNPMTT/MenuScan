@@ -115,6 +115,25 @@ class BillAdjustmentResponse(BaseModel):
         return value.value if hasattr(value, "value") else str(value)
 
 
+class BillSummaryResponse(BaseModel):
+    """Compact bill representation for the bill-history listing."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    menu_id: uuid.UUID
+    status: str
+    currency: str
+    total_amount: Decimal
+    item_count: int
+    created_at: datetime
+    finalized_at: datetime | None
+
+    @field_serializer("total_amount")
+    def _serialize_money(self, value: Decimal) -> str:
+        return str(value)
+
+
 class BillResponse(BaseModel):
     """Full bill representation, including line items, in API responses."""
 

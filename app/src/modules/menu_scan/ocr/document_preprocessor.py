@@ -14,7 +14,7 @@ SUPPORTED_OCR_MIME_TYPES = {
     "image/png",
     "image/webp",
 }
-MAX_OCR_PAGES = 5
+MAX_OCR_PAGES = 8
 PDF_RENDER_DPI = 200
 
 

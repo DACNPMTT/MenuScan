@@ -13,27 +13,18 @@ import {
   Save,
   ShieldCheck,
   UserCircle,
+  UtensilsCrossed,
   X,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth, type User } from '@/app/providers/AuthProvider'
 import { ApiError, apiRequest } from '@/shared/lib/api'
+import { LanguageSwitcher } from '@/shared/components/LanguageSwitcher'
+import {
+  DietPreferencePicker,
+  type DietPreferenceValue,
+} from '@/features/menu-scan/components/DietPreferencePicker'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
-
-const LANGUAGE_LABELS: Record<string, string> = {
-  vi: 'Tiếng Việt',
-  en: 'English',
-}
-
-const ROLE_LABELS: Record<string, string> = {
-  USER: 'Người dùng',
-  ADMIN: 'Quản trị viên',
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'Đang hoạt động',
-  LOCKED: 'Đã khóa',
-  DISABLED: 'Đã tắt',
-}
 
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE: 'bg-[#e4f4df] text-[#256b2b]',
@@ -45,11 +36,14 @@ function displayValue(value: string | null | undefined, fallback = 'Chưa thiế
   return value?.trim() ? value : fallback
 }
 
-function formatDate(value: string | undefined) {
-  if (!value) return 'Chưa có dữ liệu'
+const LOCALE_MAP: Record<string, string> = { vi: 'vi-VN', en: 'en-GB' }
+
+function formatDate(value: string | undefined, lang: string) {
+  if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('vi-VN', {
+  const locale = LOCALE_MAP[lang] ?? 'en-GB'
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date)
@@ -64,6 +58,7 @@ function initialsFrom(name: string) {
 }
 
 export function ProfilePage() {
+  const { t, i18n } = useTranslation()
   useDocumentTitle('Profile | MenuScan')
   const { user, accessToken, updateProfile } = useAuth()
   const [fullProfile, setFullProfile] = useState<User | null>(null)
@@ -72,7 +67,10 @@ export function ProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [draftDisplayName, setDraftDisplayName] = useState('')
-  const [draftLanguage, setDraftLanguage] = useState('vi')
+  const [draftDiet, setDraftDiet] = useState<DietPreferenceValue>({
+    allergies: [],
+    dietary_preferences: [],
+  })
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -91,13 +89,13 @@ export function ProfilePage() {
       setError(
         err instanceof ApiError
           ? err.message
-          : 'Không thể tải đầy đủ thông tin tài khoản.',
+          : t('profile.errors.loadFailed'),
       )
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [accessToken])
+  }, [accessToken, t])
 
   useEffect(() => {
     void Promise.resolve().then(() => loadProfile('initial'))
@@ -106,19 +104,23 @@ export function ProfilePage() {
   const profile = fullProfile ?? user
 
   const displayName = useMemo(
-    () => displayValue(profile?.display_name, profile?.email.split('@')[0] ?? 'Người dùng'),
-    [profile?.display_name, profile?.email],
+    () => displayValue(profile?.display_name, profile?.email.split('@')[0] ?? t('profile.fallbackUser')),
+    [profile?.display_name, profile?.email, t],
   )
   const initials = useMemo(() => initialsFrom(displayName), [displayName])
-  const language = LANGUAGE_LABELS[profile?.preferred_language ?? ''] ?? displayValue(profile?.preferred_language)
-  const role = ROLE_LABELS[profile?.role ?? ''] ?? displayValue(profile?.role)
+  const role = profile?.role
+    ? t(`profile.roleLabels.${profile.role}`, { defaultValue: profile.role })
+    : t('profile.notSet')
   const status = profile?.status ?? 'ACTIVE'
-  const statusLabel = STATUS_LABELS[status] ?? status
+  const statusLabel = t(`profile.statusLabels.${status}`, { defaultValue: status })
   const statusStyle = STATUS_STYLES[status] ?? 'bg-secondary text-ink-variant'
 
   const startEditing = () => {
     setDraftDisplayName(profile?.display_name ?? '')
-    setDraftLanguage(profile?.preferred_language === 'en' ? 'en' : 'vi')
+    setDraftDiet({
+      allergies: profile?.allergies ?? [],
+      dietary_preferences: profile?.dietary_preferences ?? [],
+    })
     setSaveError(null)
     setEditing(true)
   }
@@ -133,7 +135,7 @@ export function ProfilePage() {
     if (saving) return
     const normalizedDisplayName = draftDisplayName.trim()
     if (normalizedDisplayName.length > 150) {
-      setSaveError('Tên hiển thị tối đa 150 ký tự.')
+      setSaveError(t('profile.errors.nameTooLong'))
       return
     }
     setSaving(true)
@@ -141,7 +143,8 @@ export function ProfilePage() {
     try {
       const updated = await updateProfile({
         display_name: normalizedDisplayName || null,
-        preferred_language: draftLanguage,
+        allergies: draftDiet.allergies,
+        dietary_preferences: draftDiet.dietary_preferences,
       })
       setFullProfile(updated)
       setEditing(false)
@@ -149,7 +152,7 @@ export function ProfilePage() {
       setSaveError(
         err instanceof ApiError
           ? err.message
-          : 'Không thể cập nhật profile. Vui lòng thử lại.',
+          : t('profile.errors.updateFailed'),
       )
     } finally {
       setSaving(false)
@@ -161,10 +164,10 @@ export function ProfilePage() {
       <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-2">
           <p className="text-[13px] font-bold uppercase tracking-[0.7px] text-ink-variant">
-            Tài khoản
+            {t('profile.account')}
           </p>
           <h1 className="text-[32px] font-bold leading-[40px] text-primary-dark sm:text-[44px] sm:leading-[52px]">
-            Profile
+            {t('nav.profile')}
           </h1>
         </div>
         <button
@@ -178,7 +181,7 @@ export function ProfilePage() {
           ) : (
             <RefreshCw className="size-4" aria-hidden />
           )}
-          Làm mới
+          {t('profile.refresh')}
         </button>
       </header>
 
@@ -196,7 +199,7 @@ export function ProfilePage() {
         {loading && !profile ? (
           <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-ink-variant">
             <Loader2 className="size-7 animate-spin text-primary-dark" aria-hidden />
-            Đang tải profile...
+            {t('profile.loading')}
           </div>
         ) : (
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
@@ -223,7 +226,7 @@ export function ProfilePage() {
               className="flex min-h-10 w-full items-center justify-center gap-2 rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90 sm:w-fit"
             >
               <KeyRound className="size-4" aria-hidden />
-              Đặt mật khẩu
+              {t('profile.setPassword')}
             </Link>
           </div>
         )}
@@ -234,7 +237,7 @@ export function ProfilePage() {
           <header className="flex flex-col gap-3 border-b border-hairline bg-app-bg px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-[20px] leading-[28px] text-primary-dark">
-                Thông tin hồ sơ
+                {t('profile.infoTitle')}
               </h2>
               {saveError && (
                 <p role="alert" className="mt-1 text-[13px] text-destructive">
@@ -251,7 +254,7 @@ export function ProfilePage() {
                   className="flex min-h-10 items-center gap-2 rounded-[8px] border border-hairline bg-canvas px-4 py-2 text-[14px] font-bold text-ink-variant transition-colors hover:bg-surface-muted hover:text-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <X className="size-4" aria-hidden />
-                  Hủy
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -263,7 +266,7 @@ export function ProfilePage() {
                   ) : (
                     <Save className="size-4" aria-hidden />
                   )}
-                  Lưu
+                  {t('common.save')}
                 </button>
               </div>
             ) : (
@@ -273,7 +276,7 @@ export function ProfilePage() {
                 className="flex min-h-10 w-fit items-center gap-2 rounded-[8px] border border-primary-dark px-4 py-2 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10"
               >
                 <Pencil className="size-4" aria-hidden />
-                Chỉnh sửa
+                {t('common.edit')}
               </button>
             )}
           </header>
@@ -282,14 +285,14 @@ export function ProfilePage() {
               {editing ? (
                 <ProfileEditField
                   icon={<UserCircle className="size-5" />}
-                  label="Tên hiển thị"
+                  label={t('profile.displayName')}
                 >
                   <input
                     type="text"
                     value={draftDisplayName}
                     onChange={(event) => setDraftDisplayName(event.target.value)}
                     maxLength={150}
-                    placeholder="Nhập tên hiển thị"
+                    placeholder={t('profile.enterDisplayName')}
                     disabled={saving}
                     className="h-10 w-full min-w-0 rounded-[8px] border border-hairline bg-canvas px-3 text-[15px] text-ink outline-none transition-colors placeholder:text-placeholder focus:border-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
                   />
@@ -297,55 +300,82 @@ export function ProfilePage() {
               ) : (
                 <ProfileField
                   icon={<UserCircle className="size-5" />}
-                  label="Tên hiển thị"
-                  value={displayValue(profile?.display_name)}
+                  label={t('profile.displayName')}
+                  value={displayValue(profile?.display_name, t('profile.notSet'))}
                 />
               )}
               <ProfileField
                 icon={<Mail className="size-5" />}
-                label="Email"
-                value={displayValue(profile?.email, 'Chưa có email')}
+                label={t('profile.email')}
+                value={displayValue(profile?.email, t('profile.noEmail'))}
               />
-              {editing ? (
-                <ProfileEditField
-                  icon={<Languages className="size-5" />}
-                  label="Ngôn ngữ ưu tiên"
-                >
-                  <select
-                    value={draftLanguage}
-                    onChange={(event) => setDraftLanguage(event.target.value)}
-                    disabled={saving}
-                    className="h-10 w-full min-w-0 rounded-[8px] border border-hairline bg-canvas px-3 text-[15px] font-bold text-ink outline-none transition-colors focus:border-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <option value="vi">Tiếng Việt</option>
-                    <option value="en">English</option>
-                  </select>
-                </ProfileEditField>
-              ) : (
-                <ProfileField
-                  icon={<Languages className="size-5" />}
-                  label="Ngôn ngữ ưu tiên"
-                  value={language}
-                />
-              )}
             </div>
             <div className="flex flex-col">
+              <div className="flex min-h-[96px] gap-3 px-5 py-4">
+                <span className="mt-1 flex size-5 shrink-0 text-[#5f6368]">
+                  <Languages className="size-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="mb-2 text-[13px] uppercase tracking-[0.5px] text-[#5f6368]">
+                    {t('profile.interfaceLanguage')}
+                  </p>
+                  <LanguageSwitcher />
+                </div>
+              </div>
               <ProfileField
                 icon={<ShieldCheck className="size-5" />}
-                label="Vai trò"
+                label={t('profile.role')}
                 value={role}
               />
               <ProfileField
                 icon={<BadgeCheck className="size-5" />}
-                label="Trạng thái"
+                label={t('profile.statusLabel')}
                 value={statusLabel}
               />
               <ProfileField
                 icon={<CalendarDays className="size-5" />}
-                label="Ngày tạo"
-                value={formatDate(profile?.created_at)}
+                label={t('profile.createdAt')}
+                value={formatDate(profile?.created_at, i18n.language)}
               />
             </div>
+          </div>
+
+          {/* Dietary preferences & allergies */}
+          <div className="border-t border-hairline px-5 py-4">
+            <p className="mb-3 flex items-center gap-2 text-[13px] uppercase tracking-[0.5px] text-[#5f6368]">
+              <UtensilsCrossed className="size-4" aria-hidden />
+              {t('diet.sectionTitle')}
+            </p>
+            {editing ? (
+              <DietPreferencePicker
+                value={draftDiet}
+                onChange={setDraftDiet}
+                disabled={saving}
+              />
+            ) : (
+              <div className="flex flex-col gap-2 text-[14px] text-ink">
+                <p>
+                  <span className="text-[#5f6368]">
+                    {t('diet.allergiesLabel')}:{' '}
+                  </span>
+                  {(profile?.allergies ?? []).length
+                    ? (profile?.allergies ?? [])
+                        .map((code) => t(`diet.allergens.${code}`))
+                        .join(', ')
+                    : t('diet.none')}
+                </p>
+                <p>
+                  <span className="text-[#5f6368]">
+                    {t('diet.preferencesLabel')}:{' '}
+                  </span>
+                  {(profile?.dietary_preferences ?? []).length
+                    ? (profile?.dietary_preferences ?? [])
+                        .map((code) => t(`diet.preferences.${code}`))
+                        .join(', ')
+                    : t('diet.none')}
+                </p>
+              </div>
+            )}
           </div>
         </form>
       </div>
@@ -364,11 +394,11 @@ function ProfileField({
 }) {
   return (
     <div className="flex min-h-[96px] gap-3 px-5 py-4">
-      <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-[8px] bg-surface-muted text-primary-dark">
+      <span className="mt-1 flex size-5 shrink-0 text-[#5f6368]">
         {icon}
       </span>
       <div className="min-w-0">
-        <p className="mb-1 text-[13px] font-bold uppercase tracking-[0.5px] text-ink-variant">
+        <p className="mb-1 text-[13px] uppercase tracking-[0.5px] text-[#5f6368]">
           {label}
         </p>
         <p className="break-words text-[16px] font-bold leading-[24px] text-ink">
@@ -390,11 +420,11 @@ function ProfileEditField({
 }) {
   return (
     <div className="flex min-h-[96px] gap-3 px-5 py-4">
-      <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-[8px] bg-surface-muted text-primary-dark">
+      <span className="mt-1 flex size-5 shrink-0 text-[#5f6368]">
         {icon}
       </span>
       <label className="min-w-0 flex-1">
-        <span className="mb-2 block text-[13px] font-bold uppercase tracking-[0.5px] text-ink-variant">
+        <span className="mb-2 block text-[13px] uppercase tracking-[0.5px] text-[#5f6368]">
           {label}
         </span>
         {children}

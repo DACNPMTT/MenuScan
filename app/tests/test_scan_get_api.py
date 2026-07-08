@@ -14,6 +14,7 @@ from src.core.config import EmailConfig, Settings, StorageConfig
 from src.modules.identity.dependencies import get_current_user, get_optional_current_user
 from src.modules.identity.exceptions import UnauthorizedError
 from src.modules.identity.models import User
+from src.modules.menu.models import FoodItem, Menu, MenuStatus
 from src.modules.menu_scan.dependencies import get_scan_service
 from src.modules.menu_scan.exceptions import (
     ScanForbiddenError,
@@ -21,7 +22,7 @@ from src.modules.menu_scan.exceptions import (
     ScanNotReadyError,
     SourceFileNotFoundError,
 )
-from src.modules.menu_scan.models import ScanStatus
+from src.modules.menu_scan.models import ScanSession, ScanStatus
 from src.modules.menu_scan.schemas import (
     MenuItemData,
     MenuResultData,
@@ -33,7 +34,7 @@ from src.modules.menu_scan.schemas import (
     ScanResultSourceData,
     ScanStatusData,
 )
-from src.modules.menu_scan.service import SourceAccess
+from src.modules.menu_scan.service import ScanService, SourceAccess
 
 JPEG_BYTES = b"\xff\xd8\xfffake-jpeg-body"
 PDF_BYTES = b"%PDF-1.4 fake"
@@ -169,6 +170,7 @@ class StubScanService:
         scan: ScanStatusData | Exception | None = None,
         source: SourceAccess | Exception | None = None,
         result: ScanResultData | Exception | None = None,
+        result_total: int = 1,
     ) -> None:
         self.calls: list[dict[str, object]] = []
         self._list_items = list_items or []
@@ -176,6 +178,7 @@ class StubScanService:
         self._scan = scan
         self._source = source
         self._result = result
+        self._result_total = result_total
 
     def list_scans(
         self,
@@ -204,9 +207,25 @@ class StubScanService:
         )
         return _raise_or_return(self._source or _source_access())  # type: ignore[return-value]
 
-    def get_result(self, *, user: User | None, scan_id: uuid.UUID) -> ScanResultData:
-        self.calls.append({"method": "get_result", "user": user, "scan_id": scan_id})
-        return _raise_or_return(self._result or _scan_result())  # type: ignore[return-value]
+    def get_result(
+        self,
+        *,
+        user: User | None,
+        scan_id: uuid.UUID,
+        page: int,
+        page_size: int,
+    ) -> tuple[ScanResultData, int]:
+        self.calls.append(
+            {
+                "method": "get_result",
+                "user": user,
+                "scan_id": scan_id,
+                "page": page,
+                "page_size": page_size,
+            }
+        )
+        data = _raise_or_return(self._result or _scan_result())
+        return data, self._result_total  # type: ignore[return-value]
 
 
 def _make_client(
@@ -529,13 +548,23 @@ def test_get_source_file_missing_returns_404() -> None:
 
 
 def test_get_result_completed_returns_full_shape() -> None:
-    stub = StubScanService(result=_scan_result())
+    stub = StubScanService(result=_scan_result(), result_total=18)
     client = _make_client(stub)
 
-    response = client.get(f"/api/v1/scans/{_SCAN_ID}/result")
+    response = client.get(
+        f"/api/v1/scans/{_SCAN_ID}/result",
+        params={"page": 2, "page_size": 6},
+    )
 
     assert response.status_code == 200
-    data = response.json()["data"]
+    body = response.json()
+    assert body["meta"] == {
+        "page": 2,
+        "page_size": 6,
+        "total": 18,
+        "total_pages": 3,
+    }
+    data = body["data"]
     assert data["scan"]["id"] == str(_SCAN_ID)
     assert data["scan"]["status"] == "COMPLETED"
     assert data["scan"]["source"]["file_name"] == "menu.jpg"
@@ -545,6 +574,52 @@ def test_get_result_completed_returns_full_shape() -> None:
     assert data["menu"]["title"] == "Lunch Menu"
     assert data["menu"]["items"][0]["id"] == str(_ITEM_ID)
     assert data["menu"]["items"][0]["original_name"] == "Pho bo"
+    assert stub.calls[0]["method"] == "get_result"
+    assert stub.calls[0]["page"] == 2
+    assert stub.calls[0]["page_size"] == 6
+
+
+def test_get_result_defaults_to_first_page_of_six_items() -> None:
+    stub = StubScanService(result=_scan_result(), result_total=1)
+    client = _make_client(stub)
+
+    response = client.get(f"/api/v1/scans/{_SCAN_ID}/result")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["meta"] == {
+        "page": 1,
+        "page_size": 6,
+        "total": 1,
+        "total_pages": 1,
+    }
+    assert stub.calls[0]["page"] == 1
+    assert stub.calls[0]["page_size"] == 6
+
+
+def test_get_result_rejects_invalid_page() -> None:
+    stub = StubScanService()
+    client = _make_client(stub)
+
+    response = client.get(f"/api/v1/scans/{_SCAN_ID}/result", params={"page": 0})
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    assert stub.calls == []
+
+
+def test_get_result_rejects_page_size_above_limit() -> None:
+    stub = StubScanService()
+    client = _make_client(stub)
+
+    response = client.get(
+        f"/api/v1/scans/{_SCAN_ID}/result",
+        params={"page_size": 51},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    assert stub.calls == []
 
 
 def test_get_result_price_as_decimal_string() -> None:
@@ -567,6 +642,40 @@ def test_get_result_preview_url_format() -> None:
     assert response.status_code == 200
     source = response.json()["data"]["scan"]["source"]
     assert source["preview_url"] == f"/api/v1/scans/{_SCAN_ID}/source"
+
+
+def test_scan_service_get_result_paginates_and_sorts_menu_items() -> None:
+    scan = _completed_scan_with_menu_items()
+    service = ScanService(
+        session=object(),  # type: ignore[arg-type]
+        repository=FakeScanResultRepository(scan),  # type: ignore[arg-type]
+        storage=FakeStorage(),  # type: ignore[arg-type]
+    )
+
+    first_page, total = service.get_result(
+        user=None,
+        scan_id=scan.id,
+        page=1,
+        page_size=6,
+    )
+    second_page, second_total = service.get_result(
+        user=None,
+        scan_id=scan.id,
+        page=2,
+        page_size=6,
+    )
+
+    assert total == 7
+    assert second_total == 7
+    assert [item.original_name for item in first_page.menu.items] == [
+        "Dish 1",
+        "Dish 2",
+        "Dish 3",
+        "Dish 4",
+        "Dish 5",
+        "Dish 6",
+    ]
+    assert [item.original_name for item in second_page.menu.items] == ["Dish 7"]
 
 
 def test_get_result_pending_returns_409() -> None:
@@ -617,3 +726,76 @@ def test_get_result_not_found_returns_404() -> None:
 
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "SCAN_NOT_FOUND"
+
+
+class FakeScanResultRepository:
+    def __init__(self, scan: ScanSession | None) -> None:
+        self.scan = scan
+
+    def get_by_id(
+        self,
+        session: object,
+        *,
+        scan_id: uuid.UUID,
+    ) -> ScanSession | None:
+        if self.scan is not None and self.scan.id == scan_id:
+            return self.scan
+        return None
+
+
+class FakeStorage:
+    pass
+
+
+def _completed_scan_with_menu_items() -> ScanSession:
+    scan = ScanSession(
+        id=_SCAN_ID,
+        user_id=None,
+        source_object_key="guests/scans/source",
+        source_file_name="menu.jpg",
+        source_mime_type="image/jpeg",
+        source_file_size=len(JPEG_BYTES),
+        source_page_count=1,
+        target_language="en",
+        status=ScanStatus.COMPLETED,
+        progress=100,
+        created_at=_CREATED_AT,
+        started_at=_CREATED_AT,
+        completed_at=_COMPLETED_AT,
+    )
+    menu = Menu(
+        id=_MENU_ID,
+        title="Lunch Menu",
+        source_language="vi",
+        target_language="en",
+        default_currency="VND",
+        is_saved=False,
+        status=MenuStatus.DRAFT,
+        created_at=_CREATED_AT,
+        updated_at=_CREATED_AT,
+    )
+    ids = [
+        uuid.UUID(f"00000000-aaaa-bbbb-cccc-00000000000{index}")
+        for index in range(1, 8)
+    ]
+    # Intentionally reverse assignment order so the assertion proves service
+    # pagination uses sort_order, not relationship/list insertion order.
+    menu.food_items = [
+        FoodItem(
+            id=ids[index - 1],
+            original_name=f"Dish {index}",
+            translated_name=None,
+            original_description=None,
+            translated_description=None,
+            price=Decimal("10000.00"),
+            currency="VND",
+            category="Test",
+            confidence_score=None,
+            sort_order=index,
+            created_at=_CREATED_AT,
+            updated_at=_CREATED_AT,
+        )
+        for index in range(7, 0, -1)
+    ]
+    scan.menu = menu
+    return scan

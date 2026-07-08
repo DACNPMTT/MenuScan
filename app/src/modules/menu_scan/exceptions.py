@@ -35,7 +35,17 @@ class InvalidPdfError(ApplicationError):
         super().__init__(
             status_code=422,
             code="INVALID_PDF",
-            message="The PDF is invalid or exceeds the 5 page limit.",
+            message="The PDF is invalid or exceeds the 8 page limit.",
+        )
+
+
+class TooManyPagesError(ApplicationError):
+    def __init__(self, max_pages: int) -> None:
+        super().__init__(
+            status_code=422,
+            code="TOO_MANY_PAGES",
+            message=f"A scan may include at most {max_pages} pages.",
+            details={"max_pages": max_pages},
         )
 
 

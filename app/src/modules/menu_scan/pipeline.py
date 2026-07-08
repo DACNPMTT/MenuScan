@@ -28,7 +28,10 @@ from src.modules.menu_scan.exceptions import (
     OcrTimeoutError,
 )
 from src.modules.menu_scan.menu_parser import MenuParser
+from src.modules.menu_scan.menu_validity import looks_like_menu
 from src.modules.menu_scan.models import OcrResult, ScanSession, ScanStatus
+from src.modules.menu_scan.output_verifier import verify_draft
+from src.modules.menu_scan.ocr.document_preprocessor import DocumentPreprocessor
 from src.modules.menu_scan.ocr.service import OcrService, OcrSource
 from src.modules.menu_scan.ocr_contract import OcrDocument, ParsedMenuDraft
 from src.modules.menu_scan.repository import ScanSessionRepository
@@ -44,6 +47,7 @@ _ERROR_OCR_TIMEOUT = "OCR_TIMEOUT"
 _ERROR_OCR_PROVIDER_UNAVAILABLE = "OCR_PROVIDER_UNAVAILABLE"
 _ERROR_OCR_EMPTY_RESULT = "OCR_EMPTY_RESULT"
 _ERROR_OCR_PROCESSING_FAILED = "OCR_PROCESSING_FAILED"
+_ERROR_INVALID_DOCUMENT = "INVALID_DOCUMENT"
 _ERROR_PARSING_FAILED = "PARSING_FAILED"
 _ERROR_PROCESSING_FAILED = "PROCESSING_FAILED"
 
@@ -53,6 +57,21 @@ STAGE_OCR = "OCR"
 STAGE_ANALYZING = "ANALYZING"
 STAGE_TRANSLATING = "TRANSLATING"
 STAGE_FINALIZING = "FINALIZING"
+
+# Dietary taxonomy — the parser may only emit these; anything else is dropped so
+# the stored tags stay matchable against a diner's declared allergies / diet.
+_KNOWN_ALLERGENS = frozenset(
+    {
+        "seafood", "shellfish", "fish", "peanut", "tree_nut",
+        "egg", "dairy", "gluten", "soy", "sesame",
+    }
+)
+_KNOWN_DIETARY_TAGS = frozenset(
+    {
+        "contains_pork", "contains_beef", "contains_seafood",
+        "contains_alcohol", "vegetarian", "vegan",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +83,11 @@ class ScanPipeline:
     translation_service: TranslationService
     scan_repository: ScanSessionRepository
     menu_repository: MenuRepository
+    # When True, the analyze stage also receives the menu page image(s) so a
+    # multimodal parser can read the real layout (ADR 0003). Off for the
+    # rule-based/text-only path.
+    attach_images: bool = False
+    image_max_dimension: int = 1536
 
     def process(self, scan_id: uuid.UUID) -> None:
         """Run the full scan pipeline for the given scan_id."""
@@ -108,8 +132,8 @@ class ScanPipeline:
 
         # Run pipeline stages outside the initial session
         try:
-            ocr_document = self._stage_ocr(scan_id)
-            draft = self._stage_analyze(scan_id, ocr_document)
+            ocr_document, page_images = self._stage_ocr(scan_id)
+            draft = self._stage_analyze(scan_id, ocr_document, page_images)
             draft = self._stage_translate(scan_id, draft)
             self._stage_finalize(scan_id, ocr_document, draft)
         except _PipelineError as error:
@@ -119,8 +143,8 @@ class ScanPipeline:
             self._fail_scan(scan_id, _ERROR_PROCESSING_FAILED, str(error))
             raise
 
-    def _stage_ocr(self, scan_id: uuid.UUID) -> OcrDocument:
-        """Read source file and run OCR."""
+    def _stage_ocr(self, scan_id: uuid.UUID) -> tuple[OcrDocument, list[bytes]]:
+        """Read source file, run OCR, and (best-effort) prep page images for the LLM."""
         with self.session_factory() as session:
             scan = self.scan_repository.get_scan_for_processing(
                 session,
@@ -128,29 +152,41 @@ class ScanPipeline:
             )
             assert scan is not None  # noqa: S101
 
-            # Read source from storage
-            try:
-                stored = self.storage.read_object(scan.source_object_key)
-            except ObjectNotFoundError as error:
-                raise _PipelineError(
-                    _ERROR_SOURCE_FILE_NOT_FOUND,
-                    "Source file not found in storage.",
-                ) from error
-            except ObjectStorageError as error:
-                raise _PipelineError(
-                    _ERROR_STORAGE_UNAVAILABLE,
-                    "Storage is temporarily unavailable.",
-                ) from error
+            # A scan may bundle several source files (multiple photos / a PDF).
+            # Read them all in upload order; fall back to the single primary key
+            # for legacy scans created before scan_source_files existed.
+            source_refs = [
+                (sf.object_key, sf.mime_type)
+                for sf in scan.source_files
+            ] or [(scan.source_object_key, scan.source_mime_type)]
 
-            source = OcrSource(
-                object_key=scan.source_object_key,
-                data=stored.data,
-                mime_type=scan.source_mime_type,
-            )
+            sources: list[OcrSource] = []
+            for object_key, mime_type in source_refs:
+                try:
+                    stored = self.storage.read_object(object_key)
+                except ObjectNotFoundError as error:
+                    raise _PipelineError(
+                        _ERROR_SOURCE_FILE_NOT_FOUND,
+                        "Source file not found in storage.",
+                    ) from error
+                except ObjectStorageError as error:
+                    raise _PipelineError(
+                        _ERROR_STORAGE_UNAVAILABLE,
+                        "Storage is temporarily unavailable.",
+                    ) from error
+                sources.append(
+                    OcrSource(
+                        object_key=object_key,
+                        data=stored.data,
+                        mime_type=mime_type,
+                    )
+                )
 
-        # Run OCR (outside DB session — may be slow)
+        # Run OCR on each file (outside DB session — may be slow), then merge.
         try:
-            ocr_document = self.ocr_service.process(source)
+            ocr_document = _merge_ocr_documents(
+                [self.ocr_service.process(source) for source in sources]
+            )
         except OcrTimeoutError as error:
             raise _PipelineError(_ERROR_OCR_TIMEOUT, "OCR timed out.") from error
         except OcrProviderUnavailableError as error:
@@ -199,15 +235,60 @@ class ScanPipeline:
             _update_scan(scan, stage=STAGE_ANALYZING, progress=30)
             session.commit()
 
-        logger.info("pipeline_ocr_complete scan_id=%s", scan_id)
-        return ocr_document
+        page_images = self._prepare_llm_images(sources)
+
+        logger.info(
+            "pipeline_ocr_complete scan_id=%s source_files=%d llm_images=%d",
+            scan_id,
+            len(sources),
+            len(page_images),
+        )
+        return ocr_document, page_images
+
+    def _prepare_llm_images(self, sources: list[OcrSource]) -> list[bytes]:
+        """Downscale every source into per-page PNGs for a multimodal parser.
+
+        Best-effort: image prep must never fail the scan. A source that fails to
+        prepare is skipped; the parser still gets the pages that succeeded (or
+        falls back to text-only when none do).
+        """
+        if not self.attach_images:
+            return []
+        preprocessor = DocumentPreprocessor(
+            max_image_dimension=self.image_max_dimension,
+            contrast_factor=1.0,
+        )
+        images: list[bytes] = []
+        for source in sources:
+            try:
+                prepared = preprocessor.prepare(
+                    data=source.data,
+                    mime_type=source.mime_type,
+                )
+                images.extend(page.image_bytes for page in prepared.pages)
+            except Exception:
+                logger.warning(
+                    "pipeline_llm_image_prep_failed object_key=%s — skipping",
+                    source.object_key,
+                )
+        return images
 
     def _stage_analyze(
         self,
         scan_id: uuid.UUID,
         ocr_document: OcrDocument,
+        images: list[bytes],
     ) -> ParsedMenuDraft:
         """Parse OCR document into structured menu draft."""
+        # Cheap "is this a menu?" gate before the expensive LLM parse: reject
+        # obviously-wrong photos (prose, no menu structure) fast instead of
+        # spending an LLM call on them.
+        if not looks_like_menu(ocr_document):
+            raise _PipelineError(
+                _ERROR_INVALID_DOCUMENT,
+                "The photo does not look like a menu.",
+            )
+
         with self.session_factory() as session:
             scan = self.scan_repository.get_scan_for_processing(
                 session,
@@ -220,12 +301,24 @@ class ScanPipeline:
             draft = self.menu_parser.parse(
                 ocr_document,
                 target_language=target_language,
+                images=images or None,
             )
         except Exception as error:
             raise _PipelineError(
                 _ERROR_PARSING_FAILED,
                 "Menu parsing failed.",
             ) from error
+
+        # Drop items the parser hallucinated (no name/price grounding in the OCR
+        # text). Diacritic-safe and never empties a non-empty draft.
+        draft, dropped = verify_draft(draft, ocr_document)
+        if dropped:
+            logger.info(
+                "pipeline_verify_dropped scan_id=%s dropped=%d kept=%d",
+                scan_id,
+                dropped,
+                len(draft.items),
+            )
 
         with self.session_factory() as session:
             scan = self.scan_repository.get_scan_for_processing(
@@ -305,6 +398,8 @@ class ScanPipeline:
                     price=_safe_decimal(item.price),
                     currency=_safe_currency(item.currency),
                     category=(item.category[:100] if item.category else None),
+                    allergens=_clean_tags(item.allergens, _KNOWN_ALLERGENS),
+                    dietary_tags=_clean_tags(item.dietary_tags, _KNOWN_DIETARY_TAGS),
                     confidence_score=(
                         Decimal(str(item.confidence))
                         if item.confidence is not None
@@ -396,6 +491,54 @@ def _update_scan(
         scan.started_at = started_at
     if completed_at is not None:
         scan.completed_at = completed_at
+
+
+def _merge_ocr_documents(documents: list[OcrDocument]) -> OcrDocument:
+    """Merge per-file OCR results into one document with re-indexed pages.
+
+    Single-file scans pass straight through. For multiple files we concatenate
+    the text, renumber pages sequentially across files, sum processing time, and
+    keep the first document's provider/source identity.
+    """
+    if len(documents) == 1:
+        return documents[0]
+
+    pages = []
+    for document in documents:
+        for page in sorted(document.pages, key=lambda item: item.page_index):
+            pages.append(page.model_copy(update={"page_index": len(pages)}))
+
+    text = "\n\n".join(document.text for document in documents if document.text)
+    confidences = [d.confidence for d in documents if d.confidence is not None]
+    detected = next(
+        (d.detected_language for d in documents if d.detected_language), None
+    )
+    metadata: dict[str, object] = {}
+    for document in documents:
+        metadata.update(document.metadata)
+    metadata["source_file_count"] = len(documents)
+    metadata["page_count"] = len(pages)
+
+    return documents[0].model_copy(
+        update={
+            "text": text,
+            "pages": pages,
+            "detected_language": detected,
+            "confidence": (sum(confidences) / len(confidences)) if confidences else None,
+            "processing_time_ms": sum(d.processing_time_ms for d in documents),
+            "metadata": metadata,
+        }
+    )
+
+
+def _clean_tags(values: list[str], allowed: frozenset[str]) -> list[str]:
+    """Keep only known taxonomy codes, lowercased and de-duplicated in order."""
+    cleaned: list[str] = []
+    for value in values:
+        code = value.strip().lower()
+        if code in allowed and code not in cleaned:
+            cleaned.append(code)
+    return cleaned
 
 
 def _safe_decimal(value: str | None) -> Decimal | None:

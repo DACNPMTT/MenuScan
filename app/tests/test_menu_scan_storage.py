@@ -16,9 +16,10 @@ from src.modules.menu_scan.adapters.storage import (
 from src.modules.menu_scan.exceptions import (
     ScanForbiddenError,
     StorageUnavailableError,
+    TooManyPagesError,
 )
 from src.modules.menu_scan.models import ScanSession
-from src.modules.menu_scan.service import ScanService
+from src.modules.menu_scan.service import ScanService, UploadCandidate
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"menu-image-bytes"
 
@@ -102,8 +103,7 @@ def test_upload_and_read_back_source_binary(tmp_path: Path) -> None:
 
     created = service.create_scan(
         user=user,
-        file_name="../menu.png",
-        content=PNG_BYTES,
+        files=[UploadCandidate(file_name="../menu.png", content=PNG_BYTES)],
         target_language="en",
     )
     access = service.get_source_access(user=user, scan_id=created.id)
@@ -114,6 +114,56 @@ def test_upload_and_read_back_source_binary(tmp_path: Path) -> None:
     assert scan.source_object_key == f"users/{user.id}/scans/{created.id}/source"
     assert "menu.png" not in scan.source_object_key
     assert scan.source_file_name == "menu.png"
+
+
+JPEG_BYTES = b"\xff\xd8\xff" + b"menu-jpeg-bytes"
+
+
+def test_multiple_images_create_source_files_rows(tmp_path: Path) -> None:
+    user = _user()
+    repository = FakeScanRepository()
+    service = ScanService(
+        session=FakeSession(),
+        repository=repository,
+        storage=LocalObjectStorage(tmp_path),
+    )
+
+    created = service.create_scan(
+        user=user,
+        files=[
+            UploadCandidate(file_name="p1.png", content=PNG_BYTES),
+            UploadCandidate(file_name="p2.jpg", content=JPEG_BYTES),
+        ],
+        target_language="en",
+    )
+    scan = repository.scans[created.id]
+
+    # Primary keeps the historical key; the extra gets a -1 suffix.
+    base = f"users/{user.id}/scans/{created.id}/source"
+    assert scan.source_object_key == base
+    assert scan.source_page_count == 2
+    assert [sf.object_key for sf in scan.source_files] == [base, f"{base}-1"]
+    assert [sf.sort_order for sf in scan.source_files] == [0, 1]
+    # Both files round-trip through storage.
+    assert service.get_source_access(user=user, scan_id=created.id).data == PNG_BYTES
+
+
+def test_too_many_pages_rejected(tmp_path: Path) -> None:
+    service = ScanService(
+        session=FakeSession(),
+        repository=FakeScanRepository(),
+        storage=LocalObjectStorage(tmp_path),
+    )
+
+    with pytest.raises(TooManyPagesError):
+        service.create_scan(
+            user=_user(),
+            files=[
+                UploadCandidate(file_name=f"p{i}.png", content=PNG_BYTES)
+                for i in range(9)  # 9 single-page images > 8-page cap
+            ],
+            target_language="vi",
+        )
 
 
 def test_only_owner_can_get_source_url_or_binary(tmp_path: Path) -> None:
@@ -127,8 +177,7 @@ def test_only_owner_can_get_source_url_or_binary(tmp_path: Path) -> None:
     )
     created = service.create_scan(
         user=owner,
-        file_name="menu.png",
-        content=PNG_BYTES,
+        files=[UploadCandidate(file_name="menu.png", content=PNG_BYTES)],
         target_language="vi",
     )
 
@@ -146,8 +195,7 @@ def test_storage_failure_returns_stable_error() -> None:
     with pytest.raises(StorageUnavailableError):
         service.create_scan(
             user=_user(),
-            file_name="menu.png",
-            content=PNG_BYTES,
+            files=[UploadCandidate(file_name="menu.png", content=PNG_BYTES)],
             target_language="vi",
         )
 
@@ -166,8 +214,7 @@ def test_scan_create_failure_cleans_up_orphan_object(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="database commit failed"):
         service.create_scan(
             user=user,
-            file_name="menu.png",
-            content=PNG_BYTES,
+            files=[UploadCandidate(file_name="menu.png", content=PNG_BYTES)],
             target_language="vi",
         )
 

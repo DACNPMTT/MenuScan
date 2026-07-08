@@ -12,6 +12,7 @@ import {
   ScanLine,
   Sparkles,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { ApiError, apiRequestWithMeta } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
@@ -23,13 +24,6 @@ import type {
 
 const PAGE_SIZE = 20
 const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '')
-
-const STATUS_LABELS: Record<ScanStatus, string> = {
-  PENDING: 'Đang chờ',
-  PROCESSING: 'Đang xử lý',
-  COMPLETED: 'Hoàn tất',
-  FAILED: 'Thất bại',
-}
 
 const STATUS_STYLES: Record<ScanStatus, string> = {
   PENDING: 'bg-secondary text-ink-variant',
@@ -53,9 +47,10 @@ function formatScanTime(value: string): string {
 }
 
 export function DashboardPage() {
+  const { t } = useTranslation()
   useDocumentTitle('Dashboard | MenuScan')
   const { user, accessToken } = useAuth()
-  const displayName = user?.display_name || user?.email?.split('@')[0] || 'bạn'
+  const displayName = user?.display_name || user?.email?.split('@')[0] || t('dashboard.fallbackName')
   const [scans, setScans] = useState<ScanHistoryItem[]>([])
   const [meta, setMeta] = useState<PaginationMeta | null>(null)
   const [loading, setLoading] = useState(true)
@@ -82,7 +77,7 @@ export function DashboardPage() {
       setError(
         err instanceof ApiError
           ? err.message
-          : 'Không thể tải lịch sử scan.',
+          : t('dashboard.historyError'),
       )
     } finally {
       setLoading(false)
@@ -106,11 +101,11 @@ export function DashboardPage() {
     <div className="mx-auto w-full max-w-[1200px] px-4 py-[30px] sm:px-[50px] sm:py-[40px]">
       <div className="flex flex-col gap-2">
         <h1 className="text-[32px] font-bold leading-[40px] text-primary-dark sm:text-[44px] sm:leading-[52px]">
-          Chào mừng trở lại, {displayName}
+          {t('dashboard.welcome', { name: displayName })}
         </h1>
         <p className="flex items-center gap-2 text-[14px] text-ink-variant">
           <Sparkles className="size-4 text-primary-dark" aria-hidden />
-          Trạng thái hệ thống: mọi dịch vụ đang hoạt động
+          {t('dashboard.systemStatus')}
         </p>
       </div>
 
@@ -124,10 +119,10 @@ export function DashboardPage() {
           </span>
           <span className="flex flex-col gap-1.5">
             <span className="text-[20px] leading-[28px] text-primary-dark">
-              Tải ảnh / PDF lên
+              {t('dashboard.upload.title')}
             </span>
             <span className="text-[14px] text-ink-variant">
-              Kéo thả hoặc chọn file từ máy
+              {t('dashboard.upload.desc')}
             </span>
           </span>
         </Link>
@@ -140,20 +135,20 @@ export function DashboardPage() {
           </span>
           <span className="flex flex-col gap-1.5">
             <span className="text-[20px] leading-[28px] text-white">
-              Quét bằng camera
+              {t('dashboard.camera.title')}
             </span>
             <span className="text-[14px] text-[#e0e4d6]">
-              Chụp menu vật lý tức thì
+              {t('dashboard.camera.desc')}
             </span>
           </span>
         </Link>
       </div>
 
       <div className="mt-[25px] grid grid-cols-1 gap-[20px] sm:grid-cols-3">
-        <MetricCard label="Menu đã quét" value={String(totalScans)} />
-        <MetricCard label="Món đã tải" value={String(loadedItemCount)} />
+        <MetricCard label={t('dashboard.metrics.scanned')} value={String(totalScans)} />
+        <MetricCard label={t('dashboard.metrics.itemsLoaded')} value={String(loadedItemCount)} />
         <MetricCard
-          label="Trang lịch sử"
+          label={t('dashboard.metrics.historyPage')}
           value={meta ? `${meta.page}/${Math.max(meta.total_pages, 1)}` : '1/1'}
         />
       </div>
@@ -161,18 +156,18 @@ export function DashboardPage() {
       <section className="mt-[30px] overflow-hidden rounded-[12px] border border-hairline bg-canvas">
         <header className="flex flex-col gap-1 border-b border-hairline bg-app-bg px-[20px] py-[16px] sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-[20px] leading-[28px] text-primary-dark">
-            Phiên quét gần đây
+            {t('dashboard.recent')}
           </h2>
           {meta && (
             <span className="text-[13px] text-ink-variant">
-              {meta.total} phiên scan
+              {t('dashboard.sessionCount', { count: meta.total })}
             </span>
           )}
         </header>
 
         {loading ? (
           <HistoryMessage icon={<Loader2 className="size-7 animate-spin" />}>
-            Đang tải lịch sử scan...
+            {t('dashboard.loadingHistory')}
           </HistoryMessage>
         ) : error ? (
           <HistoryError message={error} onRetry={() => void loadScans(1)} />
@@ -200,7 +195,7 @@ export function DashboardPage() {
                   ) : (
                     <RefreshCw className="size-4" aria-hidden />
                   )}
-                  Tải thêm
+                  {t('dashboard.loadMore')}
                 </button>
               </div>
             )}
@@ -227,6 +222,7 @@ function ScanHistoryRow({
   scan: ScanHistoryItem
   accessToken: string | null
 }) {
+  const { t } = useTranslation()
   const itemCount = scan.menu?.item_count ?? 0
   return (
     <Link
@@ -242,13 +238,13 @@ function ScanHistoryRow({
           <span
             className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${STATUS_STYLES[scan.status]}`}
           >
-            {STATUS_LABELS[scan.status]}
+            {t(`dashboard.status.${scan.status}`)}
           </span>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-variant">
           <span className="flex items-center gap-1.5">
             <ScanLine className="size-3.5" aria-hidden />
-            {itemCount} món
+            {t('dashboard.dishCount', { count: itemCount })}
           </span>
           <span className="flex items-center gap-1.5">
             <Clock3 className="size-3.5" aria-hidden />
@@ -257,13 +253,13 @@ function ScanHistoryRow({
           {scan.menu?.is_saved && (
             <span className="flex items-center gap-1.5 text-primary-dark">
               <CheckCircle2 className="size-3.5" aria-hidden />
-              Đã lưu
+              {t('dashboard.saved')}
             </span>
           )}
         </div>
       </div>
       <div className="hidden items-center text-[13px] font-medium text-ink-variant sm:flex">
-        Xem kết quả
+        {t('dashboard.viewResult')}
       </div>
     </Link>
   )
@@ -343,6 +339,7 @@ function HistoryError({
   message: string
   onRetry: () => void
 }) {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-col items-center gap-4 px-[20px] py-[50px] text-center">
       <span className="flex size-14 items-center justify-center rounded-full bg-destructive/10">
@@ -357,29 +354,30 @@ function HistoryError({
         className="flex min-h-10 items-center gap-2 rounded-[8px] border border-destructive/30 px-4 py-2 text-[14px] font-medium text-destructive transition-colors hover:bg-destructive/10"
       >
         <RefreshCw className="size-4" aria-hidden />
-        Thử lại
+        {t('common.retry')}
       </button>
     </div>
   )
 }
 
 function EmptyHistory() {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-col items-center gap-4 px-[20px] py-[50px] text-center">
       <span className="flex size-14 items-center justify-center rounded-full bg-surface-muted">
         <ScanLine className="size-7 text-primary-dark" aria-hidden />
       </span>
       <div className="flex flex-col gap-1.5">
-        <p className="text-[16px] font-medium text-ink">Chưa có phiên quét nào</p>
+        <p className="text-[16px] font-medium text-ink">{t('dashboard.empty.title')}</p>
         <p className="max-w-[320px] text-[14px] text-ink-variant">
-          Tải lên menu đầu tiên của bạn để MenuScan trích xuất danh sách món.
+          {t('dashboard.empty.body')}
         </p>
       </div>
       <Link
         to="/app/scan"
         className="mt-1 rounded-[8px] bg-primary-dark px-[24px] py-[10px] text-[15px] font-bold text-white transition-opacity hover:opacity-90"
       >
-        Quét menu ngay
+        {t('dashboard.empty.scanNow')}
       </Link>
     </div>
   )

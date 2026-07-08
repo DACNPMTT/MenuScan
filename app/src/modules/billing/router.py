@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 
 from src.core.responses import success_response
 from src.modules.billing.dependencies import get_billing_service
@@ -17,6 +17,7 @@ from src.modules.billing.schemas import (
     AdjustmentRequest,
     BillResponse,
     BillSplitResponse,
+    BillSummaryResponse,
     CreateBillRequest,
     SplitBillRequest,
     SplitShareResponse,
@@ -39,6 +40,40 @@ def create_bill(
     bill = service.create_bill(user_id=current_user.id, menu_id=payload.menu_id)
     data = BillResponse.model_validate(bill)
     return success_response(data=data.model_dump(mode="json"))
+
+
+@router.get("", status_code=status.HTTP_200_OK)
+def list_bills(
+    current_user: User = Depends(get_current_user),
+    service: BillingService = Depends(get_billing_service),
+) -> dict[str, object]:
+    """List the signed-in user's bills, most recent first (bill history)."""
+    bills = service.list_bills_for_user(user_id=current_user.id)
+    data = [
+        BillSummaryResponse(
+            id=bill.id,
+            menu_id=bill.menu_id,
+            status=bill.status,
+            currency=bill.currency,
+            total_amount=bill.total_amount,
+            item_count=len(bill.items),
+            created_at=bill.created_at,
+            finalized_at=bill.finalized_at,
+        ).model_dump(mode="json")
+        for bill in bills
+    ]
+    return success_response(data=data)
+
+
+@router.delete("/{bill_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_bill(
+    bill_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    service: BillingService = Depends(get_billing_service),
+) -> Response:
+    """Delete one of the caller's own bills. Only the owner may delete it."""
+    service.delete_bill(bill_id=bill_id, user_id=current_user.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/{bill_id}", status_code=status.HTTP_200_OK)

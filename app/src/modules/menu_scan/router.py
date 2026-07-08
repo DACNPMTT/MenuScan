@@ -20,7 +20,7 @@ from src.modules.identity.dependencies import get_current_user, get_optional_cur
 from src.modules.identity.models import User
 from src.modules.menu_scan.dependencies import get_scan_pipeline, get_scan_service
 from src.modules.menu_scan.pipeline import ScanPipeline
-from src.modules.menu_scan.service import ScanService
+from src.modules.menu_scan.service import ScanService, UploadCandidate
 
 logger = logging.getLogger(__name__)
 
@@ -30,16 +30,26 @@ router = APIRouter(prefix="/scans", tags=["scans"])
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
 async def create_scan(
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
+    files: list[UploadFile] = File(default=[]),
+    file: UploadFile | None = File(default=None),
     target_language: str | None = Form(default=None),
     current_user: User | None = Depends(get_optional_current_user),
     service: ScanService = Depends(get_scan_service),
     pipeline: ScanPipeline = Depends(get_scan_pipeline),
 ) -> dict[str, object]:
+    # Accept the multi-file field ``files`` (up to 8 pages) and the legacy
+    # single-file field ``file`` for backward compatibility.
+    uploads = list(files)
+    if file is not None:
+        uploads.append(file)
+    candidates = [
+        UploadCandidate(file_name=upload.filename, content=await upload.read())
+        for upload in uploads
+    ]
+
     data = service.create_scan(
         user=current_user,
-        file_name=file.filename,
-        content=await file.read(),
+        files=candidates,
         target_language=target_language,
     )
     background_tasks.add_task(_run_pipeline, pipeline, data.id)
@@ -101,11 +111,27 @@ def get_scan_source(
 @router.get("/{scan_id}/result", status_code=status.HTTP_200_OK)
 def get_scan_result(
     scan_id: uuid.UUID,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=6, ge=1, le=50),
     current_user: User | None = Depends(get_optional_current_user),
     service: ScanService = Depends(get_scan_service),
 ) -> dict[str, object]:
-    data = service.get_result(user=current_user, scan_id=scan_id)
-    return success_response(data=data.model_dump(mode="json"))
+    data, total = service.get_result(
+        user=current_user,
+        scan_id=scan_id,
+        page=page,
+        page_size=page_size,
+    )
+    total_pages = (total + page_size - 1) // page_size
+    return success_response(
+        data=data.model_dump(mode="json"),
+        meta={
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "total_pages": total_pages,
+        },
+    )
 
 
 def _run_pipeline(pipeline: ScanPipeline, scan_id: uuid.UUID) -> None:

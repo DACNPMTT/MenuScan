@@ -26,8 +26,15 @@ class _StubParser:
         self._error = error
         self.called = False
 
-    def parse(self, document: object, *, target_language: str = "en") -> ParsedMenuDraft:
+    def parse(
+        self,
+        document: object,
+        *,
+        target_language: str = "en",
+        images: object = None,
+    ) -> ParsedMenuDraft:
         self.called = True
+        self.received_images = images
         if self._error is not None:
             raise self._error
         return _draft(self.name)

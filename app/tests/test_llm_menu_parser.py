@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 from typing import Any
 
@@ -142,6 +143,150 @@ def test_gemini_parser_prompt_includes_layout_coordinates() -> None:
     assert "rare beef, herbs" in prompt
 
 
+def test_gemini_parser_attaches_images_in_multimodal_request() -> None:
+    provider_body = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {
+                            "text": json.dumps(
+                                {
+                                    "items": [
+                                        {
+                                            "original_name": "Pho bo",
+                                            "price": "60000.00",
+                                            "currency": "VND",
+                                            "sort_order": 0,
+                                        }
+                                    ],
+                                }
+                            )
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+    client = FakeClient(FakeResponse(200, provider_body))
+    parser = GeminiMenuParser(
+        api_key="test-key",
+        api_base_url="https://gemini.example.test/v1beta",
+        model="gemini-2.5-flash",
+        timeout_seconds=5,
+        client=client,  # type: ignore[arg-type]
+    )
+
+    parser.parse(
+        make_single_column_document(["Pho bo", "60.000 VND"]),
+        target_language="en",
+        images=[b"\x89PNG\r\n\x1a\nfake-image-bytes"],
+    )
+
+    parts = client.calls[0]["json"]["contents"][0]["parts"]
+    # First part is the text prompt, second is the inline image.
+    assert parts[0]["text"]
+    assert parts[1]["inlineData"]["mimeType"] == "image/png"
+    decoded = base64.b64decode(parts[1]["inlineData"]["data"])
+    assert decoded == b"\x89PNG\r\n\x1a\nfake-image-bytes"
+    prompt = parts[0]["text"]
+    assert "authoritative for layout" in prompt
+    # With an image, the coordinate dump is dropped in favour of the image.
+    assert "Structured OCR blocks:" not in prompt
+
+
+def test_gemini_parser_stays_text_only_without_images() -> None:
+    provider_body = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {"text": json.dumps({"items": []})}
+                    ]
+                }
+            }
+        ]
+    }
+    client = FakeClient(FakeResponse(200, provider_body))
+    parser = GeminiMenuParser(
+        api_key="test-key",
+        api_base_url="https://gemini.example.test/v1beta",
+        model="gemini-2.5-flash",
+        timeout_seconds=5,
+        client=client,  # type: ignore[arg-type]
+    )
+
+    parser.parse(make_single_column_document(["Pho bo", "60.000 VND"]), target_language="en")
+
+    parts = client.calls[0]["json"]["contents"][0]["parts"]
+    assert len(parts) == 1
+    assert "inlineData" not in parts[0]
+    assert "Structured OCR blocks:" in parts[0]["text"]
+
+
+def test_gemini_parser_rotates_key_on_429() -> None:
+    provider_body = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {
+                            "text": json.dumps(
+                                {
+                                    "items": [
+                                        {
+                                            "original_name": "Pho bo",
+                                            "price": "60000.00",
+                                            "currency": "VND",
+                                            "sort_order": 0,
+                                        }
+                                    ]
+                                }
+                            )
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+    # First key is quota-limited (429); the parser should rotate to the second.
+    client = FakeClient([FakeResponse(429), FakeResponse(200, provider_body)])
+    parser = GeminiMenuParser(
+        api_key="unused",
+        api_keys=("key-1", "key-2"),
+        api_base_url="https://gemini.example.test/v1beta",
+        model="gemini-2.5-flash",
+        timeout_seconds=5,
+        client=client,  # type: ignore[arg-type]
+        retry_backoff_seconds=0,
+    )
+
+    draft = parser.parse(_document("Pho bo 60.000 VND"), target_language="en")
+
+    assert len(client.calls) == 2
+    assert client.calls[0]["params"] == {"key": "key-1"}
+    assert client.calls[1]["params"] == {"key": "key-2"}
+    assert draft.items[0].original_name == "Pho bo"
+
+
+def test_gemini_parser_all_keys_exhausted_raises_unavailable() -> None:
+    client = FakeClient([FakeResponse(429), FakeResponse(429)])
+    parser = GeminiMenuParser(
+        api_key="unused",
+        api_keys=("key-1", "key-2"),
+        api_base_url="https://gemini.example.test/v1beta",
+        model="gemini-2.5-flash",
+        timeout_seconds=5,
+        client=client,  # type: ignore[arg-type]
+        retry_backoff_seconds=0,
+    )
+
+    with pytest.raises(LlmMenuParserUnavailableError):
+        parser.parse(_document("Pho bo 60.000 VND"), target_language="en")
+    # Both keys were tried before giving up.
+    assert len(client.calls) == 2
+
+
 def test_gemini_parser_maps_429_to_unavailable() -> None:
     parser = GeminiMenuParser(
         api_key="test-key",
@@ -194,6 +339,78 @@ def test_gemini_parser_retries_transient_503_then_succeeds() -> None:
 
     assert len(client.calls) == 2
     assert draft.items[0].original_name == "Pho bo"
+
+
+def test_gemini_parser_prompt_includes_prealigned_csv_and_disables_thinking() -> None:
+    provider_body = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {
+                            "text": json.dumps(
+                                {
+                                    "items": [
+                                        {
+                                            "original_name": "Phở bò",
+                                            "price": "60000.00",
+                                            "currency": "VND",
+                                            "sort_order": 0,
+                                        }
+                                    ]
+                                }
+                            )
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+    client = FakeClient(FakeResponse(200, provider_body))
+    parser = GeminiMenuParser(
+        api_key="test-key",
+        api_base_url="https://gemini.example.test/v1beta",
+        model="gemini-2.5-flash",
+        timeout_seconds=5,
+        client=client,  # type: ignore[arg-type]
+    )
+
+    parser.parse(
+        make_single_column_document(["Phở bò 60.000đ", "Bún bò 55.000đ"]),
+        target_language="en",
+    )
+
+    body = client.calls[0]["json"]
+    prompt = body["contents"][0]["parts"][0]["text"]
+    assert "Pre-aligned candidate rows (CSV)" in prompt
+    assert "Phở bò" in prompt
+    # Latency: thinking is disabled for this structured extraction.
+    assert body["generationConfig"]["thinkingConfig"]["thinkingBudget"] == 0
+
+
+def test_gemini_parser_prealign_csv_off_omits_csv() -> None:
+    provider_body = {
+        "candidates": [
+            {"content": {"parts": [{"text": json.dumps({"items": []})}]}}
+        ]
+    }
+    client = FakeClient(FakeResponse(200, provider_body))
+    parser = GeminiMenuParser(
+        api_key="test-key",
+        api_base_url="https://gemini.example.test/v1beta",
+        model="gemini-2.5-flash",
+        timeout_seconds=5,
+        client=client,  # type: ignore[arg-type]
+        prealign_csv=False,
+    )
+
+    parser.parse(
+        make_single_column_document(["Phở bò 60.000đ", "Bún bò 55.000đ"]),
+        target_language="en",
+    )
+
+    prompt = client.calls[0]["json"]["contents"][0]["parts"][0]["text"]
+    assert "Pre-aligned candidate rows" not in prompt
 
 
 def _document(text: str) -> OcrDocument:

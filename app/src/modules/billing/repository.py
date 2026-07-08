@@ -45,10 +45,15 @@ class BillRepository:
         return session.scalars(statement).first()
 
     def list_for_user(self, session: Session, user_id: uuid.UUID) -> list[Bill]:
-        """Return every bill owned by ``user_id``, most recent first."""
+        """Return every bill owned by ``user_id``, most recent first.
+
+        Line items are eager-loaded so a history listing can show a dish count
+        without an extra query per bill.
+        """
         statement = (
             select(Bill)
             .where(Bill.user_id == user_id)
+            .options(selectinload(Bill.items))
             .order_by(Bill.created_at.desc())
         )
         return list(session.scalars(statement).all())
@@ -58,6 +63,11 @@ class BillRepository:
         session.add(bill)
         session.flush()
         return bill
+
+    def delete(self, session: Session, bill: Bill) -> None:
+        """Stage the bill for deletion; its items/adjustments cascade with it."""
+        session.delete(bill)
+        session.flush()
 
     def add_item(self, session: Session, item: BillItem) -> BillItem:
         """Stage a new bill item and flush."""
