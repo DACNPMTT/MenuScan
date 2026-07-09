@@ -1,3 +1,12 @@
-Hà Huy <hahuyp24@gmail.com> ClaudeCode <claude@anthropic.com>
-Hà Huy <hahuyp24@gmail.com> Github Copilot <copilot@github.com>
-H� Huy <hahuyp24@gmail.com> antigravity <antigravity@google.com>
+# Group automated bot / AI-assistant commits under the maintainer so they do
+# not show up as separate entries in GitHub's Contributors graph.
+# Display-only: the real author is still preserved in the git commit history.
+#
+# Format:  Canonical Name <canonical@email> <commit@email-to-fold-in>
+
+Huỳnh Đại Hà <huynhdaihafc@gmail.com> <49699333+dependabot[bot]@users.noreply.github.com>
+Huỳnh Đại Hà <huynhdaihafc@gmail.com> <198982749+Copilot@users.noreply.github.com>
+Huỳnh Đại Hà <huynhdaihafc@gmail.com> <noreply@anthropic.com>
+Huỳnh Đại Hà <huynhdaihafc@gmail.com> <claude@anthropic.com>
+Huỳnh Đại Hà <huynhdaihafc@gmail.com> <copilot@github.com>
+Huỳnh Đại Hà <huynhdaihafc@gmail.com> <antigravity@google.com>
