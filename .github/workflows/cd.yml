@@ -60,7 +60,7 @@ jobs:
           gcloud run jobs deploy menuscan-migrate \
             --image ${{ env.IMAGE }}:sha-${{ steps.vars.outputs.sha_short }} \
             --region ${{ env.REGION }} \
-            --add-cloudsql-instances ${{ env.CLOUDSQL_INSTANCE }} \
+            --set-cloudsql-instances ${{ env.CLOUDSQL_INSTANCE }} \
             --set-env-vars "DATABASE_URL=${{ secrets.DEV_DATABASE_URL }}" \
             --set-env-vars "APP_ENV=production" \
             --command "uv" \
