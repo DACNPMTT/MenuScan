@@ -342,6 +342,16 @@
     "skip": "Skip for now",
     "saveError": "Couldn't save. Please try again."
   },
+  "verdict": {
+    "avoid": "Avoid",
+    "caution": "Consider",
+    "good": "Recommended",
+    "reason": {
+      "allergen": "may contain {{list}} — ask before ordering",
+      "diet": "doesn't fit your diet ({{list}})",
+      "favorite": "matches your taste"
+    }
+  },
   "billItem": {
     "lowConfidence": "Low OCR confidence ({{value}}%).",
     "allergyWarning": "WARNING: Allergy Match Found (Seafood)",

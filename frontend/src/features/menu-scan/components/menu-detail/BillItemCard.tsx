@@ -8,6 +8,7 @@ import {
   itemPrice,
 } from '@/features/menu-scan/lib'
 import { assessDish, type DietProfile } from '@/features/menu-scan/dietary'
+import { dishVerdict, type Verdict } from '@/features/menu-scan/ranking'
 import { formatConvertedAmount, type ExchangeRates } from '@/shared/lib/currency'
 import type {
   BillItem,
@@ -16,12 +17,23 @@ import type {
   ItemValidationErrors,
 } from '@/features/menu-scan/types'
 
+/** Colored banner styles per verdict (safety-first red for avoid). */
+const VERDICT_STYLES: Record<Verdict, string> = {
+  avoid: 'bg-destructive text-white',
+  caution: 'border border-[#e0a800]/50 bg-[#fff8e1] text-[#8a6d00]',
+  good: 'border border-[#1a7f37]/40 bg-[#e6f4ea] text-[#1a7f37]',
+  neutral: '',
+}
+
 export interface BillItemCardProps {
   item: BillItem
   dietProfile: DietProfile
-  /** Marks a dish that positively fits the diner's taste — shows a
-   * "recommended for you" badge. Defaults to off. */
+  /** Marks a dish that positively fits the diner's taste — drives the "good"
+   * verdict. Defaults to off. */
   recommended?: boolean
+  /** Optional advisor output (from the LLM advisor, future). When present its
+   * `reason` overrides the rule-based reason under the verdict. */
+  advice?: { reason: string }
   draft: ItemDraft
   editing: boolean
   dirty: boolean
@@ -48,6 +60,7 @@ export function BillItemCard({
   item,
   dietProfile,
   recommended = false,
+  advice,
   draft,
   editing,
   dirty,
@@ -69,6 +82,25 @@ export function BillItemCard({
 }: BillItemCardProps) {
   const { t } = useTranslation()
   const risk = assessDish(item, dietProfile)
+  // Advisor verdict: one clear "should I eat this?" line. Rule-based today
+  // (from allergy/diet/taste signals); the LLM advisor can pass a richer
+  // `advice.reason` for the same verdict later.
+  const verdict = dishVerdict(risk, recommended)
+  const verdictReason =
+    advice?.reason ??
+    (verdict === 'avoid'
+      ? t('verdict.reason.allergen', {
+          list: risk.allergens.map((code) => t(`diet.allergens.${code}`)).join(', '),
+        })
+      : verdict === 'caution'
+        ? t('verdict.reason.diet', {
+            list: risk.dietFlags
+              .map((code) => t(`diet.preferences.${code}`))
+              .join(', '),
+          })
+        : verdict === 'good'
+          ? t('verdict.reason.favorite')
+          : '')
   const confidence = confidenceValue(item)
   const lowConfidenceLabel =
     confidence !== null && confidence < LOW_CONFIDENCE_THRESHOLD
@@ -87,26 +119,23 @@ export function BillItemCard({
 
   return (
     <article className="flex min-h-[190px] flex-col gap-3 rounded-[8px] border border-hairline bg-canvas p-5">
-      {recommended && (
-        <div className="flex items-center gap-2 rounded-[6px] border border-[#1a7f37]/40 bg-[#e6f4ea] px-3 py-1.5 text-[12px] font-bold text-[#1a7f37]">
-          <Sparkles className="size-3.5 shrink-0" aria-hidden />
-          {t('billItem.recommended')}
-        </div>
-      )}
-      {risk.allergens.length > 0 && (
-        <div className="flex items-center gap-2 rounded-[6px] bg-destructive px-3 py-1.5 text-[12px] font-bold text-white">
-          <AlertCircle className="size-3.5 shrink-0" aria-hidden />
-          {t('billItem.allergyMatch', {
-            list: risk.allergens.map((code) => t(`diet.allergens.${code}`)).join(', '),
-          })}
-        </div>
-      )}
-      {risk.dietFlags.length > 0 && (
-        <div className="flex items-center gap-2 rounded-[6px] border border-[#e0a800]/50 bg-[#fff8e1] px-3 py-1.5 text-[12px] font-bold text-[#8a6d00]">
-          <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
-          {t('billItem.dietMatch', {
-            list: risk.dietFlags.map((code) => t(`diet.preferences.${code}`)).join(', '),
-          })}
+      {verdict !== 'neutral' && (
+        <div
+          className={`flex items-start gap-2 rounded-[6px] px-3 py-1.5 text-[12px] font-bold ${VERDICT_STYLES[verdict]}`}
+        >
+          {verdict === 'avoid' ? (
+            <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          ) : verdict === 'caution' ? (
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          ) : (
+            <Sparkles className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          )}
+          <span>
+            {t(`verdict.${verdict}`)}
+            {verdictReason && (
+              <span className="font-medium"> — {verdictReason}</span>
+            )}
+          </span>
         </div>
       )}
       {lowConfidenceLabel !== null && (
