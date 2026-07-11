@@ -336,6 +336,7 @@
     "allergyWarning": "CẢNH BÁO: Phát hiện dị ứng (Hải sản)",
     "allergyMatch": "CẢNH BÁO: Chứa {{list}}",
     "dietMatch": "Không hợp khẩu phần: {{list}}",
+    "recommended": "Gợi ý cho bạn",
     "namePlaceholder": "Tên món",
     "originalNamePlaceholder": "Tên trên ảnh",
     "pricePlaceholder": "Giá",

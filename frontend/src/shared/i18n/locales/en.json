@@ -347,6 +347,7 @@
     "allergyWarning": "WARNING: Allergy Match Found (Seafood)",
     "allergyMatch": "WARNING: Contains {{list}}",
     "dietMatch": "Doesn't match your diet: {{list}}",
+    "recommended": "Recommended for you",
     "namePlaceholder": "Dish name",
     "originalNamePlaceholder": "Name on the image",
     "pricePlaceholder": "Price",
