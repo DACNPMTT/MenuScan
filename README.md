@@ -5,11 +5,13 @@
 <h1 align="center">MenuScan</h1>
 
 <p align="center">
-  AI-powered menu scanning platform that converts restaurant menu images into structured digital menu data.
+  Scan a foreign or unfamiliar menu and get a personalized dining assistant:
+  each dish is translated, explained, and matched against your own diet — so you
+  know what it is, whether it suits you, and why.
 </p>
 
 <p align="center">
-  <strong>Menu Image -> AI Processing -> Structured Digital Menu</strong>
+  <strong>Menu Image -> OCR + AI -> Structured Menu -> Personalized Advice</strong>
 </p>
 
 <p align="center">
@@ -24,11 +26,27 @@
 
 # Overview
 
-MenuScan helps restaurants, food platforms, and hospitality teams digitize menus from images without manual data entry.
+MenuScan is a **personalized dining assistant** for travelers and people who are
+particular about what they eat. Point your camera at a menu in a language you
+don't read — or full of dishes you don't recognize — and MenuScan turns it into
+clear, personalized guidance.
 
-Restaurant menus often exist as photos, scans, PDFs, or printed material. Turning those menus into clean digital data is usually slow, inconsistent, and expensive. MenuScan streamlines this workflow by using OCR and AI analysis to extract menu sections, items, descriptions, prices, and metadata from raw menu images.
+A plain translation app gives you the *words*. MenuScan gives you a *judgment*:
+for every dish it reads the menu, translates it, infers likely ingredients, and
+compares them against **your saved profile** — allergies, diet, likes and
+dislikes — to tell you whether a dish fits you, why, and what to watch out for
+(for example, "may contain shrimp" or "ask for less sugar").
 
-The result is structured menu data that can be reviewed, stored, searched, published, or integrated into ordering systems, POS tools, websites, and internal dashboards.
+Under the hood this is powered by an OCR + LLM pipeline that converts messy menu
+photos into clean, structured data — the same core that makes the personalized
+advice possible.
+
+> [!IMPORTANT]
+> **MenuScan is a reference assistant, not a safety guarantee.** Dish suggestions
+> and allergy flags are AI-inferred from menu text and can be wrong or incomplete
+> — hidden ingredients (sauces, oils, spices, cross-contamination) cannot be
+> detected from a photo. Always confirm with restaurant staff before eating,
+> especially for serious allergies.
 
 The agreed MVP scope and business rules are documented in
 [MenuScan MVP Contract](doc/content/mvp-contract.md).
@@ -38,22 +56,32 @@ The agreed MVP scope and business rules are documented in
 # Features
 
 - **Menu Image Upload**  
-  Upload restaurant menu images or PDF files for automated processing.
+  Upload a menu photo or PDF (single or multi-page) for automated processing.
 
 - **OCR & AI Analysis**  
-  Detect text, menu sections, prices, item names, descriptions, and layout context.
+  Detect text, menu sections, prices, item names, descriptions, and layout
+  context, then infer likely ingredients, allergens, and dietary tags per dish.
 
 - **Structured Menu Extraction**  
-  Convert unstructured visual menu content into predictable digital records.
+  Convert unstructured visual menu content into predictable digital records with
+  per-field confidence scores.
 
-- **Review-Friendly Workflow**  
-  Prepare extracted data for human review, correction, and approval.
+- **Dietary Profile**  
+  Save your allergies, diet (e.g. vegetarian, halal), and food likes/dislikes
+  once, from a fixed taxonomy, and reuse them on every scan.
+
+- **Personalized Dish Advice**  
+  Each dish gets a per-user verdict — *recommended for you* / *maybe* /
+  *avoid* — with a short reason, plus allergy and preference flags. Matching
+  dishes are ranked to the top.
+
+- **Group Dining (planned)**  
+  Create a dining group, share it by QR, let each member fill in their own
+  profile without logging in, and split the bill by headcount.
 
 - **API-Ready Output**  
-  Generate structured JSON suitable for backend storage, integrations, and frontend rendering.
-
-- **Scalable Project Architecture**  
-  Clean separation between frontend, backend, infrastructure, documentation, and AI workflow design.
+  Structured JSON suitable for backend storage, integrations, and frontend
+  rendering.
 
 ---
 
@@ -72,30 +100,41 @@ Menu Image
    ↓
 OCR & AI Analysis
    ↓
-Menu Extraction
+Menu Extraction (structured dishes + inferred dietary metadata)
    ↓
-Structured Data Generation
+Personalization (match dishes against the diner's profile)
+   ↓
+Personalized Result (ranked dishes + per-dish advice)
 ```
 
 ## Workflow Details
 
 1. **Menu Image**  
-   A restaurant menu is uploaded as an image or document.
+   A menu is uploaded as an image or document.
 
 2. **OCR & AI Analysis**  
-   The system extracts text and analyzes visual structure, grouping related content.
+   The system extracts text and analyzes visual structure, grouping related
+   content into dishes.
 
 3. **Menu Extraction**  
-   Menu sections, item names, descriptions, prices, and optional metadata are identified.
+   Dish names, descriptions, prices, and inferred metadata (ingredients,
+   allergens, dietary tags) are identified and normalized. This step is
+   **profile-agnostic** so its result can be cached and reused.
 
-4. **Structured Data Generation**  
-   The extracted result is normalized into structured digital menu data.
+4. **Personalization**  
+   The structured menu is matched against the diner's saved profile. A separate
+   advisor step produces a per-dish verdict, reason, and flags — without
+   re-running OCR.
+
+5. **Personalized Result**  
+   Dishes that fit are ranked to the top and labelled; risky dishes are flagged
+   with a reason.
 
 ---
 
 # Architecture
 
-MenuScan is designed as a modular SaaS-style application with clear ownership boundaries.
+MenuScan is designed as a modular application with clear ownership boundaries between the frontend, API, AI pipeline, and data store.
 
 ```text
 Client Application
@@ -327,17 +366,27 @@ curl -X POST http://127.0.0.1:8000/api/v1/scans \
 
 ---
 
-# Future Improvements
+# Roadmap
 
-- Add drag-and-drop file upload with progress tracking.
-- Support batch menu processing.
-- Add human review and correction workflow.
-- Store scan history and versioned menu records.
-- Add restaurant workspace management.
-- Export structured menus to CSV, JSON, and POS-friendly formats.
-- Add confidence scores for extracted fields.
-- Support multilingual menus.
-- Add automated image preprocessing for low-quality photos.
-- Deploy production-ready API and frontend environments.
+**Now — personalization core (current focus)**
+
+- Dietary profile: allergies, diet, likes/dislikes from a fixed taxonomy.
+- Per-dish ingredient/flavor inference for preference matching.
+- Advisor step: per-user verdict (recommended / maybe / avoid) + reason.
+- Result screen: rank matching dishes, keep allergy/preference flags.
+- Bilingual UI (Vietnamese / English) for all new screens.
+
+**Next**
+
+- In-menu chat assistant ("is this spicy?", "what's in this?").
+- Group dining: create group, QR share, per-member profiles without login,
+  headcount-based bill split.
+
+**Later**
+
+- Scan history and saved menus.
+- Automated image preprocessing for low-quality photos.
+- Export structured menus to CSV / JSON.
+- Production hardening (rate limiting, monitoring, audit log).
 
 ---
