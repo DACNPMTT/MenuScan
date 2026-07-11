@@ -75,10 +75,18 @@ class AdvisorService:
         menu_id: uuid.UUID,
         question: str,
         history: list[ChatMessage],
+        focus_dishes: list[str] | None = None,
     ) -> str:
         # Ownership + existence enforced here (raises 404 when not the owner).
         menu = self._menu_service.get_menu(menu_id=menu_id, user_id=user.id)
         system = f"{_SYSTEM_RULES}\n\n{_build_context(menu, user)}"
+        if focus_dishes:
+            names = ", ".join(dish.strip() for dish in focus_dishes if dish.strip())
+            if names:
+                system += (
+                    f"\n\nThe diner is asking about these selected dishes: {names}. "
+                    "Focus your answer on them."
+                )
         # Keep only the last few turns to bound the prompt.
         recent = history[-6:]
         messages = [(_to_provider_role(m.role), m.content) for m in recent]

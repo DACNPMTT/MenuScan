@@ -348,6 +348,10 @@
     "hint": "Ask about the dishes on this menu.",
     "placeholder": "Ask about the menu…",
     "send": "Send",
+    "askAbout": "Ask about {{name}}",
+    "allSelected": "All selected dishes",
+    "pickDish": "Pick a dish to ask about",
+    "removeFocus": "Remove",
     "rateLimited": "You're asking a bit fast. Please wait a few seconds and try again.",
     "error": "The assistant is busy. Please try again in a moment.",
     "disclaimer": "Answers are based on your scanned menu, for reference only — not an allergy safety guarantee."

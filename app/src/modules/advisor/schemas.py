@@ -16,6 +16,9 @@ class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=1000)
     # Recent turns kept by the client (ephemeral — nothing is stored server-side).
     history: list[ChatMessage] = Field(default_factory=list, max_length=20)
+    # Dishes the diner selected and wants the answer focused on (names). Empty =
+    # ask about the whole menu.
+    focus_dishes: list[str] = Field(default_factory=list, max_length=20)
 
 
 class ChatResponse(BaseModel):
