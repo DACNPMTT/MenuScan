@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowLeft,
   Bookmark,
   BookmarkCheck,
@@ -11,6 +12,7 @@ import {
   ListChecks,
   Loader2,
   RefreshCw,
+  Sparkles,
   XCircle,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -21,6 +23,8 @@ import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { useExchangeRates } from '@/shared/hooks/useExchangeRates'
 import { CurrencySelect } from '@/shared/components/CurrencySelect'
 import { formatConvertedAmount, type ExchangeRates } from '@/shared/lib/currency'
+import { assessDish, type DietProfile } from '@/features/menu-scan/dietary'
+import { isProfileActive, rankDishes, scoreDish } from '@/features/menu-scan/ranking'
 import type {
   MenuItemResult,
   MenuDetail,
@@ -547,6 +551,38 @@ function ItemsList({
   onPageChange: (page: number) => void
 }) {
   const { t } = useTranslation()
+  const { user } = useAuth()
+  // Personalize the scan result: rank best-fit dishes up (reusing assessDish)
+  // and flag risky ones. With no profile, keep the extracted order.
+  const dietProfile = useMemo<DietProfile>(
+    () => ({
+      allergies: user?.allergies ?? [],
+      dietary_preferences: user?.dietary_preferences ?? [],
+    }),
+    [user?.allergies, user?.dietary_preferences],
+  )
+  const profileActive = isProfileActive(dietProfile)
+  const rankedItems = useMemo(
+    () => (profileActive ? rankDishes(items, dietProfile) : items),
+    [profileActive, items, dietProfile],
+  )
+  // Assess each dish once (keyed by id) so the card map renders badges without
+  // re-running the check on every read.
+  const assessments = useMemo(() => {
+    const map = new Map<
+      string,
+      { recommended: boolean; allergens: string[]; dietFlags: string[] }
+    >()
+    for (const item of rankedItems) {
+      const risk = assessDish(item, dietProfile)
+      map.set(item.id, {
+        recommended: profileActive && scoreDish(item, dietProfile).recommended,
+        allergens: risk.allergens,
+        dietFlags: risk.dietFlags,
+      })
+    }
+    return map
+  }, [rankedItems, dietProfile, profileActive])
   const showPagination = itemsMeta !== null && itemsMeta.total_pages > 1
   const pageStart =
     itemsMeta && items.length > 0
@@ -586,11 +622,37 @@ function ItemsList({
       ) : (
         <>
           <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 2xl:grid-cols-3">
-          {items.map((item) => (
+          {rankedItems.map((item) => (
             <div
               key={item.id}
               className="flex h-full flex-col gap-2 rounded-[12px] border border-hairline bg-canvas p-4 transition-colors hover:border-primary/30 hover:bg-surface-muted/50"
             >
+              {assessments.get(item.id)?.recommended && (
+                <div className="flex items-center gap-1.5 rounded-[6px] border border-[#1a7f37]/40 bg-[#e6f4ea] px-2.5 py-1 text-[11px] font-bold text-[#1a7f37]">
+                  <Sparkles className="size-3 shrink-0" aria-hidden />
+                  {t('billItem.recommended')}
+                </div>
+              )}
+              {(assessments.get(item.id)?.allergens ?? []).length > 0 && (
+                <div className="flex items-center gap-1.5 rounded-[6px] bg-destructive px-2.5 py-1 text-[11px] font-bold text-white">
+                  <AlertCircle className="size-3 shrink-0" aria-hidden />
+                  {t('billItem.allergyMatch', {
+                    list: (assessments.get(item.id)?.allergens ?? [])
+                      .map((code) => t(`diet.allergens.${code}`))
+                      .join(', '),
+                  })}
+                </div>
+              )}
+              {(assessments.get(item.id)?.dietFlags ?? []).length > 0 && (
+                <div className="flex items-center gap-1.5 rounded-[6px] border border-[#e0a800]/50 bg-[#fff8e1] px-2.5 py-1 text-[11px] font-bold text-[#8a6d00]">
+                  <AlertTriangle className="size-3 shrink-0" aria-hidden />
+                  {t('billItem.dietMatch', {
+                    list: (assessments.get(item.id)?.dietFlags ?? [])
+                      .map((code) => t(`diet.preferences.${code}`))
+                      .join(', '),
+                  })}
+                </div>
+              )}
               {/* Price rides on the badge row: that row has a fixed height, so
                   prices line up across every card and the name below gets the
                   full card width (far fewer ragged line wraps). */}
