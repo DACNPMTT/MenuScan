@@ -26,6 +26,7 @@ from unittest.mock import Mock
 from fastapi.testclient import TestClient
 
 from src.core.application import create_app
+from src.core.rate_limit import enforce_scan_throttle
 from src.core.config import EmailConfig, Settings, StorageConfig
 from src.modules.identity.dependencies import get_optional_current_user
 from src.modules.identity.models import User
@@ -167,6 +168,8 @@ def _make_client(
     )
     app.dependency_overrides[get_scan_service] = lambda: stub
     app.dependency_overrides[get_scan_pipeline] = lambda: StubScanPipeline()
+    # Throttle hits the DB; these contract tests have no DB, so bypass it.
+    app.dependency_overrides[enforce_scan_throttle] = lambda: None
     if authenticated:
         app.dependency_overrides[get_optional_current_user] = lambda: user
     else:

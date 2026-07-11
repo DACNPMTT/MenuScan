@@ -44,6 +44,7 @@
     "errors": {
       "fileTooLarge": "File quá lớn. Dung lượng tối đa là 10 MB.",
       "unsupportedType": "Định dạng không được hỗ trợ. Chỉ chấp nhận JPG, PNG, WEBP, PDF.",
+      "rateLimited": "Thao tác quá nhanh. Vui lòng đợi vài giây rồi thử lại.",
       "genericPrefix": "Lỗi: "
     }
   },

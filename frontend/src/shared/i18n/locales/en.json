@@ -44,6 +44,7 @@
     "errors": {
       "fileTooLarge": "File is too large. The maximum size is 10 MB.",
       "unsupportedType": "Unsupported format. Only JPG, PNG, WEBP, PDF are accepted.",
+      "rateLimited": "You're going too fast. Please wait a few seconds and try again.",
       "genericPrefix": "Error: "
     }
   },

@@ -49,6 +49,7 @@ EXPECTED_TABLES = {
     "bills",
     "bill_adjustments",
     "bill_items",
+    "ai_throttle",
 }
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]

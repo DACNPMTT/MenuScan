@@ -52,6 +52,10 @@ DEFAULT_LLM_PREALIGN_CSV = "true"
 DEFAULT_LLM_FALLBACK_MODEL = "gemini-2.5-flash"
 DEFAULT_SECRET_KEY = "menuscan-default-insecure-secret-key-change-this-in-production"
 DEFAULT_SCAN_STALE_TIMEOUT_MINUTES = "10"
+# Minimum seconds between two AI-backed calls per subject (anti-spam throttle),
+# not a daily quota. Scan (OCR+LLM) is the heaviest so it gets the longer gap.
+DEFAULT_SCAN_MIN_GAP_SECONDS = "10"
+DEFAULT_CHAT_MIN_GAP_SECONDS = "5"
 
 # Currency conversion. open.er-api.com is free, requires no API key, supports
 # VND + ~160 currencies, and is CORS-friendly. Rates are cached in-process.
@@ -234,6 +238,8 @@ class Settings:
     exchange_rate_api_base_url: str = DEFAULT_EXCHANGE_RATE_API_BASE_URL
     exchange_rate_timeout_seconds: float = float(DEFAULT_EXCHANGE_RATE_TIMEOUT_SECONDS)
     exchange_rate_cache_ttl_seconds: int = int(DEFAULT_EXCHANGE_RATE_CACHE_TTL_SECONDS)
+    scan_min_gap_seconds: int = int(DEFAULT_SCAN_MIN_GAP_SECONDS)
+    chat_min_gap_seconds: int = int(DEFAULT_CHAT_MIN_GAP_SECONDS)
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -341,6 +347,12 @@ class Settings:
                     "EXCHANGE_RATE_CACHE_TTL_SECONDS",
                     DEFAULT_EXCHANGE_RATE_CACHE_TTL_SECONDS,
                 )
+            ),
+            scan_min_gap_seconds=int(
+                os.getenv("SCAN_MIN_GAP_SECONDS", DEFAULT_SCAN_MIN_GAP_SECONDS)
+            ),
+            chat_min_gap_seconds=int(
+                os.getenv("CHAT_MIN_GAP_SECONDS", DEFAULT_CHAT_MIN_GAP_SECONDS)
             ),
         )
 
