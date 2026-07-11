@@ -7,6 +7,8 @@ from sqlalchemy import CHAR, Numeric, func
 from src.core import database
 from src.core.database import Base
 from src.modules.identity.models import (  # noqa: F401
+    FoodProfile,
+    FoodProfilePreference,
     MagicLinkToken,
     User,
     UserSession,
@@ -18,6 +20,14 @@ from src.modules.billing.models import (  # noqa: F401
     BillAdjustment,
     BillItem,
 )
+from src.modules.dining.models import (  # noqa: F401
+    DiningSession,
+    DiningSessionInvite,
+    DiningSessionParticipant,
+    DiningSessionParticipantPreference,
+    FoodItemRecommendation,
+    FoodItemRecommendationParticipantBreakdown,
+)
 
 EXPECTED_TABLES = {
     "users",
@@ -28,6 +38,14 @@ EXPECTED_TABLES = {
     "ocr_results",
     "menus",
     "food_items",
+    "food_profiles",
+    "food_profile_preferences",
+    "dining_sessions",
+    "dining_session_invites",
+    "dining_session_participants",
+    "dining_session_participant_preferences",
+    "food_item_recommendations",
+    "food_item_recommendation_participant_breakdowns",
     "bills",
     "bill_adjustments",
     "bill_items",
