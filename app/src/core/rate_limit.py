@@ -16,7 +16,10 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 from src.core.config import settings
 from src.core.database import Base, get_db
 from src.core.errors import ApplicationError
-from src.modules.identity.dependencies import get_optional_current_user
+from src.modules.identity.dependencies import (
+    get_current_user,
+    get_optional_current_user,
+)
 from src.modules.identity.models import User
 
 
@@ -116,6 +119,15 @@ def enforce_scan_throttle(
     )
 
 
-# NOTE: the future chat endpoint (module `advisor`) reuses `throttle(...)` with
-# action="chat" and `settings.chat_min_gap_seconds`, gated behind
-# `get_current_user` (login required).
+def enforce_chat_throttle(
+    session: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> None:
+    """FastAPI dependency: throttle the chat endpoint (login required, per user)."""
+    throttle(
+        session,
+        subject_type="user",
+        subject_id=str(user.id),
+        action="chat",
+        min_gap_seconds=settings.chat_min_gap_seconds,
+    )

@@ -343,6 +343,15 @@
     "skip": "Skip for now",
     "saveError": "Couldn't save. Please try again."
   },
+  "chat": {
+    "title": "Ask the dish assistant",
+    "hint": "Ask about the dishes on this menu.",
+    "placeholder": "Ask about the menu…",
+    "send": "Send",
+    "rateLimited": "You're asking a bit fast. Please wait a few seconds and try again.",
+    "error": "The assistant is busy. Please try again in a moment.",
+    "disclaimer": "Answers are based on your scanned menu, for reference only — not an allergy safety guarantee."
+  },
   "billItem": {
     "lowConfidence": "Low OCR confidence ({{value}}%).",
     "allergyWarning": "WARNING: Allergy Match Found (Seafood)",
