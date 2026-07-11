@@ -41,6 +41,11 @@ import {
   validateDraft,
 } from '@/features/menu-scan/lib'
 import { type DietProfile } from '@/features/menu-scan/dietary'
+import {
+  isProfileActive,
+  rankDishes,
+  scoreDish,
+} from '@/features/menu-scan/ranking'
 import { BillItemCard } from '@/features/menu-scan/components/menu-detail/BillItemCard'
 import { ItemDisplayName } from '@/features/menu-scan/components/menu-detail/ItemDisplayName'
 import { ManualItemCard } from '@/features/menu-scan/components/menu-detail/ManualItemCard'
@@ -278,6 +283,15 @@ export function MenuDetailPage() {
         ? browseItems
         : browseItems.filter((item) => itemCategory(item) === activeCategory),
     [activeCategory, browseItems],
+  )
+
+  // Personalized ordering: when the diner has a profile, float best-fit dishes
+  // up and sink risky ones (reusing assessDish). With no profile, keep the menu
+  // in its original order.
+  const profileActive = isProfileActive(dietProfile)
+  const rankedItems = useMemo(
+    () => (profileActive ? rankDishes(filteredItems, dietProfile) : filteredItems),
+    [profileActive, filteredItems, dietProfile],
   )
 
   const canLoadMoreItems =
@@ -851,11 +865,14 @@ export function MenuDetailPage() {
             </p>
 
             <main className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-              {filteredItems.map((item) => (
+              {rankedItems.map((item) => (
                 <BillItemCard
                   key={item.id}
                   item={item}
                   dietProfile={dietProfile}
+                  recommended={
+                    profileActive && scoreDish(item, dietProfile).recommended
+                  }
                   draft={itemDrafts[item.id] ?? draftFromItem(item, currency)}
                   editing={editingItemIds.has(item.id)}
                   dirty={

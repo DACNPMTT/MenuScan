@@ -1,4 +1,4 @@
-import { AlertCircle, AlertTriangle, Loader2, Minus, Pencil, Plus, RotateCcw, Save, Trash2 } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Loader2, Minus, Pencil, Plus, RotateCcw, Save, Sparkles, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ItemDisplayName } from '@/features/menu-scan/components/menu-detail/ItemDisplayName'
 import {
@@ -19,6 +19,9 @@ import type {
 export interface BillItemCardProps {
   item: BillItem
   dietProfile: DietProfile
+  /** Marks a dish that positively fits the diner's taste — shows a
+   * "recommended for you" badge. Defaults to off. */
+  recommended?: boolean
   draft: ItemDraft
   editing: boolean
   dirty: boolean
@@ -44,6 +47,7 @@ export interface BillItemCardProps {
 export function BillItemCard({
   item,
   dietProfile,
+  recommended = false,
   draft,
   editing,
   dirty,
@@ -83,6 +87,12 @@ export function BillItemCard({
 
   return (
     <article className="flex min-h-[190px] flex-col gap-3 rounded-[8px] border border-hairline bg-canvas p-5">
+      {recommended && (
+        <div className="flex items-center gap-2 rounded-[6px] border border-[#1a7f37]/40 bg-[#e6f4ea] px-3 py-1.5 text-[12px] font-bold text-[#1a7f37]">
+          <Sparkles className="size-3.5 shrink-0" aria-hidden />
+          {t('billItem.recommended')}
+        </div>
+      )}
       {risk.allergens.length > 0 && (
         <div className="flex items-center gap-2 rounded-[6px] bg-destructive px-3 py-1.5 text-[12px] font-bold text-white">
           <AlertCircle className="size-3.5 shrink-0" aria-hidden />
