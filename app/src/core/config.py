@@ -1,6 +1,6 @@
 import os
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 
@@ -222,6 +222,16 @@ class Settings:
             timeout_seconds=float(DEFAULT_LLM_TIMEOUT_SECONDS),
         )
     )
+    # Chat's own LLM config (independent from scan). See _load_chat_llm_config.
+    chat_llm: LlmConfig = field(
+        default_factory=lambda: LlmConfig(
+            provider=DEFAULT_LLM_PROVIDER,
+            model=DEFAULT_LLM_MODEL,
+            api_key=None,
+            api_base_url=DEFAULT_LLM_API_BASE_URL,
+            timeout_seconds=float(DEFAULT_LLM_TIMEOUT_SECONDS),
+        )
+    )
     ocr: OcrConfig = field(
         default_factory=lambda: OcrConfig(
             provider=DEFAULT_OCR_PROVIDER,
@@ -331,6 +341,7 @@ class Settings:
             email=email,
             storage=storage,
             llm=llm,
+            chat_llm=_load_chat_llm_config(llm),
             ocr=ocr,
             secret_key=_env_or_default("SECRET_KEY", DEFAULT_SECRET_KEY),
             scan_stale_timeout_minutes=_load_scan_stale_timeout_minutes(),
@@ -451,6 +462,41 @@ def _load_llm_config() -> LlmConfig:
             os.getenv("LLM_IMAGE_MAX_DIMENSION", DEFAULT_LLM_IMAGE_MAX_DIMENSION)
         ),
         api_keys=api_keys,
+        models=models,
+    )
+
+
+def _load_chat_llm_config(base: LlmConfig) -> LlmConfig:
+    """Chat's own LLM config, independent from the scan pipeline.
+
+    Reads ``CHAT_*`` env vars; anything unset falls back to the main LLM config
+    so chat still works without extra setup, while a dedicated key/model can be
+    split out (so chat and scan don't share quota or model).
+    """
+    single_key = os.getenv("CHAT_LLM_API_KEY") or os.getenv("CHAT_GEMINI_API_KEY")
+    pool = _split_csv(os.getenv("CHAT_GEMINI_API_KEYS"))
+    if pool:
+        api_keys: tuple[str, ...] = tuple(pool)
+    elif single_key:
+        api_keys = (single_key,)
+    else:
+        api_keys = base.api_keys
+
+    models_env = _split_csv(os.getenv("CHAT_LLM_MODELS"))
+    single_model = os.getenv("CHAT_LLM_MODEL")
+    if models_env:
+        models: tuple[str, ...] = tuple(models_env)
+    elif single_model:
+        models = (single_model,)
+    else:
+        models = base.models
+
+    return replace(
+        base,
+        provider=os.getenv("CHAT_LLM_PROVIDER", base.provider),
+        api_key=api_keys[0] if api_keys else None,
+        api_keys=api_keys,
+        model=models[0] if models else base.model,
         models=models,
     )
 

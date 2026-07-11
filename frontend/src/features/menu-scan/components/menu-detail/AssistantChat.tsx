@@ -1,8 +1,66 @@
-import { useState } from 'react'
-import type { FormEvent } from 'react'
+import { useRef, useState } from 'react'
+import type { FormEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Bot, Loader2, Plus, Send, X } from 'lucide-react'
 import { apiRequest, ApiError } from '@/shared/lib/api'
+
+/** Lightweight markdown renderer for chat bubbles.
+ *  Supports: **bold**, - bullet lists, blank-line paragraphs, and ⚠️ lines.
+ *  No external dependency required. */
+function ChatMarkdown({ text }: { text: string }) {
+  const paragraphs = text.split(/\n{2,}/)
+  return (
+    <div className="chat-md">
+      {paragraphs.map((block, bi) => {
+        const lines = block.split('\n')
+        const bullets = lines.filter((l) => /^\s*[-•]\s/.test(l))
+
+        // All lines are bullets → render as <ul>
+        if (bullets.length === lines.length && bullets.length > 0) {
+          return (
+            <ul key={bi} className="my-1 ml-3.5 list-disc space-y-0.5">
+              {bullets.map((b, li) => (
+                <li key={li}>
+                  <BoldText text={b.replace(/^\s*[-•]\s*/, '')} />
+                </li>
+              ))}
+            </ul>
+          )
+        }
+
+        // Mixed or plain text → render as <p>
+        return (
+          <p key={bi} className="my-1">
+            {lines.map((line, li) => (
+              <span key={li}>
+                {li > 0 && <br />}
+                <BoldText text={line} />
+              </span>
+            ))}
+          </p>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Render **bold** spans inside a line of text. */
+function BoldText({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.startsWith('**') && part.endsWith('**') ? (
+          <strong key={i} className="font-semibold">
+            {part.slice(2, -2)}
+          </strong>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </>
+  )
+}
 
 interface ChatMsg {
   id: string
@@ -23,9 +81,10 @@ interface AssistantChatProps {
   lastSelectedName?: string
 }
 
-/** Floating assistant: a fixed bot button (always visible while scrolling) that
- * toggles a chat panel. Grounded on the scanned menu; can focus the answer on
- * the dishes the diner selected. History is ephemeral (local state only). */
+/** Floating assistant (Messenger-style): a draggable bot bubble parked in a
+ * corner. Tapping it opens the chat panel docked at the bottom-right (above the
+ * bubble, so the bubble never covers it); tapping again closes. Grounded on the
+ * scanned menu; history is ephemeral (local state only). */
 export function AssistantChat({
   menuId,
   selectedDishes = [],
@@ -39,6 +98,50 @@ export function AssistantChat({
   // Dishes the question is focused on (by id). Empty = ask about the whole menu.
   const [focusIds, setFocusIds] = useState<string[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
+
+  // --- Draggable bubble: parked at `pos` when closed; snaps to the bottom-right
+  // corner while open so it stays consistent and never covers the chat. ---
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
+  const drag = useRef<{
+    startX: number
+    startY: number
+    dx: number
+    dy: number
+    moved: boolean
+  } | null>(null)
+  const FAB = 56
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    drag.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      dx: event.clientX - rect.left,
+      dy: event.clientY - rect.top,
+      moved: false,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+  const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const d = drag.current
+    if (!d || open) return // no dragging while the panel is open
+    if (!d.moved && Math.hypot(event.clientX - d.startX, event.clientY - d.startY) < 5) {
+      return
+    }
+    d.moved = true
+    const left = Math.min(Math.max(event.clientX - d.dx, 8), window.innerWidth - FAB - 8)
+    const top = Math.min(Math.max(event.clientY - d.dy, 8), window.innerHeight - FAB - 8)
+    setPos({ left, top })
+  }
+  const onPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const d = drag.current
+    drag.current = null
+    event.currentTarget.releasePointerCapture?.(event.pointerId)
+    // A tap (no drag) toggles the panel.
+    if (d && !d.moved) setOpen((value) => !value)
+  }
 
   // Resolve focus against the current selection so removed dishes drop out.
   const focusDishes = focusIds
@@ -99,9 +202,19 @@ export function AssistantChat({
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3">
+    <div
+      ref={containerRef}
+      className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3"
+      // While open, ignore the parked position so the bubble + panel snap to the
+      // bottom-right corner. When closed, sit wherever the bubble was dragged.
+      style={
+        !open && pos
+          ? { left: pos.left, top: pos.top, right: 'auto', bottom: 'auto' }
+          : undefined
+      }
+    >
       {open && (
-        <div className="flex max-h-[78vh] w-[min(94vw,460px)] flex-col overflow-hidden rounded-[14px] border border-hairline bg-canvas shadow-[0_12px_40px_rgba(15,23,42,0.18)]">
+        <div className="flex h-[min(78vh,600px)] w-[min(92vw,440px)] flex-col overflow-hidden rounded-[16px] border border-hairline bg-canvas shadow-[0_16px_50px_rgba(15,23,42,0.24)]">
           <div className="flex items-center justify-between gap-2 border-b border-hairline bg-surface-muted px-4 py-3">
             <div className="flex items-center gap-2 text-[14px] font-bold text-ink">
               <Bot className="size-4 shrink-0 text-primary-dark" aria-hidden />
@@ -130,7 +243,11 @@ export function AssistantChat({
                       : 'max-w-[85%] self-start rounded-[10px] border border-hairline bg-surface-muted px-3 py-2 text-[13px] text-ink'
                   }
                 >
-                  {message.content}
+                  {message.role === 'assistant' ? (
+                    <ChatMarkdown text={message.content} />
+                  ) : (
+                    message.content
+                  )}
                 </div>
               ))
             )}
@@ -230,12 +347,14 @@ export function AssistantChat({
 
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
         aria-label={t('chat.title')}
         aria-expanded={open}
-        className="flex size-14 items-center justify-center rounded-full bg-primary-dark text-white shadow-[0_8px_24px_rgba(15,23,42,0.28)] transition-transform hover:scale-105"
+        className="flex size-14 touch-none cursor-grab items-center justify-center rounded-full bg-primary-dark text-white shadow-[0_8px_24px_rgba(15,23,42,0.28)] transition-transform hover:scale-105 active:cursor-grabbing"
       >
-        {open ? <X className="size-6" aria-hidden /> : <Bot className="size-6" aria-hidden />}
+        <Bot className="size-6" aria-hidden />
       </button>
     </div>
   )
