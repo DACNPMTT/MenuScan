@@ -332,6 +332,15 @@
     "skip": "Bỏ qua",
     "saveError": "Không lưu được. Vui lòng thử lại."
   },
+  "chat": {
+    "title": "Hỏi trợ lý chọn món",
+    "hint": "Hỏi về món trong menu này — ví dụ \"món này có ngọt không?\", \"món nào hợp người ăn chay?\".",
+    "placeholder": "Nhập câu hỏi…",
+    "send": "Gửi",
+    "rateLimited": "Bạn hỏi hơi nhanh. Đợi vài giây rồi thử lại nhé.",
+    "error": "Trợ lý đang bận, thử lại sau ít phút nhé.",
+    "disclaimer": "Trả lời dựa trên menu bạn quét, chỉ mang tính tham khảo — không đảm bảo an toàn dị ứng."
+  },
   "billItem": {
     "lowConfidence": "OCR confidence thấp ({{value}}%).",
     "allergyWarning": "CẢNH BÁO: Phát hiện dị ứng (Hải sản)",

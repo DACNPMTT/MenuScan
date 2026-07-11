@@ -47,6 +47,7 @@ import {
   scoreDish,
 } from '@/features/menu-scan/ranking'
 import { BillItemCard } from '@/features/menu-scan/components/menu-detail/BillItemCard'
+import { AssistantChat } from '@/features/menu-scan/components/menu-detail/AssistantChat'
 import { ItemDisplayName } from '@/features/menu-scan/components/menu-detail/ItemDisplayName'
 import { ManualItemCard } from '@/features/menu-scan/components/menu-detail/ManualItemCard'
 import { MenuFilterBar } from '@/features/menu-scan/components/menu-detail/MenuFilterBar'
@@ -831,6 +832,8 @@ export function MenuDetailPage() {
                 {t('menuDetail.unsavedChanges', { count: dirtyItemIds.length })}
               </div>
             )}
+
+            {menuId && <AssistantChat menuId={menuId} />}
 
             <MenuFilterBar
               searchInput={searchInput}
