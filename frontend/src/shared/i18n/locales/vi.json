@@ -337,6 +337,10 @@
     "hint": "Hỏi về các món trong menu này.",
     "placeholder": "Hỏi về menu…",
     "send": "Gửi",
+    "askAbout": "Hỏi về {{name}}",
+    "allSelected": "Tất cả món đã chọn",
+    "pickDish": "Chọn món để hỏi",
+    "removeFocus": "Bỏ chọn",
     "rateLimited": "Bạn hỏi hơi nhanh. Đợi vài giây rồi thử lại nhé.",
     "error": "Trợ lý đang bận, thử lại sau ít phút nhé.",
     "disclaimer": "Trả lời dựa trên menu bạn quét, chỉ mang tính tham khảo — không đảm bảo an toàn dị ứng."

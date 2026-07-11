@@ -107,3 +107,17 @@ def test_chat_rejects_missing_question() -> None:
     client = _make_client()
     response = client.post("/api/v1/advisor/chat", json={"menu_id": _MENU_ID})
     assert response.status_code in {400, 422}
+
+
+def test_chat_accepts_focus_dishes() -> None:
+    client = _make_client()
+    response = client.post(
+        "/api/v1/advisor/chat",
+        json={
+            "menu_id": _MENU_ID,
+            "question": "Món nào ngọt?",
+            "focus_dishes": ["Chop Suey with Shrimp", "Chè đậu"],
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["success"] is True

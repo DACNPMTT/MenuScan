@@ -36,6 +36,7 @@ def chat(
             menu_id=payload.menu_id,
             question=payload.question,
             history=payload.history,
+            focus_dishes=payload.focus_dishes,
         )
     except ChatProviderError as error:
         logger.warning("advisor_chat_failed reason=%s", error)
