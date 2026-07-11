@@ -9,6 +9,14 @@ from src.modules.identity.models import MagicLinkToken, User, UserSession  # noq
 from src.modules.menu.models import FoodItem, Menu  # noqa: F401
 from src.modules.menu_scan.models import OcrResult, ScanSession  # noqa: F401
 from src.modules.billing.models import Bill, BillAdjustment, BillItem  # noqa: F401
+from src.modules.dining.models import (  # noqa: F401
+    DiningSession,
+    DiningSessionInvite,
+    DiningSessionParticipant,
+    DiningSessionParticipantPreference,
+    FoodItemRecommendation,
+    FoodItemRecommendationParticipantBreakdown,
+)
 
 
 config = context.config

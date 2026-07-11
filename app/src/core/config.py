@@ -59,7 +59,7 @@ DEFAULT_EXCHANGE_RATE_API_BASE_URL = "https://open.er-api.com/v6"
 DEFAULT_EXCHANGE_RATE_TIMEOUT_SECONDS = "10"
 DEFAULT_EXCHANGE_RATE_CACHE_TTL_SECONDS = "3600"
 
-SUPPORTED_EMAIL_PROVIDERS = ("console", "resend")
+SUPPORTED_EMAIL_PROVIDERS = ("console", "resend", "gmail_smtp")
 SUPPORTED_STORAGE_PROVIDERS = ("local", "s3")
 SUPPORTED_OCR_PROVIDERS = ("fake", "google_vision")
 SUPPORTED_LLM_PROVIDERS = ("rule_based", "gemini")
@@ -95,8 +95,9 @@ class EmailConfig:
     """Email provider configuration.
 
     Provider selection is env-driven (``EMAIL_PROVIDER``). ``console`` is the
-    dev/test no-op; ``resend`` calls the Resend transactional API. Secrets
-    (``api_key``) come from env and are never logged.
+    dev/test no-op; ``resend`` calls the Resend transactional API; ``gmail_smtp``
+    sends via Gmail SMTP with an App Password. Secrets (``api_key``,
+    ``smtp_password``) come from env and are never logged.
     """
 
     provider: str
@@ -104,11 +105,15 @@ class EmailConfig:
     api_key: str | None
     api_base_url: str
     timeout_seconds: float
+    smtp_username: str | None = None
+    smtp_password: str | None = None
 
     def is_configured(self) -> bool:
         """True when the active provider has everything it needs to send."""
         if self.provider == "console":
             return True
+        if self.provider == "gmail_smtp":
+            return bool(self.smtp_username) and bool(self.smtp_password) and bool(self.from_address)
         return bool(self.from_address) and bool(self.api_key)
 
 
@@ -236,7 +241,11 @@ class Settings:
 
         raw_origins = os.getenv("CORS_ORIGINS")
         cors_origins = (
-            tuple(origin.strip() for origin in raw_origins.split(",") if origin.strip())
+            tuple(
+                origin.strip().rstrip("/")
+                for origin in raw_origins.split(",")
+                if origin.strip()
+            )
             if raw_origins is not None
             else DEFAULT_CORS_ORIGINS
         )
@@ -259,6 +268,11 @@ class Settings:
         # Startup fail-fast: a non-console provider is unusable without its
         # required config. This is the readiness guarantee for email.
         if email.provider != "console" and not email.is_configured():
+            if email.provider == "gmail_smtp":
+                raise ValueError(
+                    "EMAIL_PROVIDER='gmail_smtp' requires "
+                    "EMAIL_FROM_ADDRESS, EMAIL_SMTP_USERNAME and EMAIL_SMTP_PASSWORD"
+                )
             raise ValueError(
                 f"EMAIL_PROVIDER={email.provider!r} requires "
                 "EMAIL_FROM_ADDRESS and EMAIL_API_KEY"
@@ -342,6 +356,8 @@ def _load_email_config() -> EmailConfig:
         timeout_seconds=float(
             os.getenv("EMAIL_TIMEOUT_SECONDS", DEFAULT_EMAIL_TIMEOUT_SECONDS)
         ),
+        smtp_username=os.getenv("EMAIL_SMTP_USERNAME"),
+        smtp_password=os.getenv("EMAIL_SMTP_PASSWORD"),
     )
 
 

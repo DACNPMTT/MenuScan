@@ -11,6 +11,10 @@
 .DS_Store
 Thumbs.db
 
+# Cloud SQL Auth Proxy binaries (downloaded locally, not committed)
+cloud-sql-proxy.exe
+proxy.exe
+
 # ========================
 # Environment Variables
 # ========================

@@ -13,6 +13,7 @@ from src.core.database import get_db
 from src.modules.identity.adapters.email import (
     ConsoleEmailSender,
     EmailSender,
+    GmailSmtpEmailSender,
     ResendEmailSender,
 )
 from src.modules.identity.exceptions import UnauthorizedError
@@ -34,6 +35,8 @@ def get_email_sender() -> EmailSender:
     - ``console`` (default): logs the link, never raises.
     - ``resend``: calls the Resend API; config is validated at startup
       (``Settings.from_environment`` fails fast if the key/from are missing).
+    - ``gmail_smtp``: sends via Gmail SMTP with an App Password; config is
+      validated at startup.
 
     Tests override via ``app.dependency_overrides``.
     """
@@ -47,6 +50,15 @@ def get_email_sender() -> EmailSender:
             api_key=config.api_key,
             from_address=config.from_address,
             api_base_url=config.api_base_url,
+            timeout_seconds=config.timeout_seconds,
+        )
+    if config.provider == "gmail_smtp":
+        assert config.smtp_username is not None  # noqa: S101
+        assert config.smtp_password is not None  # noqa: S101
+        return GmailSmtpEmailSender(
+            username=config.smtp_username,
+            app_password=config.smtp_password,
+            from_address=config.from_address,
             timeout_seconds=config.timeout_seconds,
         )
     raise ValueError(f"Unsupported EMAIL_PROVIDER={config.provider!r}")
