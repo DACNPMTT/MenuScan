@@ -334,8 +334,8 @@
   },
   "chat": {
     "title": "Hỏi trợ lý chọn món",
-    "hint": "Hỏi về món trong menu này — ví dụ \"món này có ngọt không?\", \"món nào hợp người ăn chay?\".",
-    "placeholder": "Nhập câu hỏi…",
+    "hint": "Hỏi về các món trong menu này.",
+    "placeholder": "Hỏi về menu…",
     "send": "Gửi",
     "rateLimited": "Bạn hỏi hơi nhanh. Đợi vài giây rồi thử lại nhé.",
     "error": "Trợ lý đang bận, thử lại sau ít phút nhé.",

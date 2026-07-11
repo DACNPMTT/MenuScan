@@ -345,8 +345,8 @@
   },
   "chat": {
     "title": "Ask the dish assistant",
-    "hint": "Ask about dishes on this menu — e.g. \"is this sweet?\", \"which dishes are vegetarian?\".",
-    "placeholder": "Type your question…",
+    "hint": "Ask about the dishes on this menu.",
+    "placeholder": "Ask about the menu…",
     "send": "Send",
     "rateLimited": "You're asking a bit fast. Please wait a few seconds and try again.",
     "error": "The assistant is busy. Please try again in a moment.",
