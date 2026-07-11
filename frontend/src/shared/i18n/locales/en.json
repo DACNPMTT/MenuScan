@@ -9,6 +9,7 @@
     "saveChanges": "Save changes",
     "cancel": "Cancel",
     "back": "Back",
+    "next": "Next",
     "retry": "Try again",
     "edit": "Edit",
     "delete": "Delete",
@@ -52,7 +53,8 @@
     "scan": "Scan",
     "menus": "Menus",
     "bills": "Bills",
-    "profile": "Profile"
+    "profile": "Profile",
+    "dining": "Dining"
   },
   "footer": {
     "rights": "© {{year}} MenuScan. All rights reserved."
@@ -333,10 +335,60 @@
       "no_alcohol": "No alcohol"
     }
   },
+  "dining": {
+    "title": "Dining Session",
+    "createTitle": "Create New Dining Session",
+    "createSubtitle": "Create a session for everyone to scan the QR code and submit their dining preferences.",
+    "hostTitle": "Host Screen",
+    "joinTitle": "Join Dining Session",
+    "joinSubtitle": "Input your dining preferences so the Host knows what dishes fit best.",
+    "scanQrPrompt": "Scan QR to join",
+    "scanQrDesc": "Scan this code to quickly input your food preferences without an account.",
+    "fullscreenQr": "Click to view fullscreen",
+    "participants": "Participants ({{count}})",
+    "noParticipants": "No one has joined yet. Share the QR code above to start!",
+    "status": {
+      "COLLECTING": "Collecting",
+      "SCANNING": "Scanning",
+      "COMPLETED": "Completed",
+      "CLOSED": "Closed"
+    },
+    "fields": {
+      "mode": "Mode",
+      "language": "Target Language",
+      "expires": "Expires in (hours)"
+    },
+    "modes": {
+      "GROUP": "Group Session",
+      "PERSONAL": "Personal"
+    },
+    "createBtn": "Create Session",
+    "creating": "Creating...",
+    "joinSuccess": "Preferences submitted successfully!",
+    "joinSuccessDesc": "Your dining preferences have been sent to the Host. You can close this tab now.",
+    "closeFullscreen": "Close fullscreen",
+    "guestName": "Your Name",
+    "guestNamePlaceholder": "Enter your display name",
+    "guestLanguage": "Preferred Language",
+    "sessionNotFound": "Dining session not found.",
+    "sessionExpired": "Dining session has expired or is closed.",
+    "invalidToken": "Invalid invite token.",
+    "recentSessions": "Recent Sessions"
+  },
   "onboarding": {
     "docTitle": "Set preferences",
-    "title": "Tell us your dietary preferences",
-    "subtitle": "We'll flag dishes with your allergies or that don't fit your diet. You can skip this and change it later in your profile.",
+    "title": "Create your food profile",
+    "subtitle": "Set a starting profile for dish recommendations. You can skip this and add it later in your account.",
+    "defaultProfileName": "My food profile",
+    "profileName": "Profile name",
+    "nameRequired": "Enter a profile name first.",
+    "steps": {
+      "profile": "Profile",
+      "allergies": "Allergies",
+      "diet": "Diet",
+      "likes": "Likes",
+      "avoids": "Limits"
+    },
     "save": "Save & continue",
     "saving": "Saving…",
     "skip": "Skip for now",
@@ -409,6 +461,52 @@
       "nameTooLong": "The display name can be at most 150 characters.",
       "updateFailed": "Couldn't update the profile. Please try again.",
       "loadFailed": "Couldn't load the full account information."
+    }
+  },
+  "foodProfile": {
+    "title": "Food profiles",
+    "subtitle": "Saved food preferences used by the AI assistant before scanning a menu.",
+    "add": "Add profile",
+    "empty": "No food profile yet. Add one now or create it later before scanning.",
+    "name": "Profile name",
+    "language": "Language",
+    "defaultProfile": "Use as default profile",
+    "defaultBadge": "Default",
+    "addOther": "Add",
+    "otherPlaceholder": "Other preference...",
+    "otherLabel": "Other value for {{section}}",
+    "sections": {
+      "allergies": "Allergies",
+      "dietary_preferences": "Diet",
+      "likes": "Likes",
+      "avoids": "Limits / avoid"
+    },
+    "preferenceLabels": {
+      "spicy": "Spicy",
+      "mild_spicy": "Mild spicy",
+      "savory": "Savory",
+      "sour": "Sour",
+      "fresh": "Fresh",
+      "grilled": "Grilled",
+      "soup": "Soup",
+      "noodles": "Noodles",
+      "rice": "Rice",
+      "vegetables": "Vegetables",
+      "too_spicy": "Too spicy",
+      "too_sweet": "Too sweet",
+      "too_oily": "Too oily",
+      "fish_sauce": "Fish sauce",
+      "strong_smell": "Strong smell",
+      "raw_food": "Raw food",
+      "organ_meat": "Organ meat",
+      "bitter": "Bitter",
+      "heavy_cream": "Heavy cream",
+      "deep_fried": "Deep fried"
+    },
+    "errors": {
+      "nameRequired": "Enter a profile name.",
+      "saveFailed": "Couldn't save the food profile. Please try again.",
+      "deleteFailed": "Couldn't delete the food profile. Please try again."
     }
   },
   "scanResult": {

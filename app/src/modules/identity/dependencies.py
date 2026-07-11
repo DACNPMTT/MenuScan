@@ -19,6 +19,7 @@ from src.modules.identity.adapters.email import (
 from src.modules.identity.exceptions import UnauthorizedError
 from src.modules.identity.models import User, UserStatus
 from src.modules.identity.repository import (
+    FoodProfileRepository,
     MagicLinkTokenRepository,
     UserRepository,
     UserSessionRepository,
@@ -75,6 +76,7 @@ def get_magic_link_service(
         base_url=settings.magic_link_base_url,
         user_repository=UserRepository(),
         session_repository=UserSessionRepository(),
+        food_profile_repository=FoodProfileRepository(),
         secret_key=settings.secret_key,
     )
 

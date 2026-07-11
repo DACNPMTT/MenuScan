@@ -99,3 +99,14 @@ class InvalidCredentialsError(ApplicationError):
             code="INVALID_CREDENTIALS",
             message="Email hoặc mật khẩu không chính xác.",
         )
+
+
+class FoodProfileNotFoundError(ApplicationError):
+    """Raised when a food profile does not exist or is not owned by the user."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=404,
+            code="FOOD_PROFILE_NOT_FOUND",
+            message="Không tìm thấy hồ sơ ăn uống.",
+        )

@@ -49,11 +49,15 @@ class GeminiMenuParser:
         *,
         target_language: str = "en",
         images: Sequence[bytes] | None = None,
+        preferences_data: list[dict[str, Any]] | None = None,
+        is_group: bool = False,
     ) -> ParsedMenuDraft:
         body = self._generate(
             document=document,
             target_language=target_language,
             images=images,
+            preferences_data=preferences_data,
+            is_group=is_group,
         )
         payload = _extract_json_payload(body)
         payload.setdefault("items", [])
@@ -84,6 +88,8 @@ class GeminiMenuParser:
         document: OcrDocument,
         target_language: str,
         images: Sequence[bytes] | None = None,
+        preferences_data: list[dict[str, Any]] | None = None,
+        is_group: bool = False,
     ) -> dict[str, Any]:
         keys = self._effective_keys()
         if not keys:
@@ -96,6 +102,8 @@ class GeminiMenuParser:
             target_language=target_language,
             images=images,
             prealign_csv=self.prealign_csv,
+            preferences_data=preferences_data,
+            is_group=is_group,
         )
         try:
             response = None
@@ -179,6 +187,8 @@ def _build_request(
     target_language: str,
     images: Sequence[bytes] | None = None,
     prealign_csv: bool = True,
+    preferences_data: list[dict[str, Any]] | None = None,
+    is_group: bool = False,
 ) -> dict[str, Any]:
     image_list = [image for image in (images or []) if image]
     has_images = bool(image_list)
@@ -189,6 +199,8 @@ def _build_request(
                 target_language=target_language,
                 has_images=has_images,
                 prealign_csv=prealign_csv,
+                preferences_data=preferences_data,
+                is_group=is_group,
             )
         }
     ]
@@ -255,9 +267,35 @@ def _build_prompt(
     target_language: str,
     has_images: bool = False,
     prealign_csv: bool = True,
+    preferences_data: list[dict[str, Any]] | None = None,
+    is_group: bool = False,
 ) -> str:
     detected = document.detected_language or "unknown"
     csv_anchor = _build_csv_anchor(document, prealign_csv=prealign_csv)
+
+    preferences_prompt = ""
+    if preferences_data:
+        if is_group:
+            preferences_prompt = (
+                "You are acting as a Group AI Dining Assistant. Below are the dietary preferences and restrictions "
+                "of all the diners in this group session. You MUST evaluate each menu item against their combined preferences:\n"
+            )
+        else:
+            preferences_prompt = (
+                "You are acting as a Personal AI Dining Assistant. Below are the user's personal dietary preferences "
+                "and restrictions. You MUST evaluate each menu item against their personal preferences:\n"
+            )
+        for diner in preferences_data:
+            d_name = diner.get("display_name") or "Diner"
+            preferences_prompt += f"- Diner '{d_name}':\n"
+            prefs = diner.get("preferences") or []
+            if not prefs:
+                preferences_prompt += "  No specific preferences/allergies.\n"
+            for p in prefs:
+                code = p.get("code")
+                p_type = p.get("preference_type")
+                preferences_prompt += f"  * type={p_type}, code={code}\n"
+        preferences_prompt += "\n"
 
     common_rules = (
         "- Preserve unusual dish names verbatim in original_name.\n"
@@ -293,7 +331,47 @@ def _build_prompt(
         "- dietary_tags: from THIS fixed set only, list every one that applies — "
         "contains_pork, contains_beef, contains_seafood, contains_alcohol, "
         "vegetarian, vegan. Use [] if none apply.\n"
-        "- Omit other optional fields when unknown.\n"
+        + (
+            (
+                "- Since this is a GROUP dining session, you MUST evaluate each dish for the group and for each diner individually:\n"
+                "  - For each diner (in participant_breakdowns):\n"
+                "    - display_name: Must match the diner's exact display_name.\n"
+                "    - verdict: RECOMMENDED, OK, CAUTION, or AVOID.\n"
+                "    - score: A number from 0 to 100.\n"
+                "    - explanation: A short sentence in the target language explaining the evaluation (e.g. 'Dị ứng với đậu phộng' or 'Thích thịt bò').\n"
+                "    - fit_reasons: Array of matching like tags.\n"
+                "    - risk_reasons: Array of allergen, dietary constraint, avoid, or dislike matches.\n"
+                "  - For the group (in recommendation):\n"
+                "    - verdict: RECOMMENDED, OK, CAUTION, or AVOID. If ANY diner has a verdict of AVOID, the group verdict MUST be AVOID to ensure group safety.\n"
+                "    - score: The average score of all diners.\n"
+                "    - explanation: Summary of suitability for the group (e.g. who can eat it, who cannot).\n"
+                "    - why_suitable: Join of all fit_reasons.\n"
+                "    - why_not_suitable: Join of all risk_reasons.\n"
+                "    - suggested_for: List of diner display_names who have verdict RECOMMENDED.\n"
+                "    - warning_for: List of diner display_names who have verdict AVOID.\n"
+                "    - fit_reasons: List of unique positive matching tags.\n"
+                "    - risk_reasons: List of unique risk matching tags.\n"
+                "    - warning_reasons: List of unique warning tags.\n"
+                if is_group else
+                "- Since this is a PERSONAL dining assistant, you MUST evaluate each dish for the user based on their default Food Profile:\n"
+                "  - In recommendation:\n"
+                "    - verdict: RECOMMENDED, OK, CAUTION, or AVOID.\n"
+                "    - score: A score from 0 to 100 based on their preferences.\n"
+                "    - explanation: A short sentence in the target language explaining why this dish fits or does not fit them (e.g., 'Phù hợp với chế độ ăn chay của bạn' or 'Có chứa hải sản mà bạn bị dị ứng').\n"
+                "    - why_suitable: Join of fit reasons.\n"
+                "    - why_not_suitable: Join of risk reasons.\n"
+                "    - suggested_for: Leave empty (not applicable for personal scan).\n"
+                "    - warning_for: Leave empty (not applicable for personal scan).\n"
+                "    - fit_reasons: Unique positive matching tags.\n"
+                "    - risk_reasons: Unique risk matching tags.\n"
+                "    - warning_reasons: Unique warning tags.\n"
+                "  - In participant_breakdowns: Leave this array empty (not applicable for personal scan).\n"
+            )
+            if preferences_data else
+            "- Do not populate recommendation or participant_breakdowns fields (leave them null or empty) as no dietary preferences are provided.\n"
+        )
+        + "- Do not output any values in the root level warnings array (leave it empty).\n"
+        + "- Omit other optional fields when unknown.\n"
     )
 
     if has_images:
@@ -315,6 +393,7 @@ def _build_prompt(
             + "\n"
             f"Detected source language (UNRELIABLE hint, may be wrong): {detected}\n"
             f"Target language: {target_language}\n"
+            f"{preferences_prompt}"
             f"{csv_anchor}"
             "OCR transcription:\n"
             f"{document.text}"
@@ -350,6 +429,7 @@ def _build_prompt(
         + "\n"
         f"Detected source language (UNRELIABLE hint, may be wrong): {detected}\n"
         f"Target language: {target_language}\n"
+        f"{preferences_prompt}"
         f"{csv_anchor}"
         "Structured OCR blocks:\n"
         f"{layout_text}\n\n"
@@ -409,6 +489,34 @@ def _line_sort_key(line: object) -> tuple[float, float]:
 
 
 def _parsed_menu_schema() -> dict[str, Any]:
+    breakdown_schema = {
+        "type": "OBJECT",
+        "properties": {
+            "display_name": {"type": "STRING"},
+            "verdict": {"type": "STRING"},
+            "score": {"type": "NUMBER"},
+            "explanation": {"type": "STRING"},
+            "fit_reasons": {"type": "ARRAY", "items": {"type": "STRING"}},
+            "risk_reasons": {"type": "ARRAY", "items": {"type": "STRING"}},
+        },
+        "required": ["display_name", "verdict"],
+    }
+    recommendation_schema = {
+        "type": "OBJECT",
+        "properties": {
+            "verdict": {"type": "STRING"},
+            "score": {"type": "NUMBER"},
+            "explanation": {"type": "STRING"},
+            "why_suitable": {"type": "STRING"},
+            "why_not_suitable": {"type": "STRING"},
+            "suggested_for": {"type": "ARRAY", "items": {"type": "STRING"}},
+            "warning_for": {"type": "ARRAY", "items": {"type": "STRING"}},
+            "fit_reasons": {"type": "ARRAY", "items": {"type": "STRING"}},
+            "risk_reasons": {"type": "ARRAY", "items": {"type": "STRING"}},
+            "warning_reasons": {"type": "ARRAY", "items": {"type": "STRING"}},
+        },
+        "required": ["verdict"],
+    }
     item_schema = {
         "type": "OBJECT",
         "properties": {
@@ -427,11 +535,9 @@ def _parsed_menu_schema() -> dict[str, Any]:
             "dietary_tags": {"type": "ARRAY", "items": {"type": "STRING"}},
             "confidence": {"type": "NUMBER"},
             "sort_order": {"type": "INTEGER"},
+            "recommendation": recommendation_schema,
+            "participant_breakdowns": {"type": "ARRAY", "items": breakdown_schema},
         },
-        # Mark the generated/inferred fields required: a terse lite model omits
-        # optional fields (especially translated_description it must *write*, and
-        # the allergen/diet tags it must *infer*), leaving them null. Requiring
-        # them forces the model to actually produce them.
         "required": [
             "original_name",
             "translated_name",
@@ -452,7 +558,20 @@ def _parsed_menu_schema() -> dict[str, Any]:
             "items": {"type": "ARRAY", "items": item_schema},
             "warnings": {
                 "type": "ARRAY",
-                "items": {"type": "STRING"},
+                "items": {
+                    "type": "STRING",
+                    "enum": [
+                        "UNSUPPORTED_INPUT",
+                        "INPUT_TOO_LARGE",
+                        "INVALID_DOCUMENT",
+                        "PROVIDER_UNAVAILABLE",
+                        "PROVIDER_TIMEOUT",
+                        "PROVIDER_RATE_LIMITED",
+                        "LOW_CONFIDENCE",
+                        "NO_TEXT_FOUND",
+                        "UNSAFE_PROVIDER_METADATA",
+                    ],
+                },
             },
         },
         "required": ["items"],

@@ -81,6 +81,9 @@ class MenuSavedResponse(BaseModel):
     updated_at: datetime
 
 
+from src.modules.menu_scan.schemas import RecommendationResponse
+
+
 class MenuItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -96,6 +99,7 @@ class MenuItemResponse(BaseModel):
     dietary_tags: list[str] = Field(default_factory=list)
     confidence_score: Decimal | None
     sort_order: int
+    recommendation: RecommendationResponse | None = None
 
     @field_validator("allergens", "dietary_tags", mode="before")
     @classmethod

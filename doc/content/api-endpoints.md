@@ -219,6 +219,105 @@ Lỗi: `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`.
 Auth bắt buộc. Tương đương `PATCH /auth/me` — bản POST cho client hoặc proxy
 chặn PATCH. Cùng body và response.
 
+### GET `/auth/me/food-profiles`
+
+Auth bắt buộc. Trả danh sách hồ sơ ăn uống lâu dài của user hiện tại.
+
+Response `200 OK`:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "3b9f3a0a-2b75-4f3b-9f1d-6db8c9f3f0e2",
+      "user_id": "83a473bd-0e40-4af6-a96c-4e0bd3dd6145",
+      "display_name": "My food profile",
+      "preferred_language": "en",
+      "is_default": true,
+      "notes": null,
+      "preferences": [
+        {
+          "id": "cba521bf-7339-4442-99b8-190e4d67a3f5",
+          "code": "seafood",
+          "category": "allergen",
+          "preference_type": "ALLERGY",
+          "intensity": null,
+          "importance": 5,
+          "note": null,
+          "created_at": "2026-07-11T14:00:00Z"
+        }
+      ],
+      "created_at": "2026-07-11T14:00:00Z",
+      "updated_at": "2026-07-11T14:00:00Z"
+    }
+  ],
+  "meta": null
+}
+```
+
+### POST `/auth/me/food-profiles`
+
+Auth bắt buộc. Tạo hồ sơ ăn uống. Nếu đây là profile đầu tiên của user thì hệ
+thống tự đặt `is_default = true`.
+
+```json
+{
+  "display_name": "My food profile",
+  "preferred_language": "en",
+  "is_default": true,
+  "notes": null,
+  "preferences": [
+    {
+      "code": "seafood",
+      "category": "allergen",
+      "preference_type": "ALLERGY",
+      "intensity": null,
+      "importance": 5,
+      "note": null
+    },
+    {
+      "code": "no_pork",
+      "category": "dietary",
+      "preference_type": "DIETARY_RULE",
+      "importance": 4
+    }
+  ]
+}
+```
+
+`preference_type` nhận: `LIKE`, `DISLIKE`, `AVOID`, `ALLERGY`,
+`DIETARY_RULE`. `intensity` nằm trong `0..5`; `importance` nằm trong `1..5`.
+
+Response `201 Created`: một food profile cùng shape item trong
+`GET /auth/me/food-profiles`.
+
+### GET `/auth/me/food-profiles/{profile_id}`
+
+Auth bắt buộc. Lấy một hồ sơ ăn uống thuộc user hiện tại.
+
+Lỗi: `401 UNAUTHORIZED`, `404 FOOD_PROFILE_NOT_FOUND`.
+
+### PATCH `/auth/me/food-profiles/{profile_id}`
+
+Auth bắt buộc. Cập nhật hồ sơ ăn uống. Tất cả trường optional; nếu gửi
+`preferences` thì backend thay thế toàn bộ danh sách preference của profile đó.
+Nếu đặt `is_default = true`, các profile khác của user sẽ tự bỏ default.
+
+Response `200 OK`: một food profile cùng shape item trong
+`GET /auth/me/food-profiles`.
+
+Lỗi: `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`, `404 FOOD_PROFILE_NOT_FOUND`.
+
+### DELETE `/auth/me/food-profiles/{profile_id}`
+
+Auth bắt buộc. Soft-delete một hồ sơ ăn uống. Nếu profile bị xóa là default,
+backend chọn profile còn lại đầu tiên làm default; nếu không còn profile nào thì
+`users.allergies` và `users.dietary_preferences` được reset về rỗng để tương
+thích luồng cũ.
+
+Response `204 No Content`.
+
 ## 3. Scan
 
 ### GET `/scans`

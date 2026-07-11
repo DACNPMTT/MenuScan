@@ -21,6 +21,61 @@ export interface User {
   created_at?: string
 }
 
+export type FoodProfilePreferenceType =
+  | 'LIKE'
+  | 'DISLIKE'
+  | 'AVOID'
+  | 'ALLERGY'
+  | 'DIETARY_RULE'
+
+export interface FoodProfilePreference {
+  id: string
+  code: string
+  category: string
+  preference_type: FoodProfilePreferenceType
+  intensity: number | null
+  importance: number
+  note: string | null
+  created_at: string
+}
+
+export interface FoodProfilePreferenceInput {
+  code: string
+  category: string
+  preference_type: FoodProfilePreferenceType
+  intensity?: number | null
+  importance?: number
+  note?: string | null
+}
+
+export interface FoodProfile {
+  id: string
+  user_id: string
+  display_name: string
+  preferred_language: string
+  is_default: boolean
+  notes: string | null
+  preferences: FoodProfilePreference[]
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateFoodProfilePayload {
+  display_name: string
+  preferred_language: string
+  is_default?: boolean
+  notes?: string | null
+  preferences?: FoodProfilePreferenceInput[]
+}
+
+export interface UpdateFoodProfilePayload {
+  display_name?: string
+  preferred_language?: string
+  is_default?: boolean
+  notes?: string | null
+  preferences?: FoodProfilePreferenceInput[]
+}
+
 export interface UpdateProfilePayload {
   display_name?: string | null
   preferred_language?: string
@@ -37,6 +92,13 @@ interface AuthContextType {
   verifyMagicLink: (token: string) => Promise<User>
   setPassword: (password: string) => Promise<void>
   updateProfile: (payload: UpdateProfilePayload) => Promise<User>
+  listFoodProfiles: () => Promise<FoodProfile[]>
+  createFoodProfile: (payload: CreateFoodProfilePayload) => Promise<FoodProfile>
+  updateFoodProfile: (
+    profileId: string,
+    payload: UpdateFoodProfilePayload,
+  ) => Promise<FoodProfile>
+  deleteFoodProfile: (profileId: string) => Promise<void>
   logout: () => Promise<void>
   refreshSession: () => Promise<void>
 }
@@ -131,6 +193,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return updatedUser
   }, [accessToken])
 
+  const listFoodProfiles = useCallback(async () => {
+    if (!accessToken) throw new Error('Unauthenticated')
+    return await apiRequest<FoodProfile[]>('/api/v1/auth/me/food-profiles', {
+      token: accessToken,
+    })
+  }, [accessToken])
+
+  const createFoodProfile = useCallback(async (payload: CreateFoodProfilePayload) => {
+    if (!accessToken) throw new Error('Unauthenticated')
+    const created = await apiRequest<FoodProfile>('/api/v1/auth/me/food-profiles', {
+      method: 'POST',
+      token: accessToken,
+      body: JSON.stringify(payload),
+    })
+    if (created.is_default) {
+      await fetchCurrentUser(accessToken)
+    }
+    return created
+  }, [accessToken, fetchCurrentUser])
+
+  const updateFoodProfile = useCallback(async (
+    profileId: string,
+    payload: UpdateFoodProfilePayload,
+  ) => {
+    if (!accessToken) throw new Error('Unauthenticated')
+    const updated = await apiRequest<FoodProfile>(
+      `/api/v1/auth/me/food-profiles/${profileId}`,
+      {
+        method: 'PATCH',
+        token: accessToken,
+        body: JSON.stringify(payload),
+      },
+    )
+    if (updated.is_default) {
+      await fetchCurrentUser(accessToken)
+    }
+    return updated
+  }, [accessToken, fetchCurrentUser])
+
+  const deleteFoodProfile = useCallback(async (profileId: string) => {
+    if (!accessToken) throw new Error('Unauthenticated')
+    await apiRequest<void>(`/api/v1/auth/me/food-profiles/${profileId}`, {
+      method: 'DELETE',
+      token: accessToken,
+    })
+    await fetchCurrentUser(accessToken)
+  }, [accessToken, fetchCurrentUser])
+
   // 5. Logout
   const logout = useCallback(async () => {
     try {
@@ -207,6 +317,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         verifyMagicLink,
         setPassword,
         updateProfile,
+        listFoodProfiles,
+        createFoodProfile,
+        updateFoodProfile,
+        deleteFoodProfile,
         logout,
         refreshSession,
       }}

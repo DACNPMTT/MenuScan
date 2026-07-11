@@ -635,6 +635,103 @@ function ItemsList({
                   )}
                 </div>
               )}
+
+              {/* Recommendation details */}
+              {item.recommendation && (
+                <div className="mt-auto pt-3 border-t border-hairline/60 flex flex-col gap-1.5 text-left">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12px] font-bold text-ink-variant">Độ phù hợp:</span>
+                    <span
+                      className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                        item.recommendation.verdict === 'RECOMMENDED'
+                          ? 'bg-[#e4f4df] text-[#256b2b]'
+                          : item.recommendation.verdict === 'OK'
+                            ? 'bg-primary/10 text-primary-dark'
+                            : item.recommendation.verdict === 'CAUTION'
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-red-100 text-red-800'
+                      }`}
+                    >
+                      {item.recommendation.verdict === 'RECOMMENDED'
+                        ? 'Nên Dùng'
+                        : item.recommendation.verdict === 'OK'
+                          ? 'Bình Thường'
+                          : item.recommendation.verdict === 'CAUTION'
+                            ? 'Cảnh Báo'
+                            : 'Nên Tránh'}
+                    </span>
+                  </div>
+
+                  {item.recommendation.score !== undefined && item.recommendation.score !== null && (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-ink-variant">Điểm số:</span>
+                      <span className="font-bold text-ink">{Number(item.recommendation.score).toFixed(0)}/100</span>
+                    </div>
+                  )}
+
+                  {item.recommendation.why_suitable && (
+                    <p className="text-[11px] text-[#256b2b] bg-[#e4f4df]/20 p-1.5 rounded border border-[#e4f4df]/35">
+                      ✓ {item.recommendation.why_suitable}
+                    </p>
+                  )}
+                  {item.recommendation.why_not_suitable && (
+                    <p className="text-[11px] text-red-700 bg-red-50 p-1.5 rounded border border-red-100/35">
+                      ✗ {item.recommendation.why_not_suitable}
+                    </p>
+                  )}
+
+                  {item.recommendation.suggested_for && item.recommendation.suggested_for.length > 0 && (
+                    <p className="text-[10px] text-ink-variant">
+                      <span className="font-semibold text-primary">Gợi ý cho:</span> {item.recommendation.suggested_for.join(', ')}
+                    </p>
+                  )}
+                  {item.recommendation.warning_for && item.recommendation.warning_for.length > 0 && (
+                    <p className="text-[10px] text-ink-variant">
+                      <span className="font-semibold text-red-600">Cảnh báo:</span> {item.recommendation.warning_for.join(', ')}
+                    </p>
+                  )}
+
+                  {item.recommendation.participant_breakdowns && item.recommendation.participant_breakdowns.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-hairline/45 flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-ink-variant/60 uppercase">Chi tiết thành viên:</span>
+                      {item.recommendation.participant_breakdowns.map((bd, bdIdx) => (
+                        <div key={bdIdx} className="flex flex-wrap items-center justify-between text-[11px] bg-surface-muted/50 px-2 py-1 rounded">
+                          <span className="font-medium text-ink">{bd.display_name}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                                bd.verdict === 'RECOMMENDED'
+                                  ? 'bg-[#e4f4df] text-[#256b2b]'
+                                  : bd.verdict === 'OK'
+                                    ? 'bg-primary/10 text-primary-dark'
+                                    : bd.verdict === 'CAUTION'
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : 'bg-red-100 text-red-800'
+                              }`}
+                            >
+                              {bd.verdict === 'RECOMMENDED'
+                                ? 'Nên dùng'
+                                : bd.verdict === 'OK'
+                                  ? 'Bình thường'
+                                  : bd.verdict === 'CAUTION'
+                                    ? 'Cảnh báo'
+                                    : 'Nên tránh'}
+                            </span>
+                            {bd.score !== undefined && bd.score !== null && (
+                              <span className="font-bold text-ink-variant/80">{bd.score}</span>
+                            )}
+                          </div>
+                          {bd.explanation && (
+                            <p className="w-full text-[10px] text-ink-variant/75 mt-0.5 pl-1 border-l border-hairline">
+                              {bd.explanation}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
           </div>

@@ -73,6 +73,8 @@ class MenuParser(Protocol):
         *,
         target_language: str = "en",
         images: Sequence[bytes] | None = None,
+        preferences_data: list[dict[str, Any]] | None = None,
+        is_group: bool = False,
     ) -> ParsedMenuDraft:
         """Convert provider-neutral OCR output into a parsed menu draft.
 
@@ -91,6 +93,8 @@ class RuleBasedMenuParser:
         *,
         target_language: str = "en",
         images: Sequence[bytes] | None = None,
+        preferences_data: list[dict[str, Any]] | None = None,
+        is_group: bool = False,
     ) -> ParsedMenuDraft:
         # Rule-based parsing is text/geometry only; images are ignored.
         return parse_menu(document, target_language=target_language)

@@ -121,6 +121,32 @@ class OcrDocument(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class ParsedRecommendationDraft(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    verdict: str
+    score: float | None = None
+    explanation: str | None = None
+    why_suitable: str | None = None
+    why_not_suitable: str | None = None
+    suggested_for: list[str] = Field(default_factory=list)
+    warning_for: list[str] = Field(default_factory=list)
+    fit_reasons: list[str] = Field(default_factory=list)
+    risk_reasons: list[str] = Field(default_factory=list)
+    warning_reasons: list[str] = Field(default_factory=list)
+
+
+class ParsedBreakdownDraft(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    display_name: str
+    verdict: str
+    score: float | None = None
+    explanation: str | None = None
+    fit_reasons: list[str] = Field(default_factory=list)
+    risk_reasons: list[str] = Field(default_factory=list)
+
+
 class ParsedMenuItemDraft(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -140,6 +166,8 @@ class ParsedMenuItemDraft(BaseModel):
     confidence: float | None = Field(default=None, ge=0, le=1)
     source_references: list[OcrSourceReference] = Field(default_factory=list)
     sort_order: int = Field(ge=0)
+    recommendation: ParsedRecommendationDraft | None = None
+    participant_breakdowns: list[ParsedBreakdownDraft] = Field(default_factory=list)
 
 
 class ParsedMenuDraft(BaseModel):

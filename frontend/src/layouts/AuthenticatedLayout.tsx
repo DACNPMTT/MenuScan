@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link } from 'react-router-dom'
-import { LayoutDashboard, LogOut, ReceiptText, ScanLine, Utensils } from 'lucide-react'
+import { LayoutDashboard, LogOut, ReceiptText, ScanLine, Utensils, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Spinner } from '@/shared/components/Spinner'
@@ -12,6 +12,7 @@ import { RouteErrorFallback } from '@/shared/components/RouteErrorFallback'
 const navigationItems = [
   { key: 'dashboard', to: '/app', icon: LayoutDashboard, authOnly: true },
   { key: 'scan', to: '/app/scan', icon: ScanLine, authOnly: false },
+  { key: 'dining', to: '/app/dining', icon: Users, authOnly: true },
   { key: 'menus', to: '/app/menus', icon: Utensils, authOnly: true },
   { key: 'bills', to: '/app/bills', icon: ReceiptText, authOnly: true },
 ] as const

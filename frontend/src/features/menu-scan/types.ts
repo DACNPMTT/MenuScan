@@ -122,6 +122,27 @@ export interface MenuItemResult {
   dietary_tags: string[]
   confidence_score: number | string | null
   sort_order: number
+  recommendation?: RecommendationResult | null
+}
+
+export interface ParticipantBreakdown {
+  display_name: string
+  verdict: 'RECOMMENDED' | 'OK' | 'CAUTION' | 'AVOID'
+  score?: number | null
+  explanation?: string | null
+  fit_reasons?: string[]
+  risk_reasons?: string[]
+}
+
+export interface RecommendationResult {
+  verdict: 'RECOMMENDED' | 'OK' | 'CAUTION' | 'AVOID'
+  score?: number | null
+  explanation?: string | null
+  why_suitable?: string | null
+  why_not_suitable?: string | null
+  suggested_for?: string[]
+  warning_for?: string[]
+  participant_breakdowns?: ParticipantBreakdown[]
 }
 
 export interface MenuSummary {

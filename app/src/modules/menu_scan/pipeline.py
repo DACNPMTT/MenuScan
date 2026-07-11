@@ -289,6 +289,8 @@ class ScanPipeline:
                 "The photo does not look like a menu.",
             )
 
+        preferences_data = []
+        is_group = False
         with self.session_factory() as session:
             scan = self.scan_repository.get_scan_for_processing(
                 session,
@@ -297,13 +299,86 @@ class ScanPipeline:
             assert scan is not None  # noqa: S101
             target_language = scan.target_language
 
+            # Query if there is an associated dining session
+            from src.modules.dining.models import DiningSession
+            from src.modules.identity.models import FoodProfile
+
+            dining_session = (
+                session.query(DiningSession)
+                .filter(DiningSession.scan_session_id == scan_id)
+                .first()
+            )
+            is_group = dining_session is not None
+
+            if dining_session is not None:
+                # Add host
+                if dining_session.created_by_user_id is not None:
+                    host_profile = (
+                        session.query(FoodProfile)
+                        .filter(
+                            FoodProfile.user_id == dining_session.created_by_user_id,
+                            FoodProfile.is_default == True,
+                            FoodProfile.deleted_at.is_(None),
+                        )
+                        .first()
+                    )
+                    if host_profile is not None:
+                        preferences_data.append({
+                            "display_name": host_profile.display_name or "Host",
+                            "preferences": [
+                                {
+                                    "code": p.code,
+                                    "preference_type": p.preference_type.value if hasattr(p.preference_type, "value") else str(p.preference_type),
+                                }
+                                for p in host_profile.preferences
+                            ]
+                        })
+                # Add participants
+                for p in dining_session.participants:
+                    preferences_data.append({
+                        "display_name": p.display_name,
+                        "preferences": [
+                            {
+                                "code": pref.code,
+                                "preference_type": pref.preference_type.value if hasattr(pref.preference_type, "value") else str(pref.preference_type),
+                            }
+                            for pref in p.preferences
+                        ]
+                    })
+            else:
+                # Fallback to user's default food profile (the person scanning)
+                if scan.user_id is not None:
+                    user_profile = (
+                        session.query(FoodProfile)
+                        .filter(
+                            FoodProfile.user_id == scan.user_id,
+                            FoodProfile.is_default == True,
+                            FoodProfile.deleted_at.is_(None),
+                        )
+                        .first()
+                    )
+                    if user_profile is not None:
+                        preferences_data.append({
+                            "display_name": user_profile.display_name or "Bạn",
+                            "preferences": [
+                                {
+                                    "code": p.code,
+                                    "preference_type": p.preference_type.value if hasattr(p.preference_type, "value") else str(p.preference_type),
+                                }
+                                for p in user_profile.preferences
+                            ]
+                        })
+
         try:
             draft = self.menu_parser.parse(
                 ocr_document,
                 target_language=target_language,
                 images=images or None,
+                preferences_data=preferences_data,
+                is_group=is_group,
             )
         except Exception as error:
+            logger.exception("pipeline_parse_error scan_id=%s preferences_data=%s is_group=%s", scan_id, preferences_data, is_group)
             raise _PipelineError(
                 _ERROR_PARSING_FAILED,
                 "Menu parsing failed.",
@@ -411,6 +486,30 @@ class ScanPipeline:
             ]
 
             self.menu_repository.save_menu_with_items(session, menu, food_items)
+            session.flush()
+
+            # Link menu and generate dining recommendations if dining session associated
+            from src.modules.dining.models import DiningSession, DiningSessionStatus
+            from src.modules.dining.service import DiningSessionService
+            from src.modules.dining.repository import DiningSessionRepository
+
+            dining_session = (
+                session.query(DiningSession)
+                .filter(DiningSession.scan_session_id == scan.id)
+                .first()
+            )
+            if dining_session is not None:
+                dining_session.menu_id = menu.id
+                dining_session.status = DiningSessionStatus.COMPLETED
+                dining_session.updated_at = datetime.now(timezone.utc)
+
+                dining_service = DiningSessionService(session=session)
+                dining_service.generate_recommendations(
+                    dining_session=dining_session,
+                    menu=menu,
+                    food_items=food_items,
+                    draft_items=draft.items,
+                )
 
             _update_scan(
                 scan,

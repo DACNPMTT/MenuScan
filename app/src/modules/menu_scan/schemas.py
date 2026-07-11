@@ -61,6 +61,26 @@ class ScanListItemData(BaseModel):
     menu: ScanListMenuData | None
 
 
+class ParticipantBreakdownResponse(BaseModel):
+    display_name: str
+    verdict: str
+    score: float | None = None
+    explanation: str | None = None
+    fit_reasons: list[str] = Field(default_factory=list)
+    risk_reasons: list[str] = Field(default_factory=list)
+
+
+class RecommendationResponse(BaseModel):
+    verdict: str
+    score: float | None = None
+    explanation: str | None = None
+    why_suitable: str | None = None
+    why_not_suitable: str | None = None
+    suggested_for: list[str] = Field(default_factory=list)
+    warning_for: list[str] = Field(default_factory=list)
+    participant_breakdowns: list[ParticipantBreakdownResponse] = Field(default_factory=list)
+
+
 class MenuItemData(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -76,6 +96,7 @@ class MenuItemData(BaseModel):
     dietary_tags: list[str] = Field(default_factory=list)
     confidence_score: Decimal | None
     sort_order: int
+    recommendation: RecommendationResponse | None = None
 
     @field_validator("allergens", "dietary_tags", mode="before")
     @classmethod
