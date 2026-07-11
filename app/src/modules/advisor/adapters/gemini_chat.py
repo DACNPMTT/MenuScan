@@ -52,9 +52,19 @@ class GeminiChat:
     model: str
     timeout_seconds: float
     client: httpx.Client | None = None
+    # Optional key pool tried in order; a 429 (quota) on one key rotates to the
+    # next. Falls back to the single ``api_key`` when empty.
+    api_keys: tuple[str, ...] = ()
+
+    def _keys(self) -> list[str]:
+        pool = [key for key in self.api_keys if key]
+        if pool:
+            return pool
+        return [self.api_key] if self.api_key else []
 
     def complete(self, *, system: str, messages: list[tuple[str, str]]) -> str:
-        if not self.api_key:
+        keys = self._keys()
+        if not keys:
             raise ChatProviderUnavailableError("gemini chat has no api key")
 
         owns_client = self.client is None
@@ -68,15 +78,25 @@ class GeminiChat:
         }
         url = f"{self.api_base_url}/models/{self.model}:generateContent"
         try:
-            response = client.post(url, params={"key": self.api_key}, json=body)
-        except httpx.TimeoutException as error:
-            raise ChatProviderTimeoutError("gemini chat timed out") from error
-        except httpx.HTTPError as error:
-            raise ChatProviderUnavailableError("gemini chat request failed") from error
+            response = None
+            for index, key in enumerate(keys):
+                try:
+                    response = client.post(url, params={"key": key}, json=body)
+                except httpx.TimeoutException as error:
+                    raise ChatProviderTimeoutError("gemini chat timed out") from error
+                except httpx.HTTPError as error:
+                    raise ChatProviderUnavailableError(
+                        "gemini chat request failed"
+                    ) from error
+                # Rotate to the next key only on a quota/rate limit.
+                if response.status_code == 429 and index < len(keys) - 1:
+                    continue
+                break
         finally:
             if owns_client:
                 client.close()
 
+        assert response is not None  # noqa: S101 — loop runs at least once
         if response.status_code in {408, 504}:
             raise ChatProviderTimeoutError("gemini chat timed out")
         if response.status_code == 429 or response.status_code >= 500:

@@ -16,9 +16,10 @@ from src.modules.menu.service import MenuService
 def get_chat_provider() -> ChatProvider:
     """Gemini when configured, else the rule-based fallback (dev/test)."""
     config = settings.llm
-    if config.provider == "gemini" and config.api_key:
+    if config.provider == "gemini" and (config.api_key or config.api_keys):
         return GeminiChat(
-            api_key=config.api_key,
+            api_key=config.api_key or "",
+            api_keys=config.api_keys,
             api_base_url=config.api_base_url,
             model=config.model,
             timeout_seconds=config.timeout_seconds,
