@@ -59,7 +59,7 @@ export function MagicLinkForm({ heading, ctaLabel, alternate }: MagicLinkFormPro
               autoComplete="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@example.com"
+              placeholder={t('auth.emailLabel')}
               aria-label={t('auth.emailLabel')}
               className="rounded-none border-0 border-b border-hairline bg-transparent px-0 py-1 text-[16px] text-ink shadow-none placeholder:text-placeholder focus-visible:border-primary-dark focus-visible:ring-0"
             />

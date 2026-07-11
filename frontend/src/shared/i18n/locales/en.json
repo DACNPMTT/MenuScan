@@ -117,7 +117,7 @@
     "newPassword": "New Password",
     "confirmPassword": "Confirm Password",
     "minCharsPlaceholder": "Minimum 6 characters",
-    "reenterPlaceholder": "Re-enter your password",
+    "reenterPlaceholder": "Confirm password",
     "saving": "Saving…",
     "save": "Save Password",
     "errors": {
@@ -298,7 +298,7 @@
     "save": "Save Item"
   },
   "filter": {
-    "searchPlaceholder": "Search dishes by name or description…",
+    "searchPlaceholder": "Search dishes…",
     "searchAria": "Search dishes",
     "clearSearchAria": "Clear search",
     "minPrice": "Min price",
@@ -394,7 +394,7 @@
     "setPassword": "Set password",
     "infoTitle": "Profile information",
     "displayName": "Display name",
-    "enterDisplayName": "Enter a display name",
+    "enterDisplayName": "Display name",
     "email": "Email",
     "noEmail": "No email",
     "notSet": "Not set",
@@ -474,7 +474,7 @@
     "successTitle": "Success",
     "emailLabel": "Email Address",
     "passwordLabel": "Password",
-    "passwordPlaceholder": "Enter your password",
+    "passwordPlaceholder": "Password",
     "loggingIn": "Logging in…",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
