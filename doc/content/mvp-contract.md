@@ -12,9 +12,23 @@ này trước khi triển khai.
 
 ## 1. Mục tiêu MVP
 
+**Định vị sản phẩm:** MenuScan là **trợ lý chọn món cá nhân hoá** cho khách du
+lịch và người kỹ tính trong ăn uống. Quét một menu tiếng lạ / nhiều món không
+quen, mỗi món được dịch, giải thích và đối chiếu với hồ sơ khẩu vị của chính
+người dùng (dị ứng, chế độ ăn, sở thích, món ghét) để cho biết món có hợp không,
+vì sao, và cần lưu ý gì. Điểm khác biệt so với app dịch: trả về **phán đoán cá
+nhân hoá**, không chỉ dịch chữ. Sản phẩm là **trợ lý tham khảo, KHÔNG bảo hành
+an toàn** — cảnh báo dị ứng do AI suy ra, luôn khuyến nghị xác nhận với nhà hàng.
+
 MenuScan cho phép người dùng đăng nhập (Magic Link hoặc email + mật khẩu), tải
 menu lên, theo dõi quá trình xử lý OCR, xem đồng thời file gốc với dữ liệu món
 ăn có cấu trúc, chỉnh sửa kết quả, và chọn món để tính/chia hóa đơn.
+
+> **Định hướng mới đang triển khai (chưa có trong code):** hồ sơ khẩu vị mở rộng
+> (sở thích/món ghét), gợi ý + xếp hạng món theo hồ sơ, khung chat trợ lý, và
+> luồng nhóm/QR/chia bill không đăng nhập. Phạm vi và task chi tiết ở
+> [personalization-tasklist.md](./personalization-tasklist.md). Các mục dưới đây
+> mô tả phần **đã triển khai**; đừng coi phần định hướng mới là đã xong.
 
 Luồng chính:
 
