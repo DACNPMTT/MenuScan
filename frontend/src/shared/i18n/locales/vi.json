@@ -331,6 +331,16 @@
     "skip": "Bỏ qua",
     "saveError": "Không lưu được. Vui lòng thử lại."
   },
+  "verdict": {
+    "avoid": "Nên tránh",
+    "caution": "Cân nhắc",
+    "good": "Nên ăn",
+    "reason": {
+      "allergen": "có thể chứa {{list}} — nên hỏi kỹ trước khi gọi",
+      "diet": "không hợp chế độ ăn của bạn ({{list}})",
+      "favorite": "hợp khẩu vị bạn thích"
+    }
+  },
   "billItem": {
     "lowConfidence": "OCR confidence thấp ({{value}}%).",
     "allergyWarning": "CẢNH BÁO: Phát hiện dị ứng (Hải sản)",

@@ -11,6 +11,7 @@ import {
   hasRisk,
   type DietProfile,
   type DishDietary,
+  type DishRisk,
 } from '@/features/menu-scan/dietary'
 
 const RISK_PENALTY = 1000
@@ -48,6 +49,21 @@ export function scoreDish(item: DishDietary, profile: DietProfile): DishScore {
     dislikes * DISLIKE_PENALTY
 
   return { score, recommended: !risky && favorites > 0 }
+}
+
+/** A single at-a-glance verdict for a dish. `neutral` means nothing worth
+ * flagging (no verdict banner shown). */
+export type Verdict = 'good' | 'caution' | 'avoid' | 'neutral'
+
+/** Summarize a dish into one verdict from its risk + recommendation. Allergen
+ * risk always wins (safety first), then diet mismatch, then a positive taste
+ * match. This is the rule-based fallback; the LLM advisor can supply a richer
+ * reason alongside the same verdict later. */
+export function dishVerdict(risk: DishRisk, recommended: boolean): Verdict {
+  if (risk.allergens.length > 0) return 'avoid'
+  if (risk.dietFlags.length > 0) return 'caution'
+  if (recommended) return 'good'
+  return 'neutral'
 }
 
 /** Return a new array of dishes ordered best-fit first. Stable: dishes with the
