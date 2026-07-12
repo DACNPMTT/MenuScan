@@ -29,6 +29,12 @@ export type DietPreference = (typeof DIET_PREFERENCES)[number]
 export interface DietProfile {
   allergies?: string[] | null
   dietary_preferences?: string[] | null
+  /** Flavor/ingredient tags the diner likes — matched against a dish's
+   * `dietary_tags` to boost its fit score. Populated once the profile UI
+   * (favorites/dislikes) ships; safe to leave undefined. */
+  favorites?: string[] | null
+  /** Flavor/ingredient tags the diner dislikes — lowers a dish's fit score. */
+  dislikes?: string[] | null
 }
 
 export interface DishDietary {

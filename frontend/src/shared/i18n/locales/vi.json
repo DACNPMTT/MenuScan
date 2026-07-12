@@ -119,7 +119,7 @@
     "newPassword": "Mật khẩu mới",
     "confirmPassword": "Xác nhận mật khẩu",
     "minCharsPlaceholder": "Tối thiểu 6 ký tự",
-    "reenterPlaceholder": "Nhập lại mật khẩu",
+    "reenterPlaceholder": "Xác nhận mật khẩu",
     "saving": "Đang lưu…",
     "save": "Lưu mật khẩu",
     "errors": {
@@ -289,7 +289,7 @@
     "save": "Lưu món"
   },
   "filter": {
-    "searchPlaceholder": "Tìm món theo tên hoặc mô tả…",
+    "searchPlaceholder": "Tìm món…",
     "searchAria": "Tìm kiếm món",
     "clearSearchAria": "Xóa tìm kiếm",
     "minPrice": "Giá từ",
@@ -383,11 +383,22 @@
     "skip": "Bỏ qua",
     "saveError": "Không lưu được. Vui lòng thử lại."
   },
+  "verdict": {
+    "avoid": "Nên tránh",
+    "caution": "Cân nhắc",
+    "good": "Nên ăn",
+    "reason": {
+      "allergen": "có thể chứa {{list}} — nên hỏi kỹ trước khi gọi",
+      "diet": "không hợp chế độ ăn của bạn ({{list}})",
+      "favorite": "hợp khẩu vị bạn thích"
+    }
+  },
   "billItem": {
     "lowConfidence": "OCR confidence thấp ({{value}}%).",
     "allergyWarning": "CẢNH BÁO: Phát hiện dị ứng (Hải sản)",
     "allergyMatch": "CẢNH BÁO: Chứa {{list}}",
     "dietMatch": "Không hợp khẩu phần: {{list}}",
+    "recommended": "Gợi ý cho bạn",
     "namePlaceholder": "Tên món",
     "originalNamePlaceholder": "Tên trên ảnh",
     "pricePlaceholder": "Giá",
@@ -433,7 +444,7 @@
     "setPassword": "Đặt mật khẩu",
     "infoTitle": "Thông tin hồ sơ",
     "displayName": "Tên hiển thị",
-    "enterDisplayName": "Nhập tên hiển thị",
+    "enterDisplayName": "Tên hiển thị",
     "email": "Email",
     "noEmail": "Chưa có email",
     "notSet": "Chưa thiết lập",
@@ -558,7 +569,7 @@
     "successTitle": "Thành công",
     "emailLabel": "Địa chỉ email",
     "passwordLabel": "Mật khẩu",
-    "passwordPlaceholder": "Nhập mật khẩu của bạn",
+    "passwordPlaceholder": "Mật khẩu",
     "loggingIn": "Đang đăng nhập…",
     "showPassword": "Hiện mật khẩu",
     "hidePassword": "Ẩn mật khẩu",
