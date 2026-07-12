@@ -44,7 +44,6 @@ import { type DietProfile } from '@/features/menu-scan/dietary'
 import {
   isProfileActive,
   rankDishes,
-  scoreDish,
 } from '@/features/menu-scan/ranking'
 import { BillItemCard } from '@/features/menu-scan/components/menu-detail/BillItemCard'
 import { ItemDisplayName } from '@/features/menu-scan/components/menu-detail/ItemDisplayName'
@@ -881,9 +880,6 @@ export function MenuDetailPage() {
                   key={item.id}
                   item={item}
                   dietProfile={dietProfile}
-                  recommended={
-                    profileActive && scoreDish(item, dietProfile).recommended
-                  }
                   draft={itemDrafts[item.id] ?? draftFromItem(item, currency)}
                   editing={editingItemIds.has(item.id)}
                   dirty={

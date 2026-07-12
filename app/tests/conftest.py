@@ -75,6 +75,12 @@ def db_session_factory(db_engine: Engine) -> Iterator[sessionmaker[Session]]:
     # reference menus (fk_bills_menu_id_menus), so clear children first to avoid
     # a FK violation on DELETE FROM menus when bill rows exist.
     with factory() as session:
+        session.execute(text("DELETE FROM food_item_recommendation_participant_breakdowns"))
+        session.execute(text("DELETE FROM food_item_recommendations"))
+        session.execute(text("DELETE FROM dining_session_participant_preferences"))
+        session.execute(text("DELETE FROM dining_session_participants"))
+        session.execute(text("DELETE FROM dining_session_invites"))
+        session.execute(text("DELETE FROM dining_sessions"))
         session.execute(text("DELETE FROM bill_adjustments"))
         session.execute(text("DELETE FROM bill_items"))
         session.execute(text("DELETE FROM bills"))
