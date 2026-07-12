@@ -104,6 +104,8 @@ jobs:
           LLM_MULTIMODAL: "true"
           LLM_IMAGE_MAX_DIMENSION: "1536"
           LLM_PREALIGN_CSV: "true"
+          SCAN_MIN_GAP_SECONDS: "10"
+          CHAT_MIN_GAP_SECONDS: "5"
           STORAGE_PROVIDER: "local"
           STORAGE_LOCAL_ROOT: "/app/storage/objects"
           SCAN_STALE_TIMEOUT_MINUTES: "10"

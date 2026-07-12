@@ -46,6 +46,7 @@ import {
   rankDishes,
 } from '@/features/menu-scan/ranking'
 import { BillItemCard } from '@/features/menu-scan/components/menu-detail/BillItemCard'
+import { AssistantChat } from '@/features/menu-scan/components/menu-detail/AssistantChat'
 import { ItemDisplayName } from '@/features/menu-scan/components/menu-detail/ItemDisplayName'
 import { MenuItemDetailDialog } from '@/features/menu-scan/components/menu-detail/MenuItemDetailDialog'
 import { ManualItemCard } from '@/features/menu-scan/components/menu-detail/ManualItemCard'
@@ -188,6 +189,9 @@ export function MenuDetailPage() {
   const [surchargeInput, setSurchargeInput] = useState(0)
   const [surchargeCurrency, setSurchargeCurrency] = useState<string | null>(null)
   const [billLines, setBillLines] = useState<Record<string, BillLineState>>({})
+  // The dish the diner most recently added — the assistant suggests it for a
+  // quick question.
+  const [lastSelectedItemId, setLastSelectedItemId] = useState<string | null>(null)
   const [addingManual, setAddingManual] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [manualName, setManualName] = useState('')
@@ -389,6 +393,23 @@ export function MenuDetailPage() {
         }))
         .filter((line) => line.state.quantity > 0),
     [allItems, billLines],
+  )
+
+  // Selected dishes passed to the assistant for quick-ask chips + the "+" picker.
+  const selectedDishes = useMemo(
+    () =>
+      selectedLines.map(({ item }) => ({
+        id: item.id,
+        name: item.translated_name || item.original_name,
+      })),
+    [selectedLines],
+  )
+  const lastSelectedName = useMemo(
+    () =>
+      lastSelectedItemId
+        ? selectedDishes.find((dish) => dish.id === lastSelectedItemId)?.name
+        : undefined,
+    [lastSelectedItemId, selectedDishes],
   )
 
   const subtotal = useMemo(
@@ -842,6 +863,14 @@ export function MenuDetailPage() {
               </div>
             )}
 
+            {menuId && (
+              <AssistantChat
+                menuId={menuId}
+                selectedDishes={selectedDishes}
+                lastSelectedName={lastSelectedName}
+              />
+            )}
+
             <MenuFilterBar
               searchInput={searchInput}
               onSearchChange={setSearchInput}
@@ -901,12 +930,13 @@ export function MenuDetailPage() {
                   onCancel={() => cancelItemDraft(item.id)}
                   onDelete={() => void handleDeleteItem(item)}
                   onViewDetails={() => setDetailItemId(item.id)}
-                  onQuantityChange={(nextQuantity) =>
+                  onQuantityChange={(nextQuantity) => {
+                    if (nextQuantity >= 1) setLastSelectedItemId(item.id)
                     updateLine(item.id, (line) => ({
                       ...line,
                       quantity: Math.max(0, nextQuantity),
                     }))
-                  }
+                  }}
                   onNoteChange={(note) =>
                     updateLine(item.id, (line) => ({ ...line, note }))
                   }

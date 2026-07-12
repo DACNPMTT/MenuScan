@@ -45,6 +45,7 @@
     "errors": {
       "fileTooLarge": "File quá lớn. Dung lượng tối đa là 10 MB.",
       "unsupportedType": "Định dạng không được hỗ trợ. Chỉ chấp nhận JPG, PNG, WEBP, PDF.",
+      "rateLimited": "Thao tác quá nhanh. Vui lòng đợi vài giây rồi thử lại.",
       "genericPrefix": "Lỗi: "
     }
   },
@@ -392,6 +393,19 @@
       "diet": "không hợp chế độ ăn của bạn ({{list}})",
       "favorite": "hợp khẩu vị bạn thích"
     }
+  },
+  "chat": {
+    "title": "Hỏi trợ lý chọn món",
+    "hint": "Hỏi về các món trong menu này.",
+    "placeholder": "Hỏi về menu…",
+    "send": "Gửi",
+    "askAbout": "Hỏi về {{name}}",
+    "allSelected": "Tất cả món đã chọn",
+    "pickDish": "Chọn món để hỏi",
+    "removeFocus": "Bỏ chọn",
+    "rateLimited": "Bạn hỏi hơi nhanh. Đợi vài giây rồi thử lại nhé.",
+    "error": "Trợ lý đang bận, thử lại sau ít phút nhé.",
+    "disclaimer": "Trả lời dựa trên menu bạn quét, chỉ mang tính tham khảo — không đảm bảo an toàn dị ứng."
   },
   "billItem": {
     "lowConfidence": "OCR confidence thấp ({{value}}%).",
