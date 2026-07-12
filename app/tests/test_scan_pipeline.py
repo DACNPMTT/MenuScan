@@ -184,8 +184,6 @@ class FakeMenuParser:
     def __init__(self, translation_complete: bool = False) -> None:
         self._translation_complete = translation_complete
         self.received_images: object = "unset"
-        self.received_preferences_data: object = "unset"
-        self.received_is_group: object = "unset"
 
     def parse(
         self,
@@ -193,12 +191,8 @@ class FakeMenuParser:
         *,
         target_language: str = "en",
         images: object = None,
-        preferences_data: object = None,
-        is_group: bool = False,
     ) -> ParsedMenuDraft:
         self.received_images = images
-        self.received_preferences_data = preferences_data
-        self.received_is_group = is_group
         return ParsedMenuDraft(
             parsing_provider="fake",
             title="Test Menu",
@@ -302,6 +296,51 @@ def _create_scan_session(
     return scan
 
 
+def test_pipeline_links_an_existing_group_dining_session_to_the_menu(
+    db_session_factory: sessionmaker[Session],
+) -> None:
+    """A host who scans for their table must still get the menu linked back.
+
+    This is the one dining thing the scan still does — a SELECT and an UPDATE, no
+    scoring. Without it the menu screen cannot find the session and would serve
+    the host a personal verdict on a group menu.
+    """
+    from src.modules.dining.models import (
+        DiningSession,
+        DiningSessionMode,
+        DiningSessionStatus,
+        FoodItemRecommendation,
+    )
+
+    with db_session_factory() as session:
+        scan = _create_scan_session(session)
+        scan_id = scan.id
+        dining_session = DiningSession(
+            created_by_user_id=scan.user_id,
+            scan_session_id=scan_id,
+            mode=DiningSessionMode.GROUP,
+            status=DiningSessionStatus.SCANNING,
+        )
+        session.add(dining_session)
+        session.commit()
+        dining_session_id = dining_session.id
+
+    pipeline = _build_pipeline(db_session_factory, menu_parser=FakeMenuParser())
+    pipeline.process(scan_id)
+
+    with db_session_factory() as session:
+        scan = session.get(ScanSession, scan_id)
+        assert scan is not None and scan.menu is not None
+
+        dining_session = session.get(DiningSession, dining_session_id)
+        assert dining_session is not None
+        assert dining_session.menu_id == scan.menu.id
+        assert dining_session.status == DiningSessionStatus.COMPLETED
+
+        # Linked, but NOT scored: the dishes have no tags yet.
+        assert session.query(FoodItemRecommendation).count() == 0
+
+
 def _build_pipeline(
     session_factory: sessionmaker[Session],
     *,
@@ -352,9 +391,6 @@ def test_happy_path_pending_to_completed(
     pipeline = _build_pipeline(db_session_factory, menu_parser=parser)
     pipeline.process(scan_id)
 
-    assert parser.received_preferences_data is None
-    assert parser.received_is_group is False
-
     with db_session_factory() as session:
         scan = session.get(ScanSession, scan_id)
         assert scan is not None
@@ -381,43 +417,27 @@ def test_happy_path_pending_to_completed(
         assert item_0.price == Decimal("60000.00")
         assert item_0.currency == "VND"
 
-        from src.modules.dining.models import (
-            DiningSession,
-            DiningSessionMode,
-            FoodItemRecommendation,
-            FoodItemRecommendationParticipantBreakdown,
-        )
+        # A scan produces a menu. Nothing else.
+        #
+        # It used to also invent a dining session per scan and score a verdict for
+        # every dish — against tags that do not exist yet, since tagging is the
+        # enrichment pass's job. Every dish came out "100/100 recommended". Those
+        # assertions are inverted here on purpose: this is the guard.
+        from src.modules.dining.models import DiningSession, FoodItemRecommendation
 
-        dining_session = (
+        assert item_0.assistant_summary is None
+        assert item_0.ingredient_tags == []
+        assert item_0.flavor_tags == []
+        assert item_0.spice_level is None
+        # allergens/dietary_tags DO come from extraction — they are safety data.
+
+        assert (
             session.query(DiningSession)
             .filter(DiningSession.scan_session_id == scan_id)
-            .one()
+            .count()
+            == 0
         )
-        assert dining_session.mode == DiningSessionMode.PERSONAL
-        assert dining_session.menu_id == scan.menu.id
-        assert len(dining_session.participants) == 1
-
-        recommendations = (
-            session.query(FoodItemRecommendation)
-            .filter(FoodItemRecommendation.dining_session_id == dining_session.id)
-            .all()
-        )
-        assert len(recommendations) == 2
-        assert all(recommendation.suggested_for for recommendation in recommendations)
-        assert all(recommendation.fit_reasons for recommendation in recommendations)
-        assert all(recommendation.why_suitable for recommendation in recommendations)
-
-        breakdowns = (
-            session.query(FoodItemRecommendationParticipantBreakdown)
-            .filter(
-                FoodItemRecommendationParticipantBreakdown.food_item_recommendation_id.in_(
-                    [recommendation.id for recommendation in recommendations]
-                )
-            )
-            .all()
-        )
-        assert len(breakdowns) == 2
-        assert all(breakdown.fit_reasons for breakdown in breakdowns)
+        assert session.query(FoodItemRecommendation).count() == 0
 
 
 def test_pipeline_forwards_page_images_when_attach_images(

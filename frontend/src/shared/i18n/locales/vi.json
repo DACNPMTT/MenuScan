@@ -239,8 +239,14 @@
     "dishCount_other": "{{count}} món",
     "unsavedChanges_other": "Có {{count}} món đang chỉnh sửa chưa lưu.",
     "searching": "Đang tìm món phù hợp…",
-    "enrichAction": "Hiện đầy đủ",
-    "enriching": "Đang phân tích…",
+    "sortedByAdvice": "Đã xếp theo đề xuất",
+    "sortedByProfile": "Đã xếp theo hồ sơ của bạn",
+    "legendTitle": "Mức đề xuất:",
+    "pageStatus": "Hiển thị {{from}}-{{to}} / {{total}} món",
+    "prevPage": "Trang trước",
+    "nextPage": "Trang sau",
+    "enriching": "Đang phân tích các món…",
+    "enrichFailed": "Chưa phân tích được các món. Menu vẫn dùng bình thường — tải lại trang để thử lại, hoặc hỏi trợ lý.",
     "resultCount_other": "{{count}} món",
     "resultCountOf_other": "{{count}} món trên {{total}}",
     "noFilterMatch": "Không có món phù hợp với bộ lọc.",
@@ -347,7 +353,6 @@
     },
     "fields": {
       "mode": "Chế độ",
-      "language": "Ngôn ngữ đích",
       "expires": "Hết hạn sau (giờ)"
     },
     "modes": {
@@ -361,7 +366,6 @@
     "closeFullscreen": "Đóng toàn màn hình",
     "guestName": "Tên của bạn",
     "guestNamePlaceholder": "Nhập tên hiển thị của bạn",
-    "guestLanguage": "Ngôn ngữ ưu tiên",
     "sessionNotFound": "Không tìm thấy phiên ăn uống này hoặc mã không hợp lệ.",
     "sessionExpired": "Phiên ăn uống đã hết hạn hoặc đã đóng.",
     "invalidToken": "Mã mời không hợp lệ.",
@@ -410,8 +414,16 @@
     "disclaimer": "Trả lời dựa trên menu bạn quét, chỉ mang tính tham khảo — không đảm bảo an toàn dị ứng."
   },
   "billItem": {
+    "recommendation": "Khuyến nghị",
+    "verdict": {
+      "RECOMMENDED": "Nên dùng",
+      "OK": "Phù hợp",
+      "CAUTION": "Cân nhắc",
+      "AVOID": "Nên tránh"
+    },
     "lowConfidence": "OCR confidence thấp ({{value}}%).",
     "allergyWarning": "CẢNH BÁO: Phát hiện dị ứng (Hải sản)",
+    "contains": "Thành phần cần lưu ý: {{list}}",
     "allergyMatch": "CẢNH BÁO: Chứa {{list}}",
     "dietMatch": "Không hợp khẩu phần: {{list}}",
     "recommended": "Gợi ý cho bạn",

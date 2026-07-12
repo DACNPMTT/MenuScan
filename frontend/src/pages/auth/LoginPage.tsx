@@ -9,6 +9,7 @@ import { Input } from '@/shared/components/ui/input'
 interface LocationState {
   from?: {
     pathname: string
+    state?: unknown
   }
 }
 
@@ -27,7 +28,10 @@ export function LoginPage() {
     if (!user) return
     const state = location.state as LocationState | null
     const origin = state?.from?.pathname || '/app'
-    navigate(origin, { replace: true })
+    // Replay the state the original navigation carried, or the destination loses
+    // whatever the click meant — the menu screen's "run the enrichment pass" flag,
+    // for one.
+    navigate(origin, { replace: true, state: state?.from?.state ?? undefined })
   }, [location.state, navigate, user])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

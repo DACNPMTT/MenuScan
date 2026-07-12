@@ -89,6 +89,37 @@ def throttle(
     session.commit()
 
 
+def refund(
+    session: Session,
+    *,
+    subject_type: str,
+    subject_id: str,
+    action: str,
+) -> None:
+    """Give the cooldown back — the call never actually reached the provider.
+
+    The throttle is spent up-front, before the LLM is called. When the provider
+    then dies, the diner is handed an error AND a cooldown they never used, so
+    their retry bounces off a 429. Cheap to undo; expensive in trust not to.
+    """
+    session.execute(
+        text(
+            """
+            DELETE FROM ai_throttle
+            WHERE subject_type = :subject_type
+              AND subject_id = :subject_id
+              AND action = :action
+            """
+        ),
+        {
+            "subject_type": subject_type,
+            "subject_id": subject_id,
+            "action": action,
+        },
+    )
+    session.commit()
+
+
 def _client_ip(request: Request) -> str:
     """Real client IP, honoring Cloud Run's ``X-Forwarded-For`` (first hop)."""
     forwarded = request.headers.get("x-forwarded-for")

@@ -56,6 +56,11 @@ DEFAULT_SCAN_STALE_TIMEOUT_MINUTES = "10"
 # not a daily quota. Scan (OCR+LLM) is the heaviest so it gets the longer gap.
 DEFAULT_SCAN_MIN_GAP_SECONDS = "10"
 DEFAULT_CHAT_MIN_GAP_SECONDS = "5"
+# Chat is interactive: a diner is watching a spinner. Nothing like the 100s the
+# scan parse is allowed, which chat used to inherit by accident.
+DEFAULT_CHAT_LLM_TIMEOUT_SECONDS = "20"
+# Enrichment runs in batches behind the menu screen. Generous, but not scan-sized.
+DEFAULT_ENRICH_LLM_TIMEOUT_SECONDS = "60"
 
 # Currency conversion. open.er-api.com is free, requires no API key, supports
 # VND + ~160 currencies, and is CORS-friendly. Rates are cached in-process.
@@ -232,6 +237,16 @@ class Settings:
             timeout_seconds=float(DEFAULT_LLM_TIMEOUT_SECONDS),
         )
     )
+    # Enrichment's own LLM config. See _load_enrich_llm_config.
+    enrich_llm: LlmConfig = field(
+        default_factory=lambda: LlmConfig(
+            provider=DEFAULT_LLM_PROVIDER,
+            model=DEFAULT_LLM_MODEL,
+            api_key=None,
+            api_base_url=DEFAULT_LLM_API_BASE_URL,
+            timeout_seconds=float(DEFAULT_LLM_TIMEOUT_SECONDS),
+        )
+    )
     ocr: OcrConfig = field(
         default_factory=lambda: OcrConfig(
             provider=DEFAULT_OCR_PROVIDER,
@@ -329,6 +344,34 @@ class Settings:
                 f"LLM_PROVIDER={llm.provider!r} requires LLM_API_KEY or GEMINI_API_KEY"
             )
 
+        # Same fail-fast for chat. Without it, a production deploy with a chat
+        # provider but no chat key degrades at request time to RuleBasedChat — the
+        # diner gets a canned "the assistant is not enabled here" string, and
+        # nothing is logged or alerted. Better to refuse to boot.
+        chat_llm = _load_chat_llm_config(llm)
+        if chat_llm.provider not in SUPPORTED_LLM_PROVIDERS:
+            raise ValueError(
+                f"CHAT_LLM_PROVIDER={chat_llm.provider!r} is not supported; "
+                f"choose one of {SUPPORTED_LLM_PROVIDERS}"
+            )
+        if not chat_llm.is_configured():
+            raise ValueError(
+                f"CHAT_LLM_PROVIDER={chat_llm.provider!r} requires a key "
+                "(CHAT_GEMINI_API_KEYS / CHAT_LLM_API_KEY, or the base LLM key)"
+            )
+
+        enrich_llm = _load_enrich_llm_config(llm)
+        if enrich_llm.provider not in SUPPORTED_LLM_PROVIDERS:
+            raise ValueError(
+                f"ENRICH_LLM_PROVIDER={enrich_llm.provider!r} is not supported; "
+                f"choose one of {SUPPORTED_LLM_PROVIDERS}"
+            )
+        if not enrich_llm.is_configured():
+            raise ValueError(
+                f"ENRICH_LLM_PROVIDER={enrich_llm.provider!r} requires a key "
+                "(ENRICH_GEMINI_API_KEYS / ENRICH_LLM_API_KEY, or the base LLM key)"
+            )
+
         return cls(
             database_url=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
             magic_link_base_url=os.getenv(
@@ -341,7 +384,8 @@ class Settings:
             email=email,
             storage=storage,
             llm=llm,
-            chat_llm=_load_chat_llm_config(llm),
+            chat_llm=chat_llm,
+            enrich_llm=enrich_llm,
             ocr=ocr,
             secret_key=_env_or_default("SECRET_KEY", DEFAULT_SECRET_KEY),
             scan_stale_timeout_minutes=_load_scan_stale_timeout_minutes(),
@@ -466,6 +510,50 @@ def _load_llm_config() -> LlmConfig:
     )
 
 
+def _load_enrich_llm_config(base: LlmConfig) -> LlmConfig:
+    """The food-enrichment pass's own LLM config, independent from the scan.
+
+    Reads ``ENRICH_*`` env vars, falling back to the scan config so enrichment
+    still works without extra setup.
+
+    It needs its own key. Sharing the scan's key means the two compete for the same
+    per-minute quota, and since enrichment fires several batches at once right after
+    a scan finishes, they collide by construction — a 429, every dish untagged, and
+    no verdicts on the menu.
+    """
+    single_key = os.getenv("ENRICH_LLM_API_KEY") or os.getenv("ENRICH_GEMINI_API_KEY")
+    pool = _split_csv(os.getenv("ENRICH_GEMINI_API_KEYS"))
+    if pool:
+        api_keys: tuple[str, ...] = tuple(pool)
+    elif single_key:
+        api_keys = (single_key,)
+    else:
+        api_keys = base.api_keys
+
+    models_env = _split_csv(os.getenv("ENRICH_LLM_MODELS"))
+    single_model = os.getenv("ENRICH_LLM_MODEL")
+    if models_env:
+        models: tuple[str, ...] = tuple(models_env)
+    elif single_model:
+        models = (single_model,)
+    else:
+        models = base.models
+
+    return replace(
+        base,
+        provider=os.getenv("ENRICH_LLM_PROVIDER", base.provider),
+        api_key=api_keys[0] if api_keys else None,
+        api_keys=api_keys,
+        model=models[0] if models else base.model,
+        models=models,
+        # Enrichment is short-text inference, not a multimodal parse of a menu
+        # photo. It has no business inheriting the scan's 100s ceiling.
+        timeout_seconds=float(
+            os.getenv("ENRICH_LLM_TIMEOUT_SECONDS", DEFAULT_ENRICH_LLM_TIMEOUT_SECONDS)
+        ),
+    )
+
+
 def _load_chat_llm_config(base: LlmConfig) -> LlmConfig:
     """Chat's own LLM config, independent from the scan pipeline.
 
@@ -498,6 +586,12 @@ def _load_chat_llm_config(base: LlmConfig) -> LlmConfig:
         api_keys=api_keys,
         model=models[0] if models else base.model,
         models=models,
+        # Chat used to silently inherit the SCAN timeout — 100 seconds, a number
+        # tuned for a multimodal parse of a whole menu photo. Nobody sits through
+        # 100s of spinner for a chat reply; they reload the page long before that.
+        timeout_seconds=float(
+            os.getenv("CHAT_LLM_TIMEOUT_SECONDS", DEFAULT_CHAT_LLM_TIMEOUT_SECONDS)
+        ),
     )
 
 

@@ -8,7 +8,6 @@ import {
   UtensilsCrossed,
   AlertCircle,
   CheckCircle2,
-  Globe,
   User,
 } from 'lucide-react'
 import { apiRequest, ApiError } from '@/shared/lib/api'
@@ -26,7 +25,6 @@ interface PublicSessionDetail {
   session_id: string
   mode: string
   status: string
-  target_language: string
   participant_count: number
   created_at: string
 }
@@ -45,7 +43,6 @@ export function JoinDiningSessionPage() {
   // Stepper flow state
   const [step, setStep] = useState(0)
   const [displayName, setDisplayName] = useState('')
-  const [preferredLanguage, setPreferredLanguage] = useState('vi')
   const [value, setValue] = useState<FoodProfilePreferenceDraft>(() =>
     createEmptyFoodProfileDraft(),
   )
@@ -73,7 +70,6 @@ export function JoinDiningSessionPage() {
         )
         if (active) {
           setSession(data)
-          setPreferredLanguage(data.target_language || 'vi')
         }
       } catch (err) {
         if (active) {
@@ -140,7 +136,6 @@ export function JoinDiningSessionPage() {
         method: 'POST',
         body: JSON.stringify({
           display_name: normalizedName,
-          preferred_language: preferredLanguage,
           preferences: foodProfileDraftToPreferences(value),
         }),
       })
@@ -266,22 +261,6 @@ export function JoinDiningSessionPage() {
                     disabled={saving}
                     className="h-11 rounded-[8px]"
                   />
-                </label>
-
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[13px] font-bold uppercase tracking-[0.5px] text-ink-variant flex items-center gap-1">
-                    <Globe className="size-3.5" />
-                    {t('dining.guestLanguage')}
-                  </span>
-                  <select
-                    value={preferredLanguage}
-                    onChange={(event) => setPreferredLanguage(event.target.value)}
-                    disabled={saving}
-                    className="h-11 rounded-[8px] border border-hairline bg-canvas px-3 text-[14px] text-primary-dark focus:outline-none focus:ring-1 focus:ring-primary-dark"
-                  >
-                    <option value="vi">Tiếng Việt (VI)</option>
-                    <option value="en">English (EN)</option>
-                  </select>
                 </label>
               </div>
             </section>

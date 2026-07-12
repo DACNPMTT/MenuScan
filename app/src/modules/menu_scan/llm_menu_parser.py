@@ -58,15 +58,11 @@ class GeminiMenuParser:
         *,
         target_language: str = "en",
         images: Sequence[bytes] | None = None,
-        preferences_data: list[dict[str, Any]] | None = None,
-        is_group: bool = False,
     ) -> ParsedMenuDraft:
         body = self._generate(
             document=document,
             target_language=target_language,
             images=images,
-            preferences_data=preferences_data,
-            is_group=is_group,
         )
         payload = _extract_json_payload(body)
         payload.setdefault("items", [])
@@ -97,16 +93,12 @@ class GeminiMenuParser:
         document: OcrDocument,
         target_language: str,
         images: Sequence[bytes] | None = None,
-        preferences_data: list[dict[str, Any]] | None = None,
-        is_group: bool = False,
     ) -> dict[str, Any]:
         request_body = _build_request(
             document=document,
             target_language=target_language,
             images=images,
             prealign_csv=self.prealign_csv,
-            preferences_data=preferences_data,
-            is_group=is_group,
         )
         return call_gemini(
             keys=self._effective_keys(),
@@ -234,8 +226,6 @@ def _build_request(
     target_language: str,
     images: Sequence[bytes] | None = None,
     prealign_csv: bool = True,
-    preferences_data: list[dict[str, Any]] | None = None,
-    is_group: bool = False,
 ) -> dict[str, Any]:
     image_list = [image for image in (images or []) if image]
     has_images = bool(image_list)
@@ -246,8 +236,6 @@ def _build_request(
                 target_language=target_language,
                 has_images=has_images,
                 prealign_csv=prealign_csv,
-                preferences_data=preferences_data,
-                is_group=is_group,
             )
         }
     ]
@@ -314,8 +302,6 @@ def _build_prompt(
     target_language: str,
     has_images: bool = False,
     prealign_csv: bool = True,
-    preferences_data: list[dict[str, Any]] | None = None,
-    is_group: bool = False,
 ) -> str:
     detected = document.detected_language or "unknown"
     csv_anchor = _build_csv_anchor(document, prealign_csv=prealign_csv)

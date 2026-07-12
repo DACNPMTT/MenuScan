@@ -78,3 +78,38 @@ export function rankDishes<T extends DishDietary>(
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .map((entry) => entry.item)
 }
+
+/** The four verdict levels the backend scores a dish at, best first. */
+export const VERDICT_LEVELS = ['RECOMMENDED', 'OK', 'CAUTION', 'AVOID'] as const
+export type VerdictLevel = (typeof VERDICT_LEVELS)[number]
+
+interface Recommended {
+  recommendation?: { verdict: VerdictLevel; score?: number | null } | null
+}
+
+/** True once at least one dish carries a verdict — i.e. the diner has a food
+ * profile AND the menu has been analysed. Until then there is nothing to sort by
+ * and we must not pretend otherwise. */
+export function hasVerdicts(items: Recommended[]): boolean {
+  return items.some((item) => item.recommendation != null)
+}
+
+/** Order dishes by the advice: recommended first, avoid last, score breaking ties.
+ *
+ * Dishes with no verdict sink below the ones that have one — not because they are
+ * bad, but because we know nothing about them, and a dish we have advice for is
+ * more useful to put in front of someone deciding what to eat. Stable within a
+ * tier, so the menu's own order survives. */
+export function rankByVerdict<T extends Recommended>(items: T[]): T[] {
+  return items
+    .map((item, index) => ({
+      item,
+      index,
+      tier: item.recommendation
+        ? VERDICT_LEVELS.indexOf(item.recommendation.verdict)
+        : VERDICT_LEVELS.length,
+      score: item.recommendation?.score ?? 0,
+    }))
+    .sort((a, b) => a.tier - b.tier || b.score - a.score || a.index - b.index)
+    .map((entry) => entry.item)
+}

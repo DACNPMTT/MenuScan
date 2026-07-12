@@ -6,6 +6,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.modules.dining.schemas import (  # noqa: F401 — re-exported for existing importers
+    ParticipantBreakdownResponse,
+    RecommendationResponse,
+)
 from src.modules.menu_scan.models import ScanStatus
 
 
@@ -59,29 +63,6 @@ class ScanListItemData(BaseModel):
     completed_at: datetime | None
     source: ScanListSourceData
     menu: ScanListMenuData | None
-
-
-class ParticipantBreakdownResponse(BaseModel):
-    display_name: str
-    verdict: str
-    score: float | None = None
-    explanation: str | None = None
-    fit_reasons: list[str] = Field(default_factory=list)
-    risk_reasons: list[str] = Field(default_factory=list)
-
-
-class RecommendationResponse(BaseModel):
-    verdict: str
-    score: float | None = None
-    explanation: str | None = None
-    why_suitable: str | None = None
-    why_not_suitable: str | None = None
-    suggested_for: list[str] = Field(default_factory=list)
-    warning_for: list[str] = Field(default_factory=list)
-    fit_reasons: list[str] = Field(default_factory=list)
-    risk_reasons: list[str] = Field(default_factory=list)
-    warning_reasons: list[str] = Field(default_factory=list)
-    participant_breakdowns: list[ParticipantBreakdownResponse] = Field(default_factory=list)
 
 
 class MenuItemData(BaseModel):

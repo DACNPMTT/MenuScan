@@ -121,52 +121,25 @@ class OcrDocument(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-class ParsedRecommendationDraft(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    verdict: str
-    score: float | None = None
-    explanation: str | None = None
-    why_suitable: str | None = None
-    why_not_suitable: str | None = None
-    suggested_for: list[str] = Field(default_factory=list)
-    warning_for: list[str] = Field(default_factory=list)
-    fit_reasons: list[str] = Field(default_factory=list)
-    risk_reasons: list[str] = Field(default_factory=list)
-    warning_reasons: list[str] = Field(default_factory=list)
-
-
-class ParsedBreakdownDraft(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    display_name: str
-    verdict: str
-    score: float | None = None
-    explanation: str | None = None
-    fit_reasons: list[str] = Field(default_factory=list)
-    risk_reasons: list[str] = Field(default_factory=list)
-
-
 class ParsedMenuItemDraft(BaseModel):
+    """One dish as the extraction call read it off the menu.
+
+    Extraction only. Food intelligence (taste tags, taste levels, summaries) and
+    dining verdicts are not part of this contract: they are produced later, by
+    the enrichment pass, straight onto the saved ``FoodItem`` rows. Asking the
+    extraction model for them cost us dishes on long menus — the response hit its
+    output ceiling and came back truncated.
+
+    ``allergens`` and ``dietary_tags`` DO belong here: they are safety data and
+    the extraction model infers them from the printed dish itself.
+    """
+
     model_config = ConfigDict(frozen=True)
 
     original_name: str
     original_description: str | None = None
     translated_name: str | None = None
     translated_description: str | None = None
-    assistant_summary: str | None = None
-    main_ingredients: list[str] = Field(default_factory=list)
-    ingredient_tags: list[str] = Field(default_factory=list)
-    flavor_tags: list[str] = Field(default_factory=list)
-    texture_tags: list[str] = Field(default_factory=list)
-    cooking_methods: list[str] = Field(default_factory=list)
-    spice_level: int | None = Field(default=None, ge=0, le=5)
-    sweetness_level: int | None = Field(default=None, ge=0, le=5)
-    saltiness_level: int | None = Field(default=None, ge=0, le=5)
-    sourness_level: int | None = Field(default=None, ge=0, le=5)
-    richness_level: int | None = Field(default=None, ge=0, le=5)
-    oiliness_level: int | None = Field(default=None, ge=0, le=5)
-    risk_notes: str | None = None
     base_name: str | None = None
     variant_name: str | None = None
     variant_group: str | None = None
@@ -179,8 +152,6 @@ class ParsedMenuItemDraft(BaseModel):
     confidence: float | None = Field(default=None, ge=0, le=1)
     source_references: list[OcrSourceReference] = Field(default_factory=list)
     sort_order: int = Field(ge=0)
-    recommendation: ParsedRecommendationDraft | None = None
-    participant_breakdowns: list[ParsedBreakdownDraft] = Field(default_factory=list)
 
 
 class ParsedMenuDraft(BaseModel):

@@ -45,8 +45,6 @@ class _FallbackMenuParser:
         *,
         target_language: str = "en",
         images: object = None,
-        preferences_data: list[dict[str, object]] | None = None,
-        is_group: bool = False,
     ) -> object:
         from src.modules.menu_scan.llm_menu_parser import LlmMenuParserError
 
@@ -55,8 +53,6 @@ class _FallbackMenuParser:
                 document,  # type: ignore[arg-type]
                 target_language=target_language,
                 images=images,  # type: ignore[arg-type]
-                preferences_data=preferences_data,
-                is_group=is_group,
             )
         except LlmMenuParserError as exc:
             # Catch the base class, not just Unavailable/Timeout: a truncated or
@@ -70,8 +66,6 @@ class _FallbackMenuParser:
                 document,  # type: ignore[arg-type]
                 target_language=target_language,
                 images=images,  # type: ignore[arg-type]
-                preferences_data=preferences_data,
-                is_group=is_group,
             )
 
 
@@ -150,17 +144,28 @@ def get_menu_parser() -> MenuParser:
 
 
 def get_food_enricher() -> FoodEnricher:
-    """Second-pass enricher. Offline unless Gemini is configured with a key."""
-    config = settings.llm
+    """Second-pass enricher. Offline unless Gemini is configured with a key.
+
+    Runs on its OWN key (ENRICH_*), not the scan's. Enrichment fires several
+    batches at once the moment the diner opens a menu — right after a scan has just
+    spent that same key. Sharing one key means the two collide on the per-minute
+    quota by construction, and enrichment loses: 429, every dish untagged, no
+    verdicts on the menu.
+    """
+    config = settings.enrich_llm
     if config.provider != "gemini" or not (config.api_key or config.api_keys):
         return NullFoodEnricher()
+    models = config.models or (config.model,)
     return GeminiFoodEnricher(
         api_key=config.api_key or "",
         api_keys=config.api_keys,
         api_base_url=config.api_base_url,
-        # Enrichment is pure inference over short text, no layout reading — the
-        # cheapest model in the chain is the right one for it.
-        model=(config.models or (config.model,))[-1],
+        # Primary model first, then the rest of the chain as failover. This used to
+        # pin the enricher to models[-1] on the theory that the last entry was the
+        # cheap one. It is not: it is the FALLBACK, held in reserve for when the
+        # primary is quota-spent, with a small quota of its own.
+        model=models[0],
+        models=models,
         timeout_seconds=config.timeout_seconds,
     )
 

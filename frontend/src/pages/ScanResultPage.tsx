@@ -1,6 +1,5 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
 
 import { Link, useParams } from 'react-router-dom'
 import {
@@ -15,9 +14,6 @@ import {
   ListChecks,
   Loader2,
   RefreshCw,
-  ShieldCheck,
-  Sparkles,
-  Utensils,
   XCircle,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -28,7 +24,7 @@ import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { useExchangeRates } from '@/shared/hooks/useExchangeRates'
 import { CurrencySelect } from '@/shared/components/CurrencySelect'
 import { formatConvertedAmount, type ExchangeRates } from '@/shared/lib/currency'
-import { type DietProfile } from '@/features/menu-scan/dietary'
+import { assessDish, hasRisk, type DietProfile } from '@/features/menu-scan/dietary'
 import { isProfileActive, rankDishes } from '@/features/menu-scan/ranking'
 import type {
   MenuItemResult,
@@ -296,8 +292,11 @@ function ResultView({
   const toast = useToast()
   const source = result.scan.source
   const baseCurrency = result.menu?.default_currency ?? 'VND'
-  const [displayCurrency, setDisplayCurrency] = useState(baseCurrency)
-  const { rates } = useExchangeRates(baseCurrency)
+  // Null until the diner picks one: the menu is shown in the currency it is priced
+  // in, and rates are only fetched if they ask to see something else.
+  const [pickedCurrency, setPickedCurrency] = useState<string | null>(null)
+  const displayCurrency = pickedCurrency ?? baseCurrency
+  const { rates } = useExchangeRates(baseCurrency, displayCurrency !== baseCurrency)
   const [saving, setSaving] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [itemsLoading, setItemsLoading] = useState(false)
@@ -408,9 +407,6 @@ function ResultView({
           <div className="flex flex-col items-start gap-2 sm:items-end">
             <Link
               to={`/app/menus/${result.menu.id}`}
-              // Committing to this menu is what kicks off the second LLM pass
-              // (food tags, taste levels, verdicts). The scan itself stays lean.
-              state={{ enrich: true }}
               className="flex min-h-10 items-center gap-2 rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
             >
               <ListChecks className="size-4" aria-hidden />
@@ -466,7 +462,7 @@ function ResultView({
           baseCurrency={baseCurrency}
           displayCurrency={displayCurrency}
           rates={rates}
-          onCurrencyChange={setDisplayCurrency}
+          onCurrencyChange={setPickedCurrency}
           itemsMeta={itemsMeta}
           itemsLoading={itemsLoading}
           onPageChange={(page) => void handleItemsPageChange(page)}
@@ -539,40 +535,31 @@ function SourcePreview({
   )
 }
 
-const VERDICT_COPY = {
-  RECOMMENDED: 'Nên dùng',
-  OK: 'Phù hợp',
-  CAUTION: 'Cân nhắc',
-  AVOID: 'Nên tránh',
-} as const
-
-const VERDICT_CLASS = {
-  RECOMMENDED: 'bg-[#e4f4df] text-[#256b2b]',
-  OK: 'bg-primary/10 text-primary-dark',
-  CAUTION: 'bg-amber-100 text-amber-800',
-  AVOID: 'bg-red-100 text-red-800',
-} as const
-
-const TASTE_LABELS = {
-  spice_level: 'Cay',
-  sweetness_level: 'Ngọt',
-  saltiness_level: 'Mặn',
-  sourness_level: 'Chua',
-  richness_level: 'Béo',
-  oiliness_level: 'Dầu',
-} as const
-
+/**
+ * What the scan actually read off the menu — names, prices, descriptions,
+ * allergen warnings. Nothing else.
+ *
+ * This card used to render taste meters, ingredient tags and a "100/100
+ * recommended" verdict. None of that data exists yet at this point in the flow:
+ * the tags come from the enrichment pass, which runs on the menu screen. So the
+ * card was mostly blank, and the verdict was scored against empty tags — which is
+ * how every single dish ended up "recommended". Advice belongs on the next screen,
+ * where it has something to stand on.
+ */
 const ExtractedMenuItemCard = memo(function ExtractedMenuItemCard({
   item,
+  dietProfile,
   baseCurrency,
   displayCurrency,
   rates,
 }: {
   item: MenuItemResult
+  dietProfile: DietProfile
   baseCurrency: string
   displayCurrency: string
   rates: ExchangeRates | null
 }) {
+  const { t } = useTranslation()
   const displayPrice = useMemo(() => {
     if (!item.price) return '—'
     return formatConvertedAmount(
@@ -583,42 +570,28 @@ const ExtractedMenuItemCard = memo(function ExtractedMenuItemCard({
     )
   }, [baseCurrency, displayCurrency, item.currency, item.price, rates])
 
-  const ingredients = useMemo(
-    () => uniqueCompact(item.main_ingredients).slice(0, 6),
-    [item.main_ingredients],
+  const description = item.translated_description || item.original_description
+
+  // Two different things, deliberately styled differently.
+  //
+  // A WARNING is personal: this dish contains something YOU told us to avoid. It
+  // is red, and it only fires on a real match. Dumping every allergen a dish
+  // contains under a ⚠ told a diner with no declared allergies that half the menu
+  // was dangerous — and a warning that cries wolf is worse than none, because they
+  // learn to scroll past the one that finally matters.
+  //
+  // The allergen LIST is just information: what's in the dish. A guest who has
+  // declared nothing still needs it, so it stays — neutral, not alarming, and in
+  // their own language rather than raw codes like "gluten, soy".
+  const risk = useMemo(() => assessDish(item, dietProfile), [dietProfile, item])
+  const risky = hasRisk(risk)
+  const allergenList = useMemo(
+    () => (item.allergens ?? []).map((code) => t(`diet.allergens.${code}`)),
+    [item.allergens, t],
   )
-  const descriptorTags = useMemo(
-    () =>
-      uniqueCompact([
-        ...item.cooking_methods,
-        ...item.flavor_tags,
-        ...item.texture_tags,
-      ]).slice(0, 6),
-    [item.cooking_methods, item.flavor_tags, item.texture_tags],
-  )
-  const tasteRows = useMemo(
-    () =>
-      Object.entries(TASTE_LABELS)
-        .map(([key, label]) => ({
-          key,
-          label,
-          value: item[key as keyof MenuItemResult] as number | null,
-        }))
-        .filter((row) => row.value !== null && row.value > 0),
-    [item],
-  )
-  const recommendation = item.recommendation
-  const recommendationNote =
-    recommendation?.why_not_suitable ||
-    recommendation?.explanation ||
-    recommendation?.why_suitable
-  const participantWarnings =
-    recommendation?.participant_breakdowns?.filter((breakdown) =>
-      ['AVOID', 'CAUTION'].includes(breakdown.verdict),
-    ) ?? []
 
   return (
-    <article className="flex h-full min-h-[360px] flex-col gap-3 rounded-[8px] border border-hairline bg-canvas p-4 [contain-intrinsic-size:360px] [content-visibility:auto]">
+    <article className="flex h-full flex-col gap-3 rounded-[8px] border border-hairline bg-canvas p-4">
       <div className="flex min-h-7 items-start justify-between gap-3">
         {item.category ? (
           <span className="max-w-[65%] truncate rounded-[4px] bg-secondary px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.5px] text-ink-variant">
@@ -632,170 +605,60 @@ const ExtractedMenuItemCard = memo(function ExtractedMenuItemCard({
         </span>
       </div>
 
+      {/* The translated name leads. The diner asked for this menu in their language;
+          showing them the German name in bold and burying the Vietnamese one under
+          it hands them back exactly the problem they opened the app to solve. The
+          original stays visible underneath — they still have to point at something
+          on the paper menu to order it. */}
       <div className="flex flex-col gap-1">
         <h3 className="break-words text-[16px] font-bold leading-snug text-ink">
-          {item.original_name}
+          {item.translated_name || item.original_name}
         </h3>
         {item.translated_name && item.translated_name !== item.original_name && (
-          <p className="break-words text-[14px] font-semibold text-ink-variant">
-            {item.translated_name}
+          <p className="break-words text-[13px] font-medium text-ink-variant/70">
+            {item.original_name}
           </p>
         )}
       </div>
 
-      {(item.assistant_summary ||
-        item.translated_description ||
-        item.original_description) && (
+      {description && (
         <div className="border-t border-hairline pt-3">
           <p className="line-clamp-4 text-[13px] leading-relaxed text-ink-variant">
-            {item.assistant_summary ||
-              item.translated_description ||
-              item.original_description}
+            {description}
           </p>
         </div>
       )}
 
-      {(ingredients.length > 0 || descriptorTags.length > 0) && (
-        <div className="flex flex-col gap-2">
-          {ingredients.length > 0 && (
-            <CompactTagRow
-              icon={<Utensils className="size-3.5" aria-hidden />}
-              values={ingredients}
-            />
-          )}
-          {descriptorTags.length > 0 && (
-            <CompactTagRow
-              icon={<Sparkles className="size-3.5" aria-hidden />}
-              values={descriptorTags}
-            />
-          )}
-        </div>
-      )}
-
-      {tasteRows.length > 0 && (
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-hairline pt-3">
-          {tasteRows.slice(0, 4).map((row) => (
-            <TasteMeter key={row.key} label={row.label} value={row.value ?? 0} />
-          ))}
-        </div>
-      )}
-
-      {item.risk_notes && (
-        <p className="flex gap-1.5 rounded-[6px] border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] leading-relaxed text-amber-800">
-          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          <span className="line-clamp-2">{item.risk_notes}</span>
-        </p>
-      )}
-
-      {recommendation && (
-        <div className="mt-auto flex flex-col gap-2 border-t border-hairline pt-3">
-          <div className="flex items-center justify-between gap-2">
-            <span className="flex items-center gap-1.5 text-[12px] font-bold text-ink-variant">
-              <ShieldCheck className="size-3.5" aria-hidden />
-              Độ phù hợp
-            </span>
-            <span
-              className={`rounded-full px-2 py-1 text-[11px] font-bold ${VERDICT_CLASS[recommendation.verdict]}`}
-            >
-              {VERDICT_COPY[recommendation.verdict]}
-              {recommendation.score !== undefined && recommendation.score !== null
-                ? ` ${Number(recommendation.score).toFixed(0)}/100`
-                : ''}
-            </span>
-          </div>
-
-          {recommendationNote && (
-            <p className="line-clamp-2 text-[11px] leading-relaxed text-ink-variant">
-              {recommendationNote}
+      {(risky || allergenList.length > 0) && (
+        <div className="mt-auto flex flex-col gap-1.5">
+          {risky && (
+            <p className="flex gap-1.5 rounded-[6px] border border-destructive/30 bg-destructive/5 px-2 py-1.5 text-[11px] font-bold leading-relaxed text-destructive">
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+              <span>
+                {risk.allergens.length > 0
+                  ? t('billItem.allergyMatch', {
+                      list: risk.allergens
+                        .map((code) => t(`diet.allergens.${code}`))
+                        .join(', '),
+                    })
+                  : t('billItem.dietMatch', {
+                      list: risk.dietFlags
+                        .map((code) => t(`diet.preferences.${code}`))
+                        .join(', '),
+                    })}
+              </span>
             </p>
           )}
-
-          {(recommendation.warning_for?.length ||
-            recommendation.suggested_for?.length ||
-            participantWarnings.length > 0) && (
-            <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold">
-              {recommendation.warning_for?.slice(0, 3).map((name) => (
-                <span
-                  key={`warn-${name}`}
-                  className="rounded-[4px] bg-red-50 px-1.5 py-1 text-red-700"
-                >
-                  Tránh: {name}
-                </span>
-              ))}
-              {recommendation.suggested_for?.slice(0, 3).map((name) => (
-                <span
-                  key={`suggest-${name}`}
-                  className="rounded-[4px] bg-[#e4f4df] px-1.5 py-1 text-[#256b2b]"
-                >
-                  Hợp: {name}
-                </span>
-              ))}
-              {participantWarnings.length > 0 && (
-                <span className="rounded-[4px] bg-amber-100 px-1.5 py-1 text-amber-800">
-                  {participantWarnings.length} lưu ý cá nhân
-                </span>
-              )}
-            </div>
+          {allergenList.length > 0 && (
+            <p className="text-[11px] leading-relaxed text-ink-variant">
+              {t('billItem.contains', { list: allergenList.join(', ') })}
+            </p>
           )}
         </div>
       )}
     </article>
   )
 })
-
-function CompactTagRow({
-  icon,
-  values,
-}: {
-  icon: ReactNode
-  values: string[]
-}) {
-  return (
-    <div className="flex items-start gap-2 text-ink-variant">
-      <span className="mt-1 text-primary-dark">{icon}</span>
-      <div className="flex flex-wrap gap-1.5">
-        {values.map((value) => (
-          <span
-            key={value}
-            className="rounded-[4px] bg-surface-muted px-2 py-1 text-[11px] font-medium text-ink-variant"
-          >
-            {value}
-          </span>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function TasteMeter({ label, value }: { label: string; value: number }) {
-  const normalized = Math.max(0, Math.min(5, value))
-  return (
-    <div className="grid grid-cols-[38px_1fr] items-center gap-2">
-      <span className="text-[10px] font-semibold uppercase text-ink-variant">
-        {label}
-      </span>
-      <span className="h-1.5 overflow-hidden rounded-full bg-surface-muted">
-        <span
-          className="block h-full rounded-full bg-primary-dark"
-          style={{ width: `${(normalized / 5) * 100}%` }}
-        />
-      </span>
-    </div>
-  )
-}
-
-function uniqueCompact(values: string[]): string[] {
-  const seen = new Set<string>()
-  const result: string[] = []
-  for (const value of values) {
-    const clean = value.trim()
-    const key = clean.toLowerCase()
-    if (!clean || seen.has(key)) continue
-    seen.add(key)
-    result.push(clean)
-  }
-  return result
-}
 
 function ItemsList({
   items,
@@ -875,6 +738,7 @@ function ItemsList({
             <ExtractedMenuItemCard
               key={item.id}
               item={item}
+              dietProfile={dietProfile}
               baseCurrency={baseCurrency}
               displayCurrency={displayCurrency}
               rates={rates}

@@ -93,12 +93,18 @@ class GeminiFoodEnricher:
     max_attempts: int = 3
     retry_backoff_seconds: float = 0.5
     api_keys: tuple[str, ...] = ()
+    # The model failover chain, primary first — the same one the parser uses. Each
+    # model has its own quota, so a 429 on one is not a 429 on the next. Running a
+    # single model (and, worse, pinning it to the *fallback* one) meant a spent
+    # quota killed enrichment outright: 49 dishes, 0 tagged, every single time.
+    models: tuple[str, ...] = ()
     # Dishes per Gemini call. Bounds the output size of any single request so a
     # long menu cannot truncate, and caps the blast radius of one bad batch.
     batch_size: int = 20
-    # Batches run concurrently: a 100-dish menu is 5 calls, and the diner is
-    # waiting on the menu screen, so wall time matters more than politeness here.
-    max_workers: int = 4
+    # Batches run concurrently, but gently. Free-tier keys are rate-limited per
+    # minute, so firing every batch at once on a single key is a 429 we inflict on
+    # ourselves — which is exactly what was happening.
+    max_workers: int = 2
 
     def enrich_dishes(
         self,
@@ -121,8 +127,8 @@ class GeminiFoodEnricher:
                 results.update(batch_result)
 
         logger.info(
-            "food_enrich_complete model=%s enriched=%d total=%d batches=%d",
-            self.model,
+            "food_enrich_complete models=%s enriched=%d total=%d batches=%d",
+            ",".join(self._model_chain()),
             len(results),
             len(dishes),
             len(batches),
@@ -136,35 +142,49 @@ class GeminiFoodEnricher:
                 return keys
         return [self.api_key] if self.api_key else []
 
+    def _model_chain(self) -> list[str]:
+        chain = [model for model in self.models if model]
+        if chain:
+            return chain
+        return [self.model] if self.model else []
+
     def _enrich_batch(
         self,
         batch: Sequence[DishInput],
         target_language: str,
     ) -> dict[str, dict[str, Any]]:
-        try:
-            body = call_gemini(
-                keys=self._effective_keys(),
-                api_base_url=self.api_base_url,
-                model=self.model,
-                timeout_seconds=self.timeout_seconds,
-                request_body=_build_request(
-                    dishes=batch,
-                    target_language=target_language,
-                ),
-                client=self.client,
-                max_attempts=self.max_attempts,
-                retry_backoff_seconds=self.retry_backoff_seconds,
-            )
-            payload = _extract_payload(body)
-        except Exception:
-            # One failed batch loses tags for those dishes only. The dishes
-            # themselves are already saved and stay on the menu.
-            logger.warning(
-                "food_enrich_batch_failed model=%s dishes=%d — leaving them untagged",
-                self.model,
-                len(batch),
-                exc_info=True,
-            )
+        request_body = _build_request(dishes=batch, target_language=target_language)
+        models = self._model_chain()
+        payload: dict[str, Any] | None = None
+
+        for index, model in enumerate(models):
+            try:
+                payload = _extract_payload(
+                    call_gemini(
+                        keys=self._effective_keys(),
+                        api_base_url=self.api_base_url,
+                        model=model,
+                        timeout_seconds=self.timeout_seconds,
+                        request_body=request_body,
+                        client=self.client,
+                        max_attempts=self.max_attempts,
+                        retry_backoff_seconds=self.retry_backoff_seconds,
+                    )
+                )
+                break
+            except Exception:
+                last = index == len(models) - 1
+                logger.warning(
+                    "food_enrich_batch_failed model=%s dishes=%d%s",
+                    model,
+                    len(batch),
+                    "" if last else " — trying the next model",
+                    exc_info=last,
+                )
+
+        if payload is None:
+            # Every model refused. The dishes are already saved and stay on the
+            # menu; they just have no tags.
             return {}
 
         valid_keys = {dish.key for dish in batch}

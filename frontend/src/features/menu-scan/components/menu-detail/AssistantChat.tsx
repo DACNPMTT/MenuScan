@@ -1,18 +1,36 @@
-import { useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Bot, Loader2, Plus, Send, X } from 'lucide-react'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 
+/** Seconds the server told us to wait, from the 429's `details.retry_after`. */
+function retryAfterSeconds(details: unknown): number {
+  if (details && typeof details === 'object' && 'retry_after' in details) {
+    const value = Number((details as { retry_after: unknown }).retry_after)
+    if (Number.isFinite(value) && value > 0) return Math.ceil(value)
+  }
+  return 5
+}
+
+/** `crypto.randomUUID` is undefined outside a secure context — a phone opening the
+ *  app over plain http on a LAN IP would throw inside send(). */
+function messageId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
 /** Lightweight markdown renderer for chat bubbles.
  *  Supports: **bold**, - bullet lists, blank-line paragraphs, and ⚠️ lines.
  *  No external dependency required. */
-function ChatMarkdown({ text }: { text: string }) {
-  const paragraphs = text.split(/\n{2,}/)
+const ChatMarkdown = memo(function ChatMarkdown({ text }: { text: string }) {
+  const paragraphs = useMemo(() => text.split(/\n{2,}/), [text])
   return (
     <div className="chat-md">
       {paragraphs.map((block, bi) => {
-        const lines = block.split('\n')
+        const lines = block.split('\n').filter((line) => line.trim())
         const bullets = lines.filter((l) => /^\s*[-•]\s/.test(l))
 
         // All lines are bullets → render as <ul>
@@ -42,7 +60,7 @@ function ChatMarkdown({ text }: { text: string }) {
       })}
     </div>
   )
-}
+})
 
 /** Render **bold** spans inside a line of text. */
 function BoldText({ text }: { text: string }) {
@@ -66,6 +84,8 @@ interface ChatMsg {
   id: string
   role: 'user' | 'assistant'
   content: string
+  /** An error bubble we rendered locally — NOT something the model said. */
+  isError?: boolean
 }
 
 export interface SelectedDish {
@@ -77,27 +97,45 @@ interface AssistantChatProps {
   menuId: string
   /** Dishes the diner has added (quantity > 0), for quick-ask chips + picker. */
   selectedDishes?: SelectedDish[]
-  /** Name of the most recently added dish — suggested for a quick question. */
-  lastSelectedName?: string
+  /** Id of the most recently added dish — suggested for a quick question. */
+  lastSelectedId?: string | null
 }
 
 /** Floating assistant (Messenger-style): a draggable bot bubble parked in a
  * corner. Tapping it opens the chat panel docked at the bottom-right (above the
  * bubble, so the bubble never covers it); tapping again closes. Grounded on the
  * scanned menu; history is ephemeral (local state only). */
-export function AssistantChat({
+export const AssistantChat = memo(function AssistantChat({
   menuId,
   selectedDishes = [],
-  lastSelectedName,
+  lastSelectedId,
 }: AssistantChatProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  // Seconds left on the server's cooldown. Send stays disabled until it hits 0,
+  // instead of letting the diner hammer the button and collect more 429s.
+  const [cooldown, setCooldown] = useState(0)
   // Dishes the question is focused on (by id). Empty = ask about the whole menu.
   const [focusIds, setFocusIds] = useState<string[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
+
+  const abortRef = useRef<AbortController | null>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => () => abortRef.current?.abort(), [])
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: 'end' })
+  }, [messages, loading])
+
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const timer = window.setTimeout(() => setCooldown((value) => value - 1), 1000)
+    return () => window.clearTimeout(timer)
+  }, [cooldown])
 
   // --- Draggable bubble: parked at `pos` when closed; snaps to the bottom-right
   // corner while open so it stays consistent and never covers the chat. ---
@@ -148,8 +186,11 @@ export function AssistantChat({
     .map((id) => selectedDishes.find((dish) => dish.id === id))
     .filter((dish): dish is SelectedDish => dish !== undefined)
 
-  const lastSelected = lastSelectedName
-    ? selectedDishes.find((dish) => dish.name === lastSelectedName)
+  // Match on id, not on display name. Two dishes can share a name ("Chop Suey"
+  // with a chicken and a beef variant) and the name lookup focused whichever came
+  // first — sometimes the wrong dish.
+  const lastSelected = lastSelectedId
+    ? selectedDishes.find((dish) => dish.id === lastSelectedId)
     : undefined
   const suggestion =
     lastSelected && !focusIds.includes(lastSelected.id) ? lastSelected : undefined
@@ -165,41 +206,63 @@ export function AssistantChat({
     setPickerOpen(false)
   }
 
-  const send = async (event: FormEvent) => {
-    event.preventDefault()
-    const question = input.trim()
-    if (!question || loading) return
+  const send = useCallback(
+    async (event: FormEvent) => {
+      event.preventDefault()
+      const question = input.trim()
+      if (!question || loading || cooldown > 0) return
 
-    const history = messages.slice(-6).map(({ role, content }) => ({ role, content }))
-    const focus_dishes = focusDishes.map((dish) => dish.name)
-    setMessages((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), role: 'user', content: question },
-    ])
-    setInput('')
-    setLoading(true)
-    try {
-      const res = await apiRequest<{ answer: string }>('/api/v1/advisor/chat', {
-        method: 'POST',
-        body: JSON.stringify({ menu_id: menuId, question, history, focus_dishes }),
-      })
+      // Error bubbles are OUR text, not the model's. Feeding them back as history
+      // meant Gemini received "You're asking a bit fast, please wait" as its own
+      // previous answer and had to reason around it.
+      const history = messages
+        .filter((message) => !message.isError)
+        .slice(-6)
+        .map(({ role, content }) => ({ role, content }))
+      const focus_dishes = focusDishes.map((dish) => dish.name)
+
       setMessages((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), role: 'assistant', content: res.answer },
+        { id: messageId(), role: 'user', content: question },
       ])
-    } catch (error) {
-      const content =
-        error instanceof ApiError && error.status === 429
-          ? t('chat.rateLimited')
-          : t('chat.error')
-      setMessages((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), role: 'assistant', content },
-      ])
-    } finally {
-      setLoading(false)
-    }
-  }
+      setInput('')
+      setLoading(true)
+
+      abortRef.current?.abort()
+      const controller = new AbortController()
+      abortRef.current = controller
+
+      try {
+        const res = await apiRequest<{ answer: string }>('/api/v1/advisor/chat', {
+          method: 'POST',
+          body: JSON.stringify({ menu_id: menuId, question, history, focus_dishes }),
+          signal: controller.signal,
+        })
+        setMessages((prev) => [
+          ...prev,
+          { id: messageId(), role: 'assistant', content: res.answer },
+        ])
+      } catch (error) {
+        if (controller.signal.aborted) return
+        const rateLimited = error instanceof ApiError && error.status === 429
+        if (rateLimited) {
+          setCooldown(retryAfterSeconds(error.details))
+        }
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: messageId(),
+            role: 'assistant',
+            content: rateLimited ? t('chat.rateLimited') : t('chat.error'),
+            isError: true,
+          },
+        ])
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
+      }
+    },
+    [cooldown, focusDishes, input, loading, menuId, messages, t],
+  )
 
   return (
     <div
@@ -256,6 +319,7 @@ export function AssistantChat({
                 <Loader2 className="size-4 animate-spin" aria-hidden />
               </div>
             )}
+            <div ref={bottomRef} />
           </div>
 
           {/* Focus chips + last-selected suggestion */}
@@ -331,11 +395,11 @@ export function AssistantChat({
             />
             <button
               type="submit"
-              disabled={loading || !input.trim()}
+              disabled={loading || cooldown > 0 || !input.trim()}
               aria-label={t('chat.send')}
-              className="flex size-10 shrink-0 items-center justify-center rounded-[8px] bg-primary-dark text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex size-10 shrink-0 items-center justify-center rounded-[8px] bg-primary-dark text-[12px] font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Send className="size-4" aria-hidden />
+              {cooldown > 0 ? cooldown : <Send className="size-4" aria-hidden />}
             </button>
           </form>
 
@@ -358,4 +422,4 @@ export function AssistantChat({
       </button>
     </div>
   )
-}
+})

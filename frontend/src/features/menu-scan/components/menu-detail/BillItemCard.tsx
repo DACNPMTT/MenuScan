@@ -2,7 +2,6 @@
 import {
   AlertCircle,
   AlertTriangle,
-  ChevronRight,
   Loader2,
   Minus,
   Pencil,
@@ -23,6 +22,7 @@ import {
 } from '@/features/menu-scan/lib'
 import { assessDish, type DietProfile } from '@/features/menu-scan/dietary'
 import { formatConvertedAmount, type ExchangeRates } from '@/shared/lib/currency'
+import { cn } from '@/shared/lib/cn'
 import type {
   BillItem,
   BillLineState,
@@ -49,13 +49,16 @@ export interface BillItemCardProps {
   onSave: () => void
   onCancel: () => void
   onDelete: () => void
-  onViewDetails: () => void
   onQuantityChange: (quantity: number) => void
   onNoteChange: (note: string) => void
 }
 
-/** Compact menu item card for the menu overview. Deep AI details live in the
- * item detail view so the menu remains easy to scan. */
+/** Compact menu item card for the menu overview.
+ *
+ * There is no "see full details" view any more. The assistant covers that: a dish
+ * has too many things worth asking about (what's in it, how spicy, can I eat it)
+ * to enumerate on a card, and a chat can answer the one the diner actually cares
+ * about instead of printing all of them. */
 export function BillItemCard({
   item,
   dietProfile,
@@ -75,7 +78,6 @@ export function BillItemCard({
   onSave,
   onCancel,
   onDelete,
-  onViewDetails,
   onQuantityChange,
   onNoteChange,
 }: BillItemCardProps) {
@@ -112,7 +114,12 @@ export function BillItemCard({
 
   return (
 
-    <article className="flex min-h-[260px] flex-col gap-3 rounded-[8px] border border-hairline bg-canvas p-5">
+    <article
+      className={cn(
+        'flex min-h-[260px] flex-col gap-3 rounded-[8px] border p-5 transition-colors',
+        verdictCardClass(recommendation?.verdict ?? null),
+      )}
+    >
       {risk.allergens.length > 0 && (
         <div className="flex items-center gap-2 rounded-[6px] bg-destructive px-3 py-1.5 text-[12px] font-bold text-white">
           <AlertCircle className="size-3.5 shrink-0" aria-hidden />
@@ -334,12 +341,12 @@ export function BillItemCard({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="flex items-center gap-1.5 text-[12px] font-bold text-ink-variant">
                   <ShieldCheck className="size-3.5 text-primary-dark" aria-hidden />
-                  Khuyến nghị
+                  {t('billItem.recommendation')}
                 </span>
                 <span
                   className={`rounded-full px-2 py-1 text-[11px] font-bold ${verdictClass(recommendation.verdict)}`}
                 >
-                  {verdictLabel(recommendation.verdict)}
+                  {t(`billItem.verdict.${recommendation.verdict}`)}
                   {recommendation.score !== undefined && recommendation.score !== null
                     ? ` ${Number(recommendation.score).toFixed(0)}/100`
                     : ''}
@@ -382,14 +389,19 @@ export function BillItemCard({
             </p>
           )}
 
-          <button
-            type="button"
-            onClick={onViewDetails}
-            className="mt-auto flex min-h-9 items-center justify-between rounded-[8px] border border-hairline px-3 text-[13px] font-bold text-primary-dark transition-colors hover:bg-primary/10"
-          >
-            {recommendation ? 'Xem chi tiết & khuyến nghị' : 'Chi tiết món'}
-            <ChevronRight className="size-4" aria-hidden />
-          </button>
+          {/* What the dish contains — plain information, not a warning. The red
+              banner above is the warning, and it only fires on the diner's own
+              declared allergies. A guest who has declared nothing still needs to
+              know what is in the food. */}
+          {(item.allergens?.length ?? 0) > 0 && (
+            <p className="mb-0 text-[11px] leading-relaxed text-ink-variant">
+              {t('billItem.contains', {
+                list: item.allergens
+                  .map((code) => t(`diet.allergens.${code}`))
+                  .join(', '),
+              })}
+            </p>
+          )}
         </>
       )}
 
@@ -428,18 +440,36 @@ export function BillItemCard({
 
 type RecommendationVerdict = NonNullable<BillItem['recommendation']>['verdict']
 
-function verdictLabel(verdict: RecommendationVerdict): string {
-  if (verdict === 'RECOMMENDED') return 'Nên dùng'
-  if (verdict === 'OK') return 'Phù hợp'
-  if (verdict === 'CAUTION') return 'Cân nhắc'
-  return 'Nên tránh'
-}
-
 function verdictClass(verdict: RecommendationVerdict): string {
   if (verdict === 'RECOMMENDED') return 'bg-[#e4f4df] text-[#256b2b]'
   if (verdict === 'OK') return 'bg-primary/10 text-primary-dark'
   if (verdict === 'CAUTION') return 'bg-amber-100 text-amber-800'
   return 'bg-red-100 text-red-800'
+}
+
+/** The card's own skin, so the verdict reads from across the table without having
+ * to find the badge.
+ *
+ * Kept deliberately quiet — a tinted left edge and a faint wash, not a solid block
+ * of colour. Thirty dishes each shouting a colour is a menu nobody can read, and
+ * the tint must never fight the red allergy banner inside the card, which is the
+ * one thing on this screen that can actually hurt someone.
+ *
+ * No verdict, no tint: a dish we know nothing about must look like a dish we know
+ * nothing about. */
+function verdictCardClass(verdict: RecommendationVerdict | null): string {
+  switch (verdict) {
+    case 'RECOMMENDED':
+      return 'border-hairline border-l-4 border-l-[#2e7d32] bg-[#f4fbf2]'
+    case 'OK':
+      return 'border-hairline border-l-4 border-l-primary-dark/50 bg-canvas'
+    case 'CAUTION':
+      return 'border-hairline border-l-4 border-l-amber-500 bg-amber-50/40'
+    case 'AVOID':
+      return 'border-destructive/30 border-l-4 border-l-destructive bg-destructive/[0.04]'
+    default:
+      return 'border-hairline bg-canvas'
+  }
 }
 
 function uniqueCompact(values: string[]): string[] {

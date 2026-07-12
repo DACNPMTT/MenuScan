@@ -76,14 +76,12 @@ class StubDiningSessionService:
         self,
         user: User,
         *,
-        target_language: str,
         mode: str,
         invite_expires_in_hours: int | None,
     ) -> DiningSessionInviteBundle:
         self.create_calls.append(
             {
                 "user_id": user.id,
-                "target_language": target_language,
                 "mode": mode,
                 "invite_expires_in_hours": invite_expires_in_hours,
             }
@@ -96,7 +94,6 @@ class StubDiningSessionService:
             created_by_user_id=user.id,
             mode=DiningSessionMode(mode),
             status=DiningSessionStatus.COLLECTING,
-            target_language=target_language,
             created_at=_NOW,
             updated_at=_NOW,
         )
@@ -123,7 +120,6 @@ class StubDiningSessionService:
                 created_by_user_id=user.id,
                 mode=DiningSessionMode.GROUP,
                 status=DiningSessionStatus.COLLECTING,
-                target_language="vi",
                 created_at=_NOW,
                 updated_at=_NOW,
             )
@@ -139,7 +135,6 @@ class StubDiningSessionService:
             created_by_user_id=user.id,
             mode=DiningSessionMode.GROUP,
             status=DiningSessionStatus.COLLECTING,
-            target_language="vi",
             created_at=_NOW,
             updated_at=_NOW,
             participants=[],
@@ -155,7 +150,6 @@ class StubDiningSessionService:
             created_by_user_id=_USER_ID,
             mode=DiningSessionMode.GROUP,
             status=DiningSessionStatus.COLLECTING,
-            target_language="vi",
             created_at=_NOW,
             updated_at=_NOW,
             participants=[],
@@ -166,14 +160,12 @@ class StubDiningSessionService:
         *,
         invite_token: str,
         display_name: str,
-        preferred_language: str,
         preferences: list[DiningPreferenceRequest],
     ) -> DiningSessionParticipant:
         self.join_calls.append(
             {
                 "invite_token": invite_token,
                 "display_name": display_name,
-                "preferred_language": preferred_language,
                 "preferences": preferences,
             }
         )
@@ -185,7 +177,6 @@ class StubDiningSessionService:
             id=uuid.uuid4(),
             dining_session_id=_SESSION_ID,
             display_name=display_name,
-            preferred_language=preferred_language,
             joined_at=_NOW,
             preferences=[],
         )
@@ -241,7 +232,6 @@ def test_create_session_success():
     response = client.post(
         "/api/v1/dining/sessions",
         json={
-            "target_language": "en",
             "mode": "GROUP",
             "invite_expires_in_hours": 24,
         },
@@ -253,11 +243,9 @@ def test_create_session_success():
     assert body["data"]["invite_token"] == "faketoken"
     assert body["data"]["session"]["id"] == str(_SESSION_ID)
     assert body["data"]["session"]["mode"] == "GROUP"
-    assert body["data"]["session"]["target_language"] == "en"
     assert stub.create_calls == [
         {
             "user_id": _USER_ID,
-            "target_language": "en",
             "mode": "GROUP",
             "invite_expires_in_hours": 24,
         }
@@ -276,7 +264,6 @@ def test_list_sessions_success():
     assert body["success"] is True
     assert len(body["data"]) == 1
     assert body["data"][0]["id"] == str(_SESSION_ID)
-    assert body["data"][0]["target_language"] == "vi"
 
 
 def test_get_session_success():
@@ -319,7 +306,6 @@ def test_get_public_session_success():
     assert body["success"] is True
     assert body["data"]["session_id"] == str(_SESSION_ID)
     assert body["data"]["mode"] == "GROUP"
-    assert body["data"]["target_language"] == "vi"
 
 
 def test_get_public_session_invalid_token():
@@ -340,7 +326,6 @@ def test_join_session_success():
 
     payload = {
       "display_name": "Guest User",
-      "preferred_language": "vi",
       "preferences": [
         {
           "code": "gluten",
@@ -359,7 +344,6 @@ def test_join_session_success():
     body = response.json()
     assert body["success"] is True
     assert body["data"]["display_name"] == "Guest User"
-    assert body["data"]["preferred_language"] == "vi"
     assert len(stub.join_calls) == 1
     assert stub.join_calls[0]["invite_token"] == "faketoken"
     assert stub.join_calls[0]["display_name"] == "Guest User"
@@ -373,7 +357,6 @@ def test_join_session_closed():
 
     payload = {
       "display_name": "Guest User",
-      "preferred_language": "vi",
       "preferences": []
     }
     response = client.post(

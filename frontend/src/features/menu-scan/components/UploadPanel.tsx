@@ -31,7 +31,6 @@ import { cn } from '@/shared/lib/cn'
 interface SimpleDiningSession {
   id: string
   status: string
-  target_language: string
 }
 
 const ACCEPT_ATTR = ALLOWED_EXTENSIONS.map((ext) =>
@@ -527,7 +526,7 @@ export function UploadPanel() {
               )}
               {diningSessions.map((session: SimpleDiningSession) => (
                 <option key={session.id} value={session.id}>
-                  Phiên ăn {session.id.slice(0, 8)} ({session.target_language.toUpperCase()})
+                  Phiên ăn {session.id.slice(0, 8)}
                 </option>
               ))}
             </select>

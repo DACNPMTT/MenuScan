@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Users,
-  Globe,
   Calendar,
   ChevronRight,
   Loader2,
@@ -21,7 +20,6 @@ interface DiningSessionSummary {
   created_by_user_id: string | null
   mode: 'GROUP' | 'PERSONAL'
   status: 'COLLECTING' | 'SCANNING' | 'COMPLETED' | 'CLOSED'
-  target_language: string
   participant_count: number
   created_at: string
   updated_at: string
@@ -38,7 +36,6 @@ export function DiningSessionsPage() {
   const [error, setError] = useState<string | null>(null)
 
   // Creation form state
-  const [targetLanguage, setTargetLanguage] = useState('vi')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
 
@@ -84,7 +81,6 @@ export function DiningSessionsPage() {
         token: accessToken ?? undefined,
         body: JSON.stringify({
           mode: 'GROUP',
-          target_language: targetLanguage,
           invite_expires_in_hours: null,
         }),
       })
@@ -196,10 +192,6 @@ export function DiningSessionsPage() {
                         {t('dining.participants', { count: session.participant_count })}
                       </span>
                       <span className="flex items-center gap-1">
-                        <Globe className="size-3.5" />
-                        {session.target_language.toUpperCase()}
-                      </span>
-                      <span className="flex items-center gap-1">
                         <Calendar className="size-3.5" />
                         {formatDate(session.created_at)}
                       </span>
@@ -232,23 +224,6 @@ export function DiningSessionsPage() {
           </p>
 
           <form onSubmit={handleCreateSession} className="flex flex-col gap-4">
-
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="dining-lang" className="text-[13px] font-bold uppercase tracking-[0.5px] text-ink-variant">
-                {t('dining.fields.language')}
-              </label>
-              <select
-                id="dining-lang"
-                value={targetLanguage}
-                onChange={(e) => setTargetLanguage(e.target.value)}
-                className="h-10 rounded-[8px] border border-hairline bg-canvas px-3 text-[14px] text-primary-dark focus:outline-none focus:ring-1 focus:ring-primary-dark"
-              >
-                <option value="vi">Tiếng Việt (VI)</option>
-                <option value="en">English (EN)</option>
-              </select>
-            </div>
-
-
             {createError && (
               <p className="text-[13px] text-destructive font-medium flex items-center gap-1.5">
                 <AlertCircle className="size-4 shrink-0" />

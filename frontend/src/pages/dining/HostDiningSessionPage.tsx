@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next'
 import QRCode from 'qrcode'
 import {
   Users,
-  Globe,
   Clock,
   RefreshCw,
   Loader2,
@@ -36,7 +35,6 @@ interface DiningPreference {
 interface DiningParticipant {
   id: string
   display_name: string
-  preferred_language: string
   joined_at: string
   preferences: DiningPreference[]
 }
@@ -46,7 +44,6 @@ interface DiningSessionDetail {
   created_by_user_id: string | null
   mode: 'GROUP' | 'PERSONAL'
   status: 'COLLECTING' | 'SCANNING' | 'COMPLETED' | 'CLOSED'
-  target_language: string
   participant_count: number
   participants: DiningParticipant[]
   created_at: string
@@ -309,15 +306,6 @@ export function HostDiningSessionPage() {
           <div className="w-full border-t border-hairline mt-2 pt-4 flex flex-col gap-3 text-left">
             <div className="flex justify-between items-center text-[14px]">
               <span className="text-ink-variant flex items-center gap-1.5">
-                <Globe className="size-4" />
-                {t('dining.fields.language')}:
-              </span>
-              <span className="font-bold text-primary-dark uppercase">
-                {session.target_language}
-              </span>
-            </div>
-            <div className="flex justify-between items-center text-[14px]">
-              <span className="text-ink-variant flex items-center gap-1.5">
                 <Clock className="size-4" />
                 Khởi tạo:
               </span>
@@ -399,7 +387,7 @@ export function HostDiningSessionPage() {
                           {participant.display_name}
                         </span>
                         <span className="text-[11px] text-ink-variant">
-                          Ngôn ngữ: {participant.preferred_language.toUpperCase()} • Đã tham gia{' '}
+                          Đã tham gia{' '}
                           {new Intl.DateTimeFormat('vi-VN', { timeStyle: 'short' }).format(
                             new Date(participant.joined_at),
                           )}

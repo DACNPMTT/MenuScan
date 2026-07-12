@@ -23,6 +23,7 @@ from src.modules.menu import models as _menu_models  # noqa: F401
 from src.modules.menu_scan import models as _menu_scan_models  # noqa: F401
 from src.modules.identity import models as _identity_models  # noqa: F401
 from src.modules.billing import models as _billing_models  # noqa: F401
+from src.modules.dining import models as _dining_models  # noqa: F401
 from src.core import rate_limit as _rate_limit_models  # noqa: F401
 
 
