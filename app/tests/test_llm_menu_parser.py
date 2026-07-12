@@ -6,10 +6,13 @@ from typing import Any
 
 import pytest
 
+from src.modules.menu_scan.dependencies import _FallbackMenuParser
 from src.modules.menu_scan.llm_menu_parser import (
     GeminiMenuParser,
+    LlmMenuParserTruncatedError,
     LlmMenuParserUnavailableError,
 )
+from src.modules.menu_scan.menu_parser import RuleBasedMenuParser
 from src.modules.menu_scan.ocr_contract import OcrDocument
 from fixtures.menu_parser_fixtures import make_single_column_document
 
@@ -411,6 +414,90 @@ def test_gemini_parser_prealign_csv_off_omits_csv() -> None:
 
     prompt = client.calls[0]["json"]["contents"][0]["parts"][0]["text"]
     assert "Pre-aligned candidate rows" not in prompt
+
+
+def test_extraction_schema_excludes_food_intelligence_fields() -> None:
+    """Extraction must not be asked to write tags or taste levels.
+
+    Those cost output tokens per dish on a lite model that should be spending
+    them on names and prices, and on a long menu they push the response past the
+    output ceiling. They belong to the enrichment call.
+    """
+    client = FakeClient(FakeResponse(200, {"candidates": [{"content": {"parts": [{"text": '{"items": []}'}]}}]}))
+    parser = GeminiMenuParser(
+        api_key="test-key",
+        api_base_url="https://gemini.example.test/v1beta",
+        model="gemini-2.5-flash",
+        timeout_seconds=5,
+        client=client,  # type: ignore[arg-type]
+    )
+
+    parser.parse(_document("Pho bo 60.000 VND"), target_language="en")
+
+    schema = client.calls[0]["json"]["generationConfig"]["responseSchema"]
+    item_properties = schema["properties"]["items"]["items"]["properties"]
+    required = schema["properties"]["items"]["items"]["required"]
+
+    for field in ("assistant_summary", "flavor_tags", "spice_level", "risk_notes"):
+        assert field not in item_properties
+        assert field not in required
+    assert "original_name" in required
+    assert "translated_description" in required
+
+
+def test_truncated_response_raises_truncated_error() -> None:
+    """A response cut at the output ceiling arrives as HTTP 200 with half a JSON body."""
+    provider_body = {
+        "candidates": [
+            {
+                "finishReason": "MAX_TOKENS",
+                "content": {"parts": [{"text": '{"items": [{"original_name": "Pho'}]},
+            }
+        ]
+    }
+    client = FakeClient(FakeResponse(200, provider_body))
+    parser = GeminiMenuParser(
+        api_key="test-key",
+        api_base_url="https://gemini.example.test/v1beta",
+        model="gemini-2.5-flash",
+        timeout_seconds=5,
+        client=client,  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(LlmMenuParserTruncatedError):
+        parser.parse(_document("Pho bo 60.000 VND"), target_language="en")
+
+
+def test_fallback_parser_degrades_on_a_truncated_primary() -> None:
+    """A truncated primary must degrade to the fallback, not kill the scan.
+
+    This is the bug that made long menus fail outright: the fallback only caught
+    Unavailable/Timeout, so a truncated response — a plain LlmMenuParserError —
+    escaped straight through the pipeline.
+    """
+    provider_body = {
+        "candidates": [
+            {
+                "finishReason": "MAX_TOKENS",
+                "content": {"parts": [{"text": '{"items": [{"original_name": "Pho'}]},
+            }
+        ]
+    }
+    primary = GeminiMenuParser(
+        api_key="test-key",
+        api_base_url="https://gemini.example.test/v1beta",
+        model="gemini-2.5-flash",
+        timeout_seconds=5,
+        client=FakeClient(FakeResponse(200, provider_body)),  # type: ignore[arg-type]
+    )
+    chain = _FallbackMenuParser(primary=primary, fallback=RuleBasedMenuParser())
+
+    draft = chain.parse(
+        make_single_column_document(["Phở bò 60.000đ"]),
+        target_language="en",
+    )
+
+    assert draft.items  # type: ignore[attr-defined]
 
 
 def _document(text: str) -> OcrDocument:

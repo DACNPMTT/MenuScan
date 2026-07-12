@@ -27,6 +27,7 @@ from src.modules.menu_scan.exceptions import (
     OcrProviderUnavailableError,
     OcrTimeoutError,
 )
+from src.modules.menu_scan.food_enricher import FoodEnricher, NullFoodEnricher
 from src.modules.menu_scan.menu_parser import MenuParser
 from src.modules.menu_scan.menu_validity import looks_like_menu
 from src.modules.menu_scan.models import OcrResult, ScanSession, ScanStatus
@@ -83,6 +84,10 @@ class ScanPipeline:
     translation_service: TranslationService
     scan_repository: ScanSessionRepository
     menu_repository: MenuRepository
+    # Second LLM pass that adds tags / taste levels / summaries once every dish
+    # has been extracted. Defaults to a no-op so the rule-based and test paths
+    # stay offline.
+    food_enricher: FoodEnricher = NullFoodEnricher()
     # When True, the analyze stage also receives the menu page image(s) so a
     # multimodal parser can read the real layout (ADR 0003). Off for the
     # rule-based/text-only path.
@@ -135,6 +140,7 @@ class ScanPipeline:
             ocr_document, page_images = self._stage_ocr(scan_id)
             draft = self._stage_analyze(scan_id, ocr_document, page_images)
             draft = self._stage_translate(scan_id, draft)
+            draft = self._stage_enrich(scan_id, draft)
             self._stage_finalize(scan_id, ocr_document, draft)
         except _PipelineError as error:
             self._fail_scan(scan_id, error.code, error.message)
@@ -370,6 +376,33 @@ class ScanPipeline:
 
         logger.info("pipeline_translate_complete scan_id=%s", scan_id)
         return draft
+
+    def _stage_enrich(
+        self,
+        scan_id: uuid.UUID,
+        draft: ParsedMenuDraft,
+    ) -> ParsedMenuDraft:
+        """Add food-intelligence fields in a second LLM pass.
+
+        Runs inside the FINALIZING stage so the scan's public stage vocabulary is
+        unchanged. Failure is graceful by design: the dishes are already
+        extracted, so a dead enricher costs tags, never the menu.
+        """
+        try:
+            enriched = self.food_enricher.enrich(
+                draft,
+                target_language=draft.target_language or "en",
+            )
+        except Exception:
+            logger.warning(
+                "pipeline_enrich_failed scan_id=%s — continuing without food tags",
+                scan_id,
+                exc_info=True,
+            )
+            return draft
+
+        logger.info("pipeline_enrich_complete scan_id=%s", scan_id)
+        return enriched
 
     def _stage_finalize(
         self,

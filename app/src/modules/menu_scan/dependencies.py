@@ -12,6 +12,11 @@ from src.modules.menu_scan.adapters.storage import (
     ObjectStorage,
     build_object_storage,
 )
+from src.modules.menu_scan.food_enricher import (
+    FoodEnricher,
+    GeminiFoodEnricher,
+    NullFoodEnricher,
+)
 from src.modules.menu_scan.llm_menu_parser import GeminiMenuParser
 from src.modules.menu_scan.menu_parser import MenuParser, RuleBasedMenuParser
 from src.modules.menu_scan.ocr.adapters.google_vision import GoogleVisionOcrProvider
@@ -43,7 +48,8 @@ class _FallbackMenuParser:
         preferences_data: list[dict[str, object]] | None = None,
         is_group: bool = False,
     ) -> object:
-        from src.modules.menu_scan.llm_menu_parser import LlmMenuParserUnavailableError, LlmMenuParserTimeoutError
+        from src.modules.menu_scan.llm_menu_parser import LlmMenuParserError
+
         try:
             return self._primary.parse(  # type: ignore[arg-type]
                 document,  # type: ignore[arg-type]
@@ -52,9 +58,12 @@ class _FallbackMenuParser:
                 preferences_data=preferences_data,
                 is_group=is_group,
             )
-        except (LlmMenuParserUnavailableError, LlmMenuParserTimeoutError) as exc:
+        except LlmMenuParserError as exc:
+            # Catch the base class, not just Unavailable/Timeout: a truncated or
+            # malformed response is exactly the case where degrading to the next
+            # model (or the rule-based parser) beats failing the scan outright.
             logger.warning(
-                "menu_parser_primary_unavailable falling_back=rule_based reason=%s",
+                "menu_parser_primary_failed falling_back=next reason=%s",
                 exc,
             )
             return self._fallback.parse(  # type: ignore[arg-type]
@@ -140,6 +149,22 @@ def get_menu_parser() -> MenuParser:
     raise ValueError(f"Unsupported LLM_PROVIDER={config.provider!r}")
 
 
+def get_food_enricher() -> FoodEnricher:
+    """Second-pass enricher. Offline unless Gemini is configured with a key."""
+    config = settings.llm
+    if config.provider != "gemini" or not (config.api_key or config.api_keys):
+        return NullFoodEnricher()
+    return GeminiFoodEnricher(
+        api_key=config.api_key or "",
+        api_keys=config.api_keys,
+        api_base_url=config.api_base_url,
+        # Enrichment is pure inference over short text, no layout reading — the
+        # cheapest model in the chain is the right one for it.
+        model=(config.models or (config.model,))[-1],
+        timeout_seconds=config.timeout_seconds,
+    )
+
+
 def get_translation_service() -> TranslationService:
     config = settings.llm
     if config.api_key:
@@ -164,6 +189,7 @@ def get_scan_pipeline() -> ScanPipeline:
         ocr_service=get_ocr_service(get_ocr_provider()),
         menu_parser=get_menu_parser(),
         translation_service=get_translation_service(),
+        food_enricher=get_food_enricher(),
         scan_repository=ScanSessionRepository(),
         menu_repository=MenuRepository(),
         attach_images=attach_images,
