@@ -28,8 +28,8 @@ import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { useExchangeRates } from '@/shared/hooks/useExchangeRates'
 import { CurrencySelect } from '@/shared/components/CurrencySelect'
 import { formatConvertedAmount, type ExchangeRates } from '@/shared/lib/currency'
-import { assessDish, type DietProfile } from '@/features/menu-scan/dietary'
-import { isProfileActive, rankDishes, scoreDish } from '@/features/menu-scan/ranking'
+import { type DietProfile } from '@/features/menu-scan/dietary'
+import { isProfileActive, rankDishes } from '@/features/menu-scan/ranking'
 import type {
   MenuItemResult,
   MenuDetail,
@@ -829,23 +829,6 @@ function ItemsList({
     () => (profileActive ? rankDishes(items, dietProfile) : items),
     [profileActive, items, dietProfile],
   )
-  // Assess each dish once (keyed by id) so the card map renders badges without
-  // re-running the check on every read.
-  const assessments = useMemo(() => {
-    const map = new Map<
-      string,
-      { recommended: boolean; allergens: string[]; dietFlags: string[] }
-    >()
-    for (const item of rankedItems) {
-      const risk = assessDish(item, dietProfile)
-      map.set(item.id, {
-        recommended: profileActive && scoreDish(item, dietProfile).recommended,
-        allergens: risk.allergens,
-        dietFlags: risk.dietFlags,
-      })
-    }
-    return map
-  }, [rankedItems, dietProfile, profileActive])
   const showPagination = itemsMeta !== null && itemsMeta.total_pages > 1
   const pageStart =
     itemsMeta && items.length > 0
@@ -885,7 +868,7 @@ function ItemsList({
       ) : (
         <>
           <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 2xl:grid-cols-3">
-          {items.map((item) => (
+          {rankedItems.map((item) => (
             <ExtractedMenuItemCard
               key={item.id}
               item={item}
