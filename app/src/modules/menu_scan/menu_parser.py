@@ -4,7 +4,7 @@ import unicodedata
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 from src.modules.menu_scan.layout_classifier import LineRole, classify_line_role
 from src.modules.menu_scan.line_item_extractor import split_name_description_price

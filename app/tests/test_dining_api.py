@@ -6,7 +6,6 @@ import uuid
 from datetime import datetime, timezone
 from unittest.mock import Mock
 
-import pytest
 from fastapi.testclient import TestClient
 
 from src.core.application import create_app
@@ -482,4 +481,4 @@ def test_score_item_for_diner_rules():
     verdict2, score2, fit2, risk2 = DiningSessionService._score_item_for_diner(item2, [pref2])
     assert verdict2 == RecommendationVerdict.RECOMMENDED
     assert score2 == 100.0
-    assert "Thích Beef" in fit2
+    assert "Phù hợp vì bạn beef" in fit2

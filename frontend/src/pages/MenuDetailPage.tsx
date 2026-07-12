@@ -43,6 +43,7 @@ import {
 import { type DietProfile } from '@/features/menu-scan/dietary'
 import { BillItemCard } from '@/features/menu-scan/components/menu-detail/BillItemCard'
 import { ItemDisplayName } from '@/features/menu-scan/components/menu-detail/ItemDisplayName'
+import { MenuItemDetailDialog } from '@/features/menu-scan/components/menu-detail/MenuItemDetailDialog'
 import { ManualItemCard } from '@/features/menu-scan/components/menu-detail/ManualItemCard'
 import { MenuFilterBar } from '@/features/menu-scan/components/menu-detail/MenuFilterBar'
 import type { Bill } from '@/features/billing/types'
@@ -197,6 +198,7 @@ export function MenuDetailPage() {
   const [savingItemId, setSavingItemId] = useState<string | null>(null)
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null)
   const [editingItemIds, setEditingItemIds] = useState<Set<string>>(() => new Set())
+  const [detailItemId, setDetailItemId] = useState<string | null>(null)
 
   useDocumentTitle(menu ? `${menu.title} | MenuScan` : 'Menu | MenuScan')
 
@@ -278,6 +280,15 @@ export function MenuDetailPage() {
         ? browseItems
         : browseItems.filter((item) => itemCategory(item) === activeCategory),
     [activeCategory, browseItems],
+  )
+  const detailItem = useMemo(
+    () =>
+      detailItemId
+        ? allItems.find((item) => item.id === detailItemId) ??
+          serverItems.find((item) => item.id === detailItemId) ??
+          null
+        : null,
+    [allItems, detailItemId, serverItems],
   )
 
   const canLoadMoreItems =
@@ -876,6 +887,7 @@ export function MenuDetailPage() {
                   onSave={() => void handleSaveItem(item)}
                   onCancel={() => cancelItemDraft(item.id)}
                   onDelete={() => void handleDeleteItem(item)}
+                  onViewDetails={() => setDetailItemId(item.id)}
                   onQuantityChange={(nextQuantity) =>
                     updateLine(item.id, (line) => ({
                       ...line,
@@ -1256,6 +1268,15 @@ export function MenuDetailPage() {
           </div>
         )}
       </div>
+      {detailItem && (
+        <MenuItemDetailDialog
+          item={detailItem}
+          currency={currency}
+          displayCurrency={displayCurrency}
+          rates={exchangeRates}
+          onClose={() => setDetailItemId(null)}
+        />
+      )}
     </div>
   )
 }

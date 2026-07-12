@@ -1,4 +1,16 @@
-import { AlertCircle, AlertTriangle, Loader2, Minus, Pencil, Plus, RotateCcw, Save, Trash2 } from 'lucide-react'
+import {
+  AlertCircle,
+  AlertTriangle,
+  ChevronRight,
+  Loader2,
+  Minus,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Save,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ItemDisplayName } from '@/features/menu-scan/components/menu-detail/ItemDisplayName'
 import {
@@ -35,12 +47,13 @@ export interface BillItemCardProps {
   onSave: () => void
   onCancel: () => void
   onDelete: () => void
+  onViewDetails: () => void
   onQuantityChange: (quantity: number) => void
   onNoteChange: (note: string) => void
 }
 
-/** A single menu item card: read-only display or inline editor, plus the
- * quantity / note bill-line controls pinned to the bottom. */
+/** Compact menu item card for the menu overview. Deep AI details live in the
+ * item detail view so the menu remains easy to scan. */
 export function BillItemCard({
   item,
   dietProfile,
@@ -60,6 +73,7 @@ export function BillItemCard({
   onSave,
   onCancel,
   onDelete,
+  onViewDetails,
   onQuantityChange,
   onNoteChange,
 }: BillItemCardProps) {
@@ -72,17 +86,30 @@ export function BillItemCard({
       : null
   const priceCurrency = draft.currency.trim() || item.currency || currency || ''
   const category = itemCategory(item)
-  const hasTranslatedDescription =
-    item.translated_description &&
-    item.translated_description !== item.original_description
-  const primaryDescription =
-    item.translated_description || item.original_description || null
-  const secondaryDescription = hasTranslatedDescription
-    ? item.original_description
-    : null
+  const summary =
+    item.assistant_summary || item.translated_description || item.original_description
+  const quickTags = uniqueCompact([
+    ...item.main_ingredients,
+    ...item.cooking_methods,
+    ...item.flavor_tags,
+  ]).slice(0, 4)
+  const recommendation = item.recommendation
+  const recommendationNote =
+    recommendation?.why_not_suitable ||
+    recommendation?.explanation ||
+    recommendation?.why_suitable
+  const recommendationFitTags = uniqueCompact([
+    ...(recommendation?.suggested_for ?? []).map((name) => `Hợp: ${name}`),
+    ...(recommendation?.fit_reasons ?? []),
+  ]).slice(0, 3)
+  const recommendationRiskTags = uniqueCompact([
+    ...(recommendation?.warning_for ?? []).map((name) => `Tránh: ${name}`),
+    ...(recommendation?.risk_reasons ?? []),
+    ...(recommendation?.warning_reasons ?? []),
+  ]).slice(0, 3)
 
   return (
-    <article className="flex min-h-[190px] flex-col gap-3 rounded-[8px] border border-hairline bg-canvas p-5">
+    <article className="flex min-h-[260px] flex-col gap-3 rounded-[8px] border border-hairline bg-canvas p-5">
       {risk.allergens.length > 0 && (
         <div className="flex items-center gap-2 rounded-[6px] bg-destructive px-3 py-1.5 text-[12px] font-bold text-white">
           <AlertCircle className="size-3.5 shrink-0" aria-hidden />
@@ -278,115 +305,87 @@ export function BillItemCard({
               </button>
             </div>
           </div>
-          {primaryDescription && (
-            <div className="flex flex-col gap-1.5">
-              <p className="mb-0 text-[14px] leading-6 text-ink-variant">
-                {primaryDescription}
-              </p>
-              {secondaryDescription && (
-                <p className="mb-0 border-l-2 border-hairline pl-3 text-[13px] leading-5 text-ink-variant/45">
-                  {secondaryDescription}
-                </p>
-              )}
+
+          {summary && (
+            <p className="mb-0 line-clamp-2 text-[14px] leading-6 text-ink-variant">
+              {summary}
+            </p>
+          )}
+
+          {quickTags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {quickTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-[4px] border border-hairline bg-surface-muted px-2 py-1 text-[11px] font-semibold text-ink-variant"
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
           )}
 
-          {/* Recommendation details */}
-          {item.recommendation && (
-            <div className="mt-2 pt-3 border-t border-hairline/60 flex flex-col gap-1.5 text-left">
-              <div className="flex items-center justify-between">
-                <span className="text-[12px] font-bold text-ink-variant">Độ phù hợp:</span>
+          {recommendation && (
+            <div className="rounded-[8px] border border-hairline bg-surface-muted/60 px-3 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-[12px] font-bold text-ink-variant">
+                  <ShieldCheck className="size-3.5 text-primary-dark" aria-hidden />
+                  Khuyến nghị
+                </span>
                 <span
-                  className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                    item.recommendation.verdict === 'RECOMMENDED'
-                      ? 'bg-[#e4f4df] text-[#256b2b]'
-                      : item.recommendation.verdict === 'OK'
-                        ? 'bg-primary/10 text-primary-dark'
-                        : item.recommendation.verdict === 'CAUTION'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-red-100 text-red-800'
-                  }`}
+                  className={`rounded-full px-2 py-1 text-[11px] font-bold ${verdictClass(recommendation.verdict)}`}
                 >
-                  {item.recommendation.verdict === 'RECOMMENDED'
-                    ? 'Nên Dùng'
-                    : item.recommendation.verdict === 'OK'
-                      ? 'Bình Thường'
-                      : item.recommendation.verdict === 'CAUTION'
-                        ? 'Cảnh Báo'
-                        : 'Nên Tránh'}
+                  {verdictLabel(recommendation.verdict)}
+                  {recommendation.score !== undefined && recommendation.score !== null
+                    ? ` ${Number(recommendation.score).toFixed(0)}/100`
+                    : ''}
                 </span>
               </div>
 
-              {item.recommendation.score !== undefined && item.recommendation.score !== null && (
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-ink-variant">Điểm số:</span>
-                  <span className="font-bold text-ink">{Number(item.recommendation.score).toFixed(0)}/100</span>
-                </div>
-              )}
-
-              {item.recommendation.why_suitable && (
-                <p className="text-[11px] text-[#256b2b] bg-[#e4f4df]/20 p-1.5 rounded border border-[#e4f4df]/35">
-                  ✓ {item.recommendation.why_suitable}
-                </p>
-              )}
-              {item.recommendation.why_not_suitable && (
-                <p className="text-[11px] text-red-700 bg-red-50 p-1.5 rounded border border-red-100/35">
-                  ✗ {item.recommendation.why_not_suitable}
+              {recommendationNote && (
+                <p className="mb-0 mt-2 line-clamp-2 text-[12px] leading-5 text-ink-variant">
+                  {recommendationNote}
                 </p>
               )}
 
-               {item.recommendation.suggested_for && item.recommendation.suggested_for.length > 0 && (
-                <p className="text-[10px] text-ink-variant">
-                  <span className="font-semibold text-primary">Gợi ý cho:</span> {item.recommendation.suggested_for.join(', ')}
-                </p>
-              )}
-              {item.recommendation.warning_for && item.recommendation.warning_for.length > 0 && (
-                <p className="text-[10px] text-ink-variant">
-                  <span className="font-semibold text-red-600">Cảnh báo:</span> {item.recommendation.warning_for.join(', ')}
-                </p>
-              )}
-
-              {item.recommendation.participant_breakdowns && item.recommendation.participant_breakdowns.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-hairline/45 flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-ink-variant/60 uppercase">Chi tiết thành viên:</span>
-                  {item.recommendation.participant_breakdowns.map((bd, bdIdx) => (
-                    <div key={bdIdx} className="flex flex-wrap items-center justify-between text-[11px] bg-surface-muted/50 px-2 py-1 rounded">
-                      <span className="font-medium text-ink">{bd.display_name}</span>
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
-                            bd.verdict === 'RECOMMENDED'
-                              ? 'bg-[#e4f4df] text-[#256b2b]'
-                              : bd.verdict === 'OK'
-                                ? 'bg-primary/10 text-primary-dark'
-                                : bd.verdict === 'CAUTION'
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {bd.verdict === 'RECOMMENDED'
-                            ? 'Nên dùng'
-                            : bd.verdict === 'OK'
-                              ? 'Bình thường'
-                              : bd.verdict === 'CAUTION'
-                                ? 'Cảnh báo'
-                                : 'Nên tránh'}
-                        </span>
-                        {bd.score !== undefined && bd.score !== null && (
-                          <span className="font-bold text-ink-variant/80">{bd.score}</span>
-                        )}
-                      </div>
-                      {bd.explanation && (
-                        <p className="w-full text-[10px] text-ink-variant/75 mt-0.5 pl-1 border-l border-hairline">
-                          {bd.explanation}
-                        </p>
-                      )}
-                    </div>
+              {(recommendationFitTags.length > 0 ||
+                recommendationRiskTags.length > 0) && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {recommendationFitTags.map((tag) => (
+                    <span
+                      key={`fit-${tag}`}
+                      className="rounded-[4px] border border-[#cfeac5] bg-[#e4f4df]/70 px-2 py-1 text-[10px] font-semibold text-[#256b2b]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  {recommendationRiskTags.map((tag) => (
+                    <span
+                      key={`risk-${tag}`}
+                      className="rounded-[4px] border border-red-100 bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700"
+                    >
+                      {tag}
+                    </span>
                   ))}
                 </div>
               )}
             </div>
           )}
+
+          {item.risk_notes && (
+            <p className="mb-0 line-clamp-1 rounded-[6px] border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800">
+              {item.risk_notes}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={onViewDetails}
+            className="mt-auto flex min-h-9 items-center justify-between rounded-[8px] border border-hairline px-3 text-[13px] font-bold text-primary-dark transition-colors hover:bg-primary/10"
+          >
+            {recommendation ? 'Xem chi tiết & khuyến nghị' : 'Chi tiết món'}
+            <ChevronRight className="size-4" aria-hidden />
+          </button>
         </>
       )}
 
@@ -421,4 +420,33 @@ export function BillItemCard({
       </div>
     </article>
   )
+}
+
+type RecommendationVerdict = NonNullable<BillItem['recommendation']>['verdict']
+
+function verdictLabel(verdict: RecommendationVerdict): string {
+  if (verdict === 'RECOMMENDED') return 'Nên dùng'
+  if (verdict === 'OK') return 'Phù hợp'
+  if (verdict === 'CAUTION') return 'Cân nhắc'
+  return 'Nên tránh'
+}
+
+function verdictClass(verdict: RecommendationVerdict): string {
+  if (verdict === 'RECOMMENDED') return 'bg-[#e4f4df] text-[#256b2b]'
+  if (verdict === 'OK') return 'bg-primary/10 text-primary-dark'
+  if (verdict === 'CAUTION') return 'bg-amber-100 text-amber-800'
+  return 'bg-red-100 text-red-800'
+}
+
+function uniqueCompact(values: string[]): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const value of values) {
+    const clean = value.trim()
+    const key = clean.toLowerCase()
+    if (!clean || seen.has(key)) continue
+    seen.add(key)
+    result.push(clean)
+  }
+  return result
 }

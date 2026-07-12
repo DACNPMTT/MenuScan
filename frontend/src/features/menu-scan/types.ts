@@ -115,6 +115,19 @@ export interface MenuItemResult {
   translated_name: string | null
   original_description: string | null
   translated_description: string | null
+  assistant_summary: string | null
+  main_ingredients: string[]
+  ingredient_tags: string[]
+  flavor_tags: string[]
+  texture_tags: string[]
+  cooking_methods: string[]
+  spice_level: number | null
+  sweetness_level: number | null
+  saltiness_level: number | null
+  sourness_level: number | null
+  richness_level: number | null
+  oiliness_level: number | null
+  risk_notes: string | null
   price: string | null
   currency: string | null
   category: string | null
@@ -142,6 +155,9 @@ export interface RecommendationResult {
   why_not_suitable?: string | null
   suggested_for?: string[]
   warning_for?: string[]
+  fit_reasons?: string[]
+  risk_reasons?: string[]
+  warning_reasons?: string[]
   participant_breakdowns?: ParticipantBreakdown[]
 }
 

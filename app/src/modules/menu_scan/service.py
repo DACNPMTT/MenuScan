@@ -42,7 +42,6 @@ from src.modules.menu_scan.schemas import (
     ScanResultSourceData,
     ScanSourceData,
     ScanStatusData,
-    RecommendationResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -317,8 +316,11 @@ class ScanService:
             from src.modules.dining.models import DiningSession, FoodItemRecommendation
             from src.modules.dining.service import DiningSessionService
             from src.modules.identity.models import FoodProfile
-            from src.modules.menu_scan.schemas import RecommendationResponse, ParticipantBreakdownResponse
-            
+            from src.modules.menu_scan.schemas import (
+                ParticipantBreakdownResponse,
+                RecommendationResponse,
+            )
+
             dining_session = None
             if hasattr(self._session, "query"):
                 dining_session = (
@@ -338,13 +340,17 @@ class ScanService:
                     .all()
                 )
                 rec_by_food_id = {r.food_item_id: r for r in recs}
-                
+
                 from src.modules.dining.models import FoodItemRecommendationParticipantBreakdown
                 rec_ids = [r.id for r in recs]
                 if rec_ids:
                     breakdowns = (
                         self._session.query(FoodItemRecommendationParticipantBreakdown)
-                        .filter(FoodItemRecommendationParticipantBreakdown.food_item_recommendation_id.in_(rec_ids))
+                        .filter(
+                            FoodItemRecommendationParticipantBreakdown.food_item_recommendation_id.in_(
+                                rec_ids
+                            )
+                        )
                         .all()
                     )
                     p_map = {p.id: p.display_name for p in dining_session.participants}
@@ -358,14 +364,16 @@ class ScanService:
                             fit_reasons=bd.fit_reasons or [],
                             risk_reasons=bd.risk_reasons or [],
                         )
-                        breakdowns_by_rec.setdefault(bd.food_item_recommendation_id, []).append(bd_data)
+                        breakdowns_by_rec.setdefault(
+                            bd.food_item_recommendation_id, []
+                        ).append(bd_data)
             else:
                 if user is not None and hasattr(self._session, "query"):
                     default_profile = (
                         self._session.query(FoodProfile)
                         .filter(
                             FoodProfile.user_id == user.id,
-                            FoodProfile.is_default == True,
+                            FoodProfile.is_default,
                             FoodProfile.deleted_at.is_(None),
                         )
                         .first()
@@ -383,8 +391,11 @@ class ScanService:
                             explanation=r.explanation,
                             why_suitable=r.why_suitable,
                             why_not_suitable=r.why_not_suitable,
-                            suggested_for=r.suggested_for,
-                            warning_for=r.warning_for,
+                            suggested_for=r.suggested_for or [],
+                            warning_for=r.warning_for or [],
+                            fit_reasons=r.fit_reasons or [],
+                            risk_reasons=r.risk_reasons or [],
+                            warning_reasons=r.warning_reasons or [],
                             participant_breakdowns=breakdowns_by_rec.get(r.id, []),
                         )
                 elif default_profile is not None:
@@ -397,8 +408,21 @@ class ScanService:
                         explanation=f"Độ phù hợp cá nhân {score:.0f}/100.",
                         why_suitable=", ".join(fit) if fit else None,
                         why_not_suitable=", ".join(risk) if risk else None,
-                        suggested_for=[default_profile.display_name or "Bạn"] if verdict.value == "RECOMMENDED" else [],
-                        warning_for=[default_profile.display_name or "Bạn"] if verdict.value == "AVOID" else [],
+                        suggested_for=[
+                            default_profile.display_name or "Bạn"
+                        ]
+                        if verdict.value == "RECOMMENDED"
+                        else [],
+                        warning_for=[
+                            default_profile.display_name or "Bạn"
+                        ]
+                        if verdict.value == "AVOID"
+                        else [],
+                        fit_reasons=fit,
+                        risk_reasons=risk,
+                        warning_reasons=risk
+                        if verdict.value in {"AVOID", "CAUTION"}
+                        else [],
                         participant_breakdowns=[
                             ParticipantBreakdownResponse(
                                 display_name=default_profile.display_name or "Bạn",
@@ -408,7 +432,7 @@ class ScanService:
                                 fit_reasons=fit,
                                 risk_reasons=risk,
                             )
-                        ]
+                        ],
                     )
 
                 items_response.append(

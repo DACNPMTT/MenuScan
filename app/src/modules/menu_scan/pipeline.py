@@ -289,8 +289,6 @@ class ScanPipeline:
                 "The photo does not look like a menu.",
             )
 
-        preferences_data = []
-        is_group = False
         with self.session_factory() as session:
             scan = self.scan_repository.get_scan_for_processing(
                 session,
@@ -299,86 +297,19 @@ class ScanPipeline:
             assert scan is not None  # noqa: S101
             target_language = scan.target_language
 
-            # Query if there is an associated dining session
-            from src.modules.dining.models import DiningSession
-            from src.modules.identity.models import FoodProfile
-
-            dining_session = (
-                session.query(DiningSession)
-                .filter(DiningSession.scan_session_id == scan_id)
-                .first()
-            )
-            is_group = dining_session is not None
-
-            if dining_session is not None:
-                # Add host
-                if dining_session.created_by_user_id is not None:
-                    host_profile = (
-                        session.query(FoodProfile)
-                        .filter(
-                            FoodProfile.user_id == dining_session.created_by_user_id,
-                            FoodProfile.is_default == True,
-                            FoodProfile.deleted_at.is_(None),
-                        )
-                        .first()
-                    )
-                    if host_profile is not None:
-                        preferences_data.append({
-                            "display_name": host_profile.display_name or "Host",
-                            "preferences": [
-                                {
-                                    "code": p.code,
-                                    "preference_type": p.preference_type.value if hasattr(p.preference_type, "value") else str(p.preference_type),
-                                }
-                                for p in host_profile.preferences
-                            ]
-                        })
-                # Add participants
-                for p in dining_session.participants:
-                    preferences_data.append({
-                        "display_name": p.display_name,
-                        "preferences": [
-                            {
-                                "code": pref.code,
-                                "preference_type": pref.preference_type.value if hasattr(pref.preference_type, "value") else str(pref.preference_type),
-                            }
-                            for pref in p.preferences
-                        ]
-                    })
-            else:
-                # Fallback to user's default food profile (the person scanning)
-                if scan.user_id is not None:
-                    user_profile = (
-                        session.query(FoodProfile)
-                        .filter(
-                            FoodProfile.user_id == scan.user_id,
-                            FoodProfile.is_default == True,
-                            FoodProfile.deleted_at.is_(None),
-                        )
-                        .first()
-                    )
-                    if user_profile is not None:
-                        preferences_data.append({
-                            "display_name": user_profile.display_name or "Bạn",
-                            "preferences": [
-                                {
-                                    "code": p.code,
-                                    "preference_type": p.preference_type.value if hasattr(p.preference_type, "value") else str(p.preference_type),
-                                }
-                                for p in user_profile.preferences
-                            ]
-                        })
-
         try:
             draft = self.menu_parser.parse(
                 ocr_document,
                 target_language=target_language,
                 images=images or None,
-                preferences_data=preferences_data,
-                is_group=is_group,
+                # Keep extraction focused on finding every printed dish. Dining
+                # recommendations are generated after persistence from the full
+                # saved item list and the dining profile/session preferences.
+                preferences_data=None,
+                is_group=False,
             )
         except Exception as error:
-            logger.exception("pipeline_parse_error scan_id=%s preferences_data=%s is_group=%s", scan_id, preferences_data, is_group)
+            logger.exception("pipeline_parse_error scan_id=%s", scan_id)
             raise _PipelineError(
                 _ERROR_PARSING_FAILED,
                 "Menu parsing failed.",
@@ -470,6 +401,19 @@ class ScanPipeline:
                     ),
                     original_description=item.original_description,
                     translated_description=item.translated_description,
+                    assistant_summary=item.assistant_summary,
+                    main_ingredients=_clean_free_text_list(item.main_ingredients),
+                    ingredient_tags=_clean_free_text_list(item.ingredient_tags),
+                    flavor_tags=_clean_free_text_list(item.flavor_tags),
+                    texture_tags=_clean_free_text_list(item.texture_tags),
+                    cooking_methods=_clean_free_text_list(item.cooking_methods),
+                    spice_level=_safe_level(item.spice_level),
+                    sweetness_level=_safe_level(item.sweetness_level),
+                    saltiness_level=_safe_level(item.saltiness_level),
+                    sourness_level=_safe_level(item.sourness_level),
+                    richness_level=_safe_level(item.richness_level),
+                    oiliness_level=_safe_level(item.oiliness_level),
+                    risk_notes=item.risk_notes,
                     price=_safe_decimal(item.price),
                     currency=_safe_currency(item.currency),
                     category=(item.category[:100] if item.category else None),
@@ -488,16 +432,21 @@ class ScanPipeline:
             self.menu_repository.save_menu_with_items(session, menu, food_items)
             session.flush()
 
-            # Link menu and generate dining recommendations if dining session associated
+            # Link menu and generate recommendations. A scan may come from a
+            # dining session, or it may be a normal personal scan; create an
+            # implicit personal session so recommendation tables are populated
+            # consistently for both flows.
             from src.modules.dining.models import DiningSession, DiningSessionStatus
             from src.modules.dining.service import DiningSessionService
-            from src.modules.dining.repository import DiningSessionRepository
 
             dining_session = (
                 session.query(DiningSession)
                 .filter(DiningSession.scan_session_id == scan.id)
                 .first()
             )
+            if dining_session is None:
+                dining_session = _create_personal_dining_session(session, scan, menu)
+
             if dining_session is not None:
                 dining_session.menu_id = menu.id
                 dining_session.status = DiningSessionStatus.COMPLETED
@@ -562,6 +511,79 @@ class _PipelineError(Exception):
         super().__init__(message)
         self.code = code
         self.message = message
+
+
+def _create_personal_dining_session(
+    session: object,
+    scan: ScanSession,
+    menu: Menu,
+) -> object:
+    from src.modules.dining.models import (
+        DiningSession,
+        DiningSessionMode,
+        DiningSessionParticipant,
+        DiningSessionParticipantPreference,
+        DiningSessionStatus,
+    )
+    from src.modules.identity.models import FoodProfile, User
+
+    now = datetime.now(timezone.utc)
+    user = session.get(User, scan.user_id) if scan.user_id is not None else None
+    profile = None
+    if scan.user_id is not None:
+        profile = (
+            session.query(FoodProfile)
+            .filter(
+                FoodProfile.user_id == scan.user_id,
+                FoodProfile.is_default,
+                FoodProfile.deleted_at.is_(None),
+            )
+            .first()
+        )
+
+    dining_session = DiningSession(
+        created_by_user_id=scan.user_id,
+        scan_session_id=scan.id,
+        menu_id=menu.id,
+        mode=DiningSessionMode.PERSONAL,
+        status=DiningSessionStatus.COMPLETED,
+        target_language=scan.target_language,
+        created_at=now,
+        updated_at=now,
+        completed_at=now,
+    )
+    participant = DiningSessionParticipant(
+        dining_session=dining_session,
+        user_id=scan.user_id,
+        display_name=(
+            (profile.display_name if profile is not None else None)
+            or (user.display_name if user is not None else None)
+            or "Bạn"
+        ),
+        preferred_language=(
+            (profile.preferred_language if profile is not None else None)
+            or (user.preferred_language if user is not None else None)
+            or scan.target_language
+        ),
+        joined_at=now,
+    )
+    if profile is not None:
+        participant.preferences = [
+            DiningSessionParticipantPreference(
+                code=preference.code,
+                category=preference.category,
+                preference_type=preference.preference_type,
+                intensity=preference.intensity,
+                importance=preference.importance,
+                note=preference.note,
+                created_at=now,
+            )
+            for preference in profile.preferences
+        ]
+    dining_session.participants = [participant]
+    session.add(dining_session)
+    session.flush()
+    return dining_session
 
 
 def _update_scan(
@@ -638,6 +660,23 @@ def _clean_tags(values: list[str], allowed: frozenset[str]) -> list[str]:
         if code in allowed and code not in cleaned:
             cleaned.append(code)
     return cleaned
+
+
+def _clean_free_text_list(values: list[str], *, limit: int = 12) -> list[str]:
+    cleaned: list[str] = []
+    for value in values:
+        text = value.strip()
+        if text and text not in cleaned:
+            cleaned.append(text[:80])
+        if len(cleaned) >= limit:
+            break
+    return cleaned
+
+
+def _safe_level(value: int | None) -> int | None:
+    if value is None:
+        return None
+    return max(0, min(5, int(value)))
 
 
 def _safe_decimal(value: str | None) -> Decimal | None:

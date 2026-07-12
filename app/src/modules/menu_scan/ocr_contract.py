@@ -154,6 +154,19 @@ class ParsedMenuItemDraft(BaseModel):
     original_description: str | None = None
     translated_name: str | None = None
     translated_description: str | None = None
+    assistant_summary: str | None = None
+    main_ingredients: list[str] = Field(default_factory=list)
+    ingredient_tags: list[str] = Field(default_factory=list)
+    flavor_tags: list[str] = Field(default_factory=list)
+    texture_tags: list[str] = Field(default_factory=list)
+    cooking_methods: list[str] = Field(default_factory=list)
+    spice_level: int | None = Field(default=None, ge=0, le=5)
+    sweetness_level: int | None = Field(default=None, ge=0, le=5)
+    saltiness_level: int | None = Field(default=None, ge=0, le=5)
+    sourness_level: int | None = Field(default=None, ge=0, le=5)
+    richness_level: int | None = Field(default=None, ge=0, le=5)
+    oiliness_level: int | None = Field(default=None, ge=0, le=5)
+    risk_notes: str | None = None
     base_name: str | None = None
     variant_name: str | None = None
     variant_group: str | None = None

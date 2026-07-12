@@ -273,30 +273,6 @@ def _build_prompt(
     detected = document.detected_language or "unknown"
     csv_anchor = _build_csv_anchor(document, prealign_csv=prealign_csv)
 
-    preferences_prompt = ""
-    if preferences_data:
-        if is_group:
-            preferences_prompt = (
-                "You are acting as a Group AI Dining Assistant. Below are the dietary preferences and restrictions "
-                "of all the diners in this group session. You MUST evaluate each menu item against their combined preferences:\n"
-            )
-        else:
-            preferences_prompt = (
-                "You are acting as a Personal AI Dining Assistant. Below are the user's personal dietary preferences "
-                "and restrictions. You MUST evaluate each menu item against their personal preferences:\n"
-            )
-        for diner in preferences_data:
-            d_name = diner.get("display_name") or "Diner"
-            preferences_prompt += f"- Diner '{d_name}':\n"
-            prefs = diner.get("preferences") or []
-            if not prefs:
-                preferences_prompt += "  No specific preferences/allergies.\n"
-            for p in prefs:
-                code = p.get("code")
-                p_type = p.get("preference_type")
-                preferences_prompt += f"  * type={p_type}, code={code}\n"
-        preferences_prompt += "\n"
-
     common_rules = (
         "- Preserve unusual dish names verbatim in original_name.\n"
         "- Do not invent items that are not present in the menu.\n"
@@ -322,6 +298,34 @@ def _build_prompt(
         "an existing dish; it is NOT inventing a new item. Leave "
         "original_description empty when the menu printed none (never fabricate "
         "source-language text).\n"
+        "- Populate the food-intelligence fields for every item so the database "
+        "does not stay sparse: assistant_summary, main_ingredients, "
+        "ingredient_tags, flavor_tags, texture_tags, cooking_methods, "
+        "spice_level, sweetness_level, saltiness_level, sourness_level, "
+        "richness_level, oiliness_level, and risk_notes when applicable.\n"
+        "- assistant_summary: one short practical sentence in the target "
+        "language describing the dish for a diner choosing what to order. If "
+        "translated_description is already concise, summarize its ordering "
+        "value rather than repeating it word-for-word.\n"
+        "- main_ingredients: 2-8 human-readable ingredients in the target "
+        "language. Infer from dish names and descriptions only; use [] only "
+        "when no ingredient can be reasonably inferred.\n"
+        "- ingredient_tags: lowercase stable tags for ingredients or protein "
+        "families, for example beef, pork, chicken, shrimp, tofu, rice, noodle, "
+        "herbs, vegetable, egg, dairy, peanut, soy. Prefer concise ASCII tags.\n"
+        "- flavor_tags, texture_tags, cooking_methods: lowercase concise tags. "
+        "Examples: savory, sweet, sour, spicy, rich, umami; crunchy, tender, "
+        "chewy, creamy, crispy, fresh; grilled, steamed, fried, deep_fried, "
+        "stir_fried, simmered, raw, baked, boiled.\n"
+        "- Taste level fields are integers 0-5. Use 0 for clearly absent, 1-2 "
+        "for mild, 3 for medium, 4-5 for strong. Never output null for these "
+        "six level fields unless the item text is unusable.\n"
+        "- risk_notes: ONLY use this for real cautions: visible allergens, "
+        "meat/seafood/alcohol conflicts, raw/undercooked items, or genuine "
+        "ingredient uncertainty. If no risk is visible, omit risk_notes. Do "
+        "NOT write reassuring/safe notes in risk_notes; put "
+        "positive ordering context in assistant_summary or descriptive tags "
+        "instead.\n"
         f"- category: a short label in the target language ({target_language}); "
         f"if the menu prints it bilingually, keep only the {target_language} "
         "side.\n"
@@ -331,45 +335,9 @@ def _build_prompt(
         "- dietary_tags: from THIS fixed set only, list every one that applies — "
         "contains_pork, contains_beef, contains_seafood, contains_alcohol, "
         "vegetarian, vegan. Use [] if none apply.\n"
-        + (
-            (
-                "- Since this is a GROUP dining session, you MUST evaluate each dish for the group and for each diner individually:\n"
-                "  - For each diner (in participant_breakdowns):\n"
-                "    - display_name: Must match the diner's exact display_name.\n"
-                "    - verdict: RECOMMENDED, OK, CAUTION, or AVOID.\n"
-                "    - score: A number from 0 to 100.\n"
-                "    - explanation: A short sentence in the target language explaining the evaluation (e.g. 'Dị ứng với đậu phộng' or 'Thích thịt bò').\n"
-                "    - fit_reasons: Array of matching like tags.\n"
-                "    - risk_reasons: Array of allergen, dietary constraint, avoid, or dislike matches.\n"
-                "  - For the group (in recommendation):\n"
-                "    - verdict: RECOMMENDED, OK, CAUTION, or AVOID. If ANY diner has a verdict of AVOID, the group verdict MUST be AVOID to ensure group safety.\n"
-                "    - score: The average score of all diners.\n"
-                "    - explanation: Summary of suitability for the group (e.g. who can eat it, who cannot).\n"
-                "    - why_suitable: Join of all fit_reasons.\n"
-                "    - why_not_suitable: Join of all risk_reasons.\n"
-                "    - suggested_for: List of diner display_names who have verdict RECOMMENDED.\n"
-                "    - warning_for: List of diner display_names who have verdict AVOID.\n"
-                "    - fit_reasons: List of unique positive matching tags.\n"
-                "    - risk_reasons: List of unique risk matching tags.\n"
-                "    - warning_reasons: List of unique warning tags.\n"
-                if is_group else
-                "- Since this is a PERSONAL dining assistant, you MUST evaluate each dish for the user based on their default Food Profile:\n"
-                "  - In recommendation:\n"
-                "    - verdict: RECOMMENDED, OK, CAUTION, or AVOID.\n"
-                "    - score: A score from 0 to 100 based on their preferences.\n"
-                "    - explanation: A short sentence in the target language explaining why this dish fits or does not fit them (e.g., 'Phù hợp với chế độ ăn chay của bạn' or 'Có chứa hải sản mà bạn bị dị ứng').\n"
-                "    - why_suitable: Join of fit reasons.\n"
-                "    - why_not_suitable: Join of risk reasons.\n"
-                "    - suggested_for: Leave empty (not applicable for personal scan).\n"
-                "    - warning_for: Leave empty (not applicable for personal scan).\n"
-                "    - fit_reasons: Unique positive matching tags.\n"
-                "    - risk_reasons: Unique risk matching tags.\n"
-                "    - warning_reasons: Unique warning tags.\n"
-                "  - In participant_breakdowns: Leave this array empty (not applicable for personal scan).\n"
-            )
-            if preferences_data else
-            "- Do not populate recommendation or participant_breakdowns fields (leave them null or empty) as no dietary preferences are provided.\n"
-        )
+        "- Do not populate recommendation or participant_breakdowns during menu "
+        "extraction. The dining recommendation step runs separately after every "
+        "printed item has been saved.\n"
         + "- Do not output any values in the root level warnings array (leave it empty).\n"
         + "- Omit other optional fields when unknown.\n"
     )
@@ -393,7 +361,6 @@ def _build_prompt(
             + "\n"
             f"Detected source language (UNRELIABLE hint, may be wrong): {detected}\n"
             f"Target language: {target_language}\n"
-            f"{preferences_prompt}"
             f"{csv_anchor}"
             "OCR transcription:\n"
             f"{document.text}"
@@ -429,7 +396,6 @@ def _build_prompt(
         + "\n"
         f"Detected source language (UNRELIABLE hint, may be wrong): {detected}\n"
         f"Target language: {target_language}\n"
-        f"{preferences_prompt}"
         f"{csv_anchor}"
         "Structured OCR blocks:\n"
         f"{layout_text}\n\n"
@@ -489,34 +455,6 @@ def _line_sort_key(line: object) -> tuple[float, float]:
 
 
 def _parsed_menu_schema() -> dict[str, Any]:
-    breakdown_schema = {
-        "type": "OBJECT",
-        "properties": {
-            "display_name": {"type": "STRING"},
-            "verdict": {"type": "STRING"},
-            "score": {"type": "NUMBER"},
-            "explanation": {"type": "STRING"},
-            "fit_reasons": {"type": "ARRAY", "items": {"type": "STRING"}},
-            "risk_reasons": {"type": "ARRAY", "items": {"type": "STRING"}},
-        },
-        "required": ["display_name", "verdict"],
-    }
-    recommendation_schema = {
-        "type": "OBJECT",
-        "properties": {
-            "verdict": {"type": "STRING"},
-            "score": {"type": "NUMBER"},
-            "explanation": {"type": "STRING"},
-            "why_suitable": {"type": "STRING"},
-            "why_not_suitable": {"type": "STRING"},
-            "suggested_for": {"type": "ARRAY", "items": {"type": "STRING"}},
-            "warning_for": {"type": "ARRAY", "items": {"type": "STRING"}},
-            "fit_reasons": {"type": "ARRAY", "items": {"type": "STRING"}},
-            "risk_reasons": {"type": "ARRAY", "items": {"type": "STRING"}},
-            "warning_reasons": {"type": "ARRAY", "items": {"type": "STRING"}},
-        },
-        "required": ["verdict"],
-    }
     item_schema = {
         "type": "OBJECT",
         "properties": {
@@ -524,6 +462,19 @@ def _parsed_menu_schema() -> dict[str, Any]:
             "original_description": {"type": "STRING"},
             "translated_name": {"type": "STRING"},
             "translated_description": {"type": "STRING"},
+            "assistant_summary": {"type": "STRING"},
+            "main_ingredients": {"type": "ARRAY", "items": {"type": "STRING"}},
+            "ingredient_tags": {"type": "ARRAY", "items": {"type": "STRING"}},
+            "flavor_tags": {"type": "ARRAY", "items": {"type": "STRING"}},
+            "texture_tags": {"type": "ARRAY", "items": {"type": "STRING"}},
+            "cooking_methods": {"type": "ARRAY", "items": {"type": "STRING"}},
+            "spice_level": {"type": "INTEGER"},
+            "sweetness_level": {"type": "INTEGER"},
+            "saltiness_level": {"type": "INTEGER"},
+            "sourness_level": {"type": "INTEGER"},
+            "richness_level": {"type": "INTEGER"},
+            "oiliness_level": {"type": "INTEGER"},
+            "risk_notes": {"type": "STRING"},
             "base_name": {"type": "STRING"},
             "variant_name": {"type": "STRING"},
             "variant_group": {"type": "STRING"},
@@ -535,13 +486,23 @@ def _parsed_menu_schema() -> dict[str, Any]:
             "dietary_tags": {"type": "ARRAY", "items": {"type": "STRING"}},
             "confidence": {"type": "NUMBER"},
             "sort_order": {"type": "INTEGER"},
-            "recommendation": recommendation_schema,
-            "participant_breakdowns": {"type": "ARRAY", "items": breakdown_schema},
         },
         "required": [
             "original_name",
             "translated_name",
             "translated_description",
+            "assistant_summary",
+            "main_ingredients",
+            "ingredient_tags",
+            "flavor_tags",
+            "texture_tags",
+            "cooking_methods",
+            "spice_level",
+            "sweetness_level",
+            "saltiness_level",
+            "sourness_level",
+            "richness_level",
+            "oiliness_level",
             "allergens",
             "dietary_tags",
             "sort_order",
