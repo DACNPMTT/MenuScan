@@ -57,31 +57,43 @@ export function JoinDiningSessionPage() {
   // Fetch session details on mount
   useEffect(() => {
     if (!inviteToken) {
-      setSessionError(t('dining.invalidToken'))
-      setLoadingSession(false)
+      Promise.resolve().then(() => {
+        setSessionError(t('dining.invalidToken'))
+        setLoadingSession(false)
+      })
       return
     }
 
+    let active = true
     const fetchPublicSession = async () => {
       try {
         const data = await apiRequest<PublicSessionDetail>(
           `/api/v1/dining/public/sessions?invite_token=${inviteToken}`,
           { method: 'GET' },
         )
-        setSession(data)
-        setPreferredLanguage(data.target_language || 'vi')
+        if (active) {
+          setSession(data)
+          setPreferredLanguage(data.target_language || 'vi')
+        }
       } catch (err) {
-        setSessionError(
-          err instanceof ApiError
-            ? err.message
-            : t('dining.sessionNotFound') || 'Invite session is not active.',
-        )
+        if (active) {
+          setSessionError(
+            err instanceof ApiError
+              ? err.message
+              : t('dining.sessionNotFound') || 'Invite session is not active.',
+          )
+        }
       } finally {
-        setLoadingSession(false)
+        if (active) {
+          setLoadingSession(false)
+        }
       }
     }
 
     void fetchPublicSession()
+    return () => {
+      active = false
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inviteToken])
 
@@ -108,45 +120,6 @@ export function JoinDiningSessionPage() {
   const goBack = () => {
     setError(null)
     setStep((current) => Math.max(current - 1, 0))
-  }
-
-  const handleSave = async () => {
-    if (!inviteToken) return
-    const normalizedName = displayName.trim()
-    if (!normalizedName) {
-      setError(t('onboarding.nameRequired'))
-      setStep(0)
-      return
-    }
-
-    setSaving(true)
-    setError(null)
-
-    try {
-      await apiRequest('/api/v1/dining/public/sessions/join', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          display_name: normalizedName,
-          preferred_language: preferredLanguage,
-          preferences: foodProfileDraftToPreferences(value),
-        }),
-        token: undefined, // Public call, no Bearer auth needed
-      })
-      // Query param token is needed by the backend
-      // Wait, look at how the backend router handles the token!
-      // In router.py:
-      // @router.post("/public/sessions/join")
-      // def join_session(payload: JoinDiningSessionRequest, invite_token: str = Query(...))
-      // So invite_token is passed as a QUERY parameter in the URL: `/public/sessions/join?invite_token=xxx`!
-      // But my call was just `/api/v1/dining/public/sessions/join`. I need to append the query param!
-      // Yes: `/api/v1/dining/public/sessions/join?invite_token=${inviteToken}`
-      // Let's rewrite the URL below!
-    } catch (err) {
-      // Catch blocks can handle this
-    }
   }
 
   // Let's implement the correct handleSave with URL query param:

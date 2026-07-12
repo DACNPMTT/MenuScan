@@ -63,7 +63,7 @@ export function HostDiningSessionPage() {
   const [session, setSession] = useState<DiningSessionDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [pollingActive, setPollingActive] = useState(true)
+  const [pollingActive] = useState(true)
 
   // QR Code state
   const [inviteToken, setInviteToken] = useState<string | null>(null)
@@ -112,14 +112,21 @@ export function HostDiningSessionPage() {
     const stateToken = (location.state as { inviteToken?: string } | null)?.inviteToken
     const storageKey = `dining_invite_${sessionId}`
 
-    if (stateToken) {
-      setInviteToken(stateToken)
-      localStorage.setItem(storageKey, stateToken)
-    } else {
-      const savedToken = localStorage.getItem(storageKey)
-      if (savedToken) {
-        setInviteToken(savedToken)
+    let active = true
+    Promise.resolve().then(() => {
+      if (!active) return
+      if (stateToken) {
+        setInviteToken(stateToken)
+        localStorage.setItem(storageKey, stateToken)
+      } else {
+        const savedToken = localStorage.getItem(storageKey)
+        if (savedToken) {
+          setInviteToken(savedToken)
+        }
       }
+    })
+    return () => {
+      active = false
     }
   }, [sessionId, location.state])
 
@@ -143,7 +150,10 @@ export function HostDiningSessionPage() {
   // Polling effect
   const pollTimerRef = useRef<number | null>(null)
   useEffect(() => {
-    void fetchSession(true)
+    let active = true
+    Promise.resolve().then(() => {
+      if (active) void fetchSession(true)
+    })
 
     // Poll every 5 seconds
     pollTimerRef.current = window.setInterval(() => {
@@ -153,6 +163,7 @@ export function HostDiningSessionPage() {
     }, 5000)
 
     return () => {
+      active = false
       if (pollTimerRef.current !== null) {
         clearInterval(pollTimerRef.current)
       }

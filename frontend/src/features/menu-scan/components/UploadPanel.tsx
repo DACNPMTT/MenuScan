@@ -28,6 +28,12 @@ import {
 } from '@/features/menu-scan/imageQuality'
 import { cn } from '@/shared/lib/cn'
 
+interface SimpleDiningSession {
+  id: string
+  status: string
+  target_language: string
+}
+
 const ACCEPT_ATTR = ALLOWED_EXTENSIONS.map((ext) =>
   ext === 'pdf' ? 'application/pdf' : `image/${ext}`,
 ).join(',')
@@ -94,7 +100,7 @@ export function UploadPanel() {
   const [selected, setSelected] = useState<SelectedFile | null>(null)
   const [quality, setQuality] = useState<QualityResult | null>(null)
 
-  const [diningSessions, setDiningSessions] = useState<any[]>([])
+  const [diningSessions, setDiningSessions] = useState<SimpleDiningSession[]>([])
   const [selectedDiningSessionId, setSelectedDiningSessionId] = useState<string>('')
 
   // Load dining sessions of the host
@@ -102,11 +108,11 @@ export function UploadPanel() {
     if (!user) return
     const loadDiningSessions = async () => {
       try {
-        const data = await apiRequest<any[]>('/api/v1/dining/sessions', {
+        const data = await apiRequest<SimpleDiningSession[]>('/api/v1/dining/sessions', {
           method: 'GET',
           token: accessToken ?? undefined,
         })
-        setDiningSessions(data.filter((s: any) => s.status === 'COLLECTING'))
+        setDiningSessions(data.filter((s: SimpleDiningSession) => s.status === 'COLLECTING'))
       } catch (err) {
         console.error('Failed to load dining sessions:', err)
       }
@@ -117,7 +123,15 @@ export function UploadPanel() {
   // Pre-select if passed in query param
   useEffect(() => {
     if (diningSessionQueryParam) {
-      setSelectedDiningSessionId(diningSessionQueryParam)
+      let active = true
+      Promise.resolve().then(() => {
+        if (active) {
+          setSelectedDiningSessionId(diningSessionQueryParam)
+        }
+      })
+      return () => {
+        active = false
+      }
     }
   }, [diningSessionQueryParam])
   // Default the scan target to the user's interface language (set at login /
@@ -506,7 +520,7 @@ export function UploadPanel() {
                   Phiên ăn {diningSessionQueryParam.slice(0, 8)} (Đang liên kết)
                 </option>
               )}
-              {diningSessions.map((session: any) => (
+              {diningSessions.map((session: SimpleDiningSession) => (
                 <option key={session.id} value={session.id}>
                   Phiên ăn {session.id.slice(0, 8)} ({session.target_language.toUpperCase()})
                 </option>

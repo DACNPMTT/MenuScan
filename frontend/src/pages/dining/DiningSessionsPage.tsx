@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  Plus,
   Users,
   Globe,
-  Clock,
   Calendar,
   ChevronRight,
   Loader2,
@@ -16,7 +14,6 @@ import {
 import { useAuth } from '@/app/providers/AuthProvider'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { Button } from '@/shared/components/ui/button'
-import { Input } from '@/shared/components/ui/input'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 
 interface DiningSessionSummary {
@@ -64,7 +61,13 @@ export function DiningSessionsPage() {
   }
 
   useEffect(() => {
-    void loadSessions()
+    let active = true
+    Promise.resolve().then(() => {
+      if (active) void loadSessions()
+    })
+    return () => {
+      active = false
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
