@@ -189,7 +189,6 @@ def get_scan_pipeline() -> ScanPipeline:
         ocr_service=get_ocr_service(get_ocr_provider()),
         menu_parser=get_menu_parser(),
         translation_service=get_translation_service(),
-        food_enricher=get_food_enricher(),
         scan_repository=ScanSessionRepository(),
         menu_repository=MenuRepository(),
         attach_images=attach_images,

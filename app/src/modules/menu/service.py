@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from collections.abc import Callable
 from datetime import datetime, timezone
@@ -22,14 +23,26 @@ from src.modules.menu.schemas import (
     MenuSummaryResponse,
     UpdateMenuItemRequest,
 )
+from src.modules.menu_scan.food_enricher import (
+    DishInput,
+    FoodEnricher,
+    NullFoodEnricher,
+)
 from src.modules.menu_scan.schemas import (
     ParticipantBreakdownResponse,
     RecommendationResponse,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _needs_enrichment(item: FoodItem) -> bool:
+    """A dish with no summary and no ingredient tags was never enriched."""
+    return not (item.assistant_summary or item.ingredient_tags or item.main_ingredients)
 
 
 class MenuService:
@@ -39,10 +52,12 @@ class MenuService:
         session: Session,
         repository: MenuRepository,
         clock: Callable[[], datetime] | None = None,
+        enricher: FoodEnricher | None = None,
     ) -> None:
         self._session = session
         self._repository = repository
         self._clock = clock or _utcnow
+        self._enricher = enricher or NullFoodEnricher()
 
     def update_saved_state(
         self,
@@ -98,6 +113,118 @@ class MenuService:
         )
         total = self._repository.count_for_user(self._session, user_id=user_id)
         return [_menu_summary_data(menu, item_count) for menu, item_count in rows], total
+
+    def enrich_menu(
+        self,
+        *,
+        menu_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> MenuDetailResponse:
+        """Fill in food intelligence for dishes that lack it, then rescore verdicts.
+
+        This is the second LLM pass, deliberately off the scan path: scanning must
+        stay fast, and tags are only needed once the diner is actually looking at
+        the menu. Idempotent — dishes already enriched are skipped, so the diner
+        pays for this once and re-opening the menu is free.
+        """
+        menu = self._get_owned_menu(menu_id=menu_id, user_id=user_id)
+
+        pending = [item for item in menu.food_items if _needs_enrichment(item)]
+        if not pending:
+            return self.get_menu(menu_id=menu_id, user_id=user_id)
+
+        dishes = [
+            DishInput(
+                key=str(item.id),
+                name=item.translated_name or item.original_name,
+                description=item.translated_description
+                or item.original_description
+                or "",
+                category=item.category or "",
+            )
+            for item in pending
+        ]
+
+        try:
+            enrichment = self._enricher.enrich_dishes(
+                dishes,
+                target_language=menu.target_language or "en",
+            )
+        except Exception:
+            # Never fail the menu screen over tags. The dishes, prices and
+            # allergens all came from extraction and are already on screen.
+            logger.warning(
+                "menu_enrich_failed menu_id=%s — serving the menu untagged",
+                menu_id,
+                exc_info=True,
+            )
+            return self.get_menu(menu_id=menu_id, user_id=user_id)
+
+        enriched_count = 0
+        for item in pending:
+            update = enrichment.get(str(item.id))
+            if not update:
+                continue
+            for field, value in update.items():
+                setattr(item, field, value)
+            enriched_count += 1
+
+        if enriched_count:
+            self._session.flush()
+            # Verdicts are scored from the food-intelligence fields, so the rows
+            # written at scan time were scored against empty tags. Redo them now
+            # that the tags exist, or the menu would show stale advice forever.
+            self._regenerate_recommendations(menu)
+            self._session.commit()
+
+        logger.info(
+            "menu_enrich_complete menu_id=%s enriched=%d pending=%d",
+            menu_id,
+            enriched_count,
+            len(pending),
+        )
+        return self.get_menu(menu_id=menu_id, user_id=user_id)
+
+    def _regenerate_recommendations(self, menu: Menu) -> None:
+        from src.modules.dining.models import (
+            DiningSession,
+            FoodItemRecommendation,
+            FoodItemRecommendationParticipantBreakdown,
+        )
+        from src.modules.dining.service import DiningSessionService
+
+        if not hasattr(self._session, "query"):
+            return
+
+        dining_session = (
+            self._session.query(DiningSession)
+            .filter(DiningSession.menu_id == menu.id)
+            .first()
+        )
+        if dining_session is None:
+            return
+
+        stale = (
+            self._session.query(FoodItemRecommendation)
+            .filter(FoodItemRecommendation.dining_session_id == dining_session.id)
+            .all()
+        )
+        for recommendation in stale:
+            self._session.query(
+                FoodItemRecommendationParticipantBreakdown
+            ).filter(
+                FoodItemRecommendationParticipantBreakdown.recommendation_id
+                == recommendation.id
+            ).delete(synchronize_session=False)
+            self._session.delete(recommendation)
+        self._session.flush()
+
+        DiningSessionService(session=self._session).generate_recommendations(
+            dining_session=dining_session,
+            menu=menu,
+            food_items=list(menu.food_items),
+            draft_items=None,
+        )
 
     def get_menu(
         self,

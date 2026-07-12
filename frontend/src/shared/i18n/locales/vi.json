@@ -239,6 +239,7 @@
     "dishCount_other": "{{count}} món",
     "unsavedChanges_other": "Có {{count}} món đang chỉnh sửa chưa lưu.",
     "searching": "Đang tìm món phù hợp…",
+    "enriching": "· đang phân tích khẩu vị từng món…",
     "resultCount_other": "{{count}} món",
     "resultCountOf_other": "{{count}} món trên {{total}}",
     "noFilterMatch": "Không có món phù hợp với bộ lọc.",

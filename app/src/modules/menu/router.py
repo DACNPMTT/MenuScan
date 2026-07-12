@@ -102,6 +102,21 @@ def get_menu(
     return success_response(data=data.model_dump(mode="json"))
 
 
+@router.post("/{menu_id}/enrich", status_code=status.HTTP_200_OK)
+def enrich_menu(
+    menu_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    service: MenuService = Depends(get_menu_service),
+) -> dict[str, object]:
+    """Second LLM pass: food tags, taste levels and rescored verdicts.
+
+    Called when the diner opens the menu, not during the scan — keeping it off
+    the scan path is what makes scanning fast. Idempotent and safe to call again.
+    """
+    data = service.enrich_menu(menu_id=menu_id, user_id=current_user.id)
+    return success_response(data=data.model_dump(mode="json"))
+
+
 @router.get("/{menu_id}/items", status_code=status.HTTP_200_OK)
 def list_menu_items(
     menu_id: uuid.UUID,

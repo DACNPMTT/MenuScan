@@ -235,6 +235,37 @@ export function MenuDetailPage() {
     void Promise.resolve().then(loadMenu)
   }, [loadMenu])
 
+  // Food tags, taste levels and verdicts come from a second LLM pass that is
+  // deliberately not part of the scan (scanning must stay fast). Fire it once
+  // the menu is on screen: the diner already sees names, prices and allergens,
+  // and the cards fill in when it lands.
+  const enrichedMenuIds = useRef<Set<string>>(new Set())
+  const [enriching, setEnriching] = useState(false)
+
+  useEffect(() => {
+    if (!menuId || !menu) return
+    if (enrichedMenuIds.current.has(menuId)) return
+    const needsEnrichment = menu.items.some(
+      (item) =>
+        !item.assistant_summary &&
+        (item.ingredient_tags?.length ?? 0) === 0 &&
+        (item.main_ingredients?.length ?? 0) === 0,
+    )
+    if (!needsEnrichment) return
+
+    enrichedMenuIds.current.add(menuId)
+    setEnriching(true)
+    void apiRequest<MenuDetail>(`/api/v1/menus/${menuId}/enrich`, {
+      method: 'POST',
+      token: accessToken ?? undefined,
+    })
+      .then((data) => setMenu(data))
+      .catch(() => {
+        // Tags are a bonus; the menu itself is already usable without them.
+      })
+      .finally(() => setEnriching(false))
+  }, [accessToken, menu, menuId])
+
   const allItems = useMemo<BillItem[]>(() => menu?.items ?? [], [menu?.items])
 
   const currency = useMemo(
@@ -901,6 +932,7 @@ export function MenuDetailPage() {
               {itemsLoading && hasActiveFilter
                 ? t('menuDetail.searching')
                 : (hasActiveFilter && itemsMeta ? t('menuDetail.resultCountOf', { count: filteredItems.length, total: itemsMeta.total }) : t('menuDetail.resultCount', { count: filteredItems.length }))}
+              {enriching ? <span className="ml-2 opacity-70">{t('menuDetail.enriching')}</span> : null}
             </p>
 
             <main className="grid grid-cols-1 gap-5 lg:grid-cols-2">

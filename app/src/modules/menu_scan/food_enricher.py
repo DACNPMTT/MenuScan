@@ -1,18 +1,17 @@
 """Second-pass food intelligence for an already-extracted menu.
 
-Extraction (llm_menu_parser) and enrichment are two different jobs. Extraction
-must not miss a dish or mispair a price; enrichment invents nothing that matters
-if it is missing — a dish without flavour tags is still a dish.
+Extraction and enrichment are two different jobs. Extraction must not miss a dish
+or mispair a price; enrichment invents nothing that matters if it is missing — a
+dish without flavour tags is still a dish.
 
 They used to share one Gemini call, which made the model write ~13 extra fields
-per item while it was supposed to be reading prices off a photo. That cost
-accuracy on the part we cannot get wrong, and on long menus it pushed the
-response past the output ceiling, so the JSON came back cut and the whole scan
-failed. Splitting them means a bad enrichment costs tags, not the menu.
+per item while it was supposed to be reading prices off a photo. On a 99-dish
+menu that pushed the response past the output ceiling and Gemini returned a
+valid-but-truncated array: 3 dishes out of 99, no error raised.
 
-Items are enriched in batches so one oversized menu cannot blow the ceiling
-again, and a failed batch degrades to "no tags for those items" instead of
-taking the scan down.
+Enrichment now runs on its own, off the scan path, when the diner opens the menu.
+Dishes are enriched in parallel batches so a long menu stays fast, and a failed
+batch degrades to "no tags for those dishes" instead of taking anything down.
 """
 
 from __future__ import annotations
@@ -20,21 +19,18 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Protocol
 
 import httpx
 
-from src.modules.menu_scan.llm_menu_parser import (
-    LlmMenuParserError,
-    call_gemini,
-)
-from src.modules.menu_scan.ocr_contract import ParsedMenuDraft, ParsedMenuItemDraft
+from src.modules.menu_scan.llm_menu_parser import LlmMenuParserError, call_gemini
 
 logger = logging.getLogger(__name__)
 
 # The six 0-5 taste axes the model scores per dish.
-_LEVEL_FIELDS = (
+LEVEL_FIELDS = (
     "spice_level",
     "sweetness_level",
     "saltiness_level",
@@ -43,7 +39,7 @@ _LEVEL_FIELDS = (
     "oiliness_level",
 )
 
-_LIST_FIELDS = (
+LIST_FIELDS = (
     "main_ingredients",
     "ingredient_tags",
     "flavor_tags",
@@ -51,28 +47,40 @@ _LIST_FIELDS = (
     "cooking_methods",
 )
 
+TEXT_FIELDS = ("assistant_summary", "risk_notes")
+
+
+@dataclass(frozen=True, slots=True)
+class DishInput:
+    """One dish to analyse. ``key`` is echoed back so the caller can match rows."""
+
+    key: str
+    name: str
+    description: str = ""
+    category: str = ""
+
 
 class FoodEnricher(Protocol):
-    def enrich(
+    def enrich_dishes(
         self,
-        draft: ParsedMenuDraft,
+        dishes: Sequence[DishInput],
         *,
         target_language: str,
-    ) -> ParsedMenuDraft:
-        """Return the draft with food-intelligence fields filled in."""
+    ) -> dict[str, dict[str, Any]]:
+        """Map each dish key to the food-intelligence fields inferred for it."""
         ...
 
 
 class NullFoodEnricher:
     """No-op enricher for the rule-based / no-API-key path."""
 
-    def enrich(
+    def enrich_dishes(
         self,
-        draft: ParsedMenuDraft,
+        dishes: Sequence[DishInput],
         *,
         target_language: str,
-    ) -> ParsedMenuDraft:
-        return draft
+    ) -> dict[str, dict[str, Any]]:
+        return {}
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,52 +94,40 @@ class GeminiFoodEnricher:
     retry_backoff_seconds: float = 0.5
     api_keys: tuple[str, ...] = ()
     # Dishes per Gemini call. Bounds the output size of any single request so a
-    # 120-item menu cannot truncate, and caps the blast radius of one bad batch.
-    batch_size: int = 25
+    # long menu cannot truncate, and caps the blast radius of one bad batch.
+    batch_size: int = 20
+    # Batches run concurrently: a 100-dish menu is 5 calls, and the diner is
+    # waiting on the menu screen, so wall time matters more than politeness here.
+    max_workers: int = 4
 
-    def enrich(
+    def enrich_dishes(
         self,
-        draft: ParsedMenuDraft,
+        dishes: Sequence[DishInput],
         *,
         target_language: str,
-    ) -> ParsedMenuDraft:
-        if not draft.items:
-            return draft
+    ) -> dict[str, dict[str, Any]]:
+        if not dishes:
+            return {}
 
-        enriched_by_index: dict[int, dict[str, Any]] = {}
-        batches = list(_batched(range(len(draft.items)), self.batch_size))
+        batches = _batched(list(dishes), self.batch_size)
+        results: dict[str, dict[str, Any]] = {}
 
-        for batch in batches:
-            try:
-                enriched_by_index.update(
-                    self._enrich_batch(draft.items, batch, target_language)
-                )
-            except Exception:
-                # One failed batch loses tags for those dishes only. The dishes
-                # themselves are already extracted and will still be saved.
-                logger.warning(
-                    "food_enrich_batch_failed model=%s items=%d — keeping dishes untagged",
-                    self.model,
-                    len(batch),
-                    exc_info=True,
-                )
+        workers = min(self.max_workers, len(batches))
+        with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+            for batch_result in pool.map(
+                lambda batch: self._enrich_batch(batch, target_language),
+                batches,
+            ):
+                results.update(batch_result)
 
-        if not enriched_by_index:
-            return draft
-
-        items = [
-            item.model_copy(update=enriched_by_index[index])
-            if index in enriched_by_index
-            else item
-            for index, item in enumerate(draft.items)
-        ]
         logger.info(
-            "food_enrich_complete model=%s enriched=%d total=%d",
+            "food_enrich_complete model=%s enriched=%d total=%d batches=%d",
             self.model,
-            len(enriched_by_index),
-            len(items),
+            len(results),
+            len(dishes),
+            len(batches),
         )
-        return draft.model_copy(update={"items": items})
+        return results
 
     def _effective_keys(self) -> list[str]:
         if self.api_keys:
@@ -142,71 +138,74 @@ class GeminiFoodEnricher:
 
     def _enrich_batch(
         self,
-        items: Sequence[ParsedMenuItemDraft],
-        batch: Sequence[int],
+        batch: Sequence[DishInput],
         target_language: str,
-    ) -> dict[int, dict[str, Any]]:
-        body = call_gemini(
-            keys=self._effective_keys(),
-            api_base_url=self.api_base_url,
-            model=self.model,
-            timeout_seconds=self.timeout_seconds,
-            request_body=_build_request(
-                dishes=[(index, items[index]) for index in batch],
-                target_language=target_language,
-            ),
-            client=self.client,
-            max_attempts=self.max_attempts,
-            retry_backoff_seconds=self.retry_backoff_seconds,
-        )
-        payload = _extract_payload(body)
-        valid_indices = set(batch)
-        result: dict[int, dict[str, Any]] = {}
+    ) -> dict[str, dict[str, Any]]:
+        try:
+            body = call_gemini(
+                keys=self._effective_keys(),
+                api_base_url=self.api_base_url,
+                model=self.model,
+                timeout_seconds=self.timeout_seconds,
+                request_body=_build_request(
+                    dishes=batch,
+                    target_language=target_language,
+                ),
+                client=self.client,
+                max_attempts=self.max_attempts,
+                retry_backoff_seconds=self.retry_backoff_seconds,
+            )
+            payload = _extract_payload(body)
+        except Exception:
+            # One failed batch loses tags for those dishes only. The dishes
+            # themselves are already saved and stay on the menu.
+            logger.warning(
+                "food_enrich_batch_failed model=%s dishes=%d — leaving them untagged",
+                self.model,
+                len(batch),
+                exc_info=True,
+            )
+            return {}
 
+        valid_keys = {dish.key for dish in batch}
+        result: dict[str, dict[str, Any]] = {}
         for entry in payload.get("items") or []:
             if not isinstance(entry, dict):
                 continue
-            index = entry.get("index")
-            if not isinstance(index, int) or index not in valid_indices:
+            key = entry.get("key")
+            if not isinstance(key, str) or key not in valid_keys:
                 continue
-            update = _clean_entry(entry)
+            update = clean_entry(entry)
             if update:
-                result[index] = update
-
+                result[key] = update
         return result
 
 
-def _batched(values: Sequence[int] | range, size: int) -> list[list[int]]:
+def _batched(dishes: list[DishInput], size: int) -> list[list[DishInput]]:
     step = max(1, size)
-    sequence = list(values)
-    return [sequence[start : start + step] for start in range(0, len(sequence), step)]
+    return [dishes[start : start + step] for start in range(0, len(dishes), step)]
 
 
-def _clean_entry(entry: dict[str, Any]) -> dict[str, Any]:
+def clean_entry(entry: dict[str, Any]) -> dict[str, Any]:
     """Keep only well-formed fields; a junk value must not overwrite a good one."""
     update: dict[str, Any] = {}
 
-    summary = entry.get("assistant_summary")
-    if isinstance(summary, str) and summary.strip():
-        update["assistant_summary"] = summary.strip()
+    for field in TEXT_FIELDS:
+        raw = entry.get(field)
+        if isinstance(raw, str) and raw.strip():
+            update[field] = raw.strip()
 
-    notes = entry.get("risk_notes")
-    if isinstance(notes, str) and notes.strip():
-        update["risk_notes"] = notes.strip()
-
-    for field in _LIST_FIELDS:
+    for field in LIST_FIELDS:
         raw = entry.get(field)
         if not isinstance(raw, list):
             continue
         cleaned = [
-            value.strip()
-            for value in raw
-            if isinstance(value, str) and value.strip()
+            value.strip() for value in raw if isinstance(value, str) and value.strip()
         ]
         if cleaned:
             update[field] = cleaned
 
-    for field in _LEVEL_FIELDS:
+    for field in LEVEL_FIELDS:
         raw = entry.get(field)
         if isinstance(raw, bool) or not isinstance(raw, int):
             continue
@@ -218,7 +217,7 @@ def _clean_entry(entry: dict[str, Any]) -> dict[str, Any]:
 
 def _build_request(
     *,
-    dishes: Sequence[tuple[int, ParsedMenuItemDraft]],
+    dishes: Sequence[DishInput],
     target_language: str,
 ) -> dict[str, Any]:
     return {
@@ -226,7 +225,12 @@ def _build_request(
             {
                 "role": "user",
                 "parts": [
-                    {"text": _build_prompt(dishes=dishes, target_language=target_language)}
+                    {
+                        "text": _build_prompt(
+                            dishes=dishes,
+                            target_language=target_language,
+                        )
+                    }
                 ],
             }
         ],
@@ -241,32 +245,27 @@ def _build_request(
 
 def _build_prompt(
     *,
-    dishes: Sequence[tuple[int, ParsedMenuItemDraft]],
+    dishes: Sequence[DishInput],
     target_language: str,
 ) -> str:
-    lines = []
-    for index, item in dishes:
-        name = item.translated_name or item.original_name
-        description = item.translated_description or item.original_description or ""
-        category = item.category or ""
-        lines.append(
-            json.dumps(
-                {
-                    "index": index,
-                    "name": name,
-                    "description": description,
-                    "category": category,
-                },
-                ensure_ascii=False,
-            )
+    dish_block = "\n".join(
+        json.dumps(
+            {
+                "key": dish.key,
+                "name": dish.name,
+                "description": dish.description,
+                "category": dish.category,
+            },
+            ensure_ascii=False,
         )
-    dish_block = "\n".join(lines)
+        for dish in dishes
+    )
 
     return (
-        "You are a food analyst. For each dish below, infer its food profile "
-        "from its name and description. The dishes were already extracted from a "
-        "menu — do NOT add, drop, merge or rename any dish, and do not correct "
-        "prices. Return exactly one entry per input dish, echoing its index.\n"
+        "You are a food analyst. For each dish below, infer its food profile from "
+        "its name and description. The dishes were already extracted from a menu — "
+        "do NOT add, drop, merge or rename any dish. Return exactly one entry per "
+        "input dish, echoing its key verbatim.\n"
         "\n"
         f"Write all human-readable text in the target language ({target_language}).\n"
         "\n"
@@ -296,7 +295,7 @@ def _enrichment_schema() -> dict[str, Any]:
     item_schema = {
         "type": "OBJECT",
         "properties": {
-            "index": {"type": "INTEGER"},
+            "key": {"type": "STRING"},
             "assistant_summary": {"type": "STRING"},
             "main_ingredients": {"type": "ARRAY", "items": {"type": "STRING"}},
             "ingredient_tags": {"type": "ARRAY", "items": {"type": "STRING"}},
@@ -312,14 +311,14 @@ def _enrichment_schema() -> dict[str, Any]:
             "risk_notes": {"type": "STRING"},
         },
         "required": [
-            "index",
+            "key",
             "assistant_summary",
             "main_ingredients",
             "ingredient_tags",
             "flavor_tags",
             "texture_tags",
             "cooking_methods",
-            *_LEVEL_FIELDS,
+            *LEVEL_FIELDS,
         ],
     }
     return {

@@ -246,6 +246,7 @@
     "unsavedChanges_one": "{{count}} dish has unsaved edits.",
     "unsavedChanges_other": "{{count}} dishes have unsaved edits.",
     "searching": "Finding matching dishes…",
+    "enriching": "· analysing each dish's taste profile…",
     "resultCount_one": "{{count}} dish",
     "resultCount_other": "{{count}} dishes",
     "resultCountOf_one": "{{count}} dish of {{total}}",
