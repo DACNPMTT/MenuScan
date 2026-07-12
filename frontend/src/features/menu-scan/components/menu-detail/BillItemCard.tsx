@@ -1,4 +1,18 @@
-import { AlertCircle, AlertTriangle, Loader2, Minus, Pencil, Plus, RotateCcw, Save, Sparkles, Trash2 } from 'lucide-react'
+
+import {
+  AlertCircle,
+  AlertTriangle,
+  ChevronRight,
+  Loader2,
+  Minus,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Save,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react'
+
 import { useTranslation } from 'react-i18next'
 import { ItemDisplayName } from '@/features/menu-scan/components/menu-detail/ItemDisplayName'
 import {
@@ -8,7 +22,6 @@ import {
   itemPrice,
 } from '@/features/menu-scan/lib'
 import { assessDish, type DietProfile } from '@/features/menu-scan/dietary'
-import { dishVerdict, type Verdict } from '@/features/menu-scan/ranking'
 import { formatConvertedAmount, type ExchangeRates } from '@/shared/lib/currency'
 import type {
   BillItem,
@@ -17,23 +30,9 @@ import type {
   ItemValidationErrors,
 } from '@/features/menu-scan/types'
 
-/** Colored banner styles per verdict (safety-first red for avoid). */
-const VERDICT_STYLES: Record<Verdict, string> = {
-  avoid: 'bg-destructive text-white',
-  caution: 'border border-[#e0a800]/50 bg-[#fff8e1] text-[#8a6d00]',
-  good: 'border border-[#1a7f37]/40 bg-[#e6f4ea] text-[#1a7f37]',
-  neutral: '',
-}
-
 export interface BillItemCardProps {
   item: BillItem
   dietProfile: DietProfile
-  /** Marks a dish that positively fits the diner's taste — drives the "good"
-   * verdict. Defaults to off. */
-  recommended?: boolean
-  /** Optional advisor output (from the LLM advisor, future). When present its
-   * `reason` overrides the rule-based reason under the verdict. */
-  advice?: { reason: string }
   draft: ItemDraft
   editing: boolean
   dirty: boolean
@@ -50,17 +49,16 @@ export interface BillItemCardProps {
   onSave: () => void
   onCancel: () => void
   onDelete: () => void
+  onViewDetails: () => void
   onQuantityChange: (quantity: number) => void
   onNoteChange: (note: string) => void
 }
 
-/** A single menu item card: read-only display or inline editor, plus the
- * quantity / note bill-line controls pinned to the bottom. */
+/** Compact menu item card for the menu overview. Deep AI details live in the
+ * item detail view so the menu remains easy to scan. */
 export function BillItemCard({
   item,
   dietProfile,
-  recommended = false,
-  advice,
   draft,
   editing,
   dirty,
@@ -77,30 +75,12 @@ export function BillItemCard({
   onSave,
   onCancel,
   onDelete,
+  onViewDetails,
   onQuantityChange,
   onNoteChange,
 }: BillItemCardProps) {
   const { t } = useTranslation()
   const risk = assessDish(item, dietProfile)
-  // Advisor verdict: one clear "should I eat this?" line. Rule-based today
-  // (from allergy/diet/taste signals); the LLM advisor can pass a richer
-  // `advice.reason` for the same verdict later.
-  const verdict = dishVerdict(risk, recommended)
-  const verdictReason =
-    advice?.reason ??
-    (verdict === 'avoid'
-      ? t('verdict.reason.allergen', {
-          list: risk.allergens.map((code) => t(`diet.allergens.${code}`)).join(', '),
-        })
-      : verdict === 'caution'
-        ? t('verdict.reason.diet', {
-            list: risk.dietFlags
-              .map((code) => t(`diet.preferences.${code}`))
-              .join(', '),
-          })
-        : verdict === 'good'
-          ? t('verdict.reason.favorite')
-          : '')
   const confidence = confidenceValue(item)
   const lowConfidenceLabel =
     confidence !== null && confidence < LOW_CONFIDENCE_THRESHOLD
@@ -108,34 +88,46 @@ export function BillItemCard({
       : null
   const priceCurrency = draft.currency.trim() || item.currency || currency || ''
   const category = itemCategory(item)
-  const hasTranslatedDescription =
-    item.translated_description &&
-    item.translated_description !== item.original_description
-  const primaryDescription =
-    item.translated_description || item.original_description || null
-  const secondaryDescription = hasTranslatedDescription
-    ? item.original_description
-    : null
+  const summary =
+    item.assistant_summary || item.translated_description || item.original_description
+  const quickTags = uniqueCompact([
+    ...item.main_ingredients,
+    ...item.cooking_methods,
+    ...item.flavor_tags,
+  ]).slice(0, 4)
+  const recommendation = item.recommendation
+  const recommendationNote =
+    recommendation?.why_not_suitable ||
+    recommendation?.explanation ||
+    recommendation?.why_suitable
+  const recommendationFitTags = uniqueCompact([
+    ...(recommendation?.suggested_for ?? []).map((name) => `Hợp: ${name}`),
+    ...(recommendation?.fit_reasons ?? []),
+  ]).slice(0, 3)
+  const recommendationRiskTags = uniqueCompact([
+    ...(recommendation?.warning_for ?? []).map((name) => `Tránh: ${name}`),
+    ...(recommendation?.risk_reasons ?? []),
+    ...(recommendation?.warning_reasons ?? []),
+  ]).slice(0, 3)
 
   return (
-    <article className="flex min-h-[190px] flex-col gap-3 rounded-[8px] border border-hairline bg-canvas p-5">
-      {verdict !== 'neutral' && (
-        <div
-          className={`flex items-start gap-2 rounded-[6px] px-3 py-1.5 text-[12px] font-bold ${VERDICT_STYLES[verdict]}`}
-        >
-          {verdict === 'avoid' ? (
-            <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          ) : verdict === 'caution' ? (
-            <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          ) : (
-            <Sparkles className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          )}
-          <span>
-            {t(`verdict.${verdict}`)}
-            {verdictReason && (
-              <span className="font-medium"> — {verdictReason}</span>
-            )}
-          </span>
+
+    <article className="flex min-h-[260px] flex-col gap-3 rounded-[8px] border border-hairline bg-canvas p-5">
+      {risk.allergens.length > 0 && (
+        <div className="flex items-center gap-2 rounded-[6px] bg-destructive px-3 py-1.5 text-[12px] font-bold text-white">
+          <AlertCircle className="size-3.5 shrink-0" aria-hidden />
+          {t('billItem.allergyMatch', {
+            list: risk.allergens.map((code) => t(`diet.allergens.${code}`)).join(', '),
+          })}
+        </div>
+      )}
+      {risk.dietFlags.length > 0 && (
+        <div className="flex items-center gap-2 rounded-[6px] border border-[#e0a800]/50 bg-[#fff8e1] px-3 py-1.5 text-[12px] font-bold text-[#8a6d00]">
+          <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
+          {t('billItem.dietMatch', {
+            list: risk.dietFlags.map((code) => t(`diet.preferences.${code}`)).join(', '),
+          })}
+
         </div>
       )}
       {lowConfidenceLabel !== null && (
@@ -317,18 +309,87 @@ export function BillItemCard({
               </button>
             </div>
           </div>
-          {primaryDescription && (
-            <div className="flex flex-col gap-1.5">
-              <p className="mb-0 text-[14px] leading-6 text-ink-variant">
-                {primaryDescription}
-              </p>
-              {secondaryDescription && (
-                <p className="mb-0 border-l-2 border-hairline pl-3 text-[13px] leading-5 text-ink-variant/45">
-                  {secondaryDescription}
+
+          {summary && (
+            <p className="mb-0 line-clamp-2 text-[14px] leading-6 text-ink-variant">
+              {summary}
+            </p>
+          )}
+
+          {quickTags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {quickTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-[4px] border border-hairline bg-surface-muted px-2 py-1 text-[11px] font-semibold text-ink-variant"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {recommendation && (
+            <div className="rounded-[8px] border border-hairline bg-surface-muted/60 px-3 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-[12px] font-bold text-ink-variant">
+                  <ShieldCheck className="size-3.5 text-primary-dark" aria-hidden />
+                  Khuyến nghị
+                </span>
+                <span
+                  className={`rounded-full px-2 py-1 text-[11px] font-bold ${verdictClass(recommendation.verdict)}`}
+                >
+                  {verdictLabel(recommendation.verdict)}
+                  {recommendation.score !== undefined && recommendation.score !== null
+                    ? ` ${Number(recommendation.score).toFixed(0)}/100`
+                    : ''}
+                </span>
+              </div>
+
+              {recommendationNote && (
+                <p className="mb-0 mt-2 line-clamp-2 text-[12px] leading-5 text-ink-variant">
+                  {recommendationNote}
                 </p>
+              )}
+
+              {(recommendationFitTags.length > 0 ||
+                recommendationRiskTags.length > 0) && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {recommendationFitTags.map((tag) => (
+                    <span
+                      key={`fit-${tag}`}
+                      className="rounded-[4px] border border-[#cfeac5] bg-[#e4f4df]/70 px-2 py-1 text-[10px] font-semibold text-[#256b2b]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  {recommendationRiskTags.map((tag) => (
+                    <span
+                      key={`risk-${tag}`}
+                      className="rounded-[4px] border border-red-100 bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           )}
+
+          {item.risk_notes && (
+            <p className="mb-0 line-clamp-1 rounded-[6px] border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800">
+              {item.risk_notes}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={onViewDetails}
+            className="mt-auto flex min-h-9 items-center justify-between rounded-[8px] border border-hairline px-3 text-[13px] font-bold text-primary-dark transition-colors hover:bg-primary/10"
+          >
+            {recommendation ? 'Xem chi tiết & khuyến nghị' : 'Chi tiết món'}
+            <ChevronRight className="size-4" aria-hidden />
+          </button>
         </>
       )}
 
@@ -363,4 +424,33 @@ export function BillItemCard({
       </div>
     </article>
   )
+}
+
+type RecommendationVerdict = NonNullable<BillItem['recommendation']>['verdict']
+
+function verdictLabel(verdict: RecommendationVerdict): string {
+  if (verdict === 'RECOMMENDED') return 'Nên dùng'
+  if (verdict === 'OK') return 'Phù hợp'
+  if (verdict === 'CAUTION') return 'Cân nhắc'
+  return 'Nên tránh'
+}
+
+function verdictClass(verdict: RecommendationVerdict): string {
+  if (verdict === 'RECOMMENDED') return 'bg-[#e4f4df] text-[#256b2b]'
+  if (verdict === 'OK') return 'bg-primary/10 text-primary-dark'
+  if (verdict === 'CAUTION') return 'bg-amber-100 text-amber-800'
+  return 'bg-red-100 text-red-800'
+}
+
+function uniqueCompact(values: string[]): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const value of values) {
+    const clean = value.trim()
+    const key = clean.toLowerCase()
+    if (!clean || seen.has(key)) continue
+    seen.add(key)
+    result.push(clean)
+  }
+  return result
 }

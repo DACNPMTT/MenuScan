@@ -284,8 +284,8 @@ Open:
 | Frontend | `http://localhost:5173`        |
 | Backend  | `http://localhost:8000`        |
 | Health   | `http://localhost:8000/health` |
-| Database | `localhost:54320`              |
-| Redis    | `localhost:63790`              |
+| Database | `localhost:55432`              |
+| Redis    | `localhost:6379`               |
 
 ## Dev Commands
 
@@ -315,8 +315,8 @@ Local environment templates live in `env/`. Real env files such as
 make env ENV=local
 ```
 
-The local defaults point the backend at Postgres on `localhost:54320` and Redis
-on `localhost:63790`.
+The local defaults point the backend at Postgres on `localhost:55432` and Redis
+on `localhost:6379`.
 
 ## Compose and CI/CD
 

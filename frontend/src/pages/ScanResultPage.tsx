@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
+
 import { Link, useParams } from 'react-router-dom'
 import {
   AlertCircle,
@@ -12,7 +15,9 @@ import {
   ListChecks,
   Loader2,
   RefreshCw,
+  ShieldCheck,
   Sparkles,
+  Utensils,
   XCircle,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -23,8 +28,8 @@ import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { useExchangeRates } from '@/shared/hooks/useExchangeRates'
 import { CurrencySelect } from '@/shared/components/CurrencySelect'
 import { formatConvertedAmount, type ExchangeRates } from '@/shared/lib/currency'
-import { assessDish, type DietProfile } from '@/features/menu-scan/dietary'
-import { isProfileActive, rankDishes, scoreDish } from '@/features/menu-scan/ranking'
+import { type DietProfile } from '@/features/menu-scan/dietary'
+import { isProfileActive, rankDishes } from '@/features/menu-scan/ranking'
 import type {
   MenuItemResult,
   MenuDetail,
@@ -531,6 +536,264 @@ function SourcePreview({
   )
 }
 
+const VERDICT_COPY = {
+  RECOMMENDED: 'Nên dùng',
+  OK: 'Phù hợp',
+  CAUTION: 'Cân nhắc',
+  AVOID: 'Nên tránh',
+} as const
+
+const VERDICT_CLASS = {
+  RECOMMENDED: 'bg-[#e4f4df] text-[#256b2b]',
+  OK: 'bg-primary/10 text-primary-dark',
+  CAUTION: 'bg-amber-100 text-amber-800',
+  AVOID: 'bg-red-100 text-red-800',
+} as const
+
+const TASTE_LABELS = {
+  spice_level: 'Cay',
+  sweetness_level: 'Ngọt',
+  saltiness_level: 'Mặn',
+  sourness_level: 'Chua',
+  richness_level: 'Béo',
+  oiliness_level: 'Dầu',
+} as const
+
+const ExtractedMenuItemCard = memo(function ExtractedMenuItemCard({
+  item,
+  baseCurrency,
+  displayCurrency,
+  rates,
+}: {
+  item: MenuItemResult
+  baseCurrency: string
+  displayCurrency: string
+  rates: ExchangeRates | null
+}) {
+  const displayPrice = useMemo(() => {
+    if (!item.price) return '—'
+    return formatConvertedAmount(
+      Number(item.price),
+      item.currency ?? baseCurrency,
+      displayCurrency,
+      rates,
+    )
+  }, [baseCurrency, displayCurrency, item.currency, item.price, rates])
+
+  const ingredients = useMemo(
+    () => uniqueCompact(item.main_ingredients).slice(0, 6),
+    [item.main_ingredients],
+  )
+  const descriptorTags = useMemo(
+    () =>
+      uniqueCompact([
+        ...item.cooking_methods,
+        ...item.flavor_tags,
+        ...item.texture_tags,
+      ]).slice(0, 6),
+    [item.cooking_methods, item.flavor_tags, item.texture_tags],
+  )
+  const tasteRows = useMemo(
+    () =>
+      Object.entries(TASTE_LABELS)
+        .map(([key, label]) => ({
+          key,
+          label,
+          value: item[key as keyof MenuItemResult] as number | null,
+        }))
+        .filter((row) => row.value !== null && row.value > 0),
+    [item],
+  )
+  const recommendation = item.recommendation
+  const recommendationNote =
+    recommendation?.why_not_suitable ||
+    recommendation?.explanation ||
+    recommendation?.why_suitable
+  const participantWarnings =
+    recommendation?.participant_breakdowns?.filter((breakdown) =>
+      ['AVOID', 'CAUTION'].includes(breakdown.verdict),
+    ) ?? []
+
+  return (
+    <article className="flex h-full min-h-[360px] flex-col gap-3 rounded-[8px] border border-hairline bg-canvas p-4 [contain-intrinsic-size:360px] [content-visibility:auto]">
+      <div className="flex min-h-7 items-start justify-between gap-3">
+        {item.category ? (
+          <span className="max-w-[65%] truncate rounded-[4px] bg-secondary px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.5px] text-ink-variant">
+            {item.category}
+          </span>
+        ) : (
+          <span aria-hidden />
+        )}
+        <span className="shrink-0 text-[15px] font-bold text-primary-dark">
+          {displayPrice}
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <h3 className="break-words text-[16px] font-bold leading-snug text-ink">
+          {item.original_name}
+        </h3>
+        {item.translated_name && item.translated_name !== item.original_name && (
+          <p className="break-words text-[14px] font-semibold text-ink-variant">
+            {item.translated_name}
+          </p>
+        )}
+      </div>
+
+      {(item.assistant_summary ||
+        item.translated_description ||
+        item.original_description) && (
+        <div className="border-t border-hairline pt-3">
+          <p className="line-clamp-4 text-[13px] leading-relaxed text-ink-variant">
+            {item.assistant_summary ||
+              item.translated_description ||
+              item.original_description}
+          </p>
+        </div>
+      )}
+
+      {(ingredients.length > 0 || descriptorTags.length > 0) && (
+        <div className="flex flex-col gap-2">
+          {ingredients.length > 0 && (
+            <CompactTagRow
+              icon={<Utensils className="size-3.5" aria-hidden />}
+              values={ingredients}
+            />
+          )}
+          {descriptorTags.length > 0 && (
+            <CompactTagRow
+              icon={<Sparkles className="size-3.5" aria-hidden />}
+              values={descriptorTags}
+            />
+          )}
+        </div>
+      )}
+
+      {tasteRows.length > 0 && (
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-hairline pt-3">
+          {tasteRows.slice(0, 4).map((row) => (
+            <TasteMeter key={row.key} label={row.label} value={row.value ?? 0} />
+          ))}
+        </div>
+      )}
+
+      {item.risk_notes && (
+        <p className="flex gap-1.5 rounded-[6px] border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] leading-relaxed text-amber-800">
+          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span className="line-clamp-2">{item.risk_notes}</span>
+        </p>
+      )}
+
+      {recommendation && (
+        <div className="mt-auto flex flex-col gap-2 border-t border-hairline pt-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-[12px] font-bold text-ink-variant">
+              <ShieldCheck className="size-3.5" aria-hidden />
+              Độ phù hợp
+            </span>
+            <span
+              className={`rounded-full px-2 py-1 text-[11px] font-bold ${VERDICT_CLASS[recommendation.verdict]}`}
+            >
+              {VERDICT_COPY[recommendation.verdict]}
+              {recommendation.score !== undefined && recommendation.score !== null
+                ? ` ${Number(recommendation.score).toFixed(0)}/100`
+                : ''}
+            </span>
+          </div>
+
+          {recommendationNote && (
+            <p className="line-clamp-2 text-[11px] leading-relaxed text-ink-variant">
+              {recommendationNote}
+            </p>
+          )}
+
+          {(recommendation.warning_for?.length ||
+            recommendation.suggested_for?.length ||
+            participantWarnings.length > 0) && (
+            <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold">
+              {recommendation.warning_for?.slice(0, 3).map((name) => (
+                <span
+                  key={`warn-${name}`}
+                  className="rounded-[4px] bg-red-50 px-1.5 py-1 text-red-700"
+                >
+                  Tránh: {name}
+                </span>
+              ))}
+              {recommendation.suggested_for?.slice(0, 3).map((name) => (
+                <span
+                  key={`suggest-${name}`}
+                  className="rounded-[4px] bg-[#e4f4df] px-1.5 py-1 text-[#256b2b]"
+                >
+                  Hợp: {name}
+                </span>
+              ))}
+              {participantWarnings.length > 0 && (
+                <span className="rounded-[4px] bg-amber-100 px-1.5 py-1 text-amber-800">
+                  {participantWarnings.length} lưu ý cá nhân
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </article>
+  )
+})
+
+function CompactTagRow({
+  icon,
+  values,
+}: {
+  icon: ReactNode
+  values: string[]
+}) {
+  return (
+    <div className="flex items-start gap-2 text-ink-variant">
+      <span className="mt-1 text-primary-dark">{icon}</span>
+      <div className="flex flex-wrap gap-1.5">
+        {values.map((value) => (
+          <span
+            key={value}
+            className="rounded-[4px] bg-surface-muted px-2 py-1 text-[11px] font-medium text-ink-variant"
+          >
+            {value}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function TasteMeter({ label, value }: { label: string; value: number }) {
+  const normalized = Math.max(0, Math.min(5, value))
+  return (
+    <div className="grid grid-cols-[38px_1fr] items-center gap-2">
+      <span className="text-[10px] font-semibold uppercase text-ink-variant">
+        {label}
+      </span>
+      <span className="h-1.5 overflow-hidden rounded-full bg-surface-muted">
+        <span
+          className="block h-full rounded-full bg-primary-dark"
+          style={{ width: `${(normalized / 5) * 100}%` }}
+        />
+      </span>
+    </div>
+  )
+}
+
+function uniqueCompact(values: string[]): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const value of values) {
+    const clean = value.trim()
+    const key = clean.toLowerCase()
+    if (!clean || seen.has(key)) continue
+    seen.add(key)
+    result.push(clean)
+  }
+  return result
+}
+
 function ItemsList({
   items,
   baseCurrency,
@@ -566,23 +829,6 @@ function ItemsList({
     () => (profileActive ? rankDishes(items, dietProfile) : items),
     [profileActive, items, dietProfile],
   )
-  // Assess each dish once (keyed by id) so the card map renders badges without
-  // re-running the check on every read.
-  const assessments = useMemo(() => {
-    const map = new Map<
-      string,
-      { recommended: boolean; allergens: string[]; dietFlags: string[] }
-    >()
-    for (const item of rankedItems) {
-      const risk = assessDish(item, dietProfile)
-      map.set(item.id, {
-        recommended: profileActive && scoreDish(item, dietProfile).recommended,
-        allergens: risk.allergens,
-        dietFlags: risk.dietFlags,
-      })
-    }
-    return map
-  }, [rankedItems, dietProfile, profileActive])
   const showPagination = itemsMeta !== null && itemsMeta.total_pages > 1
   const pageStart =
     itemsMeta && items.length > 0
@@ -623,81 +869,13 @@ function ItemsList({
         <>
           <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 2xl:grid-cols-3">
           {rankedItems.map((item) => (
-            <div
+            <ExtractedMenuItemCard
               key={item.id}
-              className="flex h-full flex-col gap-2 rounded-[12px] border border-hairline bg-canvas p-4 transition-colors hover:border-primary/30 hover:bg-surface-muted/50"
-            >
-              {assessments.get(item.id)?.recommended && (
-                <div className="flex items-center gap-1.5 rounded-[6px] border border-[#1a7f37]/40 bg-[#e6f4ea] px-2.5 py-1 text-[11px] font-bold text-[#1a7f37]">
-                  <Sparkles className="size-3 shrink-0" aria-hidden />
-                  {t('billItem.recommended')}
-                </div>
-              )}
-              {(assessments.get(item.id)?.allergens ?? []).length > 0 && (
-                <div className="flex items-center gap-1.5 rounded-[6px] bg-destructive px-2.5 py-1 text-[11px] font-bold text-white">
-                  <AlertCircle className="size-3 shrink-0" aria-hidden />
-                  {t('billItem.allergyMatch', {
-                    list: (assessments.get(item.id)?.allergens ?? [])
-                      .map((code) => t(`diet.allergens.${code}`))
-                      .join(', '),
-                  })}
-                </div>
-              )}
-              {(assessments.get(item.id)?.dietFlags ?? []).length > 0 && (
-                <div className="flex items-center gap-1.5 rounded-[6px] border border-[#e0a800]/50 bg-[#fff8e1] px-2.5 py-1 text-[11px] font-bold text-[#8a6d00]">
-                  <AlertTriangle className="size-3 shrink-0" aria-hidden />
-                  {t('billItem.dietMatch', {
-                    list: (assessments.get(item.id)?.dietFlags ?? [])
-                      .map((code) => t(`diet.preferences.${code}`))
-                      .join(', '),
-                  })}
-                </div>
-              )}
-              {/* Price rides on the badge row: that row has a fixed height, so
-                  prices line up across every card and the name below gets the
-                  full card width (far fewer ragged line wraps). */}
-              <div className="flex min-h-[22px] items-center justify-between gap-3">
-                {item.category ? (
-                  <span className="w-fit rounded-[4px] bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.5px] text-ink-variant">
-                    {item.category}
-                  </span>
-                ) : (
-                  <span aria-hidden />
-                )}
-                <span className="shrink-0 text-[15px] font-semibold text-primary-dark">
-                  {item.price
-                    ? formatConvertedAmount(
-                        Number(item.price),
-                        item.currency ?? baseCurrency,
-                        displayCurrency,
-                        rates,
-                      )
-                    : '—'}
-                </span>
-              </div>
-              <p className="mb-0 break-words text-[16px] font-bold leading-snug text-ink">
-                {item.original_name}
-              </p>
-              {item.translated_name && item.translated_name !== item.original_name && (
-                <p className="mb-0 break-words text-[14px] font-medium text-ink-variant">
-                  {item.translated_name}
-                </p>
-              )}
-              {(item.original_description || item.translated_description) && (
-                <div className="mt-1 flex flex-col gap-1.5 border-t border-hairline pt-2.5">
-                  {item.original_description && (
-                    <p className="mb-0 text-[13px] italic leading-relaxed text-ink-variant">
-                      {item.original_description}
-                    </p>
-                  )}
-                  {item.translated_description && item.translated_description !== item.original_description && (
-                    <p className="mb-0 text-[13px] leading-relaxed text-ink-variant">
-                      {item.translated_description}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
+              item={item}
+              baseCurrency={baseCurrency}
+              displayCurrency={displayCurrency}
+              rates={rates}
+            />
           ))}
           </div>
           {showPagination && itemsMeta && (

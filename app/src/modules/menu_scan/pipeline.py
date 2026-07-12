@@ -302,8 +302,14 @@ class ScanPipeline:
                 ocr_document,
                 target_language=target_language,
                 images=images or None,
+                # Keep extraction focused on finding every printed dish. Dining
+                # recommendations are generated after persistence from the full
+                # saved item list and the dining profile/session preferences.
+                preferences_data=None,
+                is_group=False,
             )
         except Exception as error:
+            logger.exception("pipeline_parse_error scan_id=%s", scan_id)
             raise _PipelineError(
                 _ERROR_PARSING_FAILED,
                 "Menu parsing failed.",
@@ -395,6 +401,19 @@ class ScanPipeline:
                     ),
                     original_description=item.original_description,
                     translated_description=item.translated_description,
+                    assistant_summary=item.assistant_summary,
+                    main_ingredients=_clean_free_text_list(item.main_ingredients),
+                    ingredient_tags=_clean_free_text_list(item.ingredient_tags),
+                    flavor_tags=_clean_free_text_list(item.flavor_tags),
+                    texture_tags=_clean_free_text_list(item.texture_tags),
+                    cooking_methods=_clean_free_text_list(item.cooking_methods),
+                    spice_level=_safe_level(item.spice_level),
+                    sweetness_level=_safe_level(item.sweetness_level),
+                    saltiness_level=_safe_level(item.saltiness_level),
+                    sourness_level=_safe_level(item.sourness_level),
+                    richness_level=_safe_level(item.richness_level),
+                    oiliness_level=_safe_level(item.oiliness_level),
+                    risk_notes=item.risk_notes,
                     price=_safe_decimal(item.price),
                     currency=_safe_currency(item.currency),
                     category=(item.category[:100] if item.category else None),
@@ -411,6 +430,35 @@ class ScanPipeline:
             ]
 
             self.menu_repository.save_menu_with_items(session, menu, food_items)
+            session.flush()
+
+            # Link menu and generate recommendations. A scan may come from a
+            # dining session, or it may be a normal personal scan; create an
+            # implicit personal session so recommendation tables are populated
+            # consistently for both flows.
+            from src.modules.dining.models import DiningSession, DiningSessionStatus
+            from src.modules.dining.service import DiningSessionService
+
+            dining_session = (
+                session.query(DiningSession)
+                .filter(DiningSession.scan_session_id == scan.id)
+                .first()
+            )
+            if dining_session is None:
+                dining_session = _create_personal_dining_session(session, scan, menu)
+
+            if dining_session is not None:
+                dining_session.menu_id = menu.id
+                dining_session.status = DiningSessionStatus.COMPLETED
+                dining_session.updated_at = datetime.now(timezone.utc)
+
+                dining_service = DiningSessionService(session=session)
+                dining_service.generate_recommendations(
+                    dining_session=dining_session,
+                    menu=menu,
+                    food_items=food_items,
+                    draft_items=draft.items,
+                )
 
             _update_scan(
                 scan,
@@ -463,6 +511,79 @@ class _PipelineError(Exception):
         super().__init__(message)
         self.code = code
         self.message = message
+
+
+def _create_personal_dining_session(
+    session: object,
+    scan: ScanSession,
+    menu: Menu,
+) -> object:
+    from src.modules.dining.models import (
+        DiningSession,
+        DiningSessionMode,
+        DiningSessionParticipant,
+        DiningSessionParticipantPreference,
+        DiningSessionStatus,
+    )
+    from src.modules.identity.models import FoodProfile, User
+
+    now = datetime.now(timezone.utc)
+    user = session.get(User, scan.user_id) if scan.user_id is not None else None
+    profile = None
+    if scan.user_id is not None:
+        profile = (
+            session.query(FoodProfile)
+            .filter(
+                FoodProfile.user_id == scan.user_id,
+                FoodProfile.is_default,
+                FoodProfile.deleted_at.is_(None),
+            )
+            .first()
+        )
+
+    dining_session = DiningSession(
+        created_by_user_id=scan.user_id,
+        scan_session_id=scan.id,
+        menu_id=menu.id,
+        mode=DiningSessionMode.PERSONAL,
+        status=DiningSessionStatus.COMPLETED,
+        target_language=scan.target_language,
+        created_at=now,
+        updated_at=now,
+        completed_at=now,
+    )
+    participant = DiningSessionParticipant(
+        dining_session=dining_session,
+        user_id=scan.user_id,
+        display_name=(
+            (profile.display_name if profile is not None else None)
+            or (user.display_name if user is not None else None)
+            or "Bạn"
+        ),
+        preferred_language=(
+            (profile.preferred_language if profile is not None else None)
+            or (user.preferred_language if user is not None else None)
+            or scan.target_language
+        ),
+        joined_at=now,
+    )
+    if profile is not None:
+        participant.preferences = [
+            DiningSessionParticipantPreference(
+                code=preference.code,
+                category=preference.category,
+                preference_type=preference.preference_type,
+                intensity=preference.intensity,
+                importance=preference.importance,
+                note=preference.note,
+                created_at=now,
+            )
+            for preference in profile.preferences
+        ]
+    dining_session.participants = [participant]
+    session.add(dining_session)
+    session.flush()
+    return dining_session
 
 
 def _update_scan(
@@ -539,6 +660,23 @@ def _clean_tags(values: list[str], allowed: frozenset[str]) -> list[str]:
         if code in allowed and code not in cleaned:
             cleaned.append(code)
     return cleaned
+
+
+def _clean_free_text_list(values: list[str], *, limit: int = 12) -> list[str]:
+    cleaned: list[str] = []
+    for value in values:
+        text = value.strip()
+        if text and text not in cleaned:
+            cleaned.append(text[:80])
+        if len(cleaned) >= limit:
+            break
+    return cleaned
+
+
+def _safe_level(value: int | None) -> int | None:
+    if value is None:
+        return None
+    return max(0, min(5, int(value)))
 
 
 def _safe_decimal(value: str | None) -> Decimal | None:

@@ -22,6 +22,10 @@ from src.modules.menu.schemas import (
     MenuSummaryResponse,
     UpdateMenuItemRequest,
 )
+from src.modules.menu_scan.schemas import (
+    ParticipantBreakdownResponse,
+    RecommendationResponse,
+)
 
 
 def _utcnow() -> datetime:
@@ -102,7 +106,70 @@ class MenuService:
         user_id: uuid.UUID,
     ) -> MenuDetailResponse:
         menu = self._get_owned_menu(menu_id=menu_id, user_id=user_id)
-        return _menu_detail_data(menu)
+
+        from src.modules.dining.models import DiningSession, FoodItemRecommendation
+        from src.modules.dining.service import DiningSessionService
+        from src.modules.identity.models import FoodProfile
+
+        dining_session = None
+        if hasattr(self._session, "query"):
+            dining_session = (
+                self._session.query(DiningSession)
+                .filter(DiningSession.menu_id == menu_id)
+                .first()
+            )
+
+        rec_by_food_id = {}
+        default_profile = None
+
+        if dining_session is not None:
+            recs = (
+                self._session.query(FoodItemRecommendation)
+                .filter(FoodItemRecommendation.dining_session_id == dining_session.id)
+                .all()
+            )
+            rec_by_food_id = {r.food_item_id: r for r in recs}
+        else:
+            if hasattr(self._session, "query"):
+                default_profile = (
+                    self._session.query(FoodProfile)
+                    .filter(
+                        FoodProfile.user_id == user_id,
+                        FoodProfile.is_default,
+                        FoodProfile.deleted_at.is_(None),
+                    )
+                    .first()
+                )
+
+        items_response = []
+        for item in sorted(menu.food_items, key=lambda item: item.sort_order):
+            rec_data = None
+            if dining_session is not None:
+                r = rec_by_food_id.get(item.id)
+                if r is not None:
+                    rec_data = _recommendation_response(r)
+            elif default_profile is not None:
+                verdict, score, fit, risk = DiningSessionService._score_item_for_diner(
+                    item, default_profile.preferences
+                )
+                display_name = default_profile.display_name or "Bạn"
+                rec_data = _personal_recommendation_response(
+                    display_name=display_name,
+                    verdict=verdict.value,
+                    score=score,
+                    fit=fit,
+                    risk=risk,
+                )
+
+            items_response.append(
+                MenuItemResponse.model_validate(item).model_copy(
+                    update={"recommendation": rec_data}
+                )
+            )
+
+        detail = _menu_detail_data(menu)
+        detail.items = items_response
+        return detail
 
     def list_menu_items(
         self,
@@ -129,7 +196,68 @@ class MenuService:
             min_price=query.min_price,
             max_price=query.max_price,
         )
-        return [MenuItemResponse.model_validate(item) for item in items], total
+
+        from src.modules.dining.models import DiningSession, FoodItemRecommendation
+        from src.modules.dining.service import DiningSessionService
+        from src.modules.identity.models import FoodProfile
+
+        dining_session = None
+        if hasattr(self._session, "query"):
+            dining_session = (
+                self._session.query(DiningSession)
+                .filter(DiningSession.menu_id == menu_id)
+                .first()
+            )
+
+        rec_by_food_id = {}
+        default_profile = None
+
+        if dining_session is not None:
+            recs = (
+                self._session.query(FoodItemRecommendation)
+                .filter(FoodItemRecommendation.dining_session_id == dining_session.id)
+                .all()
+            )
+            rec_by_food_id = {r.food_item_id: r for r in recs}
+        else:
+            if hasattr(self._session, "query"):
+                default_profile = (
+                    self._session.query(FoodProfile)
+                    .filter(
+                        FoodProfile.user_id == user_id,
+                        FoodProfile.is_default,
+                        FoodProfile.deleted_at.is_(None),
+                    )
+                    .first()
+                )
+
+        items_response = []
+        for item in items:
+            rec_data = None
+            if dining_session is not None:
+                r = rec_by_food_id.get(item.id)
+                if r is not None:
+                    rec_data = _recommendation_response(r)
+            elif default_profile is not None:
+                verdict, score, fit, risk = DiningSessionService._score_item_for_diner(
+                    item, default_profile.preferences
+                )
+                display_name = default_profile.display_name or "Bạn"
+                rec_data = _personal_recommendation_response(
+                    display_name=display_name,
+                    verdict=verdict.value,
+                    score=score,
+                    fit=fit,
+                    risk=risk,
+                )
+
+            items_response.append(
+                MenuItemResponse.model_validate(item).model_copy(
+                    update={"recommendation": rec_data}
+                )
+            )
+
+        return items_response, total
 
     def delete_menu(
         self,
@@ -240,6 +368,65 @@ def _find_menu_item(menu: Menu, item_id: uuid.UUID) -> FoodItem:
         if item.id == item_id:
             return item
     raise MenuItemNotFoundError()
+
+
+def _recommendation_response(recommendation: object) -> RecommendationResponse:
+    breakdowns = [
+        ParticipantBreakdownResponse(
+            display_name=getattr(breakdown.participant, "display_name", "Thành viên"),
+            verdict=breakdown.verdict.value,
+            score=float(breakdown.score) if breakdown.score is not None else None,
+            explanation=breakdown.explanation,
+            fit_reasons=breakdown.fit_reasons or [],
+            risk_reasons=breakdown.risk_reasons or [],
+        )
+        for breakdown in getattr(recommendation, "participant_breakdowns", []) or []
+    ]
+    return RecommendationResponse(
+        verdict=recommendation.verdict.value,
+        score=float(recommendation.score) if recommendation.score is not None else None,
+        explanation=recommendation.explanation,
+        why_suitable=recommendation.why_suitable,
+        why_not_suitable=recommendation.why_not_suitable,
+        suggested_for=recommendation.suggested_for or [],
+        warning_for=recommendation.warning_for or [],
+        fit_reasons=recommendation.fit_reasons or [],
+        risk_reasons=recommendation.risk_reasons or [],
+        warning_reasons=recommendation.warning_reasons or [],
+        participant_breakdowns=breakdowns,
+    )
+
+
+def _personal_recommendation_response(
+    *,
+    display_name: str,
+    verdict: str,
+    score: float,
+    fit: list[str],
+    risk: list[str],
+) -> RecommendationResponse:
+    return RecommendationResponse(
+        verdict=verdict,
+        score=score,
+        explanation=f"Độ phù hợp cá nhân {score:.0f}/100.",
+        why_suitable=", ".join(fit) if fit else None,
+        why_not_suitable=", ".join(risk) if risk else None,
+        suggested_for=[display_name] if verdict == "RECOMMENDED" else [],
+        warning_for=[display_name] if verdict == "AVOID" else [],
+        fit_reasons=fit,
+        risk_reasons=risk,
+        warning_reasons=risk if verdict in {"AVOID", "CAUTION"} else [],
+        participant_breakdowns=[
+            ParticipantBreakdownResponse(
+                display_name=display_name,
+                verdict=verdict,
+                score=score,
+                explanation=f"Độ phù hợp cá nhân {score:.0f}/100.",
+                fit_reasons=fit,
+                risk_reasons=risk,
+            )
+        ],
+    )
 
 
 def _menu_source_data(menu: Menu) -> MenuSourceResponse:

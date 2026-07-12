@@ -10,9 +10,15 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import func, select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
-from src.modules.identity.models import MagicLinkToken, User, UserSession
+from src.modules.identity.models import (
+    FoodProfile,
+    FoodProfilePreference,
+    MagicLinkToken,
+    User,
+    UserSession,
+)
 
 
 class MagicLinkTokenRepository:
@@ -95,4 +101,77 @@ class UserSessionRepository:
     def add(self, session: Session, user_session: UserSession) -> None:
         """Stage a new session record and flush."""
         session.add(user_session)
+        session.flush()
+
+
+class FoodProfileRepository:
+    def list_by_user(self, session: Session, user_id: uuid.UUID) -> list[FoodProfile]:
+        statement = (
+            select(FoodProfile)
+            .options(selectinload(FoodProfile.preferences))
+            .where(FoodProfile.user_id == user_id, FoodProfile.deleted_at.is_(None))
+            .order_by(FoodProfile.is_default.desc(), FoodProfile.updated_at.desc())
+        )
+        return list(session.scalars(statement))
+
+    def get_owned(
+        self,
+        session: Session,
+        *,
+        user_id: uuid.UUID,
+        profile_id: uuid.UUID,
+    ) -> FoodProfile | None:
+        statement = (
+            select(FoodProfile)
+            .options(selectinload(FoodProfile.preferences))
+            .where(
+                FoodProfile.id == profile_id,
+                FoodProfile.user_id == user_id,
+                FoodProfile.deleted_at.is_(None),
+            )
+        )
+        return session.scalars(statement).first()
+
+    def has_active_profiles(self, session: Session, user_id: uuid.UUID) -> bool:
+        statement = (
+            select(FoodProfile.id)
+            .where(FoodProfile.user_id == user_id, FoodProfile.deleted_at.is_(None))
+            .limit(1)
+        )
+        return session.scalars(statement).first() is not None
+
+    def clear_default(
+        self,
+        session: Session,
+        *,
+        user_id: uuid.UUID,
+        exclude_profile_id: uuid.UUID | None = None,
+    ) -> None:
+        statement = (
+            update(FoodProfile)
+            .where(
+                FoodProfile.user_id == user_id,
+                FoodProfile.deleted_at.is_(None),
+                FoodProfile.is_default.is_(True),
+            )
+            .values(is_default=False)
+        )
+        if exclude_profile_id is not None:
+            statement = statement.where(FoodProfile.id != exclude_profile_id)
+        session.execute(statement)
+
+    def add(self, session: Session, profile: FoodProfile) -> FoodProfile:
+        session.add(profile)
+        session.flush()
+        return profile
+
+    def replace_preferences(
+        self,
+        session: Session,
+        profile: FoodProfile,
+        preferences: list[FoodProfilePreference],
+    ) -> None:
+        profile.preferences.clear()
+        session.flush()
+        profile.preferences.extend(preferences)
         session.flush()

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type DragEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   AlertCircle,
   AlertTriangle,
@@ -14,6 +14,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
+import { useAuth } from '@/app/providers/AuthProvider'
 import {
   ALLOWED_EXTENSIONS,
   MAX_FILE_SIZE_BYTES,
@@ -26,6 +27,12 @@ import {
   type QualityResult,
 } from '@/features/menu-scan/imageQuality'
 import { cn } from '@/shared/lib/cn'
+
+interface SimpleDiningSession {
+  id: string
+  status: string
+  target_language: string
+}
 
 const ACCEPT_ATTR = ALLOWED_EXTENSIONS.map((ext) =>
   ext === 'pdf' ? 'application/pdf' : `image/${ext}`,
@@ -80,6 +87,11 @@ export function UploadPanel() {
   const { t, i18n } = useTranslation()
   useDocumentTitle(`${t('scan.title')} | MenuScan`)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const { user, accessToken } = useAuth()
+
+  const diningSessionQueryParam = searchParams.get('dining_session_id')
+
   const steps = t('scan.steps', { returnObjects: true }) as Array<{
     title: string
     desc: string
@@ -87,6 +99,41 @@ export function UploadPanel() {
 
   const [selected, setSelected] = useState<SelectedFile | null>(null)
   const [quality, setQuality] = useState<QualityResult | null>(null)
+
+  const [diningSessions, setDiningSessions] = useState<SimpleDiningSession[]>([])
+  const [selectedDiningSessionId, setSelectedDiningSessionId] = useState<string>('')
+
+  // Load dining sessions of the host
+  useEffect(() => {
+    if (!user) return
+    const loadDiningSessions = async () => {
+      try {
+        const data = await apiRequest<SimpleDiningSession[]>('/api/v1/dining/sessions', {
+          method: 'GET',
+          token: accessToken ?? undefined,
+        })
+        setDiningSessions(data.filter((s: SimpleDiningSession) => s.status === 'COLLECTING'))
+      } catch (err) {
+        console.error('Failed to load dining sessions:', err)
+      }
+    }
+    void loadDiningSessions()
+  }, [accessToken, user])
+
+  // Pre-select if passed in query param
+  useEffect(() => {
+    if (diningSessionQueryParam) {
+      let active = true
+      Promise.resolve().then(() => {
+        if (active) {
+          setSelectedDiningSessionId(diningSessionQueryParam)
+        }
+      })
+      return () => {
+        active = false
+      }
+    }
+  }, [diningSessionQueryParam])
   // Default the scan target to the user's interface language (set at login /
   // in the language switcher); they can still override it per scan below.
   const [targetLanguage, setTargetLanguage] = useState(() => {
@@ -158,6 +205,9 @@ export function UploadPanel() {
     const formData = new FormData()
     formData.append('file', selected.file)
     formData.append('target_language', targetLanguage)
+    if (selectedDiningSessionId) {
+      formData.append('dining_session_id', selectedDiningSessionId)
+    }
     try {
       const scan = await apiRequest<ScanData>('/api/v1/scans', {
         method: 'POST',
@@ -448,6 +498,36 @@ export function UploadPanel() {
             ))}
           </select>
         </div>
+
+        {user && (diningSessions.length > 0 || diningSessionQueryParam) && (
+          <div className="flex flex-col gap-2 rounded-[12px] border border-hairline bg-canvas p-[21px]">
+            <label
+              htmlFor="diningSessionSelect"
+              className="text-[15px] font-bold text-primary-dark"
+            >
+              Liên kết phiên ăn uống (Tùy chọn)
+            </label>
+            <select
+              id="diningSessionSelect"
+              value={selectedDiningSessionId}
+              onChange={(e) => setSelectedDiningSessionId(e.target.value)}
+              disabled={isSubmitting}
+              className="h-[44px] w-full rounded-[8px] border border-hairline bg-surface-muted px-3 text-[15px] text-ink outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
+            >
+              <option value="">-- Không liên kết --</option>
+              {diningSessionQueryParam && !diningSessions.some(s => s.id === diningSessionQueryParam) && (
+                <option value={diningSessionQueryParam}>
+                  Phiên ăn {diningSessionQueryParam.slice(0, 8)} (Đang liên kết)
+                </option>
+              )}
+              {diningSessions.map((session: SimpleDiningSession) => (
+                <option key={session.id} value={session.id}>
+                  Phiên ăn {session.id.slice(0, 8)} ({session.target_language.toUpperCase()})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <button
           type="button"

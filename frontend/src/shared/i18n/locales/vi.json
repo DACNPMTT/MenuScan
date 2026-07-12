@@ -9,6 +9,7 @@
     "saveChanges": "Lưu thay đổi",
     "cancel": "Hủy",
     "back": "Quay lại",
+    "next": "Tiếp tục",
     "retry": "Thử lại",
     "edit": "Sửa",
     "delete": "Xóa",
@@ -52,7 +53,8 @@
     "scan": "Quét",
     "menus": "Thực đơn",
     "bills": "Hóa đơn",
-    "profile": "Tài khoản"
+    "profile": "Tài khoản",
+    "dining": "Phiên ăn"
   },
   "footer": {
     "rights": "© {{year}} MenuScan. Đã đăng ký bản quyền."
@@ -322,10 +324,60 @@
       "no_alcohol": "Không rượu bia"
     }
   },
+  "dining": {
+    "title": "Phiên ăn uống",
+    "createTitle": "Tạo phiên ăn uống mới",
+    "createSubtitle": "Tạo phiên để mọi người quét mã QR và gửi sở thích ăn uống của họ.",
+    "hostTitle": "Màn hình Host",
+    "joinTitle": "Tham gia phiên ăn",
+    "joinSubtitle": "Nhập thông tin ăn uống của bạn để Host biết món ăn nào phù hợp nhất.",
+    "scanQrPrompt": "Quét mã để tham gia",
+    "scanQrDesc": "Mọi người quét mã này để nhập sở thích ăn uống nhanh chóng mà không cần tài khoản.",
+    "fullscreenQr": "Nhấp để xem toàn màn hình",
+    "participants": "Danh sách tham gia ({{count}} người)",
+    "noParticipants": "Chưa có ai tham gia. Hãy chia sẻ mã QR ở trên để mọi người quét!",
+    "status": {
+      "COLLECTING": "Đang thu thập",
+      "SCANNING": "Đang quét",
+      "COMPLETED": "Hoàn thành",
+      "CLOSED": "Đã đóng"
+    },
+    "fields": {
+      "mode": "Chế độ",
+      "language": "Ngôn ngữ đích",
+      "expires": "Hết hạn sau (giờ)"
+    },
+    "modes": {
+      "GROUP": "Nhóm đông người",
+      "PERSONAL": "Cá nhân"
+    },
+    "createBtn": "Tạo phiên ăn",
+    "creating": "Đang tạo...",
+    "joinSuccess": "Đã gửi thông tin thành công!",
+    "joinSuccessDesc": "Sở thích ăn uống của bạn đã được gửi tới Host. Bạn có thể đóng tab này bây giờ.",
+    "closeFullscreen": "Đóng toàn màn hình",
+    "guestName": "Tên của bạn",
+    "guestNamePlaceholder": "Nhập tên hiển thị của bạn",
+    "guestLanguage": "Ngôn ngữ ưu tiên",
+    "sessionNotFound": "Không tìm thấy phiên ăn uống này hoặc mã không hợp lệ.",
+    "sessionExpired": "Phiên ăn uống đã hết hạn hoặc đã đóng.",
+    "invalidToken": "Mã mời không hợp lệ.",
+    "recentSessions": "Các phiên ăn gần đây"
+  },
   "onboarding": {
     "docTitle": "Thiết lập sở thích",
-    "title": "Cho chúng tôi biết sở thích ăn uống",
-    "subtitle": "Chúng tôi sẽ cảnh báo món có dị ứng hoặc lệch khẩu phần của bạn. Có thể bỏ qua và chỉnh sau trong hồ sơ.",
+    "title": "Tạo hồ sơ ăn uống",
+    "subtitle": "Thiết lập hồ sơ ban đầu để AI gợi ý món phù hợp. Có thể bỏ qua và thêm sau trong tài khoản.",
+    "defaultProfileName": "Hồ sơ ăn uống của tôi",
+    "profileName": "Tên hồ sơ",
+    "nameRequired": "Hãy nhập tên hồ sơ trước.",
+    "steps": {
+      "profile": "Hồ sơ",
+      "allergies": "Dị ứng",
+      "diet": "Ăn kiêng",
+      "likes": "Yêu thích",
+      "avoids": "Hạn chế"
+    },
     "save": "Lưu & tiếp tục",
     "saving": "Đang lưu…",
     "skip": "Bỏ qua",
@@ -408,6 +460,52 @@
       "nameTooLong": "Tên hiển thị tối đa 150 ký tự.",
       "updateFailed": "Không thể cập nhật profile. Vui lòng thử lại.",
       "loadFailed": "Không thể tải đầy đủ thông tin tài khoản."
+    }
+  },
+  "foodProfile": {
+    "title": "Hồ sơ ăn uống",
+    "subtitle": "Lưu sở thích ăn uống để trợ lý AI dùng trước khi quét menu.",
+    "add": "Thêm hồ sơ",
+    "empty": "Chưa có hồ sơ ăn uống. Bạn có thể thêm ngay hoặc tạo sau trước khi quét.",
+    "name": "Tên hồ sơ",
+    "language": "Ngôn ngữ",
+    "defaultProfile": "Dùng làm hồ sơ mặc định",
+    "defaultBadge": "Mặc định",
+    "addOther": "Thêm",
+    "otherPlaceholder": "Mục khác...",
+    "otherLabel": "Mục khác cho {{section}}",
+    "sections": {
+      "allergies": "Dị ứng",
+      "dietary_preferences": "Ăn kiêng",
+      "likes": "Yêu thích",
+      "avoids": "Hạn chế / không thích"
+    },
+    "preferenceLabels": {
+      "spicy": "Thích cay",
+      "mild_spicy": "Cay nhẹ",
+      "savory": "Đậm đà",
+      "sour": "Vị chua",
+      "fresh": "Tươi mát",
+      "grilled": "Đồ nướng",
+      "soup": "Món nước",
+      "noodles": "Mì / bún / phở",
+      "rice": "Cơm",
+      "vegetables": "Nhiều rau",
+      "too_spicy": "Quá cay",
+      "too_sweet": "Quá ngọt",
+      "too_oily": "Nhiều dầu mỡ",
+      "fish_sauce": "Có mắm",
+      "strong_smell": "Mùi nặng",
+      "raw_food": "Đồ sống",
+      "organ_meat": "Nội tạng",
+      "bitter": "Vị đắng",
+      "heavy_cream": "Nhiều kem / béo",
+      "deep_fried": "Chiên ngập dầu"
+    },
+    "errors": {
+      "nameRequired": "Hãy nhập tên hồ sơ.",
+      "saveFailed": "Không thể lưu hồ sơ ăn uống. Vui lòng thử lại.",
+      "deleteFailed": "Không thể xóa hồ sơ ăn uống. Vui lòng thử lại."
     }
   },
   "scanResult": {

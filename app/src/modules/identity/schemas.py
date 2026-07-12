@@ -6,7 +6,14 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field, ValidationInfo, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    ValidationInfo,
+    field_validator,
+)
 
 # Dietary taxonomy the diner may declare. Allergies mirror the allergen tags the
 # parser assigns to dishes; dietary preferences are avoidance rules matched
@@ -136,6 +143,136 @@ class LoginRequest(BaseModel):
     @classmethod
     def _lowercase_email(cls, value: str) -> str:
         return value.lower()
+
+
+FoodPreferenceType = Literal[
+    "LIKE",
+    "DISLIKE",
+    "AVOID",
+    "ALLERGY",
+    "DIETARY_RULE",
+]
+
+
+class FoodProfilePreferenceRequest(BaseModel):
+    code: str = Field(min_length=1, max_length=80)
+    category: str = Field(min_length=1, max_length=40)
+    preference_type: FoodPreferenceType
+    intensity: int | None = Field(default=None, ge=0, le=5)
+    importance: int = Field(default=3, ge=1, le=5)
+    note: str | None = None
+
+    @field_validator("code", "category", mode="before")
+    @classmethod
+    def _normalize_code_fields(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def _normalize_note(cls, value: object) -> object:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
+class CreateFoodProfileRequest(BaseModel):
+    display_name: str = Field(min_length=1, max_length=150)
+    preferred_language: str = Field(default="vi", min_length=2, max_length=10)
+    is_default: bool = False
+    notes: str | None = None
+    preferences: list[FoodProfilePreferenceRequest] = Field(default_factory=list)
+
+    @field_validator("display_name", mode="before")
+    @classmethod
+    def _normalize_display_name(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    @field_validator("preferred_language", mode="before")
+    @classmethod
+    def _normalize_language(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
+
+    @field_validator("notes", mode="before")
+    @classmethod
+    def _normalize_notes(cls, value: object) -> object:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
+class UpdateFoodProfileRequest(BaseModel):
+    display_name: str | None = Field(default=None, min_length=1, max_length=150)
+    preferred_language: str | None = Field(default=None, min_length=2, max_length=10)
+    is_default: bool | None = None
+    notes: str | None = None
+    preferences: list[FoodProfilePreferenceRequest] | None = None
+
+    @field_validator("display_name", mode="before")
+    @classmethod
+    def _normalize_display_name(cls, value: object) -> object:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    @field_validator("preferred_language", mode="before")
+    @classmethod
+    def _normalize_language(cls, value: object) -> object:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
+
+    @field_validator("notes", mode="before")
+    @classmethod
+    def _normalize_notes(cls, value: object) -> object:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
+class FoodProfilePreferenceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    code: str
+    category: str
+    preference_type: str
+    intensity: int | None
+    importance: int
+    note: str | None
+    created_at: datetime
+
+
+class FoodProfileResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    display_name: str
+    preferred_language: str
+    is_default: bool
+    notes: str | None
+    preferences: list[FoodProfilePreferenceResponse] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
 
 
 class UserResponse(BaseModel):

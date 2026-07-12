@@ -40,11 +40,17 @@ class _FallbackMenuParser:
         *,
         target_language: str = "en",
         images: object = None,
+        preferences_data: list[dict[str, object]] | None = None,
+        is_group: bool = False,
     ) -> object:
         from src.modules.menu_scan.llm_menu_parser import LlmMenuParserUnavailableError, LlmMenuParserTimeoutError
         try:
             return self._primary.parse(  # type: ignore[arg-type]
-                document, target_language=target_language, images=images
+                document,  # type: ignore[arg-type]
+                target_language=target_language,
+                images=images,  # type: ignore[arg-type]
+                preferences_data=preferences_data,
+                is_group=is_group,
             )
         except (LlmMenuParserUnavailableError, LlmMenuParserTimeoutError) as exc:
             logger.warning(
@@ -52,7 +58,11 @@ class _FallbackMenuParser:
                 exc,
             )
             return self._fallback.parse(  # type: ignore[arg-type]
-                document, target_language=target_language, images=images
+                document,  # type: ignore[arg-type]
+                target_language=target_language,
+                images=images,  # type: ignore[arg-type]
+                preferences_data=preferences_data,
+                is_group=is_group,
             )
 
 

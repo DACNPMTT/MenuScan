@@ -19,6 +19,9 @@ import { SetPasswordPage } from '@/pages/SetPasswordPage'
 import { OnboardingPage } from '@/pages/auth/OnboardingPage'
 import { BillReceiptPage } from '@/pages/BillReceiptPage'
 import { BillsPage } from '@/pages/BillsPage'
+import { DiningSessionsPage } from '@/pages/dining/DiningSessionsPage'
+import { HostDiningSessionPage } from '@/pages/dining/HostDiningSessionPage'
+import { JoinDiningSessionPage } from '@/pages/dining/JoinDiningSessionPage'
 
 export function AppRoutes() {
   return (
@@ -41,7 +44,10 @@ export function AppRoutes() {
         <Route path="bills" element={<RequireAuth><BillsPage /></RequireAuth>} />
         <Route path="bills/:billId" element={<RequireAuth><BillReceiptPage /></RequireAuth>} />
         <Route path="profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
+        <Route path="dining" element={<RequireAuth><DiningSessionsPage /></RequireAuth>} />
+        <Route path="dining/sessions/:sessionId" element={<RequireAuth><HostDiningSessionPage /></RequireAuth>} />
       </Route>
+      <Route path="dining/join" element={<JoinDiningSessionPage />} />
 
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

@@ -21,6 +21,8 @@ from src.modules.identity.models import User
 from src.modules.menu_scan.dependencies import get_scan_pipeline, get_scan_service
 from src.modules.menu_scan.pipeline import ScanPipeline
 from src.modules.menu_scan.service import ScanService, UploadCandidate
+from src.modules.dining.dependencies import get_dining_session_service
+from src.modules.dining.service import DiningSessionService
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +35,11 @@ async def create_scan(
     files: list[UploadFile] = File(default=[]),
     file: UploadFile | None = File(default=None),
     target_language: str | None = Form(default=None),
+    dining_session_id: uuid.UUID | None = Form(default=None),
     current_user: User | None = Depends(get_optional_current_user),
     service: ScanService = Depends(get_scan_service),
     pipeline: ScanPipeline = Depends(get_scan_pipeline),
+    dining_service: DiningSessionService = Depends(get_dining_session_service),
 ) -> dict[str, object]:
     # Accept the multi-file field ``files`` (up to 8 pages) and the legacy
     # single-file field ``file`` for backward compatibility.
@@ -52,6 +56,12 @@ async def create_scan(
         files=candidates,
         target_language=target_language,
     )
+    if dining_session_id is not None and current_user is not None:
+        dining_service.associate_scan_session(
+            current_user,
+            session_id=dining_session_id,
+            scan_session_id=data.id,
+        )
     background_tasks.add_task(_run_pipeline, pipeline, data.id)
     return success_response(data=data.model_dump(mode="json"))
 
