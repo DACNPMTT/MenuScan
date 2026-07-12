@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   AlertCircle,
   ArrowLeft,
@@ -12,6 +12,7 @@ import {
   Receipt,
   ReceiptText,
   RefreshCw,
+  Sparkles,
   Tag,
   Trash2,
   Users,
@@ -132,6 +133,7 @@ export function MenuDetailPage() {
   const { t } = useTranslation()
   const { menuId } = useParams<{ menuId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { accessToken, user } = useAuth()
   const dietProfile = useMemo<DietProfile>(
     () => ({
@@ -235,36 +237,49 @@ export function MenuDetailPage() {
     void Promise.resolve().then(loadMenu)
   }, [loadMenu])
 
-  // Food tags, taste levels and verdicts come from a second LLM pass that is
-  // deliberately not part of the scan (scanning must stay fast). Fire it once
-  // the menu is on screen: the diner already sees names, prices and allergens,
-  // and the cards fill in when it lands.
+  // Food tags, taste levels and verdicts come from a second LLM pass, deliberately
+  // not part of the scan (scanning must stay fast). It runs on demand here: the
+  // diner already sees names, prices and allergens, and the cards fill in after.
   const enrichedMenuIds = useRef<Set<string>>(new Set())
   const [enriching, setEnriching] = useState(false)
 
-  useEffect(() => {
-    if (!menuId || !menu) return
-    if (enrichedMenuIds.current.has(menuId)) return
-    const needsEnrichment = menu.items.some(
-      (item) =>
-        !item.assistant_summary &&
-        (item.ingredient_tags?.length ?? 0) === 0 &&
-        (item.main_ingredients?.length ?? 0) === 0,
-    )
-    if (!needsEnrichment) return
+  const needsEnrichment = useMemo(
+    () =>
+      (menu?.items ?? []).some(
+        (item) =>
+          !item.assistant_summary &&
+          (item.ingredient_tags?.length ?? 0) === 0 &&
+          (item.main_ingredients?.length ?? 0) === 0,
+      ),
+    [menu?.items],
+  )
 
+  const runEnrichment = useCallback(async () => {
+    if (!menuId || enrichedMenuIds.current.has(menuId)) return
     enrichedMenuIds.current.add(menuId)
     setEnriching(true)
-    void apiRequest<MenuDetail>(`/api/v1/menus/${menuId}/enrich`, {
-      method: 'POST',
-      token: accessToken ?? undefined,
-    })
-      .then((data) => setMenu(data))
-      .catch(() => {
-        // Tags are a bonus; the menu itself is already usable without them.
+    try {
+      const data = await apiRequest<MenuDetail>(`/api/v1/menus/${menuId}/enrich`, {
+        method: 'POST',
+        token: accessToken ?? undefined,
       })
-      .finally(() => setEnriching(false))
-  }, [accessToken, menu, menuId])
+      setMenu(data)
+    } catch {
+      // Tags are a bonus; the menu itself is already usable without them. Let the
+      // diner try again rather than blocking the screen on an error banner.
+      enrichedMenuIds.current.delete(menuId)
+    } finally {
+      setEnriching(false)
+    }
+  }, [accessToken, menuId])
+
+  // Arriving from the scan result's "choose dishes" button means the diner has
+  // committed to this menu, so start the pass for them.
+  const autoEnrich = Boolean((location.state as { enrich?: boolean } | null)?.enrich)
+  useEffect(() => {
+    if (!autoEnrich || !menu || !needsEnrichment) return
+    void runEnrichment()
+  }, [autoEnrich, menu, needsEnrichment, runEnrichment])
 
   const allItems = useMemo<BillItem[]>(() => menu?.items ?? [], [menu?.items])
 
@@ -870,19 +885,36 @@ export function MenuDetailPage() {
                   {menu.source.file_name} · {menu.default_currency ?? currency}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex min-h-10 w-fit items-center gap-2 rounded-[8px] border border-destructive/30 px-4 py-2 text-[14px] font-bold text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {deleting ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <Trash2 className="size-4" aria-hidden />
+              <div className="flex w-fit flex-wrap items-center gap-2">
+                {(needsEnrichment || enriching) && (
+                  <button
+                    type="button"
+                    onClick={() => void runEnrichment()}
+                    disabled={enriching}
+                    className="flex min-h-10 w-fit items-center gap-2 rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {enriching ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Sparkles className="size-4" aria-hidden />
+                    )}
+                    {enriching ? t('menuDetail.enriching') : t('menuDetail.enrichAction')}
+                  </button>
                 )}
-                {t('menuDetail.deleteMenu')}
-              </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex min-h-10 w-fit items-center gap-2 rounded-[8px] border border-destructive/30 px-4 py-2 text-[14px] font-bold text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {deleting ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Trash2 className="size-4" aria-hidden />
+                  )}
+                  {t('menuDetail.deleteMenu')}
+                </button>
+              </div>
             </header>
 
             <SourcePreview source={menu.source} accessToken={accessToken} />
@@ -932,7 +964,6 @@ export function MenuDetailPage() {
               {itemsLoading && hasActiveFilter
                 ? t('menuDetail.searching')
                 : (hasActiveFilter && itemsMeta ? t('menuDetail.resultCountOf', { count: filteredItems.length, total: itemsMeta.total }) : t('menuDetail.resultCount', { count: filteredItems.length }))}
-              {enriching ? <span className="ml-2 opacity-70">{t('menuDetail.enriching')}</span> : null}
             </p>
 
             <main className="grid grid-cols-1 gap-5 lg:grid-cols-2">

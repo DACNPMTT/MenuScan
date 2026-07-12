@@ -408,6 +408,9 @@ function ResultView({
           <div className="flex flex-col items-start gap-2 sm:items-end">
             <Link
               to={`/app/menus/${result.menu.id}`}
+              // Committing to this menu is what kicks off the second LLM pass
+              // (food tags, taste levels, verdicts). The scan itself stays lean.
+              state={{ enrich: true }}
               className="flex min-h-10 items-center gap-2 rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
             >
               <ListChecks className="size-4" aria-hidden />
