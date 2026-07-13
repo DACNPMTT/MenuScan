@@ -4,8 +4,9 @@
 > Schema thực thi hiện hành là toàn bộ Alembic history trong
 > `app/alembic/versions/`. Migration là nguồn sự thật duy nhất; không duy trì
 > schema SQL thủ công song song.
-> Các bảng/cột cho trợ lý chọn món cá nhân/nhóm trong tài liệu này là thiết kế
-> mục tiêu và phải được triển khai bằng migration trước khi backend sử dụng.
+> Tài liệu này mô tả schema tại migration head `e8b5d3f07a24` — **19 bảng nghiệp
+> vụ + 1 bảng hạ tầng (`ai_throttle`)**. Toàn bộ bảng ở đây đã được triển khai
+> bằng migration, kể cả nhóm dining/recommendation.
 
 ## 1. Quy ước
 
@@ -46,6 +47,9 @@ erDiagram
     BILLS ||--o{ BILL_ITEMS : contains
     BILLS ||--o{ BILL_ADJUSTMENTS : adjusts
 ```
+
+`ai_throttle` (mục 4.19) không xuất hiện trong sơ đồ trên: nó là bảng hạ tầng
+chống spam, không có foreign key và không tham gia quan hệ nghiệp vụ nào.
 
 ## 3. Enum
 
@@ -475,6 +479,29 @@ không cho phép sửa items hoặc adjustments.
 `value` luôn không âm; `calculated_amount` có dấu (âm cho `DISCOUNT`, dương cho
 các loại còn lại). Mỗi adjustment được tính độc lập từ `subtotal_amount`, không
 cộng dồn trên running total. Khi `calculation_type = PERCENTAGE`, `value <= 100`.
+
+### 4.19 `ai_throttle`
+
+Bảng hạ tầng (không phải nghiệp vụ), định nghĩa tại `app/src/core/rate_limit.py`.
+Chống spam các lời gọi tốn tiền vào AI (scan, chat).
+
+| Cột | Kiểu | Ràng buộc |
+| --- | --- | --- |
+| `subject_type` | VARCHAR(8) | PK (composite), `user` hoặc `ip` |
+| `subject_id` | VARCHAR(255) | PK (composite), user id hoặc địa chỉ IP |
+| `action` | VARCHAR(16) | PK (composite), `scan` hoặc `chat` |
+| `last_at` | TIMESTAMPTZ | NOT NULL, default `now()` |
+
+PK là bộ ba `(subject_type, subject_id, action)` — mỗi subject có đúng một dòng
+cho mỗi loại hành động, giữ nguyên mốc thời gian gọi gần nhất.
+
+Đây **không** phải quota theo ngày, chỉ là khoảng cách tối thiểu giữa hai lời
+gọi (`SCAN_MIN_GAP_SECONDS`, `CHAT_MIN_GAP_SECONDS`). Guest bị throttle theo IP,
+user đã đăng nhập bị throttle theo user id.
+
+Kiểm tra được thực hiện bằng **một upsert atomic duy nhất trong Postgres**, cùng
+cơ chế với cooldown magic-link. Đây là lý do hệ thống **không cần Redis** — xem
+`doc/ai/database.md`.
 
 ## 5. Quy tắc toàn vẹn
 

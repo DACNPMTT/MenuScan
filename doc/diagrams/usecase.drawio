@@ -1,88 +1,136 @@
-<mxfile host="65bd71144e">
-    <diagram id="menuscan-usecase" name="MenuScan Use Case">
-        <mxGraphModel dx="747" dy="1511" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
-            <root>
-                <mxCell id="0"/>
-                <mxCell id="1" parent="0"/>
-                <mxCell id="system" value="MenuScan System" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#333333;fontStyle=1;verticalAlign=top;align=left;spacingLeft=12;spacingTop=8;" parent="1" vertex="1">
-                    <mxGeometry x="230" y="-20" width="680" height="730" as="geometry"/>
-                </mxCell>
-                <mxCell id="uc-register" value="Register" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="system" vertex="1">
-                    <mxGeometry x="39.99645161290323" y="49.996666666666655" width="175.48387096774192" height="60.83333333333333" as="geometry"/>
-                </mxCell>
-                <mxCell id="uc-login" value="Login" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="system" vertex="1">
-                    <mxGeometry x="119.99645161290323" y="110.82666666666665" width="175.48387096774192" height="60.83333333333333" as="geometry"/>
-                </mxCell>
-                <mxCell id="uc-upload" value="Upload Menu Image/PDF" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="system" vertex="1">
-                    <mxGeometry x="169.99645161290323" y="171.65666666666664" width="208.38709677419354" height="66.91666666666666" as="geometry"/>
-                </mxCell>
-                <mxCell id="uc-scan" value="Scan Menu" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="system" vertex="1">
-                    <mxGeometry x="252.26" y="299.9966666666666" width="175.48387096774192" height="66.91666666666666" as="geometry"/>
-                </mxCell>
-                <mxCell id="uc-extract" value="Extract Menu Items" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="system" vertex="1">
-                    <mxGeometry x="482.5806451612903" y="383.25" width="186.4516129032258" height="66.91666666666666" as="geometry"/>
-                </mxCell>
-                <mxCell id="uc-view" value="View Cards" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="system" vertex="1">
-                    <mxGeometry x="99.99645161290323" y="340" width="175.48387096774192" height="66.91666666666666" as="geometry"/>
-                </mxCell>
-                <mxCell id="uc-edit" value="Edit Menu Item" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="system" vertex="1">
-                    <mxGeometry x="340.0022580645162" y="510" width="186.4516129032258" height="66.91666666666666" as="geometry"/>
-                </mxCell>
-                <mxCell id="uc-save" value="Save Menu" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="system" vertex="1">
-                    <mxGeometry x="65.80645161290323" y="492.75" width="175.48387096774192" height="66.91666666666666" as="geometry"/>
-                </mxCell>
-                <mxCell id="uc-manage" value="Manage Menus" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="system" vertex="1">
-                    <mxGeometry x="54.83645161290323" y="630.0033333333332" width="186.4516129032258" height="66.91666666666666" as="geometry"/>
-                </mxCell>
-                <mxCell id="uc-delete" value="Delete Menu" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="system" vertex="1">
-                    <mxGeometry x="345.49" y="630.0033333333332" width="175.48387096774192" height="66.91666666666666" as="geometry"/>
-                </mxCell>
-                <mxCell id="edge-upload-scan" value="&amp;lt;include&amp;gt;" style="endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#333333;fontSize=12;" parent="system" source="uc-upload" target="uc-scan" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="edge-scan-extract" value="&amp;lt;include&amp;gt;" style="endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#333333;fontSize=12;" parent="system" source="uc-scan" target="uc-extract" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="edge-edit-view" value="&amp;lt;extend&amp;gt;" style="endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#333333;fontSize=12;" parent="system" source="uc-edit" target="uc-view" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="edge-delete-manage" value="&amp;lt;extend&amp;gt;" style="endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#333333;fontSize=12;" parent="system" source="uc-delete" target="uc-manage" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="actor-user" value="User" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#ffffff;strokeColor=#333333;" parent="1" vertex="1">
-                    <mxGeometry x="70" y="250" width="60" height="110" as="geometry"/>
-                </mxCell>
-                <mxCell id="actor-ocr" value="System/OCR" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#ffffff;strokeColor=#333333;" parent="1" vertex="1">
-                    <mxGeometry x="1050" y="341.71" width="80" height="110" as="geometry"/>
-                </mxCell>
-                <mxCell id="edge-user-register" style="endArrow=none;html=1;rounded=0;strokeColor=#333333;" parent="1" source="actor-user" target="uc-register" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="edge-user-login" style="endArrow=none;html=1;rounded=0;strokeColor=#333333;" parent="1" source="actor-user" target="uc-login" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="edge-user-upload" style="endArrow=none;html=1;rounded=0;strokeColor=#333333;" parent="1" source="actor-user" target="uc-upload" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="edge-user-scan" style="endArrow=none;html=1;rounded=0;strokeColor=#333333;" parent="1" source="actor-user" target="uc-scan" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="edge-user-view" style="endArrow=none;html=1;rounded=0;strokeColor=#333333;" parent="1" source="actor-user" target="uc-view" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="edge-user-edit" style="endArrow=none;html=1;rounded=0;strokeColor=#333333;" parent="1" source="actor-user" target="uc-edit" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="edge-user-save" style="endArrow=none;html=1;rounded=0;strokeColor=#333333;" parent="1" source="actor-user" target="uc-save" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="edge-user-manage" style="endArrow=none;html=1;rounded=0;strokeColor=#333333;" parent="1" source="actor-user" target="uc-manage" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="edge-ocr-extract" style="endArrow=none;html=1;rounded=0;strokeColor=#333333;" parent="1" source="actor-ocr" target="uc-extract" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-            </root>
-        </mxGraphModel>
-    </diagram>
+<mxfile host="app.diagrams.net">
+  <diagram id="menuscan-usecase" name="MenuScan Use Case">
+    <mxGraphModel dx="1200" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1250" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="MenuScan — Use Case Diagram (13 use case, khop doc/content/specification/usecase.md)" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="360" y="16" width="880" height="34" as="geometry"/>
+        </mxCell>
+
+        <!-- Actors -->
+        <mxCell id="ac_guest" value="Guest&#10;(chua dang nhap)" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="150" width="40" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="ac_user" value="Diner&#10;(user da dang nhap)" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="480" width="40" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="ac_part" value="Participant&#10;(duoc moi, KHONG can tai khoan)" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="880" width="40" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ac_llm" value="Gemini / Google Vision&#10;(he thong ngoai)" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="330" width="40" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="ac_fx" value="Exchange Rate API&#10;(he thong ngoai)" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="760" width="40" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- System boundary -->
+        <mxCell id="sys" value="MenuScan System" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=15;fontStyle=1;fillColor=none;strokeColor=#333333;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="280" y="90" width="1100" height="1090" as="geometry"/>
+        </mxCell>
+
+        <!-- Auth group -->
+        <mxCell id="uc01" value="UC-01&#10;Dang nhap bang Magic Link" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="130" width="200" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc04" value="UC-04&#10;Dang nhap bang mat khau" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="220" width="200" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc03" value="UC-03&#10;Lam moi phien (refresh)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="310" width="200" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Scan group -->
+        <mxCell id="uc02" value="UC-02&#10;Scan menu" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="620" y="180" width="200" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc_ocr" value="OCR + nhan dien ngon ngu" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="900" y="120" width="190" height="62" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc_parse" value="Phan tich + dich mon (LLM)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="900" y="200" width="190" height="62" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc05" value="UC-05&#10;Chinh sua ket qua scan" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="620" y="280" width="200" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc13" value="UC-13&#10;Quan ly menu da luu&#10;(loc mon TRONG menu)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="620" y="370" width="200" height="76" as="geometry"/>
+        </mxCell>
+
+        <!-- Personalization group -->
+        <mxCell id="uc08" value="UC-08&#10;Quan ly ho so an uong" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="480" width="200" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc09" value="UC-09&#10;Lam giau menu + sinh goi y" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="620" y="480" width="200" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc_verdict" value="Cham verdict theo preference&#10;(RECOMMENDED/OK/CAUTION/AVOID)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="900" y="480" width="210" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc12" value="UC-12&#10;Hoi tro ly ve menu" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="620" y="580" width="200" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Billing group -->
+        <mxCell id="uc06" value="UC-06&#10;Tinh tien va chia bill" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="700" width="200" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc07" value="UC-07&#10;Doi tien te hien thi" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="620" y="760" width="200" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Dining group -->
+        <mxCell id="uc10" value="UC-10&#10;Tao phien an nhom + moi" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="900" width="200" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc11" value="UC-11&#10;Tham gia phien bang link moi&#10;+ khai khau vi" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="620" y="900" width="210" height="76" as="geometry"/>
+        </mxCell>
+        <mxCell id="uc_remove" value="Go participant khoi ban" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="1000" width="200" height="62" as="geometry"/>
+        </mxCell>
+
+        <!-- Actor -> UC associations -->
+        <mxCell id="l1" style="endArrow=none;html=1;strokeColor=#333333;" edge="1" parent="1" source="ac_guest" target="uc01"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="l2" style="endArrow=none;html=1;strokeColor=#333333;" edge="1" parent="1" source="ac_guest" target="uc04"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="l3" value="scan khong can dang nhap" style="endArrow=none;html=1;strokeColor=#d79b00;fontSize=10;" edge="1" parent="1" source="ac_guest" target="uc02"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="l4" style="endArrow=none;html=1;strokeColor=#333333;" edge="1" parent="1" source="ac_user" target="uc02"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="l5" style="endArrow=none;html=1;strokeColor=#333333;" edge="1" parent="1" source="ac_user" target="uc03"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="l6" style="endArrow=none;html=1;strokeColor=#333333;" edge="1" parent="1" source="ac_user" target="uc05"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="l7" style="endArrow=none;html=1;strokeColor=#333333;" edge="1" parent="1" source="ac_user" target="uc13"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="l8" style="endArrow=none;html=1;strokeColor=#333333;" edge="1" parent="1" source="ac_user" target="uc08"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="l9" style="endArrow=none;html=1;strokeColor=#333333;" edge="1" parent="1" source="ac_user" target="uc09"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="l10" style="endArrow=none;html=1;strokeColor=#333333;" edge="1" parent="1" source="ac_user" target="uc12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="l11" style="endArrow=none;html=1;strokeColor=#333333;" edge="1" parent="1" source="ac_user" target="uc06"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="l12" style="endArrow=none;html=1;strokeColor=#333333;" edge="1" parent="1" source="ac_user" target="uc07"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="l13" style="endArrow=none;html=1;strokeColor=#333333;" edge="1" parent="1" source="ac_user" target="uc10"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="l14" style="endArrow=none;html=1;strokeColor=#333333;" edge="1" parent="1" source="ac_user" target="uc_remove"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="l15" value="KHONG can tai khoan" style="endArrow=none;html=1;strokeColor=#9673a6;fontSize=10;fontStyle=1;" edge="1" parent="1" source="ac_part" target="uc11"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="l16" style="endArrow=none;html=1;strokeColor=#333333;" edge="1" parent="1" source="ac_guest" target="uc07"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="l17" style="endArrow=none;html=1;strokeColor=#b85450;" edge="1" parent="1" source="ac_llm" target="uc_ocr"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="l18" style="endArrow=none;html=1;strokeColor=#b85450;" edge="1" parent="1" source="ac_llm" target="uc_parse"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="l19" style="endArrow=none;html=1;strokeColor=#b85450;" edge="1" parent="1" source="ac_llm" target="uc12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="l20" style="endArrow=none;html=1;strokeColor=#b85450;" edge="1" parent="1" source="ac_fx" target="uc07"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- include / extend -->
+        <mxCell id="i1" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="endArrow=open;dashed=1;html=1;fontSize=10;strokeColor=#666666;" edge="1" parent="1" source="uc02" target="uc_ocr"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="i2" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="endArrow=open;dashed=1;html=1;fontSize=10;strokeColor=#666666;" edge="1" parent="1" source="uc02" target="uc_parse"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="i3" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="endArrow=open;dashed=1;html=1;fontSize=10;strokeColor=#666666;" edge="1" parent="1" source="uc09" target="uc_verdict"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="i4" value="&amp;lt;&amp;lt;extend&amp;gt;&amp;gt;" style="endArrow=open;dashed=1;html=1;fontSize=10;strokeColor=#666666;" edge="1" parent="1" source="uc05" target="uc02"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="i5" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="endArrow=open;dashed=1;html=1;fontSize=10;strokeColor=#666666;" edge="1" parent="1" source="uc11" target="uc10"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="i6" value="&amp;lt;&amp;lt;extend&amp;gt;&amp;gt;&#10;preference cua ca ban" style="endArrow=open;dashed=1;html=1;fontSize=10;strokeColor=#9673a6;" edge="1" parent="1" source="uc10" target="uc_verdict"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="note" value="Guest scan duoc ma khong can dang nhap (get_optional_current_user), nhung KHONG co lich su scan.&#10;Participant tham gia phien an bang invite_token qua 2 endpoint /dining/public/* — khong can tai khoan.&#10;KHONG co tim kiem toan cuc: UC-13 chi loc mon ben trong mot menu." style="shape=note;whiteSpace=wrap;html=1;size=14;fontSize=11;align=left;spacingLeft=6;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="900" y="900" width="450" height="86" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
 </mxfile>

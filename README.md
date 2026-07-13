@@ -287,6 +287,10 @@ Open:
 | Database | `localhost:5432`               |
 | Redis    | `localhost:6379`               |
 
+> Redis is provisioned by Compose but **no application code uses it**. Rate
+> limiting runs as an atomic upsert into the Postgres `ai_throttle` table
+> (`app/src/core/rate_limit.py`), so Postgres is the only runtime datastore.
+
 ## Dev Commands
 
 `Makefile` is the canonical local task runner. The root `docker-compose.yml`

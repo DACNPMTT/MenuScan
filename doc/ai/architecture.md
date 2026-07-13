@@ -9,16 +9,35 @@
 
 ```text
 React/Vite -- HTTPS /api/v1 --> FastAPI modular monolith
-                                    |-- PostgreSQL 16   source of truth
-                                    |-- Redis           local dependency, future cache/coordination
-                                    |-- Object Storage  private source files (local or S3)
-                                    `-- OCR/AI          OCR, parser, translation pipeline
+                                    |-- PostgreSQL 16   source of truth (kể cả throttle)
+                                    |-- Object Storage  private source files (local hoặc S3/GCS)
+                                    |-- Google Vision   OCR provider
+                                    |-- Gemini          parser, translation, enrichment, chat
+                                    |-- SMTP/Email      magic link
+                                    `-- Exchange API    tỷ giá (cache trong tiến trình)
 ```
 
 Hiện repository có React/FastAPI app, PostgreSQL Compose, object-storage adapter,
 OCR provider wiring (`fake`, `google_vision`), parser wiring (`rule_based`,
-`gemini`) và scan pipeline chạy bằng FastAPI background task. Redis có container
-local nhưng chưa là dependency runtime của business flow.
+`gemini`) và scan pipeline chạy bằng FastAPI background task.
+
+**Redis không phải dependency runtime.** `docker-compose.yml` có container Redis
+nhưng **không dòng code nào dùng nó**. Anti-spam throttle chạy bằng một upsert
+atomic vào bảng `ai_throttle` trong Postgres (`src/core/rate_limit.py`), cùng cơ
+chế với cooldown magic-link. Đừng vẽ Redis vào sơ đồ như một thành phần đang hoạt
+động.
+
+**Không có Vector DB / RAG engine.** Không có dependency nào (`pgvector`,
+`qdrant`, `pinecone`…) và không có module nào truy vấn embedding. Gợi ý món được
+chấm bằng luật trên preference của participant, không phải retrieval.
+
+Background job duy nhất là `run_stale_scan_watchdog` (đăng ký trong lifespan tại
+`src/core/application.py`), dùng để `FAILED` các scan kẹt ở `PROCESSING`. Không có
+worker queue, không có Celery, không có job phân tích hành vi định kỳ.
+
+Gemini được cấu hình bằng **ba** config tách biệt — `llm` (scan/parser),
+`chat_llm` (advisor) và `enrich_llm` (enrichment) — để enrichment không tranh
+quota với scan trên cùng một API key.
 
 ## Frontend
 
@@ -76,7 +95,7 @@ Backend là modular layered monolith, không phải DDD/Clean Architecture:
 
 ```text
 HTTP -> router + schemas -> service -> repository -> models/PostgreSQL
-                              `------> adapters (Redis/storage/email/OCR)
+                              `------> adapters (storage/email/OCR/Gemini)
 ```
 
 | Layer | Trách nhiệm | Không được làm |
@@ -86,18 +105,25 @@ HTTP -> router + schemas -> service -> repository -> models/PostgreSQL
 | `service` | business workflow, authorization decision, transaction | phụ thuộc FastAPI Request/Response |
 | `repository` | named SQLAlchemy queries, add/flush | business workflow, HTTP/provider call, tự commit tùy ý |
 | `models` | table/relationship/constraint | import router/service, gọi provider |
-| `adapters` | Redis/storage/email/OCR client | chứa database workflow hoặc UI concern |
-| `core` | config, DB/session, security, logging | business logic của module cụ thể |
+| `adapters` | storage/email/OCR/Gemini client | chứa database workflow hoặc UI concern |
+| `core` | config, DB/session, security, logging, rate limit | business logic của module cụ thể |
 
 ### Module ownership
 
+Bảy module, wire trong `src/router.py` dưới prefix `/api/v1`:
+
 | Module | Trách nhiệm | Tables |
 | --- | --- | --- |
-| `identity` | user, Magic Link, refresh session | `users`, `magic_link_tokens`, `user_sessions` |
-| `menu_scan` | upload, scan lifecycle, OCR orchestration | `scan_sessions`, `ocr_results` |
-| `menu` | structured menu, food item, save state | `menus`, `food_items` |
+| `identity` | user, Magic Link, mật khẩu, refresh session, food profile | `users`, `magic_link_tokens`, `user_sessions`, `food_profiles`, `food_profile_preferences` |
+| `menu_scan` | upload, scan lifecycle, OCR orchestration, watchdog | `scan_sessions`, `scan_source_files`, `ocr_results` |
+| `menu` | structured menu, food item, save state, enrichment | `menus`, `food_items` |
 | `billing` | bill lifecycle, items, adjustments, split | `bills`, `bill_items`, `bill_adjustments` |
+| `dining` | phiên ăn nhóm, invite, participant, recommendation | `dining_sessions`, `dining_session_invites`, `dining_session_participants`, `dining_session_participant_preferences`, `food_item_recommendations`, `food_item_recommendation_participant_breakdowns` |
+| `advisor` | chat hỏi đáp về menu (grounding, không lưu lịch sử) | không có table riêng |
 | `exchange` | exchange rate proxy, in-process cache | không có table riêng |
+
+`ai_throttle` thuộc `core` (`src/core/rate_limit.py`), không thuộc module nghiệp
+vụ nào.
 
 ### Module shape and dependencies
 
@@ -153,5 +179,6 @@ React polls status -> authorized source/result
 ```
 
 Upload và processing là hai pha; terminal state không quay lui. PostgreSQL là
-source of truth, Redis failure không được làm mất business data. Đổi API payload
-phải cập nhật backend schema, frontend type, test và docs trong cùng task.
+source of truth duy nhất — không có cache tầng ngoài nào được phép giữ business
+data. Đổi API payload phải cập nhật backend schema, frontend type, test và docs
+trong cùng task.

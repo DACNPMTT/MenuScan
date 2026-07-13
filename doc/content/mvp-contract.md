@@ -171,6 +171,7 @@ hỏng toàn bộ kết quả.
 | `GET` | `/api/v1/menus/{menu_id}/items` | Liệt kê món (có tìm kiếm/lọc/phân trang). |
 | `PATCH` | `/api/v1/menus/{menu_id}` | Xác nhận hoặc bỏ trạng thái lưu menu. |
 | `POST` | `/api/v1/menus/{menu_id}/confirm` | Xác nhận bản review cuối của menu. |
+| `POST` | `/api/v1/menus/{menu_id}/enrich` | Lượt LLM thứ hai: food tag, mức vị, verdict gợi ý. |
 | `POST` | `/api/v1/menus/{menu_id}/items` | Thêm món thủ công. |
 | `PATCH` | `/api/v1/menus/{menu_id}/items/{item_id}` | Sửa món. |
 | `DELETE` | `/api/v1/menus/{menu_id}/items/{item_id}` | Xóa món. |
@@ -181,7 +182,9 @@ hỏng toàn bộ kết quả.
 | Method | Endpoint | Mục đích |
 | --- | --- | --- |
 | `POST` | `/api/v1/bills` | Tạo bill nháp (DRAFT) gắn với một menu. |
+| `GET` | `/api/v1/bills` | Lịch sử bill của user, mới nhất trước (bản rút gọn). |
 | `GET` | `/api/v1/bills/{bill_id}` | Lấy chi tiết bill. |
+| `DELETE` | `/api/v1/bills/{bill_id}` | Xóa bill của chính mình. |
 | `PATCH` | `/api/v1/bills/{bill_id}/items` | Thay thế danh sách món trên bill theo trạng thái mong muốn. |
 | `POST` | `/api/v1/bills/{bill_id}/adjustments` | Thêm phí/thuế/giảm giá. |
 | `PATCH` | `/api/v1/bills/{bill_id}/adjustments/{adjustment_id}` | Sửa một khoản điều chỉnh. |
@@ -192,7 +195,42 @@ hỏng toàn bộ kết quả.
 Tiền được truyền bằng chuỗi decimal. Chia bill: mỗi phần được floor và phần dư
 được phân bổ cho những người đầu tiên nên tổng các phần bằng đúng `total_amount`.
 
-### 6.5 Tỷ giá / đổi tiền tệ
+### 6.5 Dining session endpoints
+
+| Method | Endpoint | Mục đích |
+| --- | --- | --- |
+| `POST` | `/api/v1/dining/sessions` | Tạo phiên ăn kèm invite token. |
+| `GET` | `/api/v1/dining/sessions` | Liệt kê phiên do user tạo. |
+| `GET` | `/api/v1/dining/sessions/{session_id}` | Chi tiết phiên + participant + preference. |
+| `DELETE` | `/api/v1/dining/sessions/{session_id}` | Soft-delete phiên. |
+| `DELETE` | `/api/v1/dining/sessions/{session_id}/participants/{participant_id}` | Host gỡ một người khỏi bàn. |
+| `GET` | `/api/v1/dining/public/sessions?invite_token=<T>` | **Không cần auth.** Xem nhanh phiên trước khi tham gia. |
+| `POST` | `/api/v1/dining/public/sessions/join?invite_token=<T>` | **Không cần auth.** Tham gia phiên và khai khẩu vị. |
+
+Dining session là cách cá nhân hóa gợi ý cho **cả bàn ăn**: host tạo phiên, chia
+link mời, từng người khai khẩu vị/dị ứng. Verdict được chấm trên tập preference
+của tất cả participant và ghi vào `food_item_recommendations`.
+
+Hai endpoint `public/*` cố tình **không yêu cầu đăng nhập** — khách được mời chỉ
+cần `invite_token`, không phải tạo tài khoản. `invite_token` chỉ trả về đúng một
+lần lúc tạo phiên; database chỉ lưu hash.
+
+Trạng thái phiên: `COLLECTING` → `SCANNING` → `COMPLETED` / `CLOSED`.
+
+### 6.6 Advisor endpoint
+
+| Method | Endpoint | Mục đích |
+| --- | --- | --- |
+| `POST` | `/api/v1/advisor/chat` | Hỏi đáp về một menu đã scan. |
+
+Auth bắt buộc, có throttle. Câu trả lời được grounding trên danh sách món của
+menu đó cộng hồ sơ ăn uống của user. Lịch sử hội thoại do **client giữ** và gửi
+kèm mỗi lượt — server **không lưu** tin nhắn nào.
+
+Throttle tính trước khi gọi provider; nếu provider lỗi thì cooldown được hoàn
+lại, user không bị phạt cho lượt chưa dùng được.
+
+### 6.7 Tỷ giá / đổi tiền tệ
 
 | Method | Endpoint | Mục đích |
 | --- | --- | --- |
@@ -202,7 +240,7 @@ Backend proxy nhà cung cấp tỷ giá bên ngoài và cache trong tiến trìn
 Việc quy đổi là **chỉ để hiển thị** ở client; dữ liệu giá gốc trong DB không đổi.
 Khi tỷ giá không lấy được, client hiển thị lại theo tiền gốc.
 
-### 6.6 State machine
+### 6.8 State machine
 
 ```text
 PENDING -> PROCESSING -> COMPLETED
