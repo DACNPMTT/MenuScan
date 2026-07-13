@@ -4,7 +4,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 
-DEFAULT_DATABASE_URL = "postgresql://menuscan:localdev@localhost:55432/menuscan"
+DEFAULT_DATABASE_URL = "postgresql://menuscan:localdev@localhost:5432/menuscan"
 DEFAULT_MAGIC_LINK_BASE_URL = "http://localhost:5173"
 DEFAULT_CORS_ORIGINS = (
     "http://localhost:5173",
