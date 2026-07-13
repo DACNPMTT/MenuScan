@@ -6,6 +6,7 @@ Synchronous to match the existing SQLAlchemy ``Session`` layer.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import logging
 import secrets
 import uuid
@@ -571,7 +572,7 @@ class MagicLinkService:
             raise SessionRevokedError()
 
         incoming_hash = hash_token(raw_token_secret)
-        if incoming_hash != user_session.refresh_token_hash:
+        if not hmac.compare_digest(incoming_hash, user_session.refresh_token_hash):
             # REPLAY ATTACK: Revoke entire session chain
             logger.warning(
                 "refresh_token_reuse_detected session_id=%s",

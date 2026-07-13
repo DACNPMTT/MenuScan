@@ -60,7 +60,9 @@ export class ApiError extends Error {
 
 /**
  * Fetch wrapper for endpoints under API_V1_PREFIX. The backend answers with
- * the `{ success, data } | { success, error }` envelope.
+ * the `{ success, data } | { success, error }` envelope. Used for
+ * unauthenticated requests (e.g. requesting a magic link); authenticated calls
+ * use `apiRequest`, which attaches the bearer token and auto-refreshes.
  */
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE}${PREFIX}${path}`, {

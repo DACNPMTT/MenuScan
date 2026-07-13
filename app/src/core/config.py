@@ -4,7 +4,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 
-DEFAULT_DATABASE_URL = "postgresql://menuscan:localdev@localhost:54320/menuscan"
+DEFAULT_DATABASE_URL = "postgresql://menuscan:localdev@localhost:55432/menuscan"
 DEFAULT_MAGIC_LINK_BASE_URL = "http://localhost:5173"
 DEFAULT_CORS_ORIGINS = (
     "http://localhost:5173",
@@ -269,6 +269,18 @@ class Settings:
     @classmethod
     def from_environment(cls) -> "Settings":
 
+        app_env = os.getenv("APP_ENV", "development")
+        secret_key = _env_or_default("SECRET_KEY", DEFAULT_SECRET_KEY)
+        # Startup fail-fast: refuse to boot a non-dev/test deployment that is
+        # still signing JWTs with the public default secret. Same philosophy as
+        # the CORS/storage/email/LLM checks below — better to refuse than to
+        # silently ship a forgeable-token deployment.
+        if app_env not in {"development", "test"} and secret_key == DEFAULT_SECRET_KEY:
+            raise ValueError(
+                "SECRET_KEY must be set to a non-default value when "
+                f"APP_ENV={app_env!r} (the built-in default is public and "
+                "insecure)"
+            )
 
         raw_origins = os.getenv("CORS_ORIGINS")
         cors_origins = (
@@ -377,7 +389,7 @@ class Settings:
             magic_link_base_url=os.getenv(
                 "MAGIC_LINK_BASE_URL", DEFAULT_MAGIC_LINK_BASE_URL
             ).rstrip("/"),
-            app_env=os.getenv("APP_ENV", "development"),
+            app_env=app_env,
             log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
             api_v1_prefix=api_v1_prefix,
             cors_origins=cors_origins,
@@ -387,7 +399,7 @@ class Settings:
             chat_llm=chat_llm,
             enrich_llm=enrich_llm,
             ocr=ocr,
-            secret_key=_env_or_default("SECRET_KEY", DEFAULT_SECRET_KEY),
+            secret_key=secret_key,
             scan_stale_timeout_minutes=_load_scan_stale_timeout_minutes(),
             exchange_rate_api_base_url=os.getenv(
                 "EXCHANGE_RATE_API_BASE_URL", DEFAULT_EXCHANGE_RATE_API_BASE_URL

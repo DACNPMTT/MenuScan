@@ -1,11 +1,12 @@
-// Personalized dish ranking. Reuses `assessDish` for the risk signal and layers
-// a positive favorites / negative dislikes signal on top, so dishes that fit the
-// diner float to the top and risky dishes sink. Pure and side-effect free.
+// Personalized dish ranking. Uses `assessDish` for the allergy/diet risk signal
+// so risky dishes sink and the rest keep their menu order. Pure and side-effect
+// free.
 //
-// Note: `favorites`/`dislikes` on the profile are optional and empty until the
-// profile UI ships. Until then ranking still works off the risk signal alone
-// (risky dishes sink), and the "recommended" flag simply stays off — no
-// fabricated recommendations.
+// Taste personalization (favorites / dislikes such as "spicy", "noodles") is
+// intentionally NOT done here: a dish's `dietary_tags` only carry the shared
+// allergen/diet vocabulary, not taste tags, so client-side taste matching can't
+// fire. Authoritative taste ranking is server-side via the advisor verdicts —
+// see `rankByVerdict` below and the backend `_matches_preference`.
 import {
   assessDish,
   hasRisk,
@@ -15,14 +16,10 @@ import {
 } from '@/features/menu-scan/dietary'
 
 const RISK_PENALTY = 1000
-const FAVORITE_BONUS = 10
-const DISLIKE_PENALTY = 10
 
 export interface DishScore {
   /** Higher means a better fit. Risky dishes take a large negative penalty. */
   score: number
-  /** True when the dish positively matches a taste preference and has no risk. */
-  recommended: boolean
 }
 
 /** True when the profile carries any signal worth ranking by. With an empty
@@ -30,39 +27,26 @@ export interface DishScore {
 export function isProfileActive(profile: DietProfile): boolean {
   return (
     (profile.allergies?.length ?? 0) > 0 ||
-    (profile.dietary_preferences?.length ?? 0) > 0 ||
-    (profile.favorites?.length ?? 0) > 0 ||
-    (profile.dislikes?.length ?? 0) > 0
+    (profile.dietary_preferences?.length ?? 0) > 0
   )
 }
 
 /** Score a single dish against the diner's profile. */
 export function scoreDish(item: DishDietary, profile: DietProfile): DishScore {
   const risky = hasRisk(assessDish(item, profile))
-  const tags = new Set(item.dietary_tags ?? [])
-  const favorites = (profile.favorites ?? []).filter((code) => tags.has(code)).length
-  const dislikes = (profile.dislikes ?? []).filter((code) => tags.has(code)).length
-
-  const score =
-    (risky ? -RISK_PENALTY : 0) +
-    favorites * FAVORITE_BONUS -
-    dislikes * DISLIKE_PENALTY
-
-  return { score, recommended: !risky && favorites > 0 }
+  return { score: risky ? -RISK_PENALTY : 0 }
 }
 
 /** A single at-a-glance verdict for a dish. `neutral` means nothing worth
  * flagging (no verdict banner shown). */
 export type Verdict = 'good' | 'caution' | 'avoid' | 'neutral'
 
-/** Summarize a dish into one verdict from its risk + recommendation. Allergen
- * risk always wins (safety first), then diet mismatch, then a positive taste
- * match. This is the rule-based fallback; the LLM advisor can supply a richer
- * reason alongside the same verdict later. */
-export function dishVerdict(risk: DishRisk, recommended: boolean): Verdict {
+/** Summarize a dish's risk into one verdict. Allergen risk always wins (safety
+ * first), then diet mismatch. This is the rule-based fallback; the LLM advisor
+ * can supply a richer verdict via `rankByVerdict`. */
+export function dishVerdict(risk: DishRisk): Verdict {
   if (risk.allergens.length > 0) return 'avoid'
   if (risk.dietFlags.length > 0) return 'caution'
-  if (recommended) return 'good'
   return 'neutral'
 }
 
@@ -94,6 +78,14 @@ export function hasVerdicts(items: Recommended[]): boolean {
   return items.some((item) => item.recommendation != null)
 }
 
+/** Tier index for a verdict; an unknown/missing verdict sinks to the bottom
+ * instead of sorting above RECOMMENDED (which a raw indexOf of -1 would do). */
+function verdictTier(verdict: VerdictLevel | undefined): number {
+  if (verdict === undefined) return VERDICT_LEVELS.length
+  const tier = VERDICT_LEVELS.indexOf(verdict)
+  return tier === -1 ? VERDICT_LEVELS.length : tier
+}
+
 /** Order dishes by the advice: recommended first, avoid last, score breaking ties.
  *
  * Dishes with no verdict sink below the ones that have one — not because they are
@@ -105,9 +97,7 @@ export function rankByVerdict<T extends Recommended>(items: T[]): T[] {
     .map((item, index) => ({
       item,
       index,
-      tier: item.recommendation
-        ? VERDICT_LEVELS.indexOf(item.recommendation.verdict)
-        : VERDICT_LEVELS.length,
+      tier: verdictTier(item.recommendation?.verdict),
       score: item.recommendation?.score ?? 0,
     }))
     .sort((a, b) => a.tier - b.tier || b.score - a.score || a.index - b.index)

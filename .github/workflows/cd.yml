@@ -63,6 +63,7 @@ jobs:
             --set-cloudsql-instances ${{ env.CLOUDSQL_INSTANCE }} \
             --set-env-vars "DATABASE_URL=${{ secrets.DEV_DATABASE_URL }}" \
             --set-env-vars "APP_ENV=production" \
+            --set-env-vars "SECRET_KEY=${{ secrets.DEV_SECRET_KEY }}" \
             --command "uv" \
             --args "run,python,-m,alembic,upgrade,head" \
             --max-retries 1 \
