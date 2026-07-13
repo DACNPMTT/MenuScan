@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from collections.abc import Callable
 from datetime import datetime, timezone
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.modules.dining.models import DiningSession
+from src.modules.dining.presenters import load_recommendation_view
+from src.modules.dining.service import DiningSessionService
 from src.modules.menu.exceptions import (
     MenuForbiddenError,
     MenuItemNotFoundError,
@@ -15,21 +20,31 @@ from src.modules.menu.models import FoodItem, Menu, MenuStatus
 from src.modules.menu.repository import MenuRepository
 from src.modules.menu.schemas import (
     CreateMenuItemRequest,
+    EnrichmentStatus,
     ListMenuItemsQuery,
     MenuDetailResponse,
+    MenuEnrichResponse,
     MenuItemResponse,
     MenuSourceResponse,
     MenuSummaryResponse,
     UpdateMenuItemRequest,
 )
-from src.modules.menu_scan.schemas import (
-    ParticipantBreakdownResponse,
-    RecommendationResponse,
+from src.modules.menu_scan.food_enricher import (
+    DishInput,
+    FoodEnricher,
+    NullFoodEnricher,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _needs_enrichment(item: FoodItem) -> bool:
+    """A dish with no summary and no ingredient tags was never enriched."""
+    return not (item.assistant_summary or item.ingredient_tags or item.main_ingredients)
 
 
 class MenuService:
@@ -39,10 +54,12 @@ class MenuService:
         session: Session,
         repository: MenuRepository,
         clock: Callable[[], datetime] | None = None,
+        enricher: FoodEnricher | None = None,
     ) -> None:
         self._session = session
         self._repository = repository
         self._clock = clock or _utcnow
+        self._enricher = enricher or NullFoodEnricher()
 
     def update_saved_state(
         self,
@@ -99,6 +116,171 @@ class MenuService:
         total = self._repository.count_for_user(self._session, user_id=user_id)
         return [_menu_summary_data(menu, item_count) for menu, item_count in rows], total
 
+    def enrich_menu(
+        self,
+        *,
+        menu_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> MenuEnrichResponse:
+        """The second LLM pass: tag the dishes, then score the verdicts.
+
+        Deliberately off the scan path — scanning must stay fast, and nobody needs
+        taste tags until they are actually standing in front of the menu deciding
+        what to order.
+
+        Idempotent: dishes that already carry tags are skipped, so re-opening a
+        menu costs nothing. Never raises at the caller: a dead enricher costs tags,
+        never the menu, because the dishes, prices and allergens all came from
+        extraction and are already on screen.
+        """
+        menu = self._get_owned_menu(menu_id=menu_id, user_id=user_id)
+        total = len(menu.food_items)
+
+        pending = [item for item in menu.food_items if _needs_enrichment(item)]
+        if not pending:
+            return self._enrich_response(
+                menu=menu,
+                user_id=user_id,
+                status=EnrichmentStatus.ALREADY_ENRICHED,
+                total=total,
+                pending=0,
+                enriched=0,
+                recommendations_written=0,
+            )
+
+        dishes = [
+            DishInput(
+                key=str(item.id),
+                name=item.translated_name or item.original_name,
+                description=(
+                    item.translated_description or item.original_description or ""
+                ),
+                category=item.category or "",
+            )
+            for item in pending
+        ]
+
+        try:
+            enrichment = self._enricher.enrich_dishes(
+                dishes,
+                target_language=menu.target_language or "en",
+            )
+        except Exception:
+            logger.warning(
+                "menu_enrich_failed menu_id=%s — serving the menu untagged",
+                menu_id,
+                exc_info=True,
+            )
+            enrichment = {}
+
+        enriched_count = 0
+        for item in pending:
+            update = enrichment.get(str(item.id))
+            if not update:
+                continue
+            for field, value in update.items():
+                setattr(item, field, value)
+            enriched_count += 1
+
+        recommendations_written = 0
+        if enriched_count:
+            self._session.flush()
+            recommendations_written = self._rescore_verdicts(menu)
+            self._session.commit()
+
+        failed = len(pending) - enriched_count
+        if enriched_count == 0:
+            status = EnrichmentStatus.UNAVAILABLE
+        elif failed:
+            status = EnrichmentStatus.PARTIAL
+        else:
+            status = EnrichmentStatus.COMPLETED
+
+        logger.info(
+            "menu_enrich_done menu_id=%s status=%s enriched=%d/%d verdicts=%d",
+            menu_id,
+            status.value,
+            enriched_count,
+            len(pending),
+            recommendations_written,
+        )
+        return self._enrich_response(
+            menu=menu,
+            user_id=user_id,
+            status=status,
+            total=total,
+            pending=len(pending),
+            enriched=enriched_count,
+            recommendations_written=recommendations_written,
+        )
+
+    def _rescore_verdicts(self, menu: Menu) -> int:
+        """Rewrite this menu's group verdicts now that the dishes carry tags.
+
+        Only for a real (host-created) dining session: a personal menu is scored
+        live from the diner's current profile and persists nothing.
+        """
+        dining_session = self._session.scalars(
+            select(DiningSession).where(
+                DiningSession.menu_id == menu.id,
+                DiningSession.deleted_at.is_(None),
+            )
+        ).first()
+        if dining_session is None:
+            return 0
+
+        # Guard the whole point of this rework: a verdict is scored FROM the tags,
+        # so scoring a menu whose enrichment produced nothing would just re-create
+        # the "100/100 recommended" advice we are here to delete.
+        if not any(not _needs_enrichment(item) for item in menu.food_items):
+            return 0
+
+        return DiningSessionService(session=self._session).generate_recommendations(
+            dining_session=dining_session,
+            food_items=list(menu.food_items),
+        )
+
+    def _enrich_response(
+        self,
+        *,
+        menu: Menu,
+        user_id: uuid.UUID,
+        status: EnrichmentStatus,
+        total: int,
+        pending: int,
+        enriched: int,
+        recommendations_written: int,
+    ) -> MenuEnrichResponse:
+        return MenuEnrichResponse(
+            status=status,
+            total_items=total,
+            pending_items=pending,
+            enriched_items=enriched,
+            failed_items=pending - enriched,
+            recommendations_written=recommendations_written,
+            menu=self._menu_detail_with_recommendations(menu, user_id=user_id),
+        )
+
+    def _menu_detail_with_recommendations(
+        self,
+        menu: Menu,
+        *,
+        user_id: uuid.UUID | None,
+    ) -> MenuDetailResponse:
+        view = load_recommendation_view(
+            self._session,
+            menu_id=menu.id,
+            user_id=user_id,
+        )
+        detail = _menu_detail_data(menu)
+        detail.items = [
+            MenuItemResponse.model_validate(item).model_copy(
+                update={"recommendation": view.for_item(item)}
+            )
+            for item in sorted(menu.food_items, key=lambda item: item.sort_order)
+        ]
+        return detail
+
     def get_menu(
         self,
         *,
@@ -106,70 +288,24 @@ class MenuService:
         user_id: uuid.UUID,
     ) -> MenuDetailResponse:
         menu = self._get_owned_menu(menu_id=menu_id, user_id=user_id)
+        return self._menu_detail_with_recommendations(menu, user_id=user_id)
 
-        from src.modules.dining.models import DiningSession, FoodItemRecommendation
-        from src.modules.dining.service import DiningSessionService
-        from src.modules.identity.models import FoodProfile
+    def get_menu_for_grounding(
+        self,
+        *,
+        menu_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> Menu:
+        """Ownership-checked menu load for the chat assistant.
 
-        dining_session = None
-        if hasattr(self._session, "query"):
-            dining_session = (
-                self._session.query(DiningSession)
-                .filter(DiningSession.menu_id == menu_id)
-                .first()
-            )
-
-        rec_by_food_id = {}
-        default_profile = None
-
-        if dining_session is not None:
-            recs = (
-                self._session.query(FoodItemRecommendation)
-                .filter(FoodItemRecommendation.dining_session_id == dining_session.id)
-                .all()
-            )
-            rec_by_food_id = {r.food_item_id: r for r in recs}
-        else:
-            if hasattr(self._session, "query"):
-                default_profile = (
-                    self._session.query(FoodProfile)
-                    .filter(
-                        FoodProfile.user_id == user_id,
-                        FoodProfile.is_default,
-                        FoodProfile.deleted_at.is_(None),
-                    )
-                    .first()
-                )
-
-        items_response = []
-        for item in sorted(menu.food_items, key=lambda item: item.sort_order):
-            rec_data = None
-            if dining_session is not None:
-                r = rec_by_food_id.get(item.id)
-                if r is not None:
-                    rec_data = _recommendation_response(r)
-            elif default_profile is not None:
-                verdict, score, fit, risk = DiningSessionService._score_item_for_diner(
-                    item, default_profile.preferences
-                )
-                display_name = default_profile.display_name or "Bạn"
-                rec_data = _personal_recommendation_response(
-                    display_name=display_name,
-                    verdict=verdict.value,
-                    score=score,
-                    fit=fit,
-                    risk=risk,
-                )
-
-            items_response.append(
-                MenuItemResponse.model_validate(item).model_copy(
-                    update={"recommendation": rec_data}
-                )
-            )
-
-        detail = _menu_detail_data(menu)
-        detail.items = items_response
-        return detail
+        The chat only needs the dishes. It used to call ``get_menu``, which also
+        resolved every verdict — a dining-session lookup, a recommendation query,
+        a lazy walk of each recommendation's breakdowns and each breakdown's
+        participant, and two Pydantic passes over every dish — and then threw all
+        of it away. On a 40-dish menu that was well over a hundred queries, per
+        chat message.
+        """
+        return self._get_owned_menu(menu_id=menu_id, user_id=user_id)
 
     def list_menu_items(
         self,
@@ -197,66 +333,17 @@ class MenuService:
             max_price=query.max_price,
         )
 
-        from src.modules.dining.models import DiningSession, FoodItemRecommendation
-        from src.modules.dining.service import DiningSessionService
-        from src.modules.identity.models import FoodProfile
-
-        dining_session = None
-        if hasattr(self._session, "query"):
-            dining_session = (
-                self._session.query(DiningSession)
-                .filter(DiningSession.menu_id == menu_id)
-                .first()
+        view = load_recommendation_view(
+            self._session,
+            menu_id=menu_id,
+            user_id=user_id,
+        )
+        items_response = [
+            MenuItemResponse.model_validate(item).model_copy(
+                update={"recommendation": view.for_item(item)}
             )
-
-        rec_by_food_id = {}
-        default_profile = None
-
-        if dining_session is not None:
-            recs = (
-                self._session.query(FoodItemRecommendation)
-                .filter(FoodItemRecommendation.dining_session_id == dining_session.id)
-                .all()
-            )
-            rec_by_food_id = {r.food_item_id: r for r in recs}
-        else:
-            if hasattr(self._session, "query"):
-                default_profile = (
-                    self._session.query(FoodProfile)
-                    .filter(
-                        FoodProfile.user_id == user_id,
-                        FoodProfile.is_default,
-                        FoodProfile.deleted_at.is_(None),
-                    )
-                    .first()
-                )
-
-        items_response = []
-        for item in items:
-            rec_data = None
-            if dining_session is not None:
-                r = rec_by_food_id.get(item.id)
-                if r is not None:
-                    rec_data = _recommendation_response(r)
-            elif default_profile is not None:
-                verdict, score, fit, risk = DiningSessionService._score_item_for_diner(
-                    item, default_profile.preferences
-                )
-                display_name = default_profile.display_name or "Bạn"
-                rec_data = _personal_recommendation_response(
-                    display_name=display_name,
-                    verdict=verdict.value,
-                    score=score,
-                    fit=fit,
-                    risk=risk,
-                )
-
-            items_response.append(
-                MenuItemResponse.model_validate(item).model_copy(
-                    update={"recommendation": rec_data}
-                )
-            )
-
+            for item in items
+        ]
         return items_response, total
 
     def delete_menu(
@@ -368,65 +455,6 @@ def _find_menu_item(menu: Menu, item_id: uuid.UUID) -> FoodItem:
         if item.id == item_id:
             return item
     raise MenuItemNotFoundError()
-
-
-def _recommendation_response(recommendation: object) -> RecommendationResponse:
-    breakdowns = [
-        ParticipantBreakdownResponse(
-            display_name=getattr(breakdown.participant, "display_name", "Thành viên"),
-            verdict=breakdown.verdict.value,
-            score=float(breakdown.score) if breakdown.score is not None else None,
-            explanation=breakdown.explanation,
-            fit_reasons=breakdown.fit_reasons or [],
-            risk_reasons=breakdown.risk_reasons or [],
-        )
-        for breakdown in getattr(recommendation, "participant_breakdowns", []) or []
-    ]
-    return RecommendationResponse(
-        verdict=recommendation.verdict.value,
-        score=float(recommendation.score) if recommendation.score is not None else None,
-        explanation=recommendation.explanation,
-        why_suitable=recommendation.why_suitable,
-        why_not_suitable=recommendation.why_not_suitable,
-        suggested_for=recommendation.suggested_for or [],
-        warning_for=recommendation.warning_for or [],
-        fit_reasons=recommendation.fit_reasons or [],
-        risk_reasons=recommendation.risk_reasons or [],
-        warning_reasons=recommendation.warning_reasons or [],
-        participant_breakdowns=breakdowns,
-    )
-
-
-def _personal_recommendation_response(
-    *,
-    display_name: str,
-    verdict: str,
-    score: float,
-    fit: list[str],
-    risk: list[str],
-) -> RecommendationResponse:
-    return RecommendationResponse(
-        verdict=verdict,
-        score=score,
-        explanation=f"Độ phù hợp cá nhân {score:.0f}/100.",
-        why_suitable=", ".join(fit) if fit else None,
-        why_not_suitable=", ".join(risk) if risk else None,
-        suggested_for=[display_name] if verdict == "RECOMMENDED" else [],
-        warning_for=[display_name] if verdict == "AVOID" else [],
-        fit_reasons=fit,
-        risk_reasons=risk,
-        warning_reasons=risk if verdict in {"AVOID", "CAUTION"} else [],
-        participant_breakdowns=[
-            ParticipantBreakdownResponse(
-                display_name=display_name,
-                verdict=verdict,
-                score=score,
-                explanation=f"Độ phù hợp cá nhân {score:.0f}/100.",
-                fit_reasons=fit,
-                risk_reasons=risk,
-            )
-        ],
-    )
 
 
 def _menu_source_data(menu: Menu) -> MenuSourceResponse:

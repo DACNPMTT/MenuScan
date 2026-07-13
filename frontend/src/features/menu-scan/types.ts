@@ -180,6 +180,28 @@ export interface MenuDetail extends MenuSummary {
   items: MenuItemResult[]
 }
 
+/** Outcome of the second LLM pass (`POST /api/v1/menus/{id}/enrich`). */
+export type EnrichmentStatus =
+  | 'ALREADY_ENRICHED'
+  | 'COMPLETED'
+  | 'PARTIAL'
+  | 'UNAVAILABLE'
+
+/**
+ * The counts are load-bearing, not decoration: without them the client cannot
+ * tell "already done" from "the LLM died", and a broken enrichment looks exactly
+ * like a successful one — which is how one stayed invisible for a whole release.
+ */
+export interface MenuEnrichResult {
+  status: EnrichmentStatus
+  total_items: number
+  pending_items: number
+  enriched_items: number
+  failed_items: number
+  recommendations_written: number
+  menu: MenuDetail
+}
+
 /** `GET /api/v1/scans/{id}/result` body (`data` envelope). */
 export interface ScanResult {
   scan: {

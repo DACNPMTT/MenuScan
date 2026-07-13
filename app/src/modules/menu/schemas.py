@@ -3,11 +3,12 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from src.modules.dining.schemas import RecommendationResponse
 from src.modules.menu.models import MenuStatus
-from src.modules.menu_scan.schemas import RecommendationResponse
 
 
 class UpdateMenuRequest(BaseModel):
@@ -160,3 +161,28 @@ class MenuDetailResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     confirmed_at: datetime | None
+
+
+class EnrichmentStatus(StrEnum):
+    ALREADY_ENRICHED = "ALREADY_ENRICHED"  # nothing to do — re-opening is free
+    COMPLETED = "COMPLETED"  # every pending dish got its tags
+    PARTIAL = "PARTIAL"  # some dishes came back untagged
+    UNAVAILABLE = "UNAVAILABLE"  # the enricher gave us nothing at all
+
+
+class MenuEnrichResponse(BaseModel):
+    """Outcome of the second LLM pass, alongside the menu it produced.
+
+    The counts are not decoration: without them the client cannot tell "already
+    done" from "the LLM died", and a failed enrichment looks exactly like a
+    successful one — which is how a broken enrichment stayed invisible for a
+    whole release.
+    """
+
+    status: EnrichmentStatus
+    total_items: int
+    pending_items: int
+    enriched_items: int
+    failed_items: int
+    recommendations_written: int
+    menu: MenuDetailResponse

@@ -18,7 +18,11 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     )
   }
   if (!user) {
-    return <Navigate to="/auth/login" replace state={{ from: location.pathname }} />
+    // Carry the whole location, not just the path. It holds the router state the
+    // page was navigated with — e.g. the "start the enrichment pass" flag set by
+    // the scan result's primary button. Reducing it to a string dropped that flag,
+    // so a guest who signed in at that exact prompt silently never got enriched.
+    return <Navigate to="/auth/login" replace state={{ from: location }} />
   }
   return <>{children}</>
 }

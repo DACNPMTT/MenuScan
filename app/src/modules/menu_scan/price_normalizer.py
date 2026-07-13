@@ -5,20 +5,27 @@ from decimal import Decimal, InvalidOperation
 
 PriceResult = tuple[str, str | None]
 
+# Amount fragment shared by every price pattern. Two alternatives, longest first
+# so grouped-thousands wins over the plain-decimal reading:
+#   1) grouped thousands: 1-3 leading digits then one or more ".ddd"/",ddd"
+#      groups -> "45.000", "1.250.000", "2,500,000"
+#   2) plain number, optional single decimal group -> "12.50", "45000", "20"
+_AMOUNT = r"\d{1,3}(?:[.,]\d{3})+|\d+(?:[.,]\d+)?"
+
 _CURRENCY_SUFFIX_RE = re.compile(
-    r"^(?P<amount>\d+(?:[.,]\d+)?)\s*(?P<currency>USD|EUR|VND)$",
+    rf"^(?P<amount>{_AMOUNT})\s*(?P<currency>USD|EUR|VND)$",
     re.IGNORECASE,
 )
-_DONG_SUFFIX_RE = re.compile(r"^(?P<amount>\d+(?:[.,]\d+)?)\s*(?:d|đ)$", re.IGNORECASE)
-_K_SUFFIX_RE = re.compile(r"^(?P<amount>\d+(?:[.,]\d+)?)\s*k$", re.IGNORECASE)
-_DOLLAR_PREFIX_RE = re.compile(r"^\$\s*(?P<amount>\d+(?:[.,]\d+)?)$")
+_DONG_SUFFIX_RE = re.compile(rf"^(?P<amount>{_AMOUNT})\s*(?:d|đ)$", re.IGNORECASE)
+_K_SUFFIX_RE = re.compile(rf"^(?P<amount>{_AMOUNT})\s*k$", re.IGNORECASE)
+_DOLLAR_PREFIX_RE = re.compile(rf"^\$\s*(?P<amount>{_AMOUNT})$")
 _BARE_INT_RE = re.compile(r"^\d{4,}$")
 
 _PRICE_AT_END_RE = re.compile(
     r"(?P<price>"
-    r"\$\s*\d+(?:[.,]\d+)?"
+    rf"\$\s*(?:{_AMOUNT})"
     r"|"
-    r"\d+(?:[.,]\d+)?\s*(?:USD|EUR|VND|d|đ|k)"
+    rf"(?:{_AMOUNT})\s*(?:USD|EUR|VND|d|đ|k)"
     r"|"
     r"\d{4,}"
     r")\s*$",
@@ -81,7 +88,10 @@ def _clean_price_token(text: str) -> str:
 def _format_thousands_amount(amount_text: str, currency: str) -> PriceResult | None:
     if re.search(r"[.,]", amount_text):
         parts = re.split(r"[.,]", amount_text)
-        if len(parts) != 2 or len(parts[1]) != 3:
+        # Grouped thousands only: 1-3 leading digits, then every following group
+        # exactly 3 digits ("45.000", "1.250.000"). Anything else (a genuine
+        # decimal such as "45.50") is not a confident VND amount -> reject.
+        if not (1 <= len(parts[0]) <= 3) or not all(len(p) == 3 for p in parts[1:]):
             return None
         normalized = "".join(parts)
     else:

@@ -31,7 +31,6 @@ import { cn } from '@/shared/lib/cn'
 interface SimpleDiningSession {
   id: string
   status: string
-  target_language: string
 }
 
 const ACCEPT_ATTR = ALLOWED_EXTENSIONS.map((ext) =>
@@ -217,10 +216,15 @@ export function UploadPanel() {
       // the extracted menu once the pipeline completes.
       navigate(`/app/scans/${scan.id}`)
     } catch (error) {
-      const message =
-        error instanceof ApiError
-          ? error.message
-          : `${t('scan.errors.genericPrefix')}${error instanceof Error ? error.message : String(error)}`
+      let message: string
+      if (error instanceof ApiError && error.status === 429) {
+        // Throttled: called AI again too soon. Friendly, localized message.
+        message = t('scan.errors.rateLimited')
+      } else if (error instanceof ApiError) {
+        message = error.message
+      } else {
+        message = `${t('scan.errors.genericPrefix')}${error instanceof Error ? error.message : String(error)}`
+      }
       setSubmitError(message)
     } finally {
       setIsSubmitting(false)
@@ -522,7 +526,7 @@ export function UploadPanel() {
               )}
               {diningSessions.map((session: SimpleDiningSession) => (
                 <option key={session.id} value={session.id}>
-                  Phiên ăn {session.id.slice(0, 8)} ({session.target_language.toUpperCase()})
+                  Phiên ăn {session.id.slice(0, 8)}
                 </option>
               ))}
             </select>

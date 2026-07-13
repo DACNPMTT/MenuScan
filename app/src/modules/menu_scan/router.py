@@ -15,6 +15,7 @@ from fastapi import (
 )
 from fastapi.responses import RedirectResponse, Response
 
+from src.core.rate_limit import enforce_scan_throttle
 from src.core.responses import success_response
 from src.modules.identity.dependencies import get_current_user, get_optional_current_user
 from src.modules.identity.models import User
@@ -40,6 +41,7 @@ async def create_scan(
     service: ScanService = Depends(get_scan_service),
     pipeline: ScanPipeline = Depends(get_scan_pipeline),
     dining_service: DiningSessionService = Depends(get_dining_session_service),
+    _throttle: None = Depends(enforce_scan_throttle),
 ) -> dict[str, object]:
     # Accept the multi-file field ``files`` (up to 8 pages) and the legacy
     # single-file field ``file`` for backward compatibility.

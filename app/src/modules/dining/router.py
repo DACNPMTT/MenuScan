@@ -31,7 +31,6 @@ def create_session(
     """Create a new dining session with an invite token."""
     bundle = service.create_session(
         current_user,
-        target_language=payload.target_language,
         mode=payload.mode,
         invite_expires_in_hours=payload.invite_expires_in_hours,
     )
@@ -105,7 +104,6 @@ def get_public_session(
         session_id=session.id,
         mode=session.mode.value,
         status=session.status.value,
-        target_language=session.target_language,
         participant_count=len(session.participants),
         created_at=session.created_at,
     )
@@ -122,7 +120,6 @@ def join_session(
     participant = service.join_with_invite(
         invite_token=invite_token,
         display_name=payload.display_name,
-        preferred_language=payload.preferred_language,
         preferences=payload.preferences,
     )
     data = DiningParticipantResponse.model_validate(participant).model_dump(

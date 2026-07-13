@@ -1,8 +1,10 @@
 -- MenuScan database schema reference.
 -- PostgreSQL 16+.
 -- Authoritative source of truth: the Alembic migrations in
--- app/alembic/versions/. This file mirrors the schema through the latest
--- migration (e5f6a7b8c9d0) for quick reference only.
+-- app/alembic/versions/. This file is a quick-reference snapshot of the
+-- initial MVP schema (migration 001_create_mvp_schema) ONLY; later migrations
+-- (billing, dining, anti-spam throttle, auth credentials, diet/allergy fields,
+-- ...) are NOT reflected here. Do not treat it as the current schema.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 

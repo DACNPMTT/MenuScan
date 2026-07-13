@@ -12,6 +12,11 @@ from src.modules.menu_scan.adapters.storage import (
     ObjectStorage,
     build_object_storage,
 )
+from src.modules.menu_scan.food_enricher import (
+    FoodEnricher,
+    GeminiFoodEnricher,
+    NullFoodEnricher,
+)
 from src.modules.menu_scan.llm_menu_parser import GeminiMenuParser
 from src.modules.menu_scan.menu_parser import MenuParser, RuleBasedMenuParser
 from src.modules.menu_scan.ocr.adapters.google_vision import GoogleVisionOcrProvider
@@ -40,29 +45,27 @@ class _FallbackMenuParser:
         *,
         target_language: str = "en",
         images: object = None,
-        preferences_data: list[dict[str, object]] | None = None,
-        is_group: bool = False,
     ) -> object:
-        from src.modules.menu_scan.llm_menu_parser import LlmMenuParserUnavailableError, LlmMenuParserTimeoutError
+        from src.modules.menu_scan.llm_menu_parser import LlmMenuParserError
+
         try:
             return self._primary.parse(  # type: ignore[arg-type]
                 document,  # type: ignore[arg-type]
                 target_language=target_language,
                 images=images,  # type: ignore[arg-type]
-                preferences_data=preferences_data,
-                is_group=is_group,
             )
-        except (LlmMenuParserUnavailableError, LlmMenuParserTimeoutError) as exc:
+        except LlmMenuParserError as exc:
+            # Catch the base class, not just Unavailable/Timeout: a truncated or
+            # malformed response is exactly the case where degrading to the next
+            # model (or the rule-based parser) beats failing the scan outright.
             logger.warning(
-                "menu_parser_primary_unavailable falling_back=rule_based reason=%s",
+                "menu_parser_primary_failed falling_back=next reason=%s",
                 exc,
             )
             return self._fallback.parse(  # type: ignore[arg-type]
                 document,  # type: ignore[arg-type]
                 target_language=target_language,
                 images=images,  # type: ignore[arg-type]
-                preferences_data=preferences_data,
-                is_group=is_group,
             )
 
 
@@ -138,6 +141,33 @@ def get_menu_parser() -> MenuParser:
             )
         return chain
     raise ValueError(f"Unsupported LLM_PROVIDER={config.provider!r}")
+
+
+def get_food_enricher() -> FoodEnricher:
+    """Second-pass enricher. Offline unless Gemini is configured with a key.
+
+    Runs on its OWN key (ENRICH_*), not the scan's. Enrichment fires several
+    batches at once the moment the diner opens a menu — right after a scan has just
+    spent that same key. Sharing one key means the two collide on the per-minute
+    quota by construction, and enrichment loses: 429, every dish untagged, no
+    verdicts on the menu.
+    """
+    config = settings.enrich_llm
+    if config.provider != "gemini" or not (config.api_key or config.api_keys):
+        return NullFoodEnricher()
+    models = config.models or (config.model,)
+    return GeminiFoodEnricher(
+        api_key=config.api_key or "",
+        api_keys=config.api_keys,
+        api_base_url=config.api_base_url,
+        # Primary model first, then the rest of the chain as failover. This used to
+        # pin the enricher to models[-1] on the theory that the last entry was the
+        # cheap one. It is not: it is the FALLBACK, held in reserve for when the
+        # primary is quota-spent, with a small quota of its own.
+        model=models[0],
+        models=models,
+        timeout_seconds=config.timeout_seconds,
+    )
 
 
 def get_translation_service() -> TranslationService:

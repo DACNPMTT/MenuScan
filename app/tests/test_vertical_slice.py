@@ -25,6 +25,7 @@ from fastapi.testclient import TestClient
 
 from src.core.application import create_app
 from src.core.database import get_db
+from src.core.rate_limit import enforce_scan_throttle
 from src.modules.identity.dependencies import get_current_user, get_magic_link_service
 from src.modules.identity.models import User, UserRole, UserStatus
 from src.modules.identity.repository import (
@@ -131,6 +132,7 @@ def client_full(db_session, sender, clock, local_storage):
     app.dependency_overrides[get_magic_link_service] = lambda: svc
     app.dependency_overrides[get_scan_service] = lambda: scan_svc
     app.dependency_overrides[get_object_storage] = lambda: local_storage
+    app.dependency_overrides[enforce_scan_throttle] = lambda: None
 
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
@@ -148,6 +150,7 @@ def auth_client(db_session, sender, clock, local_storage):
     app.dependency_overrides[get_current_user] = lambda: user
     app.dependency_overrides[get_scan_service] = lambda: scan_svc
     app.dependency_overrides[get_object_storage] = lambda: local_storage
+    app.dependency_overrides[enforce_scan_throttle] = lambda: None
 
     with TestClient(app, raise_server_exceptions=False) as c:
         c._test_user = user

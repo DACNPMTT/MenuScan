@@ -146,6 +146,19 @@ def create_app(
             "application_started environment=%s",
             current_settings.app_env,
         )
+        # Enrichment fires several batches at once the moment a diner opens a menu,
+        # seconds after the scan spent that same key. On one key they collide on the
+        # per-minute quota and enrichment loses — 429, every dish untagged, no
+        # verdicts — and the only clue is a banner on the menu screen. Say it out
+        # loud at boot instead.
+        if (
+            current_settings.enrich_llm.provider == "gemini"
+            and current_settings.enrich_llm.api_keys == current_settings.llm.api_keys
+        ):
+            logger.warning(
+                "enrich_llm_shares_scan_key — set ENRICH_GEMINI_API_KEYS to a "
+                "dedicated key or enrichment will be rate-limited by the scan"
+            )
         watchdog_task = asyncio.create_task(
             run_stale_scan_watchdog(
                 session_factory=SessionLocal,

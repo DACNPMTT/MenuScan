@@ -92,7 +92,11 @@ class DiningSession(Base):
         nullable=False,
         server_default=DiningSessionStatus.COLLECTING.value,
     )
-    target_language: Mapped[str] = mapped_column(String(10), nullable=False)
+    # No language column. A dining session is people sitting at a table, not a
+    # locale: each diner reads the app in whatever language their own browser is
+    # set to. The scan's translation target (ScanSession/Menu.target_language) and
+    # the diner's profile language (User/FoodProfile.preferred_language) are
+    # different things and both stay.
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -126,10 +130,6 @@ class DiningSession(Base):
     )
 
     __table_args__ = (
-        CheckConstraint(
-            "target_language ~ '^[a-z]{2,3}(-[a-z0-9]{2,8})*$'",
-            name="target_language",
-        ),
         CheckConstraint(
             "status != 'COMPLETED' OR "
             "(scan_session_id IS NOT NULL AND menu_id IS NOT NULL)",
@@ -216,7 +216,6 @@ class DiningSessionParticipant(Base):
         ),
     )
     display_name: Mapped[str] = mapped_column(String(150), nullable=False)
-    preferred_language: Mapped[str] = mapped_column(String(10), nullable=False)
     joined_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -239,10 +238,6 @@ class DiningSessionParticipant(Base):
     )
 
     __table_args__ = (
-        CheckConstraint(
-            "preferred_language ~ '^[a-z]{2,3}(-[a-z0-9]{2,8})*$'",
-            name="preferred_language",
-        ),
         Index("ix_dining_session_participants_dining_session_id", dining_session_id),
         Index("ix_dining_session_participants_user_id", user_id),
     )

@@ -190,6 +190,10 @@ def test_settings_loads_gemini_llm_from_environment(
     monkeypatch.setenv("LLM_PROVIDER", "gemini")
     monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
     monkeypatch.setenv("LLM_MODEL", "gemini-2.5-flash")
+    # The key pool and model chain take precedence over the single key/model.
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEYS", raising=False)
+    monkeypatch.delenv("LLM_MODELS", raising=False)
 
     settings = Settings.from_environment()
 
@@ -207,6 +211,7 @@ def test_settings_requires_key_for_gemini_llm(
     monkeypatch.setenv("LLM_PROVIDER", "gemini")
     monkeypatch.delenv("LLM_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEYS", raising=False)
 
     with pytest.raises(ValueError, match="LLM_API_KEY"):
         Settings.from_environment()

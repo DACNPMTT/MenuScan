@@ -7,7 +7,7 @@ param(
 
     [int]$BackendPort = 8000,
     [int]$FrontendPort = 5173,
-    [int]$DbPort = 55432,
+    [int]$DbPort = 5432,
     [int]$RedisPort = 6379
 )
 

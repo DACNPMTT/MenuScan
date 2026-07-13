@@ -26,6 +26,7 @@ from unittest.mock import Mock
 from fastapi.testclient import TestClient
 
 from src.core.application import create_app
+from src.core.rate_limit import enforce_scan_throttle
 from src.core.config import EmailConfig, Settings, StorageConfig
 from src.modules.identity.dependencies import get_optional_current_user
 from src.modules.identity.models import User
@@ -167,6 +168,8 @@ def _make_client(
     )
     app.dependency_overrides[get_scan_service] = lambda: stub
     app.dependency_overrides[get_scan_pipeline] = lambda: StubScanPipeline()
+    # Throttle hits the DB; these contract tests have no DB, so bypass it.
+    app.dependency_overrides[enforce_scan_throttle] = lambda: None
     if authenticated:
         app.dependency_overrides[get_optional_current_user] = lambda: user
     else:
@@ -438,6 +441,10 @@ def test_dining_session_id_is_associated_with_scan() -> None:
     app.dependency_overrides[get_scan_pipeline] = lambda: StubScanPipeline()
     app.dependency_overrides[get_optional_current_user] = lambda: user
     app.dependency_overrides[get_dining_session_service] = lambda: dining_stub
+    # Contract test: must not touch the DB (conftest promises HTTP-contract
+    # tests never do). Without this override the real throttle dependency opens
+    # a DB session and the test fails to connect when no Postgres is running.
+    app.dependency_overrides[enforce_scan_throttle] = lambda: None
 
     client = TestClient(app, raise_server_exceptions=False)
 

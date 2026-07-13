@@ -45,6 +45,7 @@
     "errors": {
       "fileTooLarge": "File is too large. The maximum size is 10 MB.",
       "unsupportedType": "Unsupported format. Only JPG, PNG, WEBP, PDF are accepted.",
+      "rateLimited": "You're going too fast. Please wait a few seconds and try again.",
       "genericPrefix": "Error: "
     }
   },
@@ -245,6 +246,14 @@
     "unsavedChanges_one": "{{count}} dish has unsaved edits.",
     "unsavedChanges_other": "{{count}} dishes have unsaved edits.",
     "searching": "Finding matching dishes…",
+    "sortedByAdvice": "Sorted by advice",
+    "sortedByProfile": "Sorted for your profile",
+    "legendTitle": "Advice level:",
+    "pageStatus": "Showing {{from}}-{{to}} of {{total}} dishes",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
+    "enriching": "Analysing the dishes…",
+    "enrichFailed": "Couldn't analyse the dishes. The menu still works — reload to retry, or just ask the assistant.",
     "resultCount_one": "{{count}} dish",
     "resultCount_other": "{{count}} dishes",
     "resultCountOf_one": "{{count}} dish of {{total}}",
@@ -355,7 +364,6 @@
     },
     "fields": {
       "mode": "Mode",
-      "language": "Target Language",
       "expires": "Expires in (hours)"
     },
     "modes": {
@@ -369,7 +377,6 @@
     "closeFullscreen": "Close fullscreen",
     "guestName": "Your Name",
     "guestNamePlaceholder": "Enter your display name",
-    "guestLanguage": "Preferred Language",
     "sessionNotFound": "Dining session not found.",
     "sessionExpired": "Dining session has expired or is closed.",
     "invalidToken": "Invalid invite token.",
@@ -404,9 +411,30 @@
       "favorite": "matches your taste"
     }
   },
+  "chat": {
+    "title": "Ask the dish assistant",
+    "hint": "Ask about the dishes on this menu.",
+    "placeholder": "Ask about the menu…",
+    "send": "Send",
+    "askAbout": "Ask about {{name}}",
+    "allSelected": "All selected dishes",
+    "pickDish": "Pick a dish to ask about",
+    "removeFocus": "Remove",
+    "rateLimited": "You're asking a bit fast. Please wait a few seconds and try again.",
+    "error": "The assistant is busy. Please try again in a moment.",
+    "disclaimer": "Answers are based on your scanned menu, for reference only — not an allergy safety guarantee."
+  },
   "billItem": {
+    "recommendation": "Advice",
+    "verdict": {
+      "RECOMMENDED": "Recommended",
+      "OK": "Fine",
+      "CAUTION": "Consider",
+      "AVOID": "Avoid"
+    },
     "lowConfidence": "Low OCR confidence ({{value}}%).",
     "allergyWarning": "WARNING: Allergy Match Found (Seafood)",
+    "contains": "Contains: {{list}}",
     "allergyMatch": "WARNING: Contains {{list}}",
     "dietMatch": "Doesn't match your diet: {{list}}",
     "recommended": "Recommended for you",

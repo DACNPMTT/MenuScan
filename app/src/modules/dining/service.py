@@ -49,21 +49,6 @@ class DiningSessionInviteBundle:
     invite_token: str
 
 
-def _clean_text_list(values: object) -> list[str]:
-    if not isinstance(values, list):
-        return []
-    cleaned: list[str] = []
-    seen: set[str] = set()
-    for value in values:
-        text = str(value or "").strip()
-        key = text.lower()
-        if not text or key in seen:
-            continue
-        seen.add(key)
-        cleaned.append(text[:160])
-    return cleaned
-
-
 def _append_unique(target: list[str], values: list[str]) -> None:
     seen = {value.lower() for value in target}
     for value in values:
@@ -74,19 +59,11 @@ def _append_unique(target: list[str], values: list[str]) -> None:
         target.append(value)
 
 
-def _coerce_verdict(value: object, default: RecommendationVerdict) -> RecommendationVerdict:
-    try:
-        return RecommendationVerdict(str(value or default.value).upper())
-    except ValueError:
-        return default
-
-
-def _decimal_score(value: object, default: float = 100.0) -> Decimal:
-    try:
-        score = float(value if value is not None else default)
-    except (TypeError, ValueError):
-        score = default
-    return Decimal(str(round(max(0.0, min(100.0, score)), 2)))
+def _dedupe(values: list[str]) -> list[str]:
+    """Drop repeats, keep the order they were raised in — allergy before taste."""
+    deduped: list[str] = []
+    _append_unique(deduped, values)
+    return deduped
 
 
 _PREFERENCE_LABELS = {
@@ -278,33 +255,17 @@ def _is_dietary_rule_violated(food_item: object, rule: str) -> bool:
     return _matches_preference(food_item, normalized)
 
 
-def _recommendation_explanation(
-    *,
-    score: float,
-    fit_reasons: list[str],
-    risk_reasons: list[str],
-    scope: str,
-) -> str:
-    if risk_reasons and fit_reasons:
-        return (
-            f"Độ phù hợp {scope} {score:.0f}/100. "
-            f"Hợp ở điểm: {', '.join(fit_reasons[:2])}. "
-            f"Cần chú ý: {', '.join(risk_reasons[:2])}."
-        )
-    if risk_reasons:
-        return (
-            f"Độ phù hợp {scope} {score:.0f}/100. "
-            f"Cần chú ý: {', '.join(risk_reasons[:3])}."
-        )
-    if fit_reasons:
-        return (
-            f"Độ phù hợp {scope} {score:.0f}/100. "
-            f"Món này hợp vì {', '.join(fit_reasons[:3])}."
-        )
-    return (
-        f"Độ phù hợp {scope} {score:.0f}/100. "
-        "Chưa thấy xung đột rõ với hồ sơ ăn uống đã khai báo."
-    )
+@dataclass(frozen=True, slots=True)
+class _Diner:
+    """One person whose taste we actually know, for scoring one dish.
+
+    ``participant`` is None for the session host, who is not a row in
+    ``dining_session_participants`` and so cannot carry a breakdown.
+    """
+
+    display_name: str
+    preferences: list[object]
+    participant: DiningSessionParticipant | None
 
 
 class DiningSessionService:
@@ -336,7 +297,6 @@ class DiningSessionService:
         self,
         user: User,
         *,
-        target_language: str,
         mode: str,
         invite_expires_in_hours: int | None,
     ) -> DiningSessionInviteBundle:
@@ -346,7 +306,6 @@ class DiningSessionService:
             created_by_user_id=user.id,
             mode=DiningSessionMode(mode),
             status=DiningSessionStatus.COLLECTING,
-            target_language=target_language,
             created_at=now,
             updated_at=now,
         )
@@ -382,7 +341,6 @@ class DiningSessionService:
         *,
         invite_token: str,
         display_name: str,
-        preferred_language: str,
         preferences: list[DiningPreferenceRequest],
     ) -> DiningSessionParticipant:
         invite = self._get_valid_invite(invite_token)
@@ -397,7 +355,6 @@ class DiningSessionService:
         participant = DiningSessionParticipant(
             dining_session_id=dining_session.id,
             display_name=display_name,
-            preferred_language=preferred_language,
             joined_at=now,
         )
         participant.preferences = self._build_preferences(preferences, created_at=now)
@@ -447,199 +404,63 @@ class DiningSessionService:
         dining_session.updated_at = self._clock()
         self._session.commit()
 
+    def attach_menu(
+        self,
+        *,
+        scan_session_id: uuid.UUID,
+        menu: Menu,
+    ) -> DiningSession | None:
+        """Point the dining session that requested this scan at the menu it made.
+
+        Returns None for an ordinary personal scan, which has no session — and
+        never creates one. Does not commit: the scan pipeline owns the
+        transaction.
+        """
+        dining_session = (
+            self._session.query(DiningSession)
+            .filter(
+                DiningSession.scan_session_id == scan_session_id,
+                DiningSession.deleted_at.is_(None),
+            )
+            .first()
+        )
+        if dining_session is None:
+            return None
+
+        now = self._clock()
+        dining_session.menu_id = menu.id
+        dining_session.status = DiningSessionStatus.COMPLETED
+        dining_session.updated_at = now
+        dining_session.completed_at = now
+        self._session.flush()
+        return dining_session
+
     def generate_recommendations(
         self,
         *,
         dining_session: DiningSession,
-        menu: Menu,
         food_items: list[FoodItem],
-        draft_items: list[object] | None = None,
-    ) -> None:
+    ) -> int:
+        """(Re)score every dish for this session's diners. Returns rows written.
+
+        Idempotent: it wipes the session's existing verdicts first, so calling it
+        again after a re-enrichment — or after a new diner joins — rewrites the
+        set instead of colliding with the (session, dish) unique key.
+
+        Does NOT commit; the caller owns the transaction. It must only be called
+        once the dishes carry their food-intelligence tags, because that is what a
+        verdict is scored from. Scoring an untagged dish is what produced the
+        "100/100 recommended" advice this rework exists to kill.
+        """
         from src.modules.identity.models import FoodProfile
 
-        # Check if we have LLM-generated recommendations in draft_items
-        has_draft_recs = False
-        if draft_items:
-            has_draft_recs = any(getattr(d, "recommendation", None) is not None for d in draft_items)
+        # delete-orphan on DiningSession.recommendations issues the DELETEs, and
+        # each recommendation takes its own breakdowns with it. The flush is
+        # load-bearing: without it the unit of work can order the new INSERTs
+        # before the DELETEs and trip the unique key.
+        dining_session.recommendations.clear()
+        self._session.flush()
 
-        if has_draft_recs and draft_items:
-            food_item_by_name = {item.original_name.strip().lower(): item for item in food_items}
-            participant_by_name = {p.display_name.strip().lower(): p for p in dining_session.participants}
-
-            for d_item in draft_items:
-                original_name = getattr(d_item, "original_name", "")
-                saved_item = food_item_by_name.get(original_name.strip().lower())
-                d_rec = getattr(d_item, "recommendation", None)
-                if not saved_item or not d_rec:
-                    continue
-
-                verdict_enum = _coerce_verdict(
-                    getattr(d_rec, "verdict", None),
-                    RecommendationVerdict.RECOMMENDED,
-                )
-                explanation = str(getattr(d_rec, "explanation", "") or "").strip() or None
-                why_suitable = str(getattr(d_rec, "why_suitable", "") or "").strip() or None
-                why_not_suitable = str(getattr(d_rec, "why_not_suitable", "") or "").strip() or None
-                suggested_for = _clean_text_list(getattr(d_rec, "suggested_for", []))
-                warning_for = _clean_text_list(getattr(d_rec, "warning_for", []))
-                fit_reasons = _clean_text_list(getattr(d_rec, "fit_reasons", []))
-                risk_reasons = _clean_text_list(getattr(d_rec, "risk_reasons", []))
-                warning_reasons = _clean_text_list(
-                    getattr(d_rec, "warning_reasons", [])
-                )
-
-                participant_breakdowns: list[
-                    tuple[
-                        DiningSessionParticipant,
-                        RecommendationVerdict,
-                        Decimal,
-                        str | None,
-                        list[str],
-                        list[str],
-                    ]
-                ] = []
-                d_breakdowns = getattr(d_item, "participant_breakdowns", []) or []
-                for bd in d_breakdowns:
-                    display_name = getattr(bd, "display_name", "")
-                    participant = participant_by_name.get(display_name.strip().lower())
-                    if participant is None:
-                        continue
-                    bd_verdict = _coerce_verdict(
-                        getattr(bd, "verdict", None),
-                        verdict_enum,
-                    )
-                    bd_fit_reasons = _clean_text_list(getattr(bd, "fit_reasons", []))
-                    bd_risk_reasons = _clean_text_list(getattr(bd, "risk_reasons", []))
-                    participant_breakdowns.append(
-                        (
-                            participant,
-                            bd_verdict,
-                            _decimal_score(getattr(bd, "score", None)),
-                            str(getattr(bd, "explanation", "") or "").strip() or None,
-                            bd_fit_reasons,
-                            bd_risk_reasons,
-                        )
-                    )
-
-                if not participant_breakdowns:
-                    for participant in dining_session.participants:
-                        bd_verdict, bd_score, bd_fit, bd_risk = (
-                            self._score_item_for_diner(
-                                saved_item,
-                                participant.preferences,
-                            )
-                        )
-                        participant_breakdowns.append(
-                            (
-                                participant,
-                                bd_verdict,
-                                _decimal_score(bd_score),
-                                f"Độ phù hợp cá nhân {bd_score:.0f}/100.",
-                                bd_fit,
-                                bd_risk,
-                            )
-                        )
-
-                for participant, bd_verdict, _, _, bd_fit, bd_risk in participant_breakdowns:
-                    _append_unique(fit_reasons, bd_fit)
-                    _append_unique(risk_reasons, bd_risk)
-                    if bd_verdict == RecommendationVerdict.RECOMMENDED:
-                        _append_unique(suggested_for, [participant.display_name])
-                    if bd_verdict in {
-                        RecommendationVerdict.AVOID,
-                        RecommendationVerdict.CAUTION,
-                    }:
-                        _append_unique(warning_for, [participant.display_name])
-                        _append_unique(warning_reasons, bd_risk)
-
-                if any(
-                    breakdown[1] == RecommendationVerdict.AVOID
-                    for breakdown in participant_breakdowns
-                ):
-                    verdict_enum = RecommendationVerdict.AVOID
-                elif (
-                    verdict_enum != RecommendationVerdict.AVOID
-                    and any(
-                        breakdown[1] == RecommendationVerdict.CAUTION
-                        for breakdown in participant_breakdowns
-                    )
-                ):
-                    verdict_enum = RecommendationVerdict.CAUTION
-
-                if not fit_reasons and why_suitable:
-                    fit_reasons = [why_suitable]
-                if not risk_reasons and why_not_suitable:
-                    risk_reasons = [why_not_suitable]
-                if not warning_reasons and verdict_enum in {
-                    RecommendationVerdict.AVOID,
-                    RecommendationVerdict.CAUTION,
-                }:
-                    warning_reasons = risk_reasons.copy()
-                if not fit_reasons and verdict_enum in {
-                    RecommendationVerdict.RECOMMENDED,
-                    RecommendationVerdict.OK,
-                }:
-                    fit_reasons = ["Phù hợp với hồ sơ ăn uống"]
-                if not suggested_for and verdict_enum == RecommendationVerdict.RECOMMENDED:
-                    suggested_for = [
-                        participant.display_name
-                        for participant in dining_session.participants
-                    ]
-                if not why_suitable and fit_reasons:
-                    why_suitable = ", ".join(fit_reasons)
-                if not why_not_suitable and risk_reasons:
-                    why_not_suitable = ", ".join(risk_reasons)
-                if not explanation:
-                    explanation = (
-                        why_not_suitable
-                        if verdict_enum
-                        in {RecommendationVerdict.AVOID, RecommendationVerdict.CAUTION}
-                        else why_suitable
-                    )
-
-                rec = FoodItemRecommendation(
-                    id=uuid.uuid4(),
-                    dining_session_id=dining_session.id,
-                    food_item_id=saved_item.id,
-                    verdict=verdict_enum,
-                    score=_decimal_score(getattr(d_rec, "score", None)),
-                    explanation=explanation,
-                    why_suitable=why_suitable,
-                    why_not_suitable=why_not_suitable,
-                    suggested_for=suggested_for,
-                    warning_for=warning_for,
-                    fit_reasons=fit_reasons,
-                    risk_reasons=risk_reasons,
-                    warning_reasons=warning_reasons,
-                    created_at=self._clock(),
-                )
-                self._session.add(rec)
-
-                for (
-                    participant,
-                    bd_verdict,
-                    bd_score,
-                    bd_explanation,
-                    bd_fit_reasons,
-                    bd_risk_reasons,
-                ) in participant_breakdowns:
-                    bd_record = FoodItemRecommendationParticipantBreakdown(
-                        id=uuid.uuid4(),
-                        food_item_recommendation_id=rec.id,
-                        participant_id=participant.id,
-                        verdict=bd_verdict,
-                        score=bd_score,
-                        explanation=bd_explanation or explanation,
-                        fit_reasons=bd_fit_reasons or fit_reasons,
-                        risk_reasons=bd_risk_reasons or risk_reasons,
-                        created_at=self._clock(),
-                    )
-                    self._session.add(bd_record)
-
-            self._session.commit()
-            return
-
-        # Fetch host profile (fallback to local rule-based recommendations)
         host_profile = None
         if dining_session.created_by_user_id is not None:
             host_profile = (
@@ -652,123 +473,162 @@ class DiningSessionService:
                 .first()
             )
 
-        for item in food_items:
-            group_verdict = RecommendationVerdict.RECOMMENDED
-            group_score_sum = 0.0
-            total_diners = 0
+        # Only diners who have actually told us something. Someone who declared no
+        # preference gives no signal, and we will not invent one on their behalf.
+        diners: list[_Diner] = []
+        if host_profile is not None and host_profile.preferences:
+            diners.append(
+                _Diner(
+                    display_name=host_profile.display_name or "Host",
+                    preferences=list(host_profile.preferences),
+                    participant=None,
+                )
+            )
+        for participant in dining_session.participants:
+            if participant.preferences:
+                diners.append(
+                    _Diner(
+                        display_name=participant.display_name,
+                        preferences=list(participant.preferences),
+                        participant=participant,
+                    )
+                )
 
-            fit_reasons_all = []
-            risk_reasons_all = []
-            suggested_for = []
-            warning_for = []
+        if not diners:
+            return 0
 
-            # Score host
-            if host_profile is not None:
-                host_verdict, host_score, host_fit, host_risk = self._score_item_for_diner(item, host_profile.preferences)
-                group_score_sum += host_score
-                total_diners += 1
+        return sum(
+            self._write_item_verdict(dining_session, item, diners) for item in food_items
+        )
 
-                fit_reasons_all.extend(host_fit)
-                risk_reasons_all.extend(host_risk)
-                if host_verdict == RecommendationVerdict.RECOMMENDED:
-                    suggested_for.append(host_profile.display_name or "Host")
-                elif host_verdict == RecommendationVerdict.AVOID:
-                    warning_for.append(host_profile.display_name or "Host")
-                    group_verdict = RecommendationVerdict.AVOID
-                elif host_verdict == RecommendationVerdict.CAUTION:
-                    if group_verdict != RecommendationVerdict.AVOID:
-                        group_verdict = RecommendationVerdict.CAUTION
+    def _write_item_verdict(
+        self,
+        dining_session: DiningSession,
+        item: FoodItem,
+        diners: list[_Diner],
+    ) -> int:
+        group_verdict = RecommendationVerdict.RECOMMENDED
+        score_sum = 0.0
+        scored_diners = 0
+        fit_reasons_all: list[str] = []
+        risk_reasons_all: list[str] = []
+        suggested_for: list[str] = []
+        warning_for: list[str] = []
+        breakdowns: list[FoodItemRecommendationParticipantBreakdown] = []
 
-            # Score each participant and save their breakdown
-            breakdowns = []
-            for p in dining_session.participants:
-                p_verdict, p_score, p_fit, p_risk = self._score_item_for_diner(item, p.preferences)
-                group_score_sum += p_score
-                total_diners += 1
+        for diner in diners:
+            scored = self._score_item_for_diner(item, diner.preferences)
+            if scored is None:
+                continue
+            verdict, score, fit, risk = scored
 
-                fit_reasons_all.extend(p_fit)
-                risk_reasons_all.extend(p_risk)
-                if p_verdict == RecommendationVerdict.RECOMMENDED:
-                    suggested_for.append(p.display_name)
-                elif p_verdict == RecommendationVerdict.AVOID:
-                    warning_for.append(p.display_name)
-                    group_verdict = RecommendationVerdict.AVOID
-                elif p_verdict == RecommendationVerdict.CAUTION:
-                    if group_verdict != RecommendationVerdict.AVOID:
-                        group_verdict = RecommendationVerdict.CAUTION
+            score_sum += score
+            scored_diners += 1
+            fit_reasons_all.extend(fit)
+            risk_reasons_all.extend(risk)
 
+            if verdict == RecommendationVerdict.RECOMMENDED:
+                _append_unique(suggested_for, [diner.display_name])
+            elif verdict == RecommendationVerdict.AVOID:
+                _append_unique(warning_for, [diner.display_name])
+                group_verdict = RecommendationVerdict.AVOID
+            elif verdict == RecommendationVerdict.CAUTION:
+                if group_verdict != RecommendationVerdict.AVOID:
+                    group_verdict = RecommendationVerdict.CAUTION
+
+            # Only participants get a breakdown row; the host is not a participant.
+            if diner.participant is not None:
                 breakdowns.append(
                     FoodItemRecommendationParticipantBreakdown(
                         id=uuid.uuid4(),
-                        participant_id=p.id,
-                        verdict=p_verdict,
-                        score=Decimal(str(round(p_score, 2))),
-                        explanation=f"Độ phù hợp cá nhân {p_score:.0f}/100.",
-                        fit_reasons=p_fit,
-                        risk_reasons=p_risk,
+                        participant_id=diner.participant.id,
+                        verdict=verdict,
+                        score=Decimal(str(round(score, 2))),
+                        explanation=f"Độ phù hợp cá nhân {score:.0f}/100.",
+                        fit_reasons=fit,
+                        risk_reasons=risk,
                         created_at=self._clock(),
                     )
                 )
 
-            final_score = group_score_sum / total_diners if total_diners > 0 else 100.0
-            if total_diners > 0:
-                if group_verdict != RecommendationVerdict.AVOID:
-                    if final_score >= 75.0:
-                        group_verdict = RecommendationVerdict.RECOMMENDED
-                    elif final_score >= 40.0:
-                        group_verdict = RecommendationVerdict.OK
-                    else:
-                        group_verdict = RecommendationVerdict.CAUTION
-            else:
-                group_verdict = RecommendationVerdict.RECOMMENDED
+        if scored_diners == 0:
+            return 0
 
-            unique_fit_reasons = list(sorted(set(fit_reasons_all)))
-            unique_risk_reasons = list(sorted(set(risk_reasons_all)))
-            if not unique_fit_reasons and group_verdict in {
+        final_score = score_sum / scored_diners
+        if group_verdict != RecommendationVerdict.AVOID:
+            if final_score >= 75.0:
+                group_verdict = RecommendationVerdict.RECOMMENDED
+            elif final_score >= 40.0:
+                group_verdict = RecommendationVerdict.OK
+            else:
+                group_verdict = RecommendationVerdict.CAUTION
+
+        # Keep the order the reasons were raised in: allergy first, then diet, then
+        # taste. Sorting them alphabetically (as this used to) buries the reason
+        # that matters under whichever one happens to start with an "A".
+        fit_reasons = _dedupe(fit_reasons_all)
+        risk_reasons = _dedupe(risk_reasons_all)
+        if not fit_reasons and group_verdict in {
+            RecommendationVerdict.RECOMMENDED,
+            RecommendationVerdict.OK,
+        }:
+            fit_reasons = ["Phù hợp với hồ sơ ăn uống"]
+
+        rec = FoodItemRecommendation(
+            id=uuid.uuid4(),
+            dining_session_id=dining_session.id,
+            food_item_id=item.id,
+            verdict=group_verdict,
+            score=Decimal(str(round(final_score, 2))),
+            explanation=f"Độ phù hợp {final_score:.0f}/100.",
+            why_suitable=", ".join(fit_reasons) if fit_reasons else None,
+            why_not_suitable=", ".join(risk_reasons) if risk_reasons else None,
+            suggested_for=suggested_for,
+            warning_for=warning_for,
+            fit_reasons=fit_reasons,
+            risk_reasons=risk_reasons,
+            warning_reasons=(
+                risk_reasons
+                if group_verdict
+                in {RecommendationVerdict.AVOID, RecommendationVerdict.CAUTION}
+                else []
+            ),
+            created_at=self._clock(),
+        )
+        self._session.add(rec)
+
+        for breakdown in breakdowns:
+            breakdown.food_item_recommendation_id = rec.id
+            if not breakdown.fit_reasons and breakdown.verdict in {
                 RecommendationVerdict.RECOMMENDED,
                 RecommendationVerdict.OK,
             }:
-                unique_fit_reasons = ["Phù hợp với hồ sơ ăn uống"]
+                breakdown.fit_reasons = fit_reasons
+            if not breakdown.risk_reasons and breakdown.verdict in {
+                RecommendationVerdict.AVOID,
+                RecommendationVerdict.CAUTION,
+            }:
+                breakdown.risk_reasons = risk_reasons
+            self._session.add(breakdown)
 
-            rec = FoodItemRecommendation(
-                id=uuid.uuid4(),
-                dining_session_id=dining_session.id,
-                food_item_id=item.id,
-                verdict=group_verdict,
-                score=Decimal(str(round(final_score, 2))),
-                explanation=f"Độ phù hợp nhóm {final_score:.0f}/100.",
-                why_suitable=", ".join(unique_fit_reasons) if unique_fit_reasons else None,
-                why_not_suitable=", ".join(unique_risk_reasons) if unique_risk_reasons else None,
-                suggested_for=suggested_for,
-                warning_for=warning_for,
-                fit_reasons=unique_fit_reasons,
-                risk_reasons=unique_risk_reasons,
-                warning_reasons=unique_risk_reasons if group_verdict in {RecommendationVerdict.AVOID, RecommendationVerdict.CAUTION} else [],
-                created_at=self._clock(),
-            )
-            self._session.add(rec)
+        return 1
 
-            for bd in breakdowns:
-                bd.food_item_recommendation_id = rec.id
-                if not bd.fit_reasons and bd.verdict in {
-                    RecommendationVerdict.RECOMMENDED,
-                    RecommendationVerdict.OK,
-                }:
-                    bd.fit_reasons = unique_fit_reasons
-                if not bd.risk_reasons and bd.verdict in {
-                    RecommendationVerdict.AVOID,
-                    RecommendationVerdict.CAUTION,
-                }:
-                    bd.risk_reasons = unique_risk_reasons
-                self._session.add(bd)
-
-        self._session.commit()
 
     @staticmethod
     def _score_item_for_diner(
         food_item: FoodItem,
         preferences: list[object],
-    ) -> tuple[RecommendationVerdict, float, list[str], list[str]]:
+    ) -> tuple[RecommendationVerdict, float, list[str], list[str]] | None:
+        """Score one dish against one diner. None when we know nothing about them.
+
+        The score starts at 100 and is only pushed down by a preference that
+        matches, so a diner who has declared nothing scores every dish 100/100
+        RECOMMENDED — the app confidently advising someone it knows nothing about.
+        Returning None instead means the UI shows no verdict, which is the truth.
+        """
+        if not preferences:
+            return None
+
         score = 100.0
         verdict = RecommendationVerdict.RECOMMENDED
         fit_reasons: list[str] = []

@@ -113,6 +113,7 @@ def login(
     """Authenticate user with email and password, establish a session and set refresh cookie."""
     user_agent = request.headers.get("user-agent")
 
+    print(f"DEBUG_LOGIN: email='{payload.email}' password='{payload.password}'")
     access_token, user, refresh_token = service.login_with_password(
         email=payload.email,
         password=payload.password,

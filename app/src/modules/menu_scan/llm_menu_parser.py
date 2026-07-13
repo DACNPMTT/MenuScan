@@ -25,6 +25,15 @@ class LlmMenuParserUnavailableError(LlmMenuParserError):
     """Raised when the LLM provider is temporarily unavailable or exhausted."""
 
 
+class LlmMenuParserTruncatedError(LlmMenuParserError):
+    """Raised when the model hit its output ceiling and the JSON came back cut.
+
+    Distinct from a malformed response: the request was fine, the answer just did
+    not fit. Treated as retryable/degradable so the caller can drop to a smaller
+    model or the rule-based parser instead of failing the scan.
+    """
+
+
 @dataclass(frozen=True, slots=True)
 class GeminiMenuParser:
     api_key: str
@@ -49,15 +58,11 @@ class GeminiMenuParser:
         *,
         target_language: str = "en",
         images: Sequence[bytes] | None = None,
-        preferences_data: list[dict[str, Any]] | None = None,
-        is_group: bool = False,
     ) -> ParsedMenuDraft:
         body = self._generate(
             document=document,
             target_language=target_language,
             images=images,
-            preferences_data=preferences_data,
-            is_group=is_group,
         )
         payload = _extract_json_payload(body)
         payload.setdefault("items", [])
@@ -88,85 +93,119 @@ class GeminiMenuParser:
         document: OcrDocument,
         target_language: str,
         images: Sequence[bytes] | None = None,
-        preferences_data: list[dict[str, Any]] | None = None,
-        is_group: bool = False,
     ) -> dict[str, Any]:
-        keys = self._effective_keys()
-        if not keys:
-            raise LlmMenuParserError("gemini parser has no api key")
-
-        owns_client = self.client is None
-        client = self.client or httpx.Client(timeout=self.timeout_seconds)
         request_body = _build_request(
             document=document,
             target_language=target_language,
             images=images,
             prealign_csv=self.prealign_csv,
-            preferences_data=preferences_data,
-            is_group=is_group,
         )
-        try:
-            response = None
-            for index, key in enumerate(keys):
-                response = self._request_with_retries(client, key, request_body)
-                # Rotate to the next key only when this key is rate/quota limited
-                # (429). Other outcomes (success, 5xx, 4xx) are handled below.
-                if response.status_code == 429 and index < len(keys) - 1:
-                    _sleep_before_retry(self.retry_backoff_seconds)
-                    continue
-                break
-        finally:
-            if owns_client:
-                client.close()
+        return call_gemini(
+            keys=self._effective_keys(),
+            api_base_url=self.api_base_url,
+            model=self.model,
+            timeout_seconds=self.timeout_seconds,
+            request_body=request_body,
+            client=self.client,
+            max_attempts=self.max_attempts,
+            retry_backoff_seconds=self.retry_backoff_seconds,
+        )
 
-        assert response is not None  # noqa: S101 — loop runs at least once
-        if response.status_code in {408, 504}:
-            raise LlmMenuParserTimeoutError("gemini parser timed out")
-        if response.status_code == 429 or response.status_code >= 500:
-            raise LlmMenuParserUnavailableError("gemini parser unavailable")
-        if response.status_code >= 400:
-            raise LlmMenuParserError("gemini parser rejected the request")
 
-        try:
-            return response.json()
-        except ValueError as error:
-            raise LlmMenuParserError("gemini parser returned invalid json") from error
+def call_gemini(
+    *,
+    keys: Sequence[str],
+    api_base_url: str,
+    model: str,
+    timeout_seconds: float,
+    request_body: dict[str, Any],
+    client: httpx.Client | None = None,
+    max_attempts: int = 3,
+    retry_backoff_seconds: float = 0.5,
+) -> dict[str, Any]:
+    """POST one generateContent request, rotating the key pool on 429.
 
-    def _request_with_retries(
-        self,
-        client: httpx.Client,
-        key: str,
-        request_body: dict[str, Any],
-    ) -> httpx.Response:
-        """POST with the given key, retrying transient 5xx/timeouts in place.
+    Shared by the menu parser and the food enricher so both get the same retry,
+    key-rotation and error-mapping behaviour.
+    """
+    if not keys:
+        raise LlmMenuParserError("gemini parser has no api key")
 
-        Returns the final response (which the caller inspects for 429 to decide
-        whether to rotate keys). Raises on exhausted timeouts/transport errors.
-        """
-        attempts = max(1, self.max_attempts)
-        url = f"{self.api_base_url}/{_model_path(self.model)}:generateContent"
-        for attempt in range(1, attempts + 1):
-            try:
-                response = client.post(url, params={"key": key}, json=request_body)
-            except httpx.TimeoutException as error:
-                if attempt < attempts:
-                    _sleep_before_retry(self.retry_backoff_seconds)
-                    continue
-                raise LlmMenuParserTimeoutError("gemini parser timed out") from error
-            except httpx.HTTPError as error:
-                if attempt < attempts:
-                    _sleep_before_retry(self.retry_backoff_seconds)
-                    continue
-                raise LlmMenuParserUnavailableError(
-                    "gemini parser request failed"
-                ) from error
-
-            if response.status_code in {408, 500, 502, 503, 504} and attempt < attempts:
-                _sleep_before_retry(self.retry_backoff_seconds)
+    owns_client = client is None
+    http_client = client or httpx.Client(timeout=timeout_seconds)
+    url = f"{api_base_url}/{_model_path(model)}:generateContent"
+    try:
+        response = None
+        for index, key in enumerate(keys):
+            response = _post_with_retries(
+                http_client,
+                url=url,
+                key=key,
+                request_body=request_body,
+                max_attempts=max_attempts,
+                retry_backoff_seconds=retry_backoff_seconds,
+            )
+            # Rotate to the next key only when this key is rate/quota limited
+            # (429). Other outcomes (success, 5xx, 4xx) are handled below.
+            if response.status_code == 429 and index < len(keys) - 1:
+                _sleep_before_retry(retry_backoff_seconds)
                 continue
-            return response
+            break
+    finally:
+        if owns_client:
+            http_client.close()
 
+    assert response is not None  # noqa: S101 — loop runs at least once
+    if response.status_code in {408, 504}:
+        raise LlmMenuParserTimeoutError("gemini parser timed out")
+    if response.status_code == 429 or response.status_code >= 500:
         raise LlmMenuParserUnavailableError("gemini parser unavailable")
+    if response.status_code >= 400:
+        raise LlmMenuParserError("gemini parser rejected the request")
+
+    try:
+        return response.json()
+    except ValueError as error:
+        raise LlmMenuParserError("gemini parser returned invalid json") from error
+
+
+def _post_with_retries(
+    client: httpx.Client,
+    *,
+    url: str,
+    key: str,
+    request_body: dict[str, Any],
+    max_attempts: int,
+    retry_backoff_seconds: float,
+) -> httpx.Response:
+    """POST with the given key, retrying transient 5xx/timeouts in place.
+
+    Returns the final response (which the caller inspects for 429 to decide
+    whether to rotate keys). Raises on exhausted timeouts/transport errors.
+    """
+    attempts = max(1, max_attempts)
+    for attempt in range(1, attempts + 1):
+        try:
+            response = client.post(url, params={"key": key}, json=request_body)
+        except httpx.TimeoutException as error:
+            if attempt < attempts:
+                _sleep_before_retry(retry_backoff_seconds)
+                continue
+            raise LlmMenuParserTimeoutError("gemini parser timed out") from error
+        except httpx.HTTPError as error:
+            if attempt < attempts:
+                _sleep_before_retry(retry_backoff_seconds)
+                continue
+            raise LlmMenuParserUnavailableError(
+                "gemini parser request failed"
+            ) from error
+
+        if response.status_code in {408, 500, 502, 503, 504} and attempt < attempts:
+            _sleep_before_retry(retry_backoff_seconds)
+            continue
+        return response
+
+    raise LlmMenuParserUnavailableError("gemini parser unavailable")
 
 
 def _model_path(model: str) -> str:
@@ -187,8 +226,6 @@ def _build_request(
     target_language: str,
     images: Sequence[bytes] | None = None,
     prealign_csv: bool = True,
-    preferences_data: list[dict[str, Any]] | None = None,
-    is_group: bool = False,
 ) -> dict[str, Any]:
     image_list = [image for image in (images or []) if image]
     has_images = bool(image_list)
@@ -199,8 +236,6 @@ def _build_request(
                 target_language=target_language,
                 has_images=has_images,
                 prealign_csv=prealign_csv,
-                preferences_data=preferences_data,
-                is_group=is_group,
             )
         }
     ]
@@ -267,8 +302,6 @@ def _build_prompt(
     target_language: str,
     has_images: bool = False,
     prealign_csv: bool = True,
-    preferences_data: list[dict[str, Any]] | None = None,
-    is_group: bool = False,
 ) -> str:
     detected = document.detected_language or "unknown"
     csv_anchor = _build_csv_anchor(document, prealign_csv=prealign_csv)
@@ -298,34 +331,6 @@ def _build_prompt(
         "an existing dish; it is NOT inventing a new item. Leave "
         "original_description empty when the menu printed none (never fabricate "
         "source-language text).\n"
-        "- Populate the food-intelligence fields for every item so the database "
-        "does not stay sparse: assistant_summary, main_ingredients, "
-        "ingredient_tags, flavor_tags, texture_tags, cooking_methods, "
-        "spice_level, sweetness_level, saltiness_level, sourness_level, "
-        "richness_level, oiliness_level, and risk_notes when applicable.\n"
-        "- assistant_summary: one short practical sentence in the target "
-        "language describing the dish for a diner choosing what to order. If "
-        "translated_description is already concise, summarize its ordering "
-        "value rather than repeating it word-for-word.\n"
-        "- main_ingredients: 2-8 human-readable ingredients in the target "
-        "language. Infer from dish names and descriptions only; use [] only "
-        "when no ingredient can be reasonably inferred.\n"
-        "- ingredient_tags: lowercase stable tags for ingredients or protein "
-        "families, for example beef, pork, chicken, shrimp, tofu, rice, noodle, "
-        "herbs, vegetable, egg, dairy, peanut, soy. Prefer concise ASCII tags.\n"
-        "- flavor_tags, texture_tags, cooking_methods: lowercase concise tags. "
-        "Examples: savory, sweet, sour, spicy, rich, umami; crunchy, tender, "
-        "chewy, creamy, crispy, fresh; grilled, steamed, fried, deep_fried, "
-        "stir_fried, simmered, raw, baked, boiled.\n"
-        "- Taste level fields are integers 0-5. Use 0 for clearly absent, 1-2 "
-        "for mild, 3 for medium, 4-5 for strong. Never output null for these "
-        "six level fields unless the item text is unusable.\n"
-        "- risk_notes: ONLY use this for real cautions: visible allergens, "
-        "meat/seafood/alcohol conflicts, raw/undercooked items, or genuine "
-        "ingredient uncertainty. If no risk is visible, omit risk_notes. Do "
-        "NOT write reassuring/safe notes in risk_notes; put "
-        "positive ordering context in assistant_summary or descriptive tags "
-        "instead.\n"
         f"- category: a short label in the target language ({target_language}); "
         f"if the menu prints it bilingually, keep only the {target_language} "
         "side.\n"
@@ -335,9 +340,11 @@ def _build_prompt(
         "- dietary_tags: from THIS fixed set only, list every one that applies — "
         "contains_pork, contains_beef, contains_seafood, contains_alcohol, "
         "vegetarian, vegan. Use [] if none apply.\n"
-        "- Do not populate recommendation or participant_breakdowns during menu "
-        "extraction. The dining recommendation step runs separately after every "
-        "printed item has been saved.\n"
+        "- This call is EXTRACTION ONLY. Do not populate food-intelligence "
+        "fields (tags, taste levels, assistant_summary), recommendation or "
+        "participant_breakdowns — a separate enrichment call handles those "
+        "after every printed dish has been captured. Spend all your effort on "
+        "finding every dish and pairing it with the right price.\n"
         + "- Do not output any values in the root level warnings array (leave it empty).\n"
         + "- Omit other optional fields when unknown.\n"
     )
@@ -455,6 +462,10 @@ def _line_sort_key(line: object) -> tuple[float, float]:
 
 
 def _parsed_menu_schema() -> dict[str, Any]:
+    # Extraction schema only. Every field the model must WRITE here is one it
+    # would otherwise skip, so the required list is deliberately short: the
+    # food-intelligence fields (tags, taste levels, assistant_summary) live in
+    # the enrichment call, where getting them wrong cannot cost us a dish.
     item_schema = {
         "type": "OBJECT",
         "properties": {
@@ -462,19 +473,6 @@ def _parsed_menu_schema() -> dict[str, Any]:
             "original_description": {"type": "STRING"},
             "translated_name": {"type": "STRING"},
             "translated_description": {"type": "STRING"},
-            "assistant_summary": {"type": "STRING"},
-            "main_ingredients": {"type": "ARRAY", "items": {"type": "STRING"}},
-            "ingredient_tags": {"type": "ARRAY", "items": {"type": "STRING"}},
-            "flavor_tags": {"type": "ARRAY", "items": {"type": "STRING"}},
-            "texture_tags": {"type": "ARRAY", "items": {"type": "STRING"}},
-            "cooking_methods": {"type": "ARRAY", "items": {"type": "STRING"}},
-            "spice_level": {"type": "INTEGER"},
-            "sweetness_level": {"type": "INTEGER"},
-            "saltiness_level": {"type": "INTEGER"},
-            "sourness_level": {"type": "INTEGER"},
-            "richness_level": {"type": "INTEGER"},
-            "oiliness_level": {"type": "INTEGER"},
-            "risk_notes": {"type": "STRING"},
             "base_name": {"type": "STRING"},
             "variant_name": {"type": "STRING"},
             "variant_group": {"type": "STRING"},
@@ -487,22 +485,14 @@ def _parsed_menu_schema() -> dict[str, Any]:
             "confidence": {"type": "NUMBER"},
             "sort_order": {"type": "INTEGER"},
         },
+        # Mark the generated/inferred fields required: a terse lite model omits
+        # optional fields (especially translated_description it must *write*, and
+        # the allergen/diet tags it must *infer*), leaving them null. Requiring
+        # them forces the model to actually produce them.
         "required": [
             "original_name",
             "translated_name",
             "translated_description",
-            "assistant_summary",
-            "main_ingredients",
-            "ingredient_tags",
-            "flavor_tags",
-            "texture_tags",
-            "cooking_methods",
-            "spice_level",
-            "sweetness_level",
-            "saltiness_level",
-            "sourness_level",
-            "richness_level",
-            "oiliness_level",
             "allergens",
             "dietary_tags",
             "sort_order",
@@ -544,7 +534,16 @@ def _extract_json_payload(body: dict[str, Any]) -> dict[str, Any]:
     if not candidates:
         raise LlmMenuParserError("gemini parser returned no candidates")
 
-    content = candidates[0].get("content") or {}
+    candidate = candidates[0]
+    # A response cut off at the output ceiling still arrives as HTTP 200 with a
+    # half-written JSON body. Without this check it surfaces as a generic decode
+    # error and the caller cannot tell "model broke" from "answer did not fit".
+    if candidate.get("finishReason") == "MAX_TOKENS":
+        raise LlmMenuParserTruncatedError(
+            "gemini parser hit the output ceiling (finishReason=MAX_TOKENS)"
+        )
+
+    content = candidate.get("content") or {}
     parts = content.get("parts") or []
     text = "".join(str(part.get("text") or "") for part in parts).strip()
     if not text:
