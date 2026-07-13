@@ -7,7 +7,14 @@ import { useToast } from '@/app/providers/ToastProvider'
 import { ApiError, apiRequest } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { formatMoney } from '@/features/menu-scan/lib'
-import { cn } from '@/shared/lib/cn'
+import { PageTransition } from '@/shared/components/motion/PageTransition'
+import { Reveal } from '@/shared/components/motion/Reveal'
+import { SectionCard } from '@/shared/components/SectionCard'
+import { IconBadge } from '@/shared/components/IconBadge'
+import { EmptyState } from '@/shared/components/EmptyState'
+import { Button } from '@/shared/components/ui/button'
+import { Badge } from '@/shared/components/ui/badge'
+import { DatePicker } from '@/shared/components/ui/date-picker'
 import type { BillStatus, BillSummary } from '@/features/billing/types'
 
 type StatusFilter = 'ALL' | BillStatus
@@ -98,173 +105,168 @@ export function BillsPage() {
     setToDate('')
   }
 
-  const dateInputClass =
-    'h-9 rounded-[8px] border border-hairline bg-canvas px-3 text-[14px] text-ink outline-none focus:border-primary-dark'
-
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-4 py-[30px] sm:px-[50px] sm:py-[50px]">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[32px] font-bold leading-[38px] text-primary-dark">
-            {t('bills.title')}
-          </h1>
-          <p className="mb-0 mt-1 text-[14px] text-ink-variant">{t('bills.subtitle')}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          disabled={loading}
-          className="flex h-10 items-center gap-2 rounded-[8px] border border-hairline bg-canvas px-3 text-[14px] font-medium text-ink-variant transition-colors hover:bg-surface-muted disabled:opacity-50"
-        >
-          <RefreshCw className="size-4" aria-hidden />
-          {t('common.retry')}
-        </button>
-      </div>
+    <PageTransition>
+      <div className="mx-auto w-full max-w-[1100px] px-4 py-8 sm:px-8 sm:py-12">
+        {/* Header */}
+        <Reveal>
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="text-[32px] font-bold leading-tight text-ink">
+                {t('bills.title')}
+              </h1>
+              <p className="mt-1 text-[14px] text-ink-variant">{t('bills.subtitle')}</p>
+            </div>
+            <Button variant="outline" onClick={() => void load()} disabled={loading}>
+              <RefreshCw className="size-4" aria-hidden />
+              {t('common.retry')}
+            </Button>
+          </div>
+        </Reveal>
 
-      {/* Filters — status chips + a created-at range, applied client-side. */}
-      <div className="mb-5 flex flex-wrap items-center gap-3">
-        <div className="flex flex-wrap gap-2">
-          {STATUS_FILTERS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setStatusFilter(value)}
-              aria-pressed={statusFilter === value}
-              className={cn(
-                'h-9 rounded-full px-4 text-[13px] font-medium transition-colors',
-                statusFilter === value
-                  ? 'bg-primary-dark text-white'
-                  : 'border border-hairline bg-canvas text-primary-dark hover:bg-surface-muted',
+        {/* Filters — status chips + a created-at range, applied client-side. */}
+        <Reveal delay={0.05}>
+          <SectionCard className="mb-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap gap-2">
+                {STATUS_FILTERS.map((value) => (
+                  <Button
+                    key={value}
+                    size="sm"
+                    variant={statusFilter === value ? 'default' : 'outline'}
+                    aria-pressed={statusFilter === value}
+                    onClick={() => setStatusFilter(value)}
+                  >
+                    {value === 'ALL' ? t('bills.filterAll') : t(`bills.status.${value}`)}
+                  </Button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 text-[13px] text-ink-variant">
+                {t('bills.from')}
+                <DatePicker
+                  value={fromDate}
+                  onChange={setFromDate}
+                  max={toDate || undefined}
+                  aria-label={t('bills.from')}
+                />
+              </div>
+              <div className="flex items-center gap-2 text-[13px] text-ink-variant">
+                {t('bills.to')}
+                <DatePicker
+                  value={toDate}
+                  onChange={setToDate}
+                  min={fromDate || undefined}
+                  aria-label={t('bills.to')}
+                />
+              </div>
+              {hasFilter && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  <X className="size-3.5" aria-hidden />
+                  {t('bills.clearFilters')}
+                </Button>
               )}
-            >
-              {value === 'ALL' ? t('bills.filterAll') : t(`bills.status.${value}`)}
-            </button>
-          ))}
-        </div>
-        <label className="flex items-center gap-2 text-[13px] text-ink-variant">
-          {t('bills.from')}
-          <input
-            type="date"
-            value={fromDate}
-            max={toDate || undefined}
-            onChange={(event) => setFromDate(event.target.value)}
-            className={dateInputClass}
-          />
-        </label>
-        <label className="flex items-center gap-2 text-[13px] text-ink-variant">
-          {t('bills.to')}
-          <input
-            type="date"
-            value={toDate}
-            min={fromDate || undefined}
-            onChange={(event) => setToDate(event.target.value)}
-            className={dateInputClass}
-          />
-        </label>
-        {hasFilter && (
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="flex h-9 items-center gap-1.5 rounded-full border border-hairline bg-canvas px-3 text-[13px] font-medium text-ink-variant transition-colors hover:bg-surface-muted hover:text-ink"
+            </div>
+          </SectionCard>
+        </Reveal>
+
+        {error && (
+          <p
+            role="alert"
+            className="mb-4 flex items-center gap-2 rounded-2xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-[14px] text-destructive"
           >
-            <X className="size-3.5" aria-hidden />
-            {t('bills.clearFilters')}
-          </button>
+            <AlertCircle className="size-4 shrink-0" aria-hidden />
+            {error}
+          </p>
+        )}
+
+        {loading && (
+          <SectionCard>
+            <div className="flex items-center justify-center gap-2 py-8 text-[14px] text-ink-variant">
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              {t('bills.loading')}
+            </div>
+          </SectionCard>
+        )}
+
+        {!loading && !error && bills.length === 0 && (
+          <SectionCard>
+            <EmptyState
+              icon={ReceiptText}
+              title={t('bills.empty')}
+              action={
+                <Button asChild>
+                  <Link to="/app/menus">{t('bills.goToMenus')}</Link>
+                </Button>
+              }
+            />
+          </SectionCard>
+        )}
+
+        {!loading && bills.length > 0 && filtered.length === 0 && (
+          <SectionCard>
+            <EmptyState
+              icon={ReceiptText}
+              tone="muted"
+              title={t('bills.noMatch')}
+              action={
+                <Button variant="outline" onClick={clearFilters}>
+                  <X className="size-3.5" aria-hidden />
+                  {t('bills.clearFilters')}
+                </Button>
+              }
+            />
+          </SectionCard>
+        )}
+
+        {!loading && filtered.length > 0 && (
+          <div className="flex flex-col gap-3">
+            {filtered.map((bill, index) => (
+              <Reveal key={bill.id} delay={Math.min(index * 0.04, 0.24)}>
+                <div className="flex items-center gap-2 overflow-hidden rounded-2xl border border-border bg-surface pr-2 shadow-2 transition-all duration-200 ease-[var(--ease-out-quint)] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-3">
+                  <Link
+                    to={`/app/bills/${bill.id}`}
+                    className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-4 rounded-2xl px-5 py-4 transition-colors hover:bg-panel"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <IconBadge icon={ReceiptText} size="sm" />
+                      <div className="min-w-0">
+                        <p className="truncate text-[15px] font-bold text-ink">
+                          {formatDate(bill.created_at)}
+                        </p>
+                        <p className="text-[13px] text-ink-variant">
+                          {t('bills.dishCount', { count: bill.item_count })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Badge variant={bill.status === 'FINALIZED' ? 'primary' : 'outline'}>
+                        {t(`bills.status.${bill.status}`)}
+                      </Badge>
+                      <strong className="text-[17px] text-primary-dark">
+                        {formatMoney(Number(bill.total_amount), bill.currency)}
+                      </strong>
+                    </div>
+                  </Link>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => void handleDelete(bill.id)}
+                    disabled={deletingId !== null}
+                    aria-label={t('bills.deleteAria', { date: formatDate(bill.created_at) })}
+                    className="mr-1 hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    {deletingId === bill.id ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Trash2 className="size-4" aria-hidden />
+                    )}
+                  </Button>
+                </div>
+              </Reveal>
+            ))}
+          </div>
         )}
       </div>
-
-      {error && (
-        <p
-          role="alert"
-          className="mb-4 flex items-center gap-2 rounded-[8px] border border-destructive/30 bg-destructive/5 px-3 py-2 text-[14px] text-destructive"
-        >
-          <AlertCircle className="size-4 shrink-0" aria-hidden />
-          {error}
-        </p>
-      )}
-
-      {loading && (
-        <p className="flex items-center gap-2 text-[14px] text-ink-variant">
-          <Loader2 className="size-4 animate-spin" aria-hidden />
-          {t('bills.loading')}
-        </p>
-      )}
-
-      {!loading && !error && bills.length === 0 && (
-        <div className="flex flex-col items-center gap-3 rounded-[12px] border border-dashed border-hairline bg-secondary px-6 py-14 text-center">
-          <ReceiptText className="size-8 text-primary-dark" aria-hidden />
-          <p className="mb-0 text-[15px] text-ink-variant">{t('bills.empty')}</p>
-          <Link
-            to="/app/menus"
-            className="rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
-          >
-            {t('bills.goToMenus')}
-          </Link>
-        </div>
-      )}
-
-      {!loading && bills.length > 0 && filtered.length === 0 && (
-        <p className="rounded-[12px] border border-dashed border-hairline bg-secondary px-6 py-10 text-center text-[14px] text-ink-variant">
-          {t('bills.noMatch')}
-        </p>
-      )}
-
-      {!loading && filtered.length > 0 && (
-        <ul className="flex flex-col gap-3">
-          {filtered.map((bill) => (
-            <li
-              key={bill.id}
-              className="flex items-center gap-2 rounded-[12px] border border-hairline bg-canvas pr-3 transition-colors hover:border-primary/40"
-            >
-              <Link
-                to={`/app/bills/${bill.id}`}
-                className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-4 rounded-[12px] px-5 py-4 transition-colors hover:bg-surface-muted"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-[8px] bg-surface-muted text-primary-dark">
-                    <ReceiptText className="size-5" aria-hidden />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="mb-0 truncate text-[15px] font-bold text-ink">
-                      {formatDate(bill.created_at)}
-                    </p>
-                    <p className="mb-0 text-[13px] text-ink-variant">
-                      {t('bills.dishCount', { count: bill.item_count })}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span
-                    className={
-                      bill.status === 'FINALIZED'
-                        ? 'rounded-full bg-[#2e6b00]/10 px-3 py-1 text-[12px] font-bold text-[#2e6b00]'
-                        : 'rounded-full bg-surface-muted px-3 py-1 text-[12px] font-bold text-ink-variant'
-                    }
-                  >
-                    {t(`bills.status.${bill.status}`)}
-                  </span>
-                  <strong className="text-[17px] text-primary-dark">
-                    {formatMoney(Number(bill.total_amount), bill.currency)}
-                  </strong>
-                </div>
-              </Link>
-              <button
-                type="button"
-                onClick={() => void handleDelete(bill.id)}
-                disabled={deletingId !== null}
-                aria-label={t('bills.deleteAria', { date: formatDate(bill.created_at) })}
-                className="flex size-10 shrink-0 items-center justify-center rounded-[8px] text-ink-variant transition-colors hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {deletingId === bill.id ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <Trash2 className="size-4" aria-hidden />
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    </PageTransition>
   )
 }

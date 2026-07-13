@@ -21,15 +21,29 @@ import type {
   ScanHistoryItem,
   ScanStatus,
 } from '@/features/menu-scan/types'
+import { PageTransition } from '@/shared/components/motion/PageTransition'
+import { Reveal } from '@/shared/components/motion/Reveal'
+import { SectionCard } from '@/shared/components/SectionCard'
+import { IconBadge } from '@/shared/components/IconBadge'
+import { StatTile } from '@/shared/components/StatTile'
+import { EmptyState } from '@/shared/components/EmptyState'
+import { TiltCard } from '@/shared/components/rb/TiltCard'
+import { Button } from '@/shared/components/ui/button'
+import { Badge } from '@/shared/components/ui/badge'
+import { Card } from '@/shared/components/ui/card'
 
 const PAGE_SIZE = 20
 const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '')
 
-const STATUS_STYLES: Record<ScanStatus, string> = {
-  PENDING: 'bg-secondary text-ink-variant',
-  PROCESSING: 'bg-primary/15 text-primary-dark',
-  COMPLETED: 'bg-[#e4f4df] text-[#256b2b]',
-  FAILED: 'bg-destructive/10 text-destructive',
+// Status pill variants, mapped onto the design-system Badge tones.
+const STATUS_VARIANTS: Record<
+  ScanStatus,
+  'primary' | 'accent' | 'success' | 'destructive' | 'secondary'
+> = {
+  PENDING: 'secondary',
+  PROCESSING: 'accent',
+  COMPLETED: 'success',
+  FAILED: 'destructive',
 }
 
 function resolveUrl(path: string): string {
@@ -98,120 +112,117 @@ export function DashboardPage() {
   )
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-4 py-[30px] sm:px-[50px] sm:py-[40px]">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-[32px] font-bold leading-[40px] text-primary-dark sm:text-[44px] sm:leading-[52px]">
-          {t('dashboard.welcome', { name: displayName })}
-        </h1>
-        <p className="flex items-center gap-2 text-[14px] text-ink-variant">
-          <Sparkles className="size-4 text-primary-dark" aria-hidden />
-          {t('dashboard.systemStatus')}
-        </p>
-      </div>
+    <PageTransition>
+      <div className="mx-auto w-full max-w-[1200px] px-4 py-8 sm:px-8 lg:py-10">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-[32px] font-bold leading-[40px] text-ink sm:text-[44px] sm:leading-[52px]">
+            {t('dashboard.welcome', { name: displayName })}
+          </h1>
+          <p className="flex items-center gap-2 text-[14px] text-ink-variant">
+            <Sparkles className="size-4 text-amber" aria-hidden />
+            {t('dashboard.systemStatus')}
+          </p>
+        </div>
 
-      <div className="mt-[30px] grid grid-cols-1 gap-[20px] sm:grid-cols-2">
-        <Link
-          to="/app/scan"
-          className="group flex min-h-[160px] flex-col items-center justify-center gap-4 rounded-[12px] border border-hairline bg-canvas p-[30px] text-center transition-colors hover:bg-surface-muted"
-        >
-          <span className="flex size-12 items-center justify-center rounded-full bg-primary-dark">
-            <FileUp className="size-6 text-white" aria-hidden />
-          </span>
-          <span className="flex flex-col gap-1.5">
-            <span className="text-[20px] leading-[28px] text-primary-dark">
-              {t('dashboard.upload.title')}
-            </span>
-            <span className="text-[14px] text-ink-variant">
-              {t('dashboard.upload.desc')}
-            </span>
-          </span>
-        </Link>
-        <Link
-          to="/app/scan/camera"
-          className="group flex min-h-[160px] flex-col items-center justify-center gap-4 rounded-[12px] border border-primary-dark bg-primary-dark p-[30px] text-center transition-opacity hover:opacity-90"
-        >
-          <span className="flex size-12 items-center justify-center rounded-full bg-white">
-            <Camera className="size-6 text-primary-dark" aria-hidden />
-          </span>
-          <span className="flex flex-col gap-1.5">
-            <span className="text-[20px] leading-[28px] text-white">
-              {t('dashboard.camera.title')}
-            </span>
-            <span className="text-[14px] text-[#e0e4d6]">
-              {t('dashboard.camera.desc')}
-            </span>
-          </span>
-        </Link>
-      </div>
+        {/* Primary CTAs — bento, tilt on hover. */}
+        <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <TiltCard className="h-full">
+            <Link to="/app/scan" className="block h-full">
+              <Card className="h-full min-h-[176px] items-center justify-center gap-4 px-6 py-7 text-center shadow-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-3 sm:px-8">
+                <IconBadge icon={FileUp} tone="primary" solid size="lg" />
+                <span className="flex flex-col gap-1.5">
+                  <span className="text-[20px] font-bold leading-[26px] text-ink">
+                    {t('dashboard.upload.title')}
+                  </span>
+                  <span className="text-[14px] text-ink-variant">
+                    {t('dashboard.upload.desc')}
+                  </span>
+                </span>
+              </Card>
+            </Link>
+          </TiltCard>
 
-      <div className="mt-[25px] grid grid-cols-1 gap-[20px] sm:grid-cols-3">
-        <MetricCard label={t('dashboard.metrics.scanned')} value={String(totalScans)} />
-        <MetricCard label={t('dashboard.metrics.itemsLoaded')} value={String(loadedItemCount)} />
-        <MetricCard
-          label={t('dashboard.metrics.historyPage')}
-          value={meta ? `${meta.page}/${Math.max(meta.total_pages, 1)}` : '1/1'}
-        />
-      </div>
+          <TiltCard className="h-full">
+            <Link to="/app/scan/camera" className="block h-full">
+              <Card className="h-full min-h-[176px] items-center justify-center gap-4 border-transparent bg-primary px-6 py-7 text-center text-white shadow-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-pop sm:px-8">
+                <IconBadge
+                  icon={Camera}
+                  size="lg"
+                  className="bg-white/15 text-white"
+                />
+                <span className="flex flex-col gap-1.5">
+                  <span className="text-[20px] font-bold leading-[26px] text-white">
+                    {t('dashboard.camera.title')}
+                  </span>
+                  <span className="text-[14px] text-white/80">
+                    {t('dashboard.camera.desc')}
+                  </span>
+                </span>
+              </Card>
+            </Link>
+          </TiltCard>
+        </div>
 
-      <section className="mt-[30px] overflow-hidden rounded-[12px] border border-hairline bg-canvas">
-        <header className="flex flex-col gap-1 border-b border-hairline bg-app-bg px-[20px] py-[16px] sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-[20px] leading-[28px] text-primary-dark">
-            {t('dashboard.recent')}
-          </h2>
-          {meta && (
-            <span className="text-[13px] text-ink-variant">
-              {t('dashboard.sessionCount', { count: meta.total })}
-            </span>
-          )}
-        </header>
+        {/* Metrics — animated counters for the numeric ones. */}
+        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
+          <StatTile label={t('dashboard.metrics.scanned')} count={totalScans} />
+          <StatTile label={t('dashboard.metrics.itemsLoaded')} count={loadedItemCount} />
+          <StatTile
+            label={t('dashboard.metrics.historyPage')}
+            value={meta ? `${meta.page}/${Math.max(meta.total_pages, 1)}` : '1/1'}
+          />
+        </div>
 
-        {loading ? (
-          <HistoryMessage icon={<Loader2 className="size-7 animate-spin" />}>
-            {t('dashboard.loadingHistory')}
-          </HistoryMessage>
-        ) : error ? (
-          <HistoryError message={error} onRetry={() => void loadScans(1)} />
-        ) : scans.length === 0 ? (
-          <EmptyHistory />
-        ) : (
-          <div className="divide-y divide-hairline">
-            {scans.map((scan) => (
-              <ScanHistoryRow
-                key={scan.id}
-                scan={scan}
-                accessToken={accessToken}
-              />
-            ))}
-            {canLoadMore && (
-              <div className="flex justify-center px-[20px] py-[18px]">
-                <button
-                  type="button"
-                  onClick={() => meta && void loadScans(meta.page + 1)}
-                  disabled={loadingMore}
-                  className="flex min-h-10 items-center gap-2 rounded-[8px] border border-primary-dark px-4 py-2 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {loadingMore ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <RefreshCw className="size-4" aria-hidden />
-                  )}
-                  {t('dashboard.loadMore')}
-                </button>
+        {/* Recent scans — elevated panel with staggered rows. */}
+        <div className="mt-7">
+          <SectionCard
+            flush
+            title={t('dashboard.recent')}
+            action={
+              meta ? (
+                <span className="text-[13px] text-ink-variant">
+                  {t('dashboard.sessionCount', { count: meta.total })}
+                </span>
+              ) : undefined
+            }
+          >
+            {loading ? (
+              <HistoryMessage icon={<Loader2 className="size-7 animate-spin" />}>
+                {t('dashboard.loadingHistory')}
+              </HistoryMessage>
+            ) : error ? (
+              <HistoryError message={error} onRetry={() => void loadScans(1)} />
+            ) : scans.length === 0 ? (
+              <EmptyHistory />
+            ) : (
+              <div className="divide-y divide-border">
+                {scans.map((scan, index) => (
+                  <Reveal key={scan.id} delay={Math.min(index * 0.04, 0.32)}>
+                    <ScanHistoryRow scan={scan} accessToken={accessToken} />
+                  </Reveal>
+                ))}
+                {canLoadMore && (
+                  <div className="flex justify-center px-6 py-5">
+                    <Button
+                      variant="outline"
+                      onClick={() => meta && void loadScans(meta.page + 1)}
+                      disabled={loadingMore}
+                    >
+                      {loadingMore ? (
+                        <Loader2 className="size-4 animate-spin" aria-hidden />
+                      ) : (
+                        <RefreshCw className="size-4" aria-hidden />
+                      )}
+                      {t('dashboard.loadMore')}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
-      </section>
-    </div>
-  )
-}
-
-function MetricCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[12px] border border-hairline bg-canvas px-[21px] py-[20px]">
-      <p className="pb-1.5 text-[14px] text-ink-variant">{label}</p>
-      <p className="text-[30px] font-bold leading-[34px] text-primary-dark">{value}</p>
-    </div>
+          </SectionCard>
+        </div>
+      </div>
+    </PageTransition>
   )
 }
 
@@ -227,7 +238,7 @@ function ScanHistoryRow({
   return (
     <Link
       to={`/app/scans/${scan.id}`}
-      className="grid grid-cols-[72px_minmax(0,1fr)] gap-4 px-[20px] py-[16px] transition-colors hover:bg-surface-muted/60 sm:grid-cols-[88px_minmax(0,1fr)_auto]"
+      className="grid grid-cols-[72px_minmax(0,1fr)] gap-4 px-6 py-4 transition-colors hover:bg-panel sm:grid-cols-[88px_minmax(0,1fr)_auto]"
     >
       <ScanThumbnail scan={scan} accessToken={accessToken} />
       <div className="min-w-0">
@@ -235,11 +246,9 @@ function ScanHistoryRow({
           <h3 className="truncate text-[16px] font-bold leading-[22px] text-ink">
             {scan.source.file_name}
           </h3>
-          <span
-            className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${STATUS_STYLES[scan.status]}`}
-          >
+          <Badge variant={STATUS_VARIANTS[scan.status]}>
             {t(`dashboard.status.${scan.status}`)}
-          </span>
+          </Badge>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-variant">
           <span className="flex items-center gap-1.5">
@@ -251,7 +260,7 @@ function ScanHistoryRow({
             {formatScanTime(scan.created_at)}
           </span>
           {scan.menu?.is_saved && (
-            <span className="flex items-center gap-1.5 text-primary-dark">
+            <span className="flex items-center gap-1.5 text-success">
               <CheckCircle2 className="size-3.5" aria-hidden />
               {t('dashboard.saved')}
             </span>
@@ -299,7 +308,7 @@ function ScanThumbnail({
   }, [accessToken, isImage, scan.source.preview_url])
 
   return (
-    <div className="flex aspect-square size-[72px] items-center justify-center overflow-hidden rounded-[8px] border border-hairline bg-surface-muted sm:size-[88px]">
+    <div className="flex aspect-square size-[72px] items-center justify-center overflow-hidden rounded-2xl border border-border bg-panel sm:size-[88px]">
       {isImage && objectUrl ? (
         <img
           src={objectUrl}
@@ -309,7 +318,7 @@ function ScanThumbnail({
       ) : isImage ? (
         <Loader2 className="size-5 animate-spin text-ink-variant" aria-hidden />
       ) : (
-        <FileText className="size-7 text-primary-dark" aria-hidden />
+        <FileText className="size-7 text-primary" aria-hidden />
       )}
     </div>
   )
@@ -323,8 +332,8 @@ function HistoryMessage({
   children: ReactNode
 }) {
   return (
-    <div className="flex flex-col items-center gap-4 px-[20px] py-[50px] text-center text-ink-variant">
-      <span className="flex size-14 items-center justify-center rounded-full bg-surface-muted text-primary-dark">
+    <div className="flex flex-col items-center gap-4 px-6 py-12 text-center text-ink-variant">
+      <span className="flex size-14 items-center justify-center rounded-2xl bg-panel text-primary">
         {icon}
       </span>
       <p className="text-[15px]">{children}</p>
@@ -341,21 +350,21 @@ function HistoryError({
 }) {
   const { t } = useTranslation()
   return (
-    <div className="flex flex-col items-center gap-4 px-[20px] py-[50px] text-center">
-      <span className="flex size-14 items-center justify-center rounded-full bg-destructive/10">
+    <div className="flex flex-col items-center gap-4 px-6 py-12 text-center">
+      <span className="flex size-14 items-center justify-center rounded-2xl bg-destructive/10">
         <AlertCircle className="size-7 text-destructive" aria-hidden />
       </span>
       <p role="alert" className="max-w-[360px] text-[14px] text-destructive">
         {message}
       </p>
-      <button
-        type="button"
+      <Button
+        variant="outline"
         onClick={onRetry}
-        className="flex min-h-10 items-center gap-2 rounded-[8px] border border-destructive/30 px-4 py-2 text-[14px] font-medium text-destructive transition-colors hover:bg-destructive/10"
+        className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
       >
         <RefreshCw className="size-4" aria-hidden />
         {t('common.retry')}
-      </button>
+      </Button>
     </div>
   )
 }
@@ -363,22 +372,16 @@ function HistoryError({
 function EmptyHistory() {
   const { t } = useTranslation()
   return (
-    <div className="flex flex-col items-center gap-4 px-[20px] py-[50px] text-center">
-      <span className="flex size-14 items-center justify-center rounded-full bg-surface-muted">
-        <ScanLine className="size-7 text-primary-dark" aria-hidden />
-      </span>
-      <div className="flex flex-col gap-1.5">
-        <p className="text-[16px] font-medium text-ink">{t('dashboard.empty.title')}</p>
-        <p className="max-w-[320px] text-[14px] text-ink-variant">
-          {t('dashboard.empty.body')}
-        </p>
-      </div>
-      <Link
-        to="/app/scan"
-        className="mt-1 rounded-[8px] bg-primary-dark px-[24px] py-[10px] text-[15px] font-bold text-white transition-opacity hover:opacity-90"
-      >
-        {t('dashboard.empty.scanNow')}
-      </Link>
-    </div>
+    <EmptyState
+      icon={ScanLine}
+      tone="primary"
+      title={t('dashboard.empty.title')}
+      description={t('dashboard.empty.body')}
+      action={
+        <Button asChild size="lg">
+          <Link to="/app/scan">{t('dashboard.empty.scanNow')}</Link>
+        </Button>
+      }
+    />
   )
 }

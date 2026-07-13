@@ -32,12 +32,15 @@ import {
   profilePreferencesToDraft,
   type FoodProfilePreferenceDraft,
 } from '@/features/food-profile/preferences'
-
-const STATUS_STYLES: Record<string, string> = {
-  ACTIVE: 'bg-[#e4f4df] text-[#256b2b]',
-  LOCKED: 'bg-secondary text-ink-variant',
-  DISABLED: 'bg-destructive/10 text-destructive',
-}
+import { Button } from '@/shared/components/ui/button'
+import { Badge } from '@/shared/components/ui/badge'
+import { Input } from '@/shared/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
+import { SectionCard } from '@/shared/components/SectionCard'
+import { IconBadge } from '@/shared/components/IconBadge'
+import { Spinner } from '@/shared/components/Spinner'
+import { PageTransition } from '@/shared/components/motion/PageTransition'
+import { Reveal } from '@/shared/components/motion/Reveal'
 
 function displayValue(value: string | null | undefined, fallback = 'Chưa thiết lập') {
   return value?.trim() ? value : fallback
@@ -137,7 +140,8 @@ export function ProfilePage() {
     : t('profile.notSet')
   const status = profile?.status ?? 'ACTIVE'
   const statusLabel = t(`profile.statusLabels.${status}`, { defaultValue: status })
-  const statusStyle = STATUS_STYLES[status] ?? 'bg-secondary text-ink-variant'
+  const statusVariant: 'success' | 'secondary' | 'destructive' =
+    status === 'ACTIVE' ? 'success' : status === 'DISABLED' ? 'destructive' : 'secondary'
 
   const startEditing = () => {
     setDraftDisplayName(profile?.display_name ?? '')
@@ -275,315 +279,318 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-4 py-[30px] sm:px-[50px] sm:py-[40px]">
-      <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-col gap-2">
-          <p className="text-[13px] font-bold uppercase tracking-[0.7px] text-ink-variant">
-            {t('profile.account')}
-          </p>
-          <h1 className="text-[32px] font-bold leading-[40px] text-primary-dark sm:text-[44px] sm:leading-[52px]">
-            {t('nav.profile')}
-          </h1>
-        </div>
-        <button
-          type="button"
-          onClick={() => void loadProfile('refresh')}
-          disabled={refreshing || loading}
-          className="flex min-h-10 w-fit items-center gap-2 rounded-[8px] border border-primary-dark px-4 py-2 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {refreshing ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : (
-            <RefreshCw className="size-4" aria-hidden />
-          )}
-          {t('profile.refresh')}
-        </button>
-      </header>
-
-      {error && (
-        <div
-          role="alert"
-          className="mt-5 flex items-start gap-3 rounded-[8px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[14px] text-destructive"
-        >
-          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <span>{error}</span>
-        </div>
-      )}
-
-      <section className="mt-[25px] rounded-[12px] border border-hairline bg-canvas p-5 sm:p-[30px]">
-        {loading && !profile ? (
-          <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-ink-variant">
-            <Loader2 className="size-7 animate-spin text-primary-dark" aria-hidden />
-            {t('profile.loading')}
+    <PageTransition>
+      <div className="mx-auto w-full max-w-[1100px] px-4 py-[30px] sm:px-[50px] sm:py-[40px]">
+        <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-2">
+            <p className="text-[13px] font-bold uppercase tracking-[0.7px] text-ink-variant">
+              {t('profile.account')}
+            </p>
+            <h1 className="text-[32px] font-bold leading-[40px] text-ink sm:text-[44px] sm:leading-[52px]">
+              {t('nav.profile')}
+            </h1>
           </div>
-        ) : (
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-center gap-4">
-              <div className="flex size-16 shrink-0 items-center justify-center rounded-[12px] bg-primary-dark text-[24px] font-bold text-white sm:size-20 sm:text-[30px]">
-                {initials}
-              </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="truncate text-[24px] font-bold leading-[32px] text-ink sm:text-[30px] sm:leading-[36px]">
-                    {displayName}
-                  </h2>
-                  <span className={`rounded-full px-3 py-1 text-[12px] font-bold ${statusStyle}`}>
-                    {statusLabel}
-                  </span>
-                </div>
-                <p className="mt-1 truncate text-[14px] text-ink-variant">
-                  {profile?.email}
-                </p>
-              </div>
-            </div>
-            <Link
-              to="/auth/set-password"
-              className="flex min-h-10 w-full items-center justify-center gap-2 rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90 sm:w-fit"
-            >
-              <KeyRound className="size-4" aria-hidden />
-              {t('profile.setPassword')}
-            </Link>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void loadProfile('refresh')}
+            disabled={refreshing || loading}
+          >
+            {refreshing ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <RefreshCw className="size-4" aria-hidden />
+            )}
+            {t('profile.refresh')}
+          </Button>
+        </header>
+
+        {error && (
+          <div
+            role="alert"
+            className="mt-5 flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[14px] text-destructive"
+          >
+            <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>{error}</span>
           </div>
         )}
-      </section>
 
-      <div className="mt-[20px]">
-        <form onSubmit={handleSaveProfile} noValidate className="rounded-[12px] border border-hairline bg-canvas">
-          <header className="flex flex-col gap-3 border-b border-hairline bg-app-bg px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-[20px] leading-[28px] text-primary-dark">
-                {t('profile.infoTitle')}
-              </h2>
-              {saveError && (
-                <p role="alert" className="mt-1 text-[13px] text-destructive">
-                  {saveError}
-                </p>
-              )}
-            </div>
-            {editing ? (
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={cancelEditing}
-                  disabled={saving}
-                  className="flex min-h-10 items-center gap-2 rounded-[8px] border border-hairline bg-canvas px-4 py-2 text-[14px] font-bold text-ink-variant transition-colors hover:bg-surface-muted hover:text-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <X className="size-4" aria-hidden />
-                  {t('common.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex min-h-10 items-center gap-2 rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {saving ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Save className="size-4" aria-hidden />
-                  )}
-                  {t('common.save')}
-                </button>
+        <Reveal className="mt-[25px]">
+          <SectionCard>
+            {loading && !profile ? (
+              <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-ink-variant">
+                <Spinner label={t('profile.loading')} />
+                <span aria-hidden className="text-[14px]">
+                  {t('profile.loading')}
+                </span>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={startEditing}
-                className="flex min-h-10 w-fit items-center gap-2 rounded-[8px] border border-primary-dark px-4 py-2 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10"
-              >
-                <Pencil className="size-4" aria-hidden />
-                {t('common.edit')}
-              </button>
-            )}
-          </header>
-          <div className="grid grid-cols-1 divide-y divide-hairline sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-            <div className="flex flex-col">
-              {editing ? (
-                <ProfileEditField
-                  icon={<UserCircle className="size-5" />}
-                  label={t('profile.displayName')}
-                >
-                  <input
-                    type="text"
-                    value={draftDisplayName}
-                    onChange={(event) => setDraftDisplayName(event.target.value)}
-                    maxLength={150}
-                    placeholder={t('profile.enterDisplayName')}
-                    disabled={saving}
-                    className="h-10 w-full min-w-0 rounded-[8px] border border-hairline bg-canvas px-3 text-[15px] text-ink outline-none transition-colors placeholder:text-placeholder focus:border-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
-                  />
-                </ProfileEditField>
-              ) : (
-                <ProfileField
-                  icon={<UserCircle className="size-5" />}
-                  label={t('profile.displayName')}
-                  value={displayValue(profile?.display_name, t('profile.notSet'))}
-                />
-              )}
-              <ProfileField
-                icon={<Mail className="size-5" />}
-                label={t('profile.email')}
-                value={displayValue(profile?.email, t('profile.noEmail'))}
-              />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex min-h-[96px] gap-3 px-5 py-4">
-                <span className="mt-1 flex size-5 shrink-0 text-[#5f6368]">
-                  <Languages className="size-5" />
-                </span>
-                <div className="min-w-0">
-                  <p className="mb-2 text-[13px] uppercase tracking-[0.5px] text-[#5f6368]">
-                    {t('profile.interfaceLanguage')}
-                  </p>
-                  <LanguageSwitcher />
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-primary text-[24px] font-bold text-white shadow-2 shadow-primary/30 sm:size-20 sm:text-[30px]">
+                    {initials}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="truncate text-[24px] font-bold leading-[32px] text-ink sm:text-[30px] sm:leading-[36px]">
+                        {displayName}
+                      </h2>
+                      <Badge variant={statusVariant}>{statusLabel}</Badge>
+                    </div>
+                    <p className="mt-1 truncate text-[14px] text-ink-variant">
+                      {profile?.email}
+                    </p>
+                  </div>
                 </div>
+                <Button asChild className="w-full sm:w-fit">
+                  <Link to="/auth/set-password">
+                    <KeyRound className="size-4" aria-hidden />
+                    {t('profile.setPassword')}
+                  </Link>
+                </Button>
               </div>
-              <ProfileField
-                icon={<ShieldCheck className="size-5" />}
-                label={t('profile.role')}
-                value={role}
-              />
-              <ProfileField
-                icon={<BadgeCheck className="size-5" />}
-                label={t('profile.statusLabel')}
-                value={statusLabel}
-              />
-              <ProfileField
-                icon={<CalendarDays className="size-5" />}
-                label={t('profile.createdAt')}
-                value={formatDate(profile?.created_at, i18n.language)}
-              />
-            </div>
-          </div>
-        </form>
+            )}
+          </SectionCard>
+        </Reveal>
 
-        <section className="mt-[20px] rounded-[12px] border border-hairline bg-canvas">
-          <header className="flex flex-col gap-3 border-b border-hairline bg-app-bg px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="flex items-center gap-2 text-[20px] leading-[28px] text-primary-dark">
-                <UtensilsCrossed className="size-5" aria-hidden />
+        <Reveal delay={0.08} className="mt-[20px]">
+          <form onSubmit={handleSaveProfile} noValidate>
+            <SectionCard
+              flush
+              title={
+                <span className="flex flex-col gap-1">
+                  <span className="flex items-center gap-2">
+                    <IconBadge icon={UserCircle} size="sm" />
+                    {t('profile.infoTitle')}
+                  </span>
+                  {saveError && (
+                    <span role="alert" className="text-[13px] font-normal text-destructive">
+                      {saveError}
+                    </span>
+                  )}
+                </span>
+              }
+              action={
+                editing ? (
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={cancelEditing}
+                      disabled={saving}
+                    >
+                      <X className="size-4" aria-hidden />
+                      {t('common.cancel')}
+                    </Button>
+                    <Button type="submit" disabled={saving}>
+                      {saving ? (
+                        <Loader2 className="size-4 animate-spin" aria-hidden />
+                      ) : (
+                        <Save className="size-4" aria-hidden />
+                      )}
+                      {t('common.save')}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button type="button" variant="outline" onClick={startEditing}>
+                    <Pencil className="size-4" aria-hidden />
+                    {t('common.edit')}
+                  </Button>
+                )
+              }
+              bodyClassName="grid grid-cols-1 divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0"
+            >
+              <div className="flex flex-col">
+                {editing ? (
+                  <ProfileEditField
+                    icon={<UserCircle className="size-5" />}
+                    label={t('profile.displayName')}
+                  >
+                    <Input
+                      type="text"
+                      value={draftDisplayName}
+                      onChange={(event) => setDraftDisplayName(event.target.value)}
+                      maxLength={150}
+                      placeholder={t('profile.enterDisplayName')}
+                      disabled={saving}
+                    />
+                  </ProfileEditField>
+                ) : (
+                  <ProfileField
+                    icon={<UserCircle className="size-5" />}
+                    label={t('profile.displayName')}
+                    value={displayValue(profile?.display_name, t('profile.notSet'))}
+                  />
+                )}
+                <ProfileField
+                  icon={<Mail className="size-5" />}
+                  label={t('profile.email')}
+                  value={displayValue(profile?.email, t('profile.noEmail'))}
+                />
+              </div>
+              <div className="flex flex-col">
+                <div className="flex min-h-[96px] gap-3 px-6 py-4">
+                  <span className="mt-1 flex size-5 shrink-0 text-ink-variant">
+                    <Languages className="size-5" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="mb-2 text-[13px] uppercase tracking-[0.5px] text-ink-variant">
+                      {t('profile.interfaceLanguage')}
+                    </p>
+                    <LanguageSwitcher />
+                  </div>
+                </div>
+                <ProfileField
+                  icon={<ShieldCheck className="size-5" />}
+                  label={t('profile.role')}
+                  value={role}
+                />
+                <ProfileField
+                  icon={<BadgeCheck className="size-5" />}
+                  label={t('profile.statusLabel')}
+                  value={statusLabel}
+                />
+                <ProfileField
+                  icon={<CalendarDays className="size-5" />}
+                  label={t('profile.createdAt')}
+                  value={formatDate(profile?.created_at, i18n.language)}
+                />
+              </div>
+            </SectionCard>
+          </form>
+        </Reveal>
+
+        <Reveal delay={0.16} className="mt-[20px]">
+          <SectionCard
+            flush
+            title={
+              <span className="flex items-center gap-2">
+                <IconBadge icon={UtensilsCrossed} size="sm" />
                 {t('foodProfile.title')}
-              </h2>
-              <p className="mt-1 text-[14px] text-ink-variant">
-                {t('foodProfile.subtitle')}
-              </p>
-              {foodProfileError && (
-                <p role="alert" className="mt-2 text-[13px] text-destructive">
+              </span>
+            }
+            description={t('foodProfile.subtitle')}
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                onClick={startAddFoodProfile}
+                disabled={foodProfileSaving}
+              >
+                <Plus className="size-4" aria-hidden />
+                {t('foodProfile.add')}
+              </Button>
+            }
+          >
+            {foodProfileError && (
+              <div className="px-6 pt-4">
+                <p role="alert" className="text-[13px] text-destructive">
                   {foodProfileError}
                 </p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={startAddFoodProfile}
-              disabled={foodProfileSaving}
-              className="flex min-h-10 w-fit items-center gap-2 rounded-[8px] border border-primary-dark px-4 py-2 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Plus className="size-4" aria-hidden />
-              {t('foodProfile.add')}
-            </button>
-          </header>
-
-          <div className="flex flex-col divide-y divide-hairline">
-            {foodProfiles.length ? (
-              foodProfiles.map((foodProfile) => (
-                <FoodProfileRow
-                  key={foodProfile.id}
-                  profile={foodProfile}
-                  onEdit={() => startEditFoodProfile(foodProfile)}
-                  onDelete={() => void handleDeleteFoodProfile(foodProfile)}
-                  deleting={foodProfileSaving}
-                />
-              ))
-            ) : (
-              <div className="px-5 py-6 text-[14px] text-ink-variant">
-                {t('foodProfile.empty')}
               </div>
             )}
-          </div>
 
-          {profileEditorOpen && (
-            <form
-              onSubmit={handleSaveFoodProfile}
-              noValidate
-              className="border-t border-hairline px-5 py-5"
-            >
-              <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
-                <label className="flex flex-col gap-2">
-                  <span className="text-[13px] font-bold uppercase tracking-[0.5px] text-ink-variant">
-                    {t('foodProfile.name')}
-                  </span>
-                  <input
-                    type="text"
-                    value={foodProfileName}
-                    onChange={(event) => setFoodProfileName(event.target.value)}
-                    maxLength={150}
-                    disabled={foodProfileSaving}
-                    className="h-10 w-full min-w-0 rounded-[8px] border border-hairline bg-canvas px-3 text-[15px] text-ink outline-none transition-colors placeholder:text-placeholder focus:border-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+            <div className="flex flex-col divide-y divide-border">
+              {foodProfiles.length ? (
+                foodProfiles.map((foodProfile) => (
+                  <FoodProfileRow
+                    key={foodProfile.id}
+                    profile={foodProfile}
+                    onEdit={() => startEditFoodProfile(foodProfile)}
+                    onDelete={() => void handleDeleteFoodProfile(foodProfile)}
+                    deleting={foodProfileSaving}
                   />
+                ))
+              ) : (
+                <div className="px-6 py-6 text-[14px] text-ink-variant">
+                  {t('foodProfile.empty')}
+                </div>
+              )}
+            </div>
+
+            {profileEditorOpen && (
+              <form
+                onSubmit={handleSaveFoodProfile}
+                noValidate
+                className="border-t border-border px-6 py-5"
+              >
+                <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
+                  <label className="flex flex-col gap-2">
+                    <span className="text-[13px] font-bold uppercase tracking-[0.5px] text-ink-variant">
+                      {t('foodProfile.name')}
+                    </span>
+                    <Input
+                      type="text"
+                      value={foodProfileName}
+                      onChange={(event) => setFoodProfileName(event.target.value)}
+                      maxLength={150}
+                      disabled={foodProfileSaving}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-2">
+                    <span className="text-[13px] font-bold uppercase tracking-[0.5px] text-ink-variant">
+                      {t('foodProfile.language')}
+                    </span>
+                    <Select
+                      value={foodProfileLanguage}
+                      onValueChange={setFoodProfileLanguage}
+                      disabled={foodProfileSaving}
+                    >
+                      <SelectTrigger className="h-11 w-full min-w-0 rounded-xl border border-border bg-surface px-3 text-[15px] text-ink">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="vi">Tiếng Việt</SelectItem>
+                        <SelectItem value="en">English</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </label>
+                </div>
+
+                <label className="mt-4 flex items-center gap-2 text-[14px] text-ink">
+                  <input
+                    type="checkbox"
+                    checked={foodProfileDefault}
+                    onChange={(event) => setFoodProfileDefault(event.target.checked)}
+                    disabled={foodProfileSaving || foodProfiles.length === 0}
+                    className="size-4 accent-primary"
+                  />
+                  {t('foodProfile.defaultProfile')}
                 </label>
-                <label className="flex flex-col gap-2">
-                  <span className="text-[13px] font-bold uppercase tracking-[0.5px] text-ink-variant">
-                    {t('foodProfile.language')}
-                  </span>
-                  <select
-                    value={foodProfileLanguage}
-                    onChange={(event) => setFoodProfileLanguage(event.target.value)}
+
+                <div className="mt-5">
+                  <FoodProfilePreferencePicker
+                    value={foodProfileDiet}
+                    onChange={setFoodProfileDiet}
                     disabled={foodProfileSaving}
-                    className="h-10 rounded-[8px] border border-hairline bg-canvas px-3 text-[15px] text-ink outline-none transition-colors focus:border-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                </div>
+
+                <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={closeFoodProfileEditor}
+                    disabled={foodProfileSaving}
                   >
-                    <option value="vi">Tiếng Việt</option>
-                    <option value="en">English</option>
-                  </select>
-                </label>
-              </div>
-
-              <label className="mt-4 flex items-center gap-2 text-[14px] text-ink">
-                <input
-                  type="checkbox"
-                  checked={foodProfileDefault}
-                  onChange={(event) => setFoodProfileDefault(event.target.checked)}
-                  disabled={foodProfileSaving || foodProfiles.length === 0}
-                  className="size-4 accent-primary-dark"
-                />
-                {t('foodProfile.defaultProfile')}
-              </label>
-
-              <div className="mt-5">
-                <FoodProfilePreferencePicker
-                  value={foodProfileDiet}
-                  onChange={setFoodProfileDiet}
-                  disabled={foodProfileSaving}
-                />
-              </div>
-
-              <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={closeFoodProfileEditor}
-                  disabled={foodProfileSaving}
-                  className="flex min-h-10 items-center justify-center gap-2 rounded-[8px] border border-hairline bg-canvas px-4 py-2 text-[14px] font-bold text-ink-variant transition-colors hover:bg-surface-muted hover:text-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <X className="size-4" aria-hidden />
-                  {t('common.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={foodProfileSaving}
-                  className="flex min-h-10 items-center justify-center gap-2 rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {foodProfileSaving ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Save className="size-4" aria-hidden />
-                  )}
-                  {t('common.save')}
-                </button>
-              </div>
-            </form>
-          )}
-        </section>
+                    <X className="size-4" aria-hidden />
+                    {t('common.cancel')}
+                  </Button>
+                  <Button type="submit" disabled={foodProfileSaving}>
+                    {foodProfileSaving ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Save className="size-4" aria-hidden />
+                    )}
+                    {t('common.save')}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </SectionCard>
+        </Reveal>
       </div>
-    </div>
+    </PageTransition>
   )
 }
 
@@ -597,12 +604,12 @@ function ProfileField({
   value: string
 }) {
   return (
-    <div className="flex min-h-[96px] gap-3 px-5 py-4">
-      <span className="mt-1 flex size-5 shrink-0 text-[#5f6368]">
+    <div className="flex min-h-[96px] gap-3 px-6 py-4">
+      <span className="mt-1 flex size-5 shrink-0 text-ink-variant">
         {icon}
       </span>
       <div className="min-w-0">
-        <p className="mb-1 text-[13px] uppercase tracking-[0.5px] text-[#5f6368]">
+        <p className="mb-1 text-[13px] uppercase tracking-[0.5px] text-ink-variant">
           {label}
         </p>
         <p className="break-words text-[16px] font-bold leading-[24px] text-ink">
@@ -623,12 +630,12 @@ function ProfileEditField({
   label: string
 }) {
   return (
-    <div className="flex min-h-[96px] gap-3 px-5 py-4">
-      <span className="mt-1 flex size-5 shrink-0 text-[#5f6368]">
+    <div className="flex min-h-[96px] gap-3 px-6 py-4">
+      <span className="mt-1 flex size-5 shrink-0 text-ink-variant">
         {icon}
       </span>
       <label className="min-w-0 flex-1">
-        <span className="mb-2 block text-[13px] uppercase tracking-[0.5px] text-[#5f6368]">
+        <span className="mb-2 block text-[13px] uppercase tracking-[0.5px] text-ink-variant">
           {label}
         </span>
         {children}
@@ -666,17 +673,17 @@ function FoodProfileRow({
   const avoids = formatCodes(diet.avoids, 'foodProfile.preferenceLabels')
 
   return (
-    <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-4 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-[17px] font-bold text-ink">
             {profile.display_name}
           </h3>
           {profile.is_default && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary-dark px-2.5 py-1 text-[12px] font-bold text-white">
+            <Badge variant="default">
               <Star className="size-3" aria-hidden />
               {t('foodProfile.defaultBadge')}
-            </span>
+            </Badge>
           )}
         </div>
         <div className="mt-2 flex flex-col gap-1 text-[14px] text-ink-variant">
@@ -699,24 +706,27 @@ function FoodProfileRow({
         </div>
       </div>
       <div className="flex shrink-0 gap-2">
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="icon"
           onClick={onEdit}
           disabled={deleting}
-          className="flex size-10 items-center justify-center rounded-[8px] border border-hairline text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
           aria-label={t('common.edit')}
         >
           <Pencil className="size-4" aria-hidden />
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
+          size="icon"
           onClick={onDelete}
           disabled={deleting}
-          className="flex size-10 items-center justify-center rounded-[8px] border border-destructive/30 text-destructive transition-colors hover:bg-destructive/5 disabled:cursor-not-allowed disabled:opacity-60"
           aria-label={t('common.delete')}
+          className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
         >
           <Trash2 className="size-4" aria-hidden />
-        </button>
+        </Button>
       </div>
     </div>
   )

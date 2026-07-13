@@ -3,6 +3,8 @@ import type { FormEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Bot, Loader2, Plus, Send, X } from 'lucide-react'
 import { apiRequest, ApiError } from '@/shared/lib/api'
+import { motion } from 'motion/react'
+import { Button } from '@/shared/components/ui/button'
 
 /** Seconds the server told us to wait, from the 429's `details.retry_after`. */
 function retryAfterSeconds(details: unknown): number {
@@ -277,20 +279,21 @@ export const AssistantChat = memo(function AssistantChat({
       }
     >
       {open && (
-        <div className="flex h-[min(78vh,600px)] w-[min(92vw,440px)] flex-col overflow-hidden rounded-[16px] border border-hairline bg-canvas shadow-[0_16px_50px_rgba(15,23,42,0.24)]">
+        <div className="flex h-[min(78vh,600px)] w-[min(92vw,440px)] flex-col overflow-hidden rounded-3xl border border-hairline bg-surface shadow-pop">
           <div className="flex items-center justify-between gap-2 border-b border-hairline bg-surface-muted px-4 py-3">
             <div className="flex items-center gap-2 text-[14px] font-bold text-ink">
               <Bot className="size-4 shrink-0 text-primary-dark" aria-hidden />
               {t('chat.title')}
             </div>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-xs"
               onClick={() => setOpen(false)}
               aria-label={t('common.close')}
-              className="flex size-7 items-center justify-center rounded-[8px] text-ink-variant transition-colors hover:bg-canvas"
             >
               <X className="size-4" aria-hidden />
-            </button>
+            </Button>
           </div>
 
           <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 py-3">
@@ -298,12 +301,15 @@ export const AssistantChat = memo(function AssistantChat({
               <p className="text-[13px] text-ink-variant">{t('chat.hint')}</p>
             ) : (
               messages.map((message) => (
-                <div
+                <motion.div
                   key={message.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                   className={
                     message.role === 'user'
-                      ? 'max-w-[85%] self-end rounded-[10px] bg-primary-dark px-3 py-2 text-[13px] text-white'
-                      : 'max-w-[85%] self-start rounded-[10px] border border-hairline bg-surface-muted px-3 py-2 text-[13px] text-ink'
+                      ? 'max-w-[85%] self-end rounded-3xl rounded-br-md bg-primary px-3 py-2 text-[13px] text-white'
+                      : 'max-w-[85%] self-start rounded-3xl rounded-bl-md border border-hairline bg-panel px-3 py-2 text-[13px] text-ink'
                   }
                 >
                   {message.role === 'assistant' ? (
@@ -311,11 +317,11 @@ export const AssistantChat = memo(function AssistantChat({
                   ) : (
                     message.content
                   )}
-                </div>
+                </motion.div>
               ))
             )}
             {loading && (
-              <div className="self-start rounded-[10px] border border-hairline bg-surface-muted px-3 py-2 text-ink-variant">
+              <div className="self-start rounded-3xl rounded-bl-md border border-hairline bg-surface-muted px-3 py-2 text-ink-variant">
                 <Loader2 className="size-4 animate-spin" aria-hidden />
               </div>
             )}
@@ -345,7 +351,7 @@ export const AssistantChat = memo(function AssistantChat({
                 <button
                   type="button"
                   onClick={() => addFocus(suggestion.id)}
-                  className="rounded-full border border-dashed border-primary-dark/40 px-2.5 py-1 text-[12px] font-medium text-primary-dark transition-colors hover:bg-primary/10"
+                  className="rounded-full border border-dashed border-primary/40 px-2.5 py-1 text-[12px] font-medium text-primary-dark transition-colors hover:bg-primary/10"
                 >
                   + {t('chat.askAbout', { name: suggestion.name })}
                 </button>
@@ -358,7 +364,7 @@ export const AssistantChat = memo(function AssistantChat({
             className="relative flex items-center gap-2 border-t border-hairline px-3 py-3"
           >
             {pickerOpen && selectedDishes.length > 0 && (
-              <div className="absolute bottom-[calc(100%+4px)] left-3 z-10 max-h-[220px] w-[260px] overflow-y-auto rounded-[10px] border border-hairline bg-canvas py-1 shadow-[0_10px_30px_rgba(15,23,42,0.18)]">
+              <div className="absolute bottom-[calc(100%+4px)] left-3 z-10 max-h-[220px] w-[260px] overflow-y-auto rounded-2xl border border-hairline bg-surface py-1 shadow-3">
                 <button
                   type="button"
                   onClick={focusAll}
@@ -378,29 +384,31 @@ export const AssistantChat = memo(function AssistantChat({
                 ))}
               </div>
             )}
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="icon"
               onClick={() => setPickerOpen((value) => !value)}
               disabled={selectedDishes.length === 0}
               aria-label={t('chat.pickDish')}
-              className="flex size-10 shrink-0 items-center justify-center rounded-[8px] border border-hairline text-primary-dark transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Plus className="size-4" aria-hidden />
-            </button>
+            </Button>
             <input
               value={input}
               onChange={(event) => setInput(event.target.value)}
               placeholder={t('chat.placeholder')}
-              className="min-h-10 flex-1 rounded-[8px] border border-hairline bg-white px-3 text-[14px] text-ink outline-none focus:border-primary-dark"
+              className="min-h-10 flex-1 rounded-full border border-hairline bg-canvas px-4 text-[14px] text-ink outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
             />
-            <button
+            <Button
               type="submit"
+              variant="default"
+              size="icon"
               disabled={loading || cooldown > 0 || !input.trim()}
               aria-label={t('chat.send')}
-              className="flex size-10 shrink-0 items-center justify-center rounded-[8px] bg-primary-dark text-[12px] font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {cooldown > 0 ? cooldown : <Send className="size-4" aria-hidden />}
-            </button>
+            </Button>
           </form>
 
           <p className="border-t border-hairline px-4 py-2 text-[11px] text-ink-variant">
@@ -416,7 +424,7 @@ export const AssistantChat = memo(function AssistantChat({
         onPointerUp={onPointerUp}
         aria-label={t('chat.title')}
         aria-expanded={open}
-        className="flex size-14 touch-none cursor-grab items-center justify-center rounded-full bg-primary-dark text-white shadow-[0_8px_24px_rgba(15,23,42,0.28)] transition-transform hover:scale-105 active:cursor-grabbing"
+        className="flex size-14 touch-none cursor-grab items-center justify-center rounded-full bg-primary text-white shadow-blue transition-transform hover:scale-105 active:cursor-grabbing"
       >
         <Bot className="size-6" aria-hidden />
       </button>

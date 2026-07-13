@@ -8,6 +8,8 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { FoodProfilePreferencePicker } from '@/features/food-profile/components/FoodProfilePreferencePicker'
+import { AuthShell } from '@/features/auth/components/AuthShell'
+import { IconBadge } from '@/shared/components/IconBadge'
 import {
   createEmptyFoodProfileDraft,
   foodProfileDraftToPreferences,
@@ -94,156 +96,143 @@ export function OnboardingPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-canvas px-5 py-[60px] font-sans">
-      <div className="flex w-full max-w-[460px] flex-col">
-        <header className="mb-8 flex flex-col items-center gap-4 text-center">
-          <div className="flex size-16 items-center justify-center rounded-full bg-primary">
-            <UtensilsCrossed className="size-8 text-white" aria-hidden />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <h1 className="text-[24px] font-bold leading-[30px] text-primary-dark">
-              {t('onboarding.title')}
-            </h1>
-            <p className="text-[15px] leading-[22px] text-ink-variant">
-              {t('onboarding.subtitle')}
-            </p>
-          </div>
-        </header>
-
-        <div className="mb-4 flex items-center justify-center gap-2">
-          {steps.map((label, index) => (
-            <button
-              key={label}
-              type="button"
-              onClick={() => setStep(index)}
-              disabled={saving}
-              aria-label={label}
-              className={`h-2.5 rounded-full transition-all disabled:cursor-not-allowed ${
-                index === step ? 'w-9 bg-primary-dark' : 'w-2.5 bg-hairline'
-              }`}
-            />
-          ))}
-        </div>
-
-        <div className="overflow-hidden rounded-[12px] border border-hairline bg-canvas">
-          <div
-            className="flex transition-transform duration-300 ease-out"
-            style={{ transform: `translateX(-${step * 100}%)` }}
-          >
-            <section className="w-full shrink-0 p-5">
-              <h2 className="text-[18px] font-bold text-primary-dark">
-                {t('onboarding.steps.profile')}
-              </h2>
-              <label className="mt-4 flex flex-col gap-2">
-                <span className="text-[13px] font-bold uppercase tracking-[0.5px] text-ink-variant">
-                  {t('onboarding.profileName')}
-                </span>
-                <Input
-                  value={profileName ?? defaultProfileName}
-                  onChange={(event) => setProfileName(event.target.value)}
-                  maxLength={150}
-                  disabled={saving}
-                  className="h-11 rounded-[8px]"
-                />
-              </label>
-            </section>
-            <section className="w-full shrink-0 p-5">
-              <h2 className="mb-4 text-[18px] font-bold text-primary-dark">
-                {t('onboarding.steps.allergies')}
-              </h2>
-              <FoodProfilePreferencePicker
-                value={value}
-                onChange={setValue}
-                disabled={saving}
-                sections={['allergies']}
-              />
-            </section>
-            <section className="w-full shrink-0 p-5">
-              <h2 className="mb-4 text-[18px] font-bold text-primary-dark">
-                {t('onboarding.steps.diet')}
-              </h2>
-              <FoodProfilePreferencePicker
-                value={value}
-                onChange={setValue}
-                disabled={saving}
-                sections={['dietary_preferences']}
-              />
-            </section>
-            <section className="w-full shrink-0 p-5">
-              <h2 className="mb-4 text-[18px] font-bold text-primary-dark">
-                {t('onboarding.steps.likes')}
-              </h2>
-              <FoodProfilePreferencePicker
-                value={value}
-                onChange={setValue}
-                disabled={saving}
-                sections={['likes']}
-              />
-            </section>
-            <section className="w-full shrink-0 p-5">
-              <h2 className="mb-4 text-[18px] font-bold text-primary-dark">
-                {t('onboarding.steps.avoids')}
-              </h2>
-              <FoodProfilePreferencePicker
-                value={value}
-                onChange={setValue}
-                disabled={saving}
-                sections={['avoids']}
-              />
-            </section>
-          </div>
-        </div>
-
-        {error && (
-          <p role="alert" className="mt-3 text-[14px] text-destructive">
-            {error}
+    <AuthShell maxWidth="max-w-[480px]">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <IconBadge icon={UtensilsCrossed} tone="primary" size="lg" />
+        <div className="flex flex-col gap-1.5">
+          <h1 className="text-[24px] font-bold leading-tight tracking-tight text-ink">
+            {t('onboarding.title')}
+          </h1>
+          <p className="max-w-[340px] text-[15px] leading-relaxed text-ink-variant">
+            {t('onboarding.subtitle')}
           </p>
-        )}
-
-        <div className="mt-6 flex flex-col gap-3">
-          <div className="flex gap-3">
-            <Button
-              type="button"
-              onClick={goBack}
-              disabled={saving || step === 0}
-              variant="outline"
-              className="h-12 flex-1 rounded-full"
-            >
-              <ChevronLeft className="size-4" aria-hidden />
-              {t('common.back')}
-            </Button>
-            {step < steps.length - 1 ? (
-              <Button
-                type="button"
-                onClick={goNext}
-                disabled={saving}
-                className="h-12 flex-1 rounded-full bg-primary text-[17px] font-bold text-white hover:bg-primary/90"
-              >
-                {t('common.next')}
-                <ChevronRight className="size-4" aria-hidden />
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="h-12 flex-1 rounded-full bg-primary text-[17px] font-bold text-white hover:bg-primary/90"
-              >
-                {saving && <Loader2 className="size-4 animate-spin" aria-hidden />}
-                {saving ? t('onboarding.saving') : t('onboarding.save')}
-              </Button>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={finish}
-            disabled={saving}
-            className="text-[15px] font-medium text-ink-variant transition-colors hover:text-primary-dark disabled:opacity-50"
-          >
-            {t('onboarding.skip')}
-          </button>
         </div>
       </div>
-    </div>
+
+      {/* Step dots */}
+      <div className="flex items-center justify-center gap-2">
+        {steps.map((label, index) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => setStep(index)}
+            disabled={saving}
+            aria-label={label}
+            className={`h-2.5 rounded-full transition-all disabled:cursor-not-allowed ${
+              index === step ? 'w-9 bg-primary' : 'w-2.5 bg-border'
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* Stepper carousel */}
+      <div className="overflow-hidden rounded-2xl border border-border bg-panel p-1">
+        <div
+          className="flex transition-transform duration-300 ease-out"
+          style={{ transform: `translateX(-${step * 100}%)` }}
+        >
+          <section className="w-full shrink-0 p-4">
+            <h2 className="text-[16px] font-bold text-primary">
+              {t('onboarding.steps.profile')}
+            </h2>
+            <label className="mt-3 flex flex-col gap-2">
+              <span className="text-[12px] font-bold uppercase tracking-wide text-ink-variant">
+                {t('onboarding.profileName')}
+              </span>
+              <Input
+                value={profileName ?? defaultProfileName}
+                onChange={(event) => setProfileName(event.target.value)}
+                maxLength={150}
+                disabled={saving}
+              />
+            </label>
+          </section>
+          <section className="w-full shrink-0 p-4">
+            <h2 className="mb-3 text-[16px] font-bold text-primary">
+              {t('onboarding.steps.allergies')}
+            </h2>
+            <FoodProfilePreferencePicker
+              value={value}
+              onChange={setValue}
+              disabled={saving}
+              sections={['allergies']}
+            />
+          </section>
+          <section className="w-full shrink-0 p-4">
+            <h2 className="mb-3 text-[16px] font-bold text-primary">
+              {t('onboarding.steps.diet')}
+            </h2>
+            <FoodProfilePreferencePicker
+              value={value}
+              onChange={setValue}
+              disabled={saving}
+              sections={['dietary_preferences']}
+            />
+          </section>
+          <section className="w-full shrink-0 p-4">
+            <h2 className="mb-3 text-[16px] font-bold text-primary">
+              {t('onboarding.steps.likes')}
+            </h2>
+            <FoodProfilePreferencePicker
+              value={value}
+              onChange={setValue}
+              disabled={saving}
+              sections={['likes']}
+            />
+          </section>
+          <section className="w-full shrink-0 p-4">
+            <h2 className="mb-3 text-[16px] font-bold text-primary">
+              {t('onboarding.steps.avoids')}
+            </h2>
+            <FoodProfilePreferencePicker
+              value={value}
+              onChange={setValue}
+              disabled={saving}
+              sections={['avoids']}
+            />
+          </section>
+        </div>
+      </div>
+
+      {error && (
+        <p role="alert" className="text-[14px] text-destructive">
+          {error}
+        </p>
+      )}
+
+      <div className="flex flex-col gap-3">
+        <div className="flex gap-3">
+          <Button
+            type="button"
+            onClick={goBack}
+            disabled={saving || step === 0}
+            variant="outline"
+            size="lg"
+          >
+            <ChevronLeft className="size-4" aria-hidden />
+            {t('common.back')}
+          </Button>
+          {step < steps.length - 1 ? (
+            <Button type="button" onClick={goNext} disabled={saving} size="lg">
+              {t('common.next')}
+              <ChevronRight className="size-4" aria-hidden />
+            </Button>
+          ) : (
+            <Button type="button" onClick={handleSave} disabled={saving} size="lg">
+              {saving && <Loader2 className="size-4 animate-spin" aria-hidden />}
+              {saving ? t('onboarding.saving') : t('onboarding.save')}
+            </Button>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={finish}
+          disabled={saving}
+          className="text-[15px] font-medium text-ink-variant transition-colors hover:text-primary disabled:opacity-50"
+        >
+          {t('onboarding.skip')}
+        </button>
+      </div>
+    </AuthShell>
   )
 }

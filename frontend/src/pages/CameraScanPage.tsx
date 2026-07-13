@@ -18,6 +18,9 @@ import {
   QUALITY_REASON_I18N_KEY,
   type QualityResult,
 } from '@/features/menu-scan/imageQuality'
+import { PageTransition } from '@/shared/components/motion/PageTransition'
+import { Reveal } from '@/shared/components/motion/Reveal'
+import { Button } from '@/shared/components/ui/button'
 
 type CameraState = 'starting' | 'live' | 'captured' | 'submitting' | 'error'
 
@@ -139,23 +142,22 @@ export function CameraScanPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[800px] px-[30px] py-[40px] sm:px-[50px]">
-      <Link
-        to="/app/scan"
-        className="mb-6 flex w-fit items-center gap-2 text-[14px] text-ink-variant transition-colors hover:text-primary-dark"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        {t('camera.backToUpload')}
-      </Link>
+    <PageTransition className="mx-auto w-full max-w-[800px] px-[30px] py-[40px] sm:px-[50px]">
+      <Button variant="ghost" size="sm" asChild className="mb-6 w-fit">
+        <Link to="/app/scan">
+          <ArrowLeft className="size-4" aria-hidden />
+          {t('camera.backToUpload')}
+        </Link>
+      </Button>
 
-      <h1 className="mb-6 text-[32px] font-bold leading-[38px] text-primary-dark">
+      <h1 className="mb-6 text-[32px] font-bold leading-[38px] text-ink">
         {t('camera.title')}
       </h1>
 
       {errorMessage && (
         <div
           role="alert"
-          className="mb-4 flex items-start gap-3 rounded-[12px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[14px] text-destructive"
+          className="mb-4 flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[14px] text-destructive"
         >
           <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>{errorMessage}</span>
@@ -163,66 +165,67 @@ export function CameraScanPage() {
       )}
 
       {/* Viewfinder */}
-      <div className="relative aspect-[3/4] w-full overflow-hidden rounded-[12px] border border-hairline bg-ink sm:aspect-video">
-        {capturedUrl ? (
-          <img
-            src={capturedUrl}
-            alt={t('camera.capturedAlt')}
-            className="h-full w-full object-contain"
-          />
-        ) : (
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            className="h-full w-full object-cover"
-          />
-        )}
+      <Reveal>
+        <div className="relative aspect-[3/4] w-full overflow-hidden rounded-3xl border border-border bg-ink shadow-3 sm:aspect-video">
+          {capturedUrl ? (
+            <img
+              src={capturedUrl}
+              alt={t('camera.capturedAlt')}
+              className="h-full w-full object-contain"
+            />
+          ) : (
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              className="h-full w-full object-cover"
+            />
+          )}
 
-        {/* Overlay framing corners (matches Figma camera viewfinder intent). */}
-        {state === 'live' && (
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute left-4 top-4 size-12 rounded-tl-[2px] border-l-[3px] border-t-[3px] border-[#2e6b00]" />
-            <div className="absolute right-4 top-4 size-12 rounded-tr-[2px] border-r-[3px] border-t-[3px] border-[#2e6b00]" />
-            <div className="absolute bottom-4 left-4 size-12 rounded-bl-[2px] border-b-[3px] border-l-[3px] border-[#2e6b00]" />
-            <div className="absolute bottom-4 right-4 size-12 rounded-br-[2px] border-b-[3px] border-r-[3px] border-[#2e6b00]" />
-          </div>
-        )}
+          {/* Overlay framing corners (matches the camera viewfinder intent). */}
+          {state === 'live' && (
+            <div className="pointer-events-none absolute inset-0">
+              <div className="absolute left-4 top-4 size-12 rounded-tl-[2px] border-l-[3px] border-t-[3px] border-primary" />
+              <div className="absolute right-4 top-4 size-12 rounded-tr-[2px] border-r-[3px] border-t-[3px] border-primary" />
+              <div className="absolute bottom-4 left-4 size-12 rounded-bl-[2px] border-b-[3px] border-l-[3px] border-primary" />
+              <div className="absolute bottom-4 right-4 size-12 rounded-br-[2px] border-b-[3px] border-r-[3px] border-primary" />
+            </div>
+          )}
 
-        {(state === 'starting' || state === 'submitting') && (
-          <div className="absolute inset-0 flex items-center justify-center bg-ink/60">
-            <Loader2 className="size-8 animate-spin text-white" aria-hidden />
-          </div>
-        )}
+          {(state === 'starting' || state === 'submitting') && (
+            <div className="absolute inset-0 flex items-center justify-center bg-ink/60">
+              <Loader2 className="size-8 animate-spin text-white" aria-hidden />
+            </div>
+          )}
 
-        {state === 'error' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
-            <Camera className="size-8 text-white/80" aria-hidden />
-            <p className="text-[14px] text-white/80">
-              {t('camera.unavailable')}
-            </p>
-            <button
-              type="button"
-              onClick={() => void startCamera()}
-              className="rounded-[8px] bg-white px-4 py-2 text-[14px] font-bold text-primary-dark"
-            >
-              {t('common.retry')}
-            </button>
-          </div>
-        )}
-      </div>
+          {state === 'error' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
+              <Camera className="size-8 text-white/80" aria-hidden />
+              <p className="text-[14px] text-white/80">
+                {t('camera.unavailable')}
+              </p>
+              <Button
+                type="button"
+                onClick={() => void startCamera()}
+              >
+                {t('common.retry')}
+              </Button>
+            </div>
+          )}
+        </div>
+      </Reveal>
 
       {/* Quality gate feedback (soft block — user may still use the photo). */}
       {state === 'captured' && quality && (
         quality.ok ? (
-          <div className="mt-4 flex items-center gap-2 rounded-[8px] border border-[#2e6b00]/30 bg-[#2e6b00]/[0.06] px-4 py-2.5 text-[14px] text-[#2e6b00]">
+          <div className="mt-4 flex items-center gap-2 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-2.5 text-[14px] text-primary">
             <CheckCircle2 className="size-4 shrink-0" aria-hidden />
             <span>{t('camera.quality.ok')}</span>
           </div>
         ) : (
           <div
             role="status"
-            className="mt-4 flex items-start gap-3 rounded-[8px] border border-[#e0a800]/50 bg-[#fff8e1] px-4 py-3 text-[14px] text-[#8a6d00]"
+            className="mt-4 flex items-start gap-3 rounded-2xl border border-amber/40 bg-amber/10 px-4 py-3 text-[14px] text-amber"
           >
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
             <div className="flex flex-col gap-1">
@@ -240,41 +243,36 @@ export function CameraScanPage() {
       )}
 
       {/* Controls */}
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-        {state === 'live' && (
-          <button
-            type="button"
-            onClick={handleCapture}
-            className="flex items-center gap-2 rounded-full border-4 border-hairline bg-canvas px-6 py-3 text-[15px] font-bold text-primary-dark transition-colors hover:bg-surface-muted"
-          >
-            <Camera className="size-5" aria-hidden />
-            {t('camera.capture')}
-          </button>
-        )}
-        {state === 'captured' && (
-          <>
-            <button
-              type="button"
-              onClick={handleRetake}
-              className="flex items-center gap-2 rounded-[8px] border border-hairline bg-canvas px-5 py-3 text-[15px] font-bold text-ink-variant transition-colors hover:bg-surface-muted"
-            >
-              <RefreshCw className="size-5" aria-hidden />
-              {t('camera.retake')}
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              className="rounded-[8px] bg-primary-dark px-6 py-3 text-[15px] font-bold text-white transition-opacity hover:opacity-90"
-            >
-              {t('camera.useThis')}
-            </button>
-          </>
-        )}
-      </div>
+      <Reveal delay={0.08}>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          {state === 'live' && (
+            <Button type="button" size="lg" onClick={handleCapture}>
+              <Camera className="size-5" aria-hidden />
+              {t('camera.capture')}
+            </Button>
+          )}
+          {state === 'captured' && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={handleRetake}
+              >
+                <RefreshCw className="size-5" aria-hidden />
+                {t('camera.retake')}
+              </Button>
+              <Button type="button" size="lg" onClick={handleSubmit}>
+                {t('camera.useThis')}
+              </Button>
+            </>
+          )}
+        </div>
+      </Reveal>
 
       <p className="mt-4 text-center text-[13px] text-ink-variant">
         {t('camera.hint')}
       </p>
-    </div>
+    </PageTransition>
   )
 }

@@ -51,9 +51,9 @@ export function FoodProfilePreferencePicker({
 
   const chip = (active: boolean) =>
     cn(
-      'inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 py-1 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+      'inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 py-1 text-[13px] font-medium transition-all duration-200 ease-[var(--ease-spring)] hover:scale-[1.04] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50',
       active
-        ? 'border-primary-dark bg-primary-dark text-white'
+        ? 'border-primary bg-primary text-white shadow-sm shadow-primary/25'
         : 'border-hairline bg-canvas text-primary-dark hover:bg-surface-muted',
     )
 
@@ -129,13 +129,13 @@ export function FoodProfilePreferencePicker({
                 aria-label={t('foodProfile.otherLabel', {
                   section: t(`foodProfile.sections.${section}`),
                 })}
-                className="h-10 rounded-[8px]"
+                className="h-10 rounded-xl"
               />
               <Button
                 type="submit"
                 variant="outline"
                 disabled={disabled || !normalizeCustomPreferenceCode(customInputs[section] ?? '')}
-                className="h-10 rounded-[8px]"
+                className="h-10 rounded-full transition-all duration-200 ease-[var(--ease-spring)] hover:bg-surface-muted hover:text-primary-dark active:scale-95"
               >
                 <Plus className="size-4" aria-hidden />
                 {t('foodProfile.addOther')}

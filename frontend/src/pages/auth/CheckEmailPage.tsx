@@ -3,6 +3,8 @@ import { Mail } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/shared/components/ui/button'
 import { useMagicLink } from '@/features/auth/hooks/useMagicLink'
+import { AuthShell } from '@/features/auth/components/AuthShell'
+import { IconBadge } from '@/shared/components/IconBadge'
 
 interface CheckEmailLocationState {
   email?: string
@@ -22,44 +24,36 @@ export function CheckEmailPage() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-ink px-5 py-[95px] font-sans">
-      <div className="flex w-full max-w-[400px] flex-col">
-        <div className="flex flex-col items-center gap-[30px] border border-hairline bg-canvas p-[50px]">
-          <h1 className="text-center text-[30px] font-bold leading-[34px] tracking-normal text-primary-dark">
-            MenuScan
+    <AuthShell>
+      <div className="flex flex-col items-center gap-5 text-center">
+        <IconBadge icon={Mail} tone="primary" size="lg" />
+        <div className="flex flex-col gap-2">
+          <h1 className="text-[22px] font-bold leading-tight text-ink">
+            {t('auth.checkInbox')}
           </h1>
-
-          <div className="flex size-20 items-center justify-center rounded-full border border-hairline bg-app-bg">
-            <Mail className="size-8 text-primary-dark" aria-hidden />
-          </div>
-
-          <div className="flex flex-col items-center gap-2">
-            <h2 className="text-center text-[20px] leading-[30px] text-ink">
-              {t('auth.checkInbox')}
-            </h2>
-            <p className="max-w-[260px] text-center text-[16px] leading-[22px] text-ink-variant">
-              {email
-                ? t('checkEmail.bodyWithEmail', { email })
-                : t('checkEmail.bodyNoEmail')}
-            </p>
-          </div>
-
-          {errorMessage && (
-            <p role="alert" className="text-center text-[14px] text-destructive">
-              {errorMessage}
-            </p>
-          )}
-
-          <Button
-            type="button"
-            onClick={handleResend}
-            disabled={isLoading || !email}
-            className="h-12 w-full rounded-full border border-ink bg-canvas text-[17px] font-bold text-ink hover:bg-ink/5"
-          >
-            {isLoading ? t('checkEmail.sending') : t('auth.resendEmail')}
-          </Button>
+          <p className="max-w-[300px] text-[15px] leading-relaxed text-ink-variant">
+            {email
+              ? t('checkEmail.bodyWithEmail', { email })
+              : t('checkEmail.bodyNoEmail')}
+          </p>
         </div>
       </div>
-    </div>
+
+      {errorMessage && (
+        <p role="alert" className="text-center text-[14px] text-destructive">
+          {errorMessage}
+        </p>
+      )}
+
+      <Button
+        type="button"
+        onClick={handleResend}
+        disabled={isLoading || !email}
+        variant="outline"
+        size="lg"
+      >
+        {isLoading ? t('checkEmail.sending') : t('auth.resendEmail')}
+      </Button>
+    </AuthShell>
   )
 }

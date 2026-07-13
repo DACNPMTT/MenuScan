@@ -1,6 +1,10 @@
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, RotateCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { motion } from 'motion/react'
+import { Button } from '@/shared/components/ui/button'
+import { SectionCard } from '@/shared/components/SectionCard'
+import { IconBadge } from '@/shared/components/IconBadge'
 
 interface GlobalErrorFallbackProps {
   error: Error
@@ -14,38 +18,40 @@ export function GlobalErrorFallback({ error, onReset }: GlobalErrorFallbackProps
   const { t } = useTranslation()
   void onReset // app-level recovery is reload, not reset (re-render re-throws)
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-5 bg-app-bg px-4 py-10 text-center">
-      <span className="flex size-14 items-center justify-center rounded-full bg-destructive/10">
-        <AlertTriangle className="size-7 text-destructive" aria-hidden />
-      </span>
-      <div className="flex flex-col gap-2">
-        <h1 className="text-[24px] font-bold leading-[30px] text-primary-dark">
-          {t('errorFallback.title')}
-        </h1>
-        <p className="max-w-[420px] text-[14px] text-ink-variant">
-          {t('errorFallback.body')}
-        </p>
-      </div>
-      <div className="flex flex-col items-center gap-3 sm:flex-row">
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="flex min-h-10 items-center justify-center rounded-[8px] bg-primary-dark px-6 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
-        >
-          {t('errorFallback.reload')}
-        </button>
-        <Link
-          to="/"
-          className="flex min-h-10 items-center justify-center rounded-[8px] border border-hairline bg-canvas px-6 text-[14px] font-bold text-ink transition-colors hover:bg-surface-muted"
-        >
-          {t('errorFallback.toHome')}
-        </Link>
-      </div>
-      {import.meta.env.DEV && (
-        <p className="mt-2 max-w-[600px] break-words rounded-[6px] bg-surface-muted px-3 py-2 text-left font-mono text-[12px] text-destructive">
-          {error.message}
-        </p>
-      )}
+    <main className="flex min-h-dvh flex-col items-center justify-center bg-app-bg px-4 py-10 text-center">
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <SectionCard className="w-full max-w-[460px] gap-6 px-8 py-10 shadow-pop">
+          <div className="flex flex-col items-center gap-5">
+            <IconBadge icon={AlertTriangle} tone="destructive" size="lg" />
+            <div className="flex flex-col gap-2">
+              <h1 className="text-[24px] font-extrabold leading-tight text-ink">
+                {t('errorFallback.title')}
+              </h1>
+              <p className="max-w-[380px] text-[14px] leading-relaxed text-ink-variant">
+                {t('errorFallback.body')}
+              </p>
+            </div>
+            <div className="flex flex-col items-center gap-3 sm:flex-row">
+              <Button size="lg" onClick={() => window.location.reload()}>
+                <RotateCw className="size-4" aria-hidden />
+                {t('errorFallback.reload')}
+              </Button>
+              <Button asChild variant="outline" size="lg">
+                <Link to="/">{t('errorFallback.toHome')}</Link>
+              </Button>
+            </div>
+            {import.meta.env.DEV && (
+              <p className="mt-2 max-w-[600px] break-words rounded-xl bg-panel px-3 py-2 text-left font-mono text-[12px] text-destructive">
+                {error.message}
+              </p>
+            )}
+          </div>
+        </SectionCard>
+      </motion.div>
     </main>
   )
 }

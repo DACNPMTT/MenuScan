@@ -16,6 +16,11 @@ import { useToast } from '@/app/providers/ToastProvider'
 import { ApiError, apiRequest, apiRequestWithMeta } from '@/shared/lib/api'
 import { getAccessToken, refreshAccessToken } from '@/shared/lib/auth-token'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
+import { Button } from '@/shared/components/ui/button'
+import { PageTransition } from '@/shared/components/motion/PageTransition'
+import { Reveal } from '@/shared/components/motion/Reveal'
+import { SectionCard } from '@/shared/components/SectionCard'
+import { EmptyState } from '@/shared/components/EmptyState'
 import { API_BASE_URL } from '@/features/menu-scan/lib'
 import type {
   MenuSource,
@@ -100,7 +105,7 @@ export function MenusPage() {
   const canLoadMore = meta ? meta.page < meta.total_pages : false
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-4 py-[30px] sm:px-[50px] sm:py-[40px]">
+    <PageTransition className="mx-auto w-full max-w-[1200px] px-4 py-[30px] sm:px-[50px] sm:py-[40px]">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-2">
           <p className="text-[13px] font-bold uppercase tracking-[0.7px] text-ink-variant">
@@ -110,96 +115,99 @@ export function MenusPage() {
             {t('menus.title')}
           </h1>
         </div>
-        <Link
-          to="/app/scan"
-          className="flex min-h-10 w-fit items-center gap-2 rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
-        >
-          <ScanLine className="size-4" aria-hidden />
-          {t('menus.scanNew')}
-        </Link>
+        <Button asChild size="lg">
+          <Link to="/app/scan">
+            <ScanLine aria-hidden />
+            {t('menus.scanNew')}
+          </Link>
+        </Button>
       </header>
 
       {error && (
         <div
           role="alert"
-          className="mt-5 flex flex-col gap-3 rounded-[8px] border border-destructive/30 bg-destructive/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+          className="mt-5 flex flex-col gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="flex items-center gap-3 text-[14px] text-destructive">
             <AlertCircle className="size-4 shrink-0" aria-hidden />
             <span>{error}</span>
           </div>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => void loadMenus(1)}
-            className="flex min-h-9 w-fit items-center gap-2 rounded-[8px] border border-destructive/30 px-3 py-1.5 text-[13px] font-bold text-destructive transition-colors hover:bg-destructive/10"
+            className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
           >
-            <RefreshCw className="size-4" aria-hidden />
+            <RefreshCw aria-hidden />
             {t('common.retry')}
-          </button>
+          </Button>
         </div>
       )}
 
-      <section className="mt-[25px] overflow-hidden rounded-[12px] border border-hairline bg-canvas">
-        <div className="flex items-center justify-between border-b border-hairline bg-app-bg px-[20px] py-[16px]">
-          <h2 className="text-[20px] leading-[28px] text-primary-dark">
-            {t('menus.finalReview')}
-          </h2>
-          {meta && (
-            <span className="text-[13px] text-ink-variant">{t('menus.menuCount', { count: meta.total })}</span>
-          )}
-        </div>
-
+      <SectionCard
+        className="mt-[25px]"
+        title={t('menus.finalReview')}
+        action={
+          meta ? (
+            <span className="text-[13px] text-ink-variant">
+              {t('menus.menuCount', { count: meta.total })}
+            </span>
+          ) : null
+        }
+        bodyClassName="flex flex-col gap-3"
+      >
         {loading ? (
           <MenuMessage icon={<Loader2 className="size-7 animate-spin" />}>
             {t('menus.loading')}
           </MenuMessage>
         ) : menus.length === 0 ? (
-          <>
-            <MenuMessage icon={<Utensils className="size-7" />}>
-              {t('menus.empty')}
-            </MenuMessage>
-            <div className="flex justify-center px-[20px] pb-[40px]">
-              <Link
-                to="/app/scan"
-                className="flex min-h-10 items-center gap-2 rounded-[8px] bg-primary-dark px-5 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
-              >
-                <ScanLine className="size-4" aria-hidden />
-                {t('menus.scanNew')}
-              </Link>
-            </div>
-          </>
+          <EmptyState
+            icon={Utensils}
+            title={t('menus.empty')}
+            action={
+              <Button asChild size="lg">
+                <Link to="/app/scan">
+                  <ScanLine aria-hidden />
+                  {t('menus.scanNew')}
+                </Link>
+              </Button>
+            }
+          />
         ) : (
-          <div className="divide-y divide-hairline">
-            {menus.map((menu) => (
-              <MenuRow
-                key={menu.id}
-                menu={menu}
-                accessToken={accessToken}
-                deleting={deletingId === menu.id}
-                onDelete={handleDelete}
-              />
+          <>
+            {menus.map((menu, index) => (
+              <Reveal key={menu.id} delay={Math.min((index % 8) * 0.05, 0.35)}>
+                <MenuRow
+                  menu={menu}
+                  accessToken={accessToken}
+                  deleting={deletingId === menu.id}
+                  onDelete={handleDelete}
+                />
+              </Reveal>
             ))}
             {canLoadMore && (
-              <div className="flex justify-center px-[20px] py-[18px]">
-                <button
+              <div className="flex justify-center pt-2">
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => meta && void loadMenus(meta.page + 1)}
                   disabled={loadingMore}
-                  className="flex min-h-10 items-center gap-2 rounded-[8px] border border-primary-dark px-4 py-2 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="border-primary text-primary hover:bg-primary/10 hover:text-primary"
                 >
                   {loadingMore ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    <Loader2 className="animate-spin" aria-hidden />
                   ) : (
-                    <RefreshCw className="size-4" aria-hidden />
+                    <RefreshCw aria-hidden />
                   )}
                   {t('menus.loadMore')}
-                </button>
+                </Button>
               </div>
             )}
-          </div>
+          </>
         )}
-      </section>
-    </div>
+      </SectionCard>
+    </PageTransition>
   )
 }
 
@@ -216,7 +224,7 @@ function MenuRow({
 }) {
   const { t } = useTranslation()
   return (
-    <div className="grid grid-cols-[56px_minmax(0,1fr)] gap-4 px-[20px] py-[16px] sm:grid-cols-[64px_minmax(0,1fr)_auto]">
+    <div className="grid grid-cols-[56px_minmax(0,1fr)] gap-4 rounded-2xl border border-border bg-surface px-5 py-4 shadow-1 transition-all duration-200 ease-[var(--ease-out-quint)] hover:-translate-y-1 hover:shadow-3 sm:grid-cols-[64px_minmax(0,1fr)_auto]">
       <MenuThumbnail source={menu.source} accessToken={accessToken} />
       <Link
         to={`/app/menus/${menu.id}`}
@@ -226,7 +234,7 @@ function MenuRow({
           <h3 className="truncate text-[17px] font-bold leading-[24px] text-ink">
             {menu.title}
           </h3>
-          <span className="flex items-center gap-1 rounded-full bg-[#e4f4df] px-2.5 py-0.5 text-[12px] font-bold text-[#256b2b]">
+          <span className="flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-[12px] font-bold text-primary-dark">
             <CheckCircle2 className="size-3.5" aria-hidden />
             {menu.status === 'CONFIRMED' ? t('menus.confirmed') : t('menus.draft')}
           </span>
@@ -238,25 +246,29 @@ function MenuRow({
         </div>
       </Link>
       <div className="col-span-2 flex items-center justify-end gap-2 sm:col-span-1">
-        <Link
-          to={`/app/menus/${menu.id}`}
-          className="rounded-[8px] border border-primary-dark px-4 py-2 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10"
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="border-primary text-primary hover:bg-primary/10 hover:text-primary"
         >
-          {t('menus.view')}
-        </Link>
-        <button
+          <Link to={`/app/menus/${menu.id}`}>{t('menus.view')}</Link>
+        </Button>
+        <Button
           type="button"
+          variant="outline"
+          size="icon"
           onClick={() => void onDelete(menu.id)}
           disabled={deleting}
           aria-label={t('menus.deleteAria', { title: menu.title })}
-          className="flex size-10 items-center justify-center rounded-[8px] border border-destructive/30 text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"
+          className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
         >
           {deleting ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
+            <Loader2 className="animate-spin" aria-hidden />
           ) : (
-            <Trash2 className="size-4" aria-hidden />
+            <Trash2 aria-hidden />
           )}
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -321,7 +333,7 @@ function MenuThumbnail({
   }, [accessToken, isImage, source.preview_url])
 
   return (
-    <div className="flex aspect-square size-14 items-center justify-center overflow-hidden rounded-[8px] border border-hairline bg-surface-muted sm:size-16">
+    <div className="flex aspect-square size-14 items-center justify-center overflow-hidden rounded-2xl border border-border bg-panel sm:size-16">
       {objectUrl && isImage ? (
         <img
           src={objectUrl}
@@ -347,7 +359,7 @@ function MenuMessage({
 }) {
   return (
     <div className="flex flex-col items-center gap-4 px-[20px] py-[54px] text-center text-ink-variant">
-      <span className="flex size-14 items-center justify-center rounded-full bg-surface-muted text-primary-dark">
+      <span className="flex size-14 items-center justify-center rounded-2xl bg-panel text-primary-dark">
         {icon}
       </span>
       <p className="max-w-[420px] text-[15px]">{children}</p>
