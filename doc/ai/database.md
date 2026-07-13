@@ -4,8 +4,9 @@
 > Business specification: `doc/content/specification/database.md`.
 > Schema thực thi và lịch sử thay đổi nằm trong `app/alembic/versions/`.
 
-PostgreSQL 16 là source of truth và chỉ backend truy cập. Redis chỉ cache hoặc
-coordination; frontend/provider không kết nối trực tiếp database/cache.
+PostgreSQL 16 là source of truth và chỉ backend truy cập; frontend/provider không
+kết nối trực tiếp database. Redis **chưa được tích hợp** — kể cả anti-spam
+throttle cũng nằm trong Postgres (bảng `ai_throttle`), xem mục Redis bên dưới.
 
 ## Relationships
 
@@ -86,7 +87,12 @@ tự giả định reuse detection đã được schema hỗ trợ.
 
 ## Redis
 
-Redis chưa tích hợp. Khi thêm: adapter nằm trong module/core cache; key có
+Redis **chưa tích hợp**. `docker-compose.yml` có container Redis nhưng không dòng
+code nào dùng nó. Rate limit hiện chạy bằng một upsert atomic vào bảng
+`ai_throttle` trong Postgres (`src/core/rate_limit.py`) — cùng cơ chế với cooldown
+magic-link, và đó là lý do MVP không cần Redis.
+
+Khi thêm: adapter nằm trong module/core cache; key có
 namespace + version + owner scope + TTL; không cache raw token/file/secret hoặc
 cross-user response. Chỉ invalidate sau DB mutation thành công; cache error
 fallback PostgreSQL khi semantics cho phép. Lock/rate-limit dùng atomic operation
