@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ScanText } from 'lucide-react'
 import { motion } from 'motion/react'
+import { NonLaMark } from '@/shared/components/mascot/NonLaMark'
 import { SectionCard } from '@/shared/components/SectionCard'
 import { PageTransition } from '@/shared/components/motion/PageTransition'
 import { cn } from '@/shared/lib/cn'
@@ -13,7 +13,7 @@ interface AuthShellProps {
 
 /**
  * Shared chrome for the auth screens: a centered, elevated SectionCard on the
- * app background with a blue logo badge + MenuScan wordmark. Each page renders
+ * app background with a nón lá logo badge + MenuScan wordmark. Each page renders
  * its own heading and form as children. Light, elevated, no gradient.
  */
 export function AuthShell({ children, maxWidth = 'max-w-[420px]' }: AuthShellProps) {
@@ -31,9 +31,9 @@ export function AuthShell({ children, maxWidth = 'max-w-[420px]' }: AuthShellPro
               <Link
                 to="/"
                 aria-label="MenuScan home"
-                className="flex size-11 items-center justify-center rounded-2xl bg-primary text-white shadow-2 shadow-primary/40"
+                className="flex size-11 items-center justify-center rounded-2xl bg-[#f59e0b] shadow-2 shadow-[#f59e0b]/40"
               >
-                <ScanText className="size-6" aria-hidden />
+                <NonLaMark size={30} />
               </Link>
               <span className="text-[24px] font-extrabold tracking-tight text-ink">
                 MenuScan

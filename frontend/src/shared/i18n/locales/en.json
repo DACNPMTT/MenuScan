@@ -633,46 +633,54 @@
     "linkSent": "Login link sent!",
     "sendFailed": "Couldn't send the email. Please try again later."
   },
-  "landing": {
-    "nav": {
-      "features": "Features",
-      "howItWorks": "How it works",
-      "signup": "Sign up",
-      "goToApp": "Go to app"
-    },
-    "hero": {
-      "title": "Turn menu photos into structured data",
-      "badge": "AI-powered menu translation",
-      "subtitle": "Automatically extract dishes, prices, descriptions, and dietary information from any physical menu image in seconds.",
-      "startScanning": "Start scanning",
-      "imageAlt": "The MenuScan app scanning a printed menu"
-    },
-    "stats": {
-      "badge": "By the numbers",
-      "labels": ["Menus digitized", "Avg. processing", "Field accuracy", "Always available"]
-    },
-    "features": [
-      { "title": "Upload image", "body": "Drag and drop or select a photo of any restaurant menu." },
-      { "title": "Scan camera", "body": "Use your device's camera to capture a menu directly in real-time." },
-      { "title": "Extract data", "body": "Instantly receive structured JSON with items, prices, and categories." }
+"landing": {
+  "nav": {
+    "howItWorks": "How it works",
+    "partners": "Trusted by",
+    "reviews": "Reviews",
+    "signup": "Get started",
+    "goToApp": "Go to app"
+  },
+  "hero": {
+    "badge": "AI menu scanner",
+    "title": "Snap a menu. Get clean data. In seconds.",
+    "subtitle": "Upload or photograph any menu and MenuScan extracts dish names, prices, descriptions and dietary tags — automatically. No typing. No mistakes. Just data ready to use.",
+    "solves": [
+      "Dishes, prices and categories straight from the photo",
+      "Allergy & diet flags — vegetarian, halal, gluten-free",
+      "Accented Vietnamese and multilingual menus handled"
     ],
-    "how": {
-      "title": "How it Works",
-      "steps": [
-        { "title": "Upload", "body": "Provide menu image." },
-        { "title": "AI Analysis", "body": "Engine processes image." },
-        { "title": "Extraction", "body": "Structure data mapped." },
-        { "title": "Review", "body": "Export or edit results." }
-      ]
-    },
-    "testimonials": {
-      "title": "What customers say",
-      "subtitle": "People everywhere are digitizing menus with MenuScan.",
-      "items": [
-        { "quote": "MenuScan cut our menu entry time by 80%.", "name": "Minh Anh", "role": "Manager · Cafe Sài Gòn", "initials": "MA" },
-        { "quote": "The OCR handles accented Vietnamese menus well, with few fixes needed.", "name": "Hoàng Nguyên", "role": "Owner · Phở 24", "initials": "HN" },
-        { "quote": "We get JSON right after upload — integration was very fast.", "name": "Trần Vy", "role": "Dev · FoodApp", "initials": "TV" }
-      ]
-    }
+    "startScanning": "Start scanning",
+    "dragHint": "From phở to bánh mì — we scan it all 🍜"
+  },
+  "how": {
+    "title": "four steps. zero typing.",
+    "subtitle": "From menu photo to ready-to-use data in seconds.",
+    "steps": [
+      { "title": "Upload", "body": "Drop a menu photo or PDF — drag, drop or pick a file.", "tip": "Unlimited pages" },
+      { "title": "AI reads it", "body": "The engine reads layout, language and price tables automatically.", "tip": "Seconds, not minutes" },
+      { "title": "Structured data", "body": "Get dishes, prices, categories and descriptions as clean data.", "tip": "Export-ready JSON" },
+      { "title": "Edit & export", "body": "Tweak, export or integrate right away — no re-typing.", "tip": "Synced everywhere" }
+    ]
+  },
+  "partners": {
+    "title": "Trusted by",
+    "subtitle": "Hundreds of restaurants, cafés and F&B platforms rely on MenuScan.",
+    "items": ["Sai Gon Eats", "Pho House", "Bia Corner", "Cafe Moc", "FoodApp", "Green Bowl", "Banana Leaf", "Sky Lounge"]
+  },
+  "reviews": {
+    "title": "Loved by restaurants everywhere",
+    "subtitle": "Real stories from kitchens and cafés across the country.",
+    "items": [
+      { "quote": "Staff used to type menus for 2-3 hours every seasonal change. With MenuScan it's done in 5 minutes with almost no fixes.", "name": "Minh Anh", "role": "Manager", "location": "Cafe Sai Gon", "rating": 5, "initials": "MA" },
+      { "quote": "The OCR handles accented Vietnamese menus remarkably well, including prices and dish emojis. Integrated the API into our app in one afternoon.", "name": "Hoang Nguyen", "role": "Restaurant owner", "location": "Pho 24", "rating": 5, "initials": "HN" },
+      { "quote": "The allergy flags make it much easier for diet-conscious guests to choose — they love it.", "name": "Tran Vy", "role": "Developer", "location": "FoodApp", "rating": 5, "initials": "TV" },
+      { "quote": "Easy to use — even older staff can scan on their own. Managing menus is so much easier now.", "name": "Le Gia Huy", "role": "Operations lead", "location": "Sky Lounge", "rating": 4, "initials": "LG" }
+    ]
+  },
+  "cta": {
+    "title": "Ready to digitize your menu?",
+    "subtitle": "Join MenuScan today — free to start, fun to use."
   }
+}
 }

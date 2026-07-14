@@ -21,6 +21,10 @@ const buttonVariants = cva(
           "text-ink-variant hover:bg-panel hover:text-primary",
         accent:
           "bg-accent text-accent-foreground shadow-1 hover:-translate-y-0.5 hover:brightness-95",
+        duo:
+          "rounded-2xl bg-[#58cc02] text-white font-extrabold uppercase tracking-[0.8px] border-0 shadow-[0_4px_0_0_#58a700] hover:bg-[#61d20a] active:translate-y-[2px] active:scale-100 active:shadow-[0_2px_0_0_#58a700]",
+        "duo-outline":
+          "rounded-2xl bg-white text-[#1cb0f6] font-extrabold uppercase tracking-[0.8px] border-2 border-[#e5e5e5] shadow-[0_4px_0_0_#e5e5e5] hover:border-[#d4d4d4] hover:bg-[#f7f7f7] active:translate-y-[2px] active:scale-100 active:shadow-[0_2px_0_0_#e5e5e5]",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

@@ -620,46 +620,54 @@
     "linkSent": "Liên kết đăng nhập đã được gửi!",
     "sendFailed": "Không thể gửi email. Vui lòng thử lại sau."
   },
-  "landing": {
-    "nav": {
-      "features": "Tính năng",
-      "howItWorks": "Cách hoạt động",
-      "signup": "Đăng ký",
-      "goToApp": "Vào ứng dụng"
-    },
-    "hero": {
-      "title": "Biến ảnh thực đơn thành dữ liệu có cấu trúc",
-      "badge": "Dịch thực đơn bằng AI",
-      "subtitle": "Tự động trích xuất món ăn, giá, mô tả và thông tin dinh dưỡng từ bất kỳ ảnh thực đơn nào chỉ trong vài giây.",
-      "startScanning": "Bắt đầu quét",
-      "imageAlt": "Ứng dụng MenuScan đang quét một tờ thực đơn"
-    },
-    "stats": {
-      "badge": "Những con số",
-      "labels": ["Thực đơn đã số hóa", "Thời gian xử lý TB", "Độ chính xác trường", "Luôn sẵn sàng"]
-    },
-    "features": [
-      { "title": "Tải ảnh lên", "body": "Kéo thả hoặc chọn ảnh của bất kỳ thực đơn nhà hàng nào." },
-      { "title": "Quét bằng camera", "body": "Dùng camera của thiết bị để chụp thực đơn trực tiếp theo thời gian thực." },
-      { "title": "Trích xuất dữ liệu", "body": "Nhận ngay JSON có cấu trúc gồm món ăn, giá và danh mục." }
+"landing": {
+  "nav": {
+    "howItWorks": "Cách hoạt động",
+    "partners": "Đối tác",
+    "reviews": "Đánh giá",
+    "signup": "Bắt đầu",
+    "goToApp": "Vào ứng dụng"
+  },
+  "hero": {
+    "badge": "Quét menu bằng AI",
+    "title": "Chụp menu. Lấy dữ liệu sạch. Trong vài giây.",
+    "subtitle": "Tải lên hoặc chụp bất kỳ thực đơn nào, MenuScan tự động trích xuất tên món, giá, mô tả và nhãn dị ứng — không gõ tay, không sai sót, chỉ dữ liệu sẵn sàng dùng.",
+    "solves": [
+      "Món ăn, giá cả và danh mục ngay từ ảnh",
+      "Cờ dị ứng & chế độ ăn — chay, halal, không gluten",
+      "Menu tiếng Việt có dấu và đa ngữ đều mượt"
     ],
-    "how": {
-      "title": "Cách hoạt động",
-      "steps": [
-        { "title": "Tải lên", "body": "Cung cấp ảnh thực đơn." },
-        { "title": "Phân tích AI", "body": "Bộ máy xử lý ảnh." },
-        { "title": "Trích xuất", "body": "Ánh xạ dữ liệu có cấu trúc." },
-        { "title": "Xem lại", "body": "Xuất hoặc chỉnh sửa kết quả." }
-      ]
-    },
-    "testimonials": {
-      "title": "Khách hàng nói gì",
-      "subtitle": "Người dùng trên khắp nơi đang số hóa menu với MenuScan.",
-      "items": [
-        { "quote": "MenuScan giảm 80% thời gian nhập menu cho quán mình.", "name": "Minh Anh", "role": "Quản lý · Cafe Sài Gòn", "initials": "MA" },
-        { "quote": "OCR nhận diện tốt cả menu tiếng Việt có dấu, ít phải sửa.", "name": "Hoàng Nguyên", "role": "Chủ · Phở 24", "initials": "HN" },
-        { "quote": "Có dữ liệu JSON ngay sau khi upload, tích hợp rất nhanh.", "name": "Trần Vy", "role": "Dev · FoodApp", "initials": "TV" }
-      ]
-    }
+    "startScanning": "Bắt đầu quét",
+    "dragHint": "Từ phở đến bánh mì — quét tất cả 🍜"
+  },
+  "how": {
+    "title": "bốn bước. không gõ tay.",
+    "subtitle": "Từ ảnh thực đơn đến dữ liệu sẵn sàng dùng trong vài giây.",
+    "steps": [
+      { "title": "Tải lên", "body": "Kéo thả ảnh hoặc PDF thực đơn — hoặc chọn file.", "tip": "Không giới hạn trang" },
+      { "title": "AI đọc", "body": "Bộ máy tự động đọc bố cục, ngôn ngữ và bảng giá.", "tip": "Giây, không phải phút" },
+      { "title": "Dữ liệu cấu trúc", "body": "Nhận món, giá, danh mục và mô tả dạng dữ liệu sạch.", "tip": "JSON sẵn sàng xuất" },
+      { "title": "Sửa & xuất", "body": "Chỉnh sửa, xuất hoặc tích hợp ngay — không gõ lại.", "tip": "Đồng bộ mọi nơi" }
+    ]
+  },
+  "partners": {
+    "title": "Được tin dùng bởi",
+    "subtitle": "Hàng trăm nhà hàng, quán cà phê và nền tảng F&B tin dùng MenuScan.",
+    "items": ["Sài Gòn Eats", "Phở House", "Bia Corner", "Cafe Mộc", "FoodApp", "Green Bowl", "Banana Leaf", "Sky Lounge"]
+  },
+  "reviews": {
+    "title": "Được yêu thích bởi mọi nhà hàng",
+    "subtitle": "Câu chuyện thật từ bếp và quán cà phê trên khắp cả nước.",
+    "items": [
+      { "quote": "Trước đây nhân viên phải gõ menu 2-3 tiếng mỗi lần đổi mùa. Với MenuScan, 5 phút là xong, gần như không phải sửa.", "name": "Minh Anh", "role": "Quản lý", "location": "Cafe Sài Gòn", "rating": 5, "initials": "MA" },
+      { "quote": "OCR nhận diện rất tốt menu tiếng Việt có dấu, cả giá và emoji món ăn. Tích hợp API vào app chỉ trong một buổi chiều.", "name": "Hoàng Nguyên", "role": "Chủ nhà hàng", "location": "Phở 24", "rating": 5, "initials": "HN" },
+      { "quote": "Tính năng cờ dị ứng giúp khách ăn kiêng chọn món dễ hơn hẳn, khách khen nhiều.", "name": "Trần Vy", "role": "Developer", "location": "FoodApp", "rating": 5, "initials": "TV" },
+      { "quote": "Giao diện dễ dùng, nhân viên lớn tuổi cũng tự quét được. Quản lý menu giờ nhàn hẳn.", "name": "Lê Gia Huy", "role": "Giám đốc vận hành", "location": "Sky Lounge", "rating": 4, "initials": "LG" }
+    ]
+  },
+  "cta": {
+    "title": "Sẵn sàng số hóa thực đơn?",
+    "subtitle": "Tham gia cùng MenuScan ngay — bắt đầu miễn phí, dùng rất vui."
   }
+}
 }
