@@ -5,22 +5,22 @@ import { Slot } from "radix-ui"
 import { cn } from "@/shared/lib/cn"
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap transition-all duration-200 ease-[var(--ease-out-quint)] outline-none active:scale-[0.97] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl font-semibold whitespace-nowrap transition-all duration-200 ease-[var(--ease-out-quint)] outline-none active:scale-[0.97] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-white shadow-2 hover:-translate-y-0.5 hover:bg-[#1d4ed8] hover:shadow-3",
+          "bg-primary text-white font-bold border-0 shadow-[0_4px_0_0_var(--primary-dark)] hover:bg-[#61d20a] active:translate-y-[2px] active:scale-100 active:shadow-[0_2px_0_0_var(--primary-dark)]",
         destructive:
-          "bg-destructive text-white shadow-1 hover:-translate-y-0.5 hover:bg-destructive/90 focus-visible:ring-destructive/20",
+          "bg-destructive text-white font-bold border-0 shadow-[0_4px_0_0_#9f1239] hover:bg-destructive/90 active:translate-y-[2px] active:scale-100 active:shadow-[0_2px_0_0_#9f1239] focus-visible:ring-destructive/20",
         outline:
-          "border border-border bg-surface text-ink shadow-1 hover:-translate-y-0.5 hover:bg-panel hover:text-primary",
+          "border-2 border-border bg-surface text-ink font-bold shadow-[0_4px_0_0_var(--border)] hover:bg-panel active:translate-y-[2px] active:scale-100 active:shadow-[0_2px_0_0_var(--border)]",
         secondary:
           "bg-panel text-ink hover:bg-border",
         ghost:
           "text-ink-variant hover:bg-panel hover:text-primary",
         accent:
-          "bg-accent text-accent-foreground shadow-1 hover:-translate-y-0.5 hover:brightness-95",
+          "bg-accent text-accent-foreground font-bold border-0 shadow-[0_4px_0_0_#cc9f00] hover:brightness-95 active:translate-y-[2px] active:scale-100 active:shadow-[0_2px_0_0_#cc9f00]",
         duo:
           "rounded-2xl bg-[#58cc02] text-white font-extrabold uppercase tracking-[0.8px] border-0 shadow-[0_4px_0_0_#58a700] hover:bg-[#61d20a] active:translate-y-[2px] active:scale-100 active:shadow-[0_2px_0_0_#58a700]",
         "duo-outline":

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
@@ -6,7 +6,7 @@
 /*
  * MenuScan design system — single source of truth.
  *
- * Modern, youthful, AI-era identity: blue primary + yellow accent on white.
+ * Owl-green primary + bee-gold accent, Duolingo dialect on white.
  * Depth comes from LAYERED SHADOWS + 1px borders + solid translucent glass —
  * there is NO gradient anywhere in this file or any component. Light mode only.
  *
@@ -21,36 +21,36 @@
   --radius: 0.75rem;
 
   /* Brand */
-  --primary: #2563eb; /* primary blue */
+  --primary: #58cc02; /* owl-green primary */
   --primary-foreground: #ffffff;
-  --primary-dark: #1d4ed8; /* hover blue */
-  --primary-700: #1e40af; /* deep blue for emphasis */
+  --primary-dark: #58a700; /* owl-green pressed */
+  --primary-700: #3c8a02; /* deep green for emphasis */
 
-  /* Accent (yellow) — dark text sits on it */
-  --accent: #facc15;
-  --accent-foreground: #1e293b;
+  /* Accent (bee-gold) — dark text sits on it */
+  --accent: #ffc800;
+  --accent-foreground: #3c3c3c;
 
   /* Ink / text */
-  --ink: #0f172a;
-  --ink-variant: #475569;
+  --ink: #042c60;
+  --ink-variant: #777777;
 
   /* Surfaces */
   --background: #ffffff; /* shadcn canvas alias */
   --canvas: #ffffff; /* solid surface fill (bg-canvas) — MUST stay defined */
-  --foreground: #0f172a;
+  --foreground: #042c60;
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #042c60;
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
+  --popover-foreground: #042c60;
 
-  --secondary: #f1f5f9; /* panel */
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #475569;
+  --secondary: #f7f7f7; /* surface-gray */
+  --secondary-foreground: #042c60;
+  --muted: #f7f7f7;
+  --muted-foreground: #777777;
 
-  --border: #e2e8f0; /* hairline */
-  --input: #e2e8f0;
-  --ring: #2563eb;
+  --border: #e5e5e5; /* hairline */
+  --input: #e5e5e5;
+  --ring: #58cc02;
 
   /* Status */
   --destructive: #e11d48;
@@ -59,13 +59,13 @@
   --success-foreground: #ffffff;
 
   /* Extras */
-  --placeholder: #94a3b8;
-  --surface-muted: #f1f5f9; /* panel alias */
-  --panel: #f1f5f9;
-  --app-bg: #f6f8fc;
+  --placeholder: #afafaf;
+  --surface-muted: #f7f7f7; /* panel alias */
+  --panel: #f7f7f7;
+  --app-bg: #f7f7f7;
 
   /* Legacy playful accents — kept mapped so any residual reference resolves.
-     Not used by the new system; palette is blue + yellow + white. */
+     Not used by the new system; palette is owl-green + bee-gold + white. */
   --coral: #e11d48;
   --coral-foreground: #ffffff;
   --amber: #f59e0b;
@@ -78,7 +78,7 @@
   --shadow-2: 0 4px 12px -2px rgba(15, 23, 42, 0.08), 0 2px 6px -2px rgba(15, 23, 42, 0.05);
   --shadow-3: 0 12px 32px -8px rgba(15, 23, 42, 0.12), 0 4px 12px -4px rgba(15, 23, 42, 0.08);
   --shadow-pop: 0 20px 50px -12px rgba(15, 23, 42, 0.18), 0 8px 24px -8px rgba(15, 23, 42, 0.10);
-  --shadow-blue: 0 16px 36px -14px rgba(37, 99, 235, 0.45);
+  --shadow-blue: 0 16px 36px -14px rgba(88, 204, 2, 0.45);
 
   /* Motion easing */
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
@@ -86,7 +86,7 @@
 }
 
 @theme inline {
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Nunito", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-duo: "Nunito", ui-sans-serif, system-ui, -apple-system, sans-serif;
 
   --color-background: var(--background);

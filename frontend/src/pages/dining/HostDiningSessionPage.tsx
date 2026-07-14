@@ -141,7 +141,7 @@ export function HostDiningSessionPage() {
       width: 512,
       margin: 1,
       color: {
-        dark: '#0f172a', // ink — neutral, scans cleanly on white
+        dark: '#042c60', // navy ink — scans cleanly on white
         light: '#ffffff',
       },
     })
