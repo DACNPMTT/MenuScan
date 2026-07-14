@@ -73,51 +73,55 @@ export function VerifyPage() {
   if (status === 'error') {
     return (
       <AuthShell>
-        <div className="flex flex-col items-center gap-5 text-center">
-          <IconBadge icon={Check} tone="destructive" size="lg" />
-          <div className="flex flex-col gap-2">
-            <h1 className="text-[24px] font-bold leading-tight text-ink">
-              {t('verify.errorTitle')}
-            </h1>
-            <p className="max-w-[300px] text-[15px] leading-relaxed text-ink-variant">
-              {t('verify.errorBody')}
-            </p>
+        <div className="flex w-full flex-col items-center gap-6 text-center">
+          <div className="flex flex-col items-center gap-5">
+            <IconBadge icon={Check} tone="destructive" size="lg" />
+            <div className="flex flex-col items-center gap-2">
+              <h1 className="text-[24px] font-bold leading-tight text-ink">
+                {t('verify.errorTitle')}
+              </h1>
+              <p className="max-w-[300px] text-[15px] leading-relaxed text-ink-variant">
+                {t('verify.errorBody')}
+              </p>
+            </div>
           </div>
+          <Button type="button" size="lg" onClick={() => navigate('/auth/login')}>
+            {t('auth.backToLogin')}
+          </Button>
         </div>
-        <Button type="button" size="lg" onClick={() => navigate('/auth/login')}>
-          {t('auth.backToLogin')}
-        </Button>
       </AuthShell>
     )
   }
 
   return (
     <AuthShell>
-      <div className="flex flex-col items-center gap-5 text-center">
-        <motion.span
-          initial={{ scale: 0.6, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 260, damping: 16 }}
-          className="flex size-20 items-center justify-center rounded-full bg-success/15"
-        >
-          <Check className="size-10 text-success" aria-hidden />
-        </motion.span>
-        <div className="flex flex-col gap-2">
-          <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-ink">
-            {t('verify.successTitle')}
-          </h1>
-          <p className="max-w-[300px] text-[15px] leading-relaxed text-ink-variant">
-            {t('verify.successBody')}
-          </p>
+      <div className="flex w-full flex-col items-center gap-6 text-center">
+        <div className="flex flex-col items-center gap-5">
+          <motion.span
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 16 }}
+            className="flex size-20 items-center justify-center rounded-full bg-success/15"
+          >
+            <Check className="size-10 text-success" aria-hidden />
+          </motion.span>
+          <div className="flex flex-col items-center gap-2">
+            <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-ink">
+              {t('verify.successTitle')}
+            </h1>
+            <p className="max-w-[300px] text-[15px] leading-relaxed text-ink-variant">
+              {t('verify.successBody')}
+            </p>
+          </div>
         </div>
+        <Button
+          type="button"
+          size="lg"
+          onClick={() => navigate('/auth/set-password', { replace: true })}
+        >
+          {t('verify.continue')}
+        </Button>
       </div>
-      <Button
-        type="button"
-        size="lg"
-        onClick={() => navigate('/auth/set-password', { replace: true })}
-      >
-        {t('verify.continue')}
-      </Button>
     </AuthShell>
   )
 }

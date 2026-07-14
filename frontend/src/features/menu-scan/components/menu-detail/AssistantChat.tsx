@@ -280,8 +280,8 @@ export const AssistantChat = memo(function AssistantChat({
       }
     >
       {open && (
-        <div className="flex h-[82dvh] w-[calc(100vw-32px)] flex-col overflow-hidden rounded-3xl border border-hairline bg-surface shadow-pop sm:h-[min(78vh,600px)] sm:w-[440px]">
-          <div className="flex items-center justify-between gap-2 border-b border-black/5 bg-gradient-to-r from-[#d7ffb8]/60 to-white px-5 py-4">
+        <div className="flex h-[82dvh] w-[calc(100vw-32px)] flex-col overflow-hidden overscroll-contain rounded-3xl border border-hairline bg-canvas shadow-pop sm:h-[min(78vh,600px)] sm:w-[440px]">
+          <div className="flex items-center justify-between gap-2 border-b border-hairline bg-canvas px-5 py-4">
             <div className="flex items-center gap-2.5 text-[15px] font-extrabold text-[#042c60]">
               <div className="flex size-8 items-center justify-center rounded-full bg-white shadow-sm">
                 <MenuScanLogo size={20} className="shrink-0" />
@@ -299,7 +299,7 @@ export const AssistantChat = memo(function AssistantChat({
             </Button>
           </div>
 
-          <div className="flex flex-1 flex-col gap-4 overflow-y-auto bg-[#fafafa] px-5 py-6">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain bg-panel px-5 py-6">
             {messages.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
                 <motion.div 
@@ -330,7 +330,7 @@ export const AssistantChat = memo(function AssistantChat({
                   className={
                     message.role === 'user'
                       ? 'max-w-[85%] self-end rounded-3xl rounded-br-md bg-primary px-3 py-2 text-[13px] text-white'
-                      : 'max-w-[85%] self-start rounded-3xl rounded-bl-md border border-hairline bg-panel px-3 py-2 text-[13px] text-ink'
+                      : 'max-w-[85%] self-start rounded-3xl rounded-bl-md border border-hairline bg-canvas px-3 py-2 text-[13px] text-ink'
                   }
                 >
                   {message.role === 'assistant' ? (
@@ -342,7 +342,7 @@ export const AssistantChat = memo(function AssistantChat({
               ))
             )}
             {loading && (
-              <div className="self-start rounded-3xl rounded-bl-md border border-hairline bg-surface-muted px-3 py-2 text-ink-variant">
+              <div className="self-start rounded-3xl rounded-bl-md border border-hairline bg-panel px-3 py-2 text-ink-variant">
                 <Loader2 className="size-4 animate-spin" aria-hidden />
               </div>
             )}
@@ -351,7 +351,7 @@ export const AssistantChat = memo(function AssistantChat({
 
           {/* Focus chips + last-selected suggestion */}
           {(focusDishes.length > 0 || suggestion) && (
-            <div className="flex flex-wrap items-center gap-1.5 border-t border-hairline px-4 py-2">
+            <div className="flex flex-wrap items-center gap-1.5 border-t border-hairline bg-canvas px-4 py-2">
               {focusDishes.map((dish) => (
                 <span
                   key={dish.id}
@@ -385,11 +385,11 @@ export const AssistantChat = memo(function AssistantChat({
             className="relative flex items-end gap-2 bg-white px-4 py-3 shadow-[0_-4px_24px_rgba(0,0,0,0.03)]"
           >
             {pickerOpen && selectedDishes.length > 0 && (
-              <div className="absolute bottom-[calc(100%+8px)] left-4 z-10 max-h-[220px] w-[260px] overflow-y-auto rounded-2xl border border-hairline bg-surface py-1 shadow-3">
+              <div className="absolute bottom-[calc(100%+8px)] left-4 z-10 max-h-[220px] w-[260px] overflow-y-auto overscroll-contain rounded-2xl border border-hairline bg-canvas py-1 shadow-3">
                 <button
                   type="button"
                   onClick={focusAll}
-                  className="w-full px-3 py-2 text-left text-[13px] font-semibold text-primary-dark hover:bg-surface-muted"
+                  className="w-full px-3 py-2 text-left text-[13px] font-semibold text-primary-dark hover:bg-panel"
                 >
                   {t('chat.allSelected')}
                 </button>
@@ -398,7 +398,7 @@ export const AssistantChat = memo(function AssistantChat({
                     key={dish.id}
                     type="button"
                     onClick={() => addFocus(dish.id)}
-                    className="w-full truncate px-3 py-2 text-left text-[13px] text-ink hover:bg-surface-muted"
+                    className="w-full truncate px-3 py-2 text-left text-[13px] text-ink hover:bg-panel"
                   >
                     {dish.name}
                   </button>

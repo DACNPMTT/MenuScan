@@ -225,10 +225,14 @@ function MenuRow({
             {menu.status === 'CONFIRMED' ? t('menus.confirmed') : t('menus.draft')}
           </span>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-variant">
-          <span>{t('menus.dishCount', { count: menu.item_count })}</span>
-          <span>{menu.source.file_name}</span>
-          <span>{formatTime(menu.updated_at)}</span>
+        <div className="mt-2 flex min-w-0 flex-col gap-1 text-[13px] text-ink-variant">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+            <span className="shrink-0">{t('menus.dishCount', { count: menu.item_count })}</span>
+            <span className="shrink-0">{formatTime(menu.updated_at)}</span>
+          </div>
+          <span className="block min-w-0 max-w-full truncate" title={menu.source.file_name}>
+            {menu.source.file_name}
+          </span>
         </div>
       </Link>
       <div className="col-span-2 flex items-center justify-end gap-2 sm:col-span-1">
@@ -335,4 +339,3 @@ function MenuThumbnail({
     </div>
   )
 }
-

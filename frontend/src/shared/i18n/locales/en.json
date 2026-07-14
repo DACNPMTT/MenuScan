@@ -93,6 +93,8 @@
   },
   "checkEmail": {
     "bodyWithEmail": "We've sent a verification link to {{email}}. Please click the link to activate your account.",
+    "bodyWithEmailPrefix": "We've sent a verification link to",
+    "bodyWithEmailSuffix": "Please click the link to activate your account.",
     "bodyNoEmail": "We've sent a verification link to your email. Please click the link to activate your account.",
     "sending": "Sending…"
   },
