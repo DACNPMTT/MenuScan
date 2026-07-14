@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Cookie, Depends, Request, Response, status
 
 from src.core.responses import success_response
@@ -8,11 +10,14 @@ from src.modules.identity.cookies import (
 from src.modules.identity.dependencies import get_current_user, get_magic_link_service
 from src.modules.identity.models import User
 from src.modules.identity.schemas import (
+    CreateFoodProfileRequest,
+    FoodProfileResponse,
     LoginRequest,
     MagicLinkRequest,
     MagicLinkVerifyRequest,
     SetPasswordRequest,
     UpdateUserProfileRequest,
+    UpdateFoodProfileRequest,
 )
 from src.modules.identity.service import MagicLinkService
 
@@ -39,6 +44,10 @@ def _user_response_data(user: User, *, include_profile_details: bool = False) ->
             }
         )
     return data
+
+
+def _food_profile_response_data(profile: object) -> dict[str, object]:
+    return FoodProfileResponse.model_validate(profile).model_dump(mode="json")
 
 
 @router.post("/magic-links", status_code=status.HTTP_202_ACCEPTED)
@@ -104,6 +113,7 @@ def login(
     """Authenticate user with email and password, establish a session and set refresh cookie."""
     user_agent = request.headers.get("user-agent")
 
+    print(f"DEBUG_LOGIN: email='{payload.email}' password='{payload.password}'")
     access_token, user, refresh_token = service.login_with_password(
         email=payload.email,
         password=payload.password,
@@ -192,3 +202,84 @@ def update_me_profile(
     updates = payload.model_dump(exclude_unset=True)
     user = service.update_user_profile(current_user, **updates)
     return success_response(data=_user_response_data(user, include_profile_details=True))
+
+
+@router.get("/me/food-profiles", status_code=status.HTTP_200_OK)
+def list_food_profiles(
+    current_user: User = Depends(get_current_user),
+    service: MagicLinkService = Depends(get_magic_link_service),
+) -> dict[str, object]:
+    """List persistent food profiles owned by the current user."""
+    profiles = service.list_food_profiles(current_user)
+    return success_response(
+        data=[_food_profile_response_data(profile) for profile in profiles]
+    )
+
+
+@router.post("/me/food-profiles", status_code=status.HTTP_201_CREATED)
+def create_food_profile(
+    payload: CreateFoodProfileRequest,
+    current_user: User = Depends(get_current_user),
+    service: MagicLinkService = Depends(get_magic_link_service),
+) -> dict[str, object]:
+    """Create a persistent food profile for the current user."""
+    profile = service.create_food_profile(
+        current_user,
+        display_name=payload.display_name,
+        preferred_language=payload.preferred_language,
+        is_default=payload.is_default,
+        notes=payload.notes,
+        preferences=payload.preferences,
+    )
+    return success_response(data=_food_profile_response_data(profile))
+
+
+@router.get("/me/food-profiles/{profile_id}", status_code=status.HTTP_200_OK)
+def get_food_profile(
+    profile_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    service: MagicLinkService = Depends(get_magic_link_service),
+) -> dict[str, object]:
+    """Retrieve one food profile owned by the current user."""
+    profile = service.get_food_profile(current_user, profile_id=profile_id)
+    return success_response(data=_food_profile_response_data(profile))
+
+
+@router.patch("/me/food-profiles/{profile_id}", status_code=status.HTTP_200_OK)
+def update_food_profile(
+    profile_id: uuid.UUID,
+    payload: UpdateFoodProfileRequest,
+    current_user: User = Depends(get_current_user),
+    service: MagicLinkService = Depends(get_magic_link_service),
+) -> dict[str, object]:
+    """Update a persistent food profile owned by the current user."""
+    updates = {}
+    if "display_name" in payload.model_fields_set:
+        updates["display_name"] = payload.display_name
+    if "preferred_language" in payload.model_fields_set:
+        updates["preferred_language"] = payload.preferred_language
+    if "is_default" in payload.model_fields_set:
+        updates["is_default"] = payload.is_default
+    if "notes" in payload.model_fields_set:
+        updates["notes"] = payload.notes
+    if "preferences" in payload.model_fields_set:
+        updates["preferences"] = payload.preferences
+    profile = service.update_food_profile(
+        current_user,
+        profile_id=profile_id,
+        **updates,
+    )
+    return success_response(data=_food_profile_response_data(profile))
+
+
+@router.delete(
+    "/me/food-profiles/{profile_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_food_profile(
+    profile_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    service: MagicLinkService = Depends(get_magic_link_service),
+) -> None:
+    """Soft-delete one food profile owned by the current user."""
+    service.delete_food_profile(current_user, profile_id=profile_id)

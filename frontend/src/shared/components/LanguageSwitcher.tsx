@@ -1,8 +1,15 @@
-import { Globe } from 'lucide-react'
+import { ChevronDown, Globe } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { SUPPORTED_LANGUAGES, isSupportedLanguage } from '@/shared/i18n/languages'
 import { cn } from '@/shared/lib/cn'
+import { Button } from '@/shared/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/shared/components/ui/dropdown-menu'
 
 interface LanguageSwitcherProps {
   className?: string
@@ -32,27 +39,31 @@ export function LanguageSwitcher({ className }: LanguageSwitcherProps) {
   }
 
   return (
-    <label
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-[8px] border border-hairline bg-canvas px-2 py-1.5 text-ink-variant',
-        className,
-      )}
-      title={t('language.select')}
-    >
-      <Globe className="size-4 shrink-0" aria-hidden />
-      <span className="sr-only">{t('language.select')}</span>
-      <select
-        value={current}
-        onChange={(event) => handleChange(event.target.value)}
-        aria-label={t('language.select')}
-        className="cursor-pointer bg-transparent text-[13px] font-medium text-ink outline-none"
-      >
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className={cn('gap-1 text-ink-variant', className)}
+          title={t('language.select')}
+          aria-label={t('language.select')}
+        >
+          <Globe className="size-4" aria-hidden />
+          <ChevronDown className="size-3" aria-hidden />
+          <span className="sr-only">{t('language.select')}</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
         {SUPPORTED_LANGUAGES.map((lang) => (
-          <option key={lang.code} value={lang.code}>
+          <DropdownMenuItem
+            key={lang.code}
+            onSelect={() => handleChange(lang.code)}
+            className={cn(lang.code === current && 'font-bold text-primary')}
+          >
             {lang.flag} {lang.label}
-          </option>
+          </DropdownMenuItem>
         ))}
-      </select>
-    </label>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

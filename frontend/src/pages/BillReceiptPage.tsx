@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { AlertCircle, ArrowLeft, Loader2, RefreshCw } from 'lucide-react'
+import { AlertCircle, ArrowLeft, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
 import { ApiError, apiRequest } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { DigitalReceipt } from '@/features/billing/components/DigitalReceipt'
+import { PageTransition } from '@/shared/components/motion/PageTransition'
+import { Reveal } from '@/shared/components/motion/Reveal'
+import { SectionCard } from '@/shared/components/SectionCard'
+import { IconBadge } from '@/shared/components/IconBadge'
+import { Spinner } from '@/shared/components/Spinner'
+import { Button } from '@/shared/components/ui/button'
 import type { Bill, BillSplit } from '@/features/billing/types'
 
 export function BillReceiptPage() {
@@ -99,54 +105,55 @@ export function BillReceiptPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[900px] px-4 py-[30px] sm:px-[50px] sm:py-[40px]">
-      <Link
-        to={bill ? `/app/menus/${bill.menu_id}` : '/app/menus'}
-        className="mb-6 flex w-fit items-center gap-2 text-[14px] text-ink-variant transition-colors hover:text-primary-dark"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        {t('billReceipt.backToMenu')}
-      </Link>
+    <PageTransition>
+      <div className="mx-auto w-full max-w-[900px] px-4 py-8 sm:px-8 sm:py-10">
+        <Button variant="ghost" size="sm" asChild className="mb-6">
+          <Link to={bill ? `/app/menus/${bill.menu_id}` : '/app/menus'}>
+            <ArrowLeft className="size-4" aria-hidden />
+            {t('billReceipt.backToMenu')}
+          </Link>
+        </Button>
 
-      {loading ? (
-        <div className="flex flex-col items-center gap-3 py-[80px] text-ink-variant">
-          <Loader2 className="size-7 animate-spin text-primary-dark" aria-hidden />
-          {t('billReceipt.loading')}
-        </div>
-      ) : error ? (
-        <div className="flex flex-col items-center gap-4 rounded-[12px] border border-destructive/30 bg-destructive/5 px-5 py-[50px] text-center">
-          <span className="flex size-14 items-center justify-center rounded-full bg-destructive/10">
-            <AlertCircle className="size-7 text-destructive" aria-hidden />
-          </span>
-          <p role="alert" className="max-w-[360px] text-[14px] text-destructive">
-            {error}
-          </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => void loadBill()}
-              className="flex min-h-10 items-center gap-2 rounded-[8px] border border-destructive/30 px-4 py-2 text-[14px] font-medium text-destructive transition-colors hover:bg-destructive/10"
-            >
-              <RefreshCw className="size-4" aria-hidden />
-              {t('common.retry')}
-            </button>
-            <Link
-              to="/app/menus"
-              className="flex min-h-10 items-center rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
-            >
-              {t('billReceipt.backToMenus')}
-            </Link>
-          </div>
-        </div>
-      ) : bill ? (
-        <DigitalReceipt
-          bill={bill}
-          split={split}
-          finalizing={finalizing}
-          onFinalize={() => void handleFinalize()}
-          backToEditHref={`/app/menus/${bill.menu_id}`}
-        />
-      ) : null}
-    </div>
+        {loading ? (
+          <SectionCard>
+            <div className="flex flex-col items-center gap-3 py-[80px]">
+              <Spinner label={t('billReceipt.loading')} className="text-primary-dark" />
+              <span className="text-[14px] text-ink-variant">{t('billReceipt.loading')}</span>
+            </div>
+          </SectionCard>
+        ) : error ? (
+          <SectionCard>
+            <div className="flex flex-col items-center gap-4 px-5 py-[50px] text-center">
+              <IconBadge icon={AlertCircle} tone="destructive" size="lg" />
+              <p
+                role="alert"
+                className="max-w-[360px] text-[14px] leading-relaxed text-destructive"
+              >
+                {error}
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button variant="outline" onClick={() => void loadBill()}>
+                  <RefreshCw className="size-4" aria-hidden />
+                  {t('common.retry')}
+                </Button>
+                <Button asChild>
+                  <Link to="/app/menus">{t('billReceipt.backToMenus')}</Link>
+                </Button>
+              </div>
+            </div>
+          </SectionCard>
+        ) : bill ? (
+          <Reveal>
+            <DigitalReceipt
+              bill={bill}
+              split={split}
+              finalizing={finalizing}
+              onFinalize={() => void handleFinalize()}
+              backToEditHref={`/app/menus/${bill.menu_id}`}
+            />
+          </Reveal>
+        ) : null}
+      </div>
+    </PageTransition>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type DragEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   AlertCircle,
   AlertTriangle,
@@ -14,6 +14,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
+import { useAuth } from '@/app/providers/AuthProvider'
 import {
   ALLOWED_EXTENSIONS,
   MAX_FILE_SIZE_BYTES,
@@ -26,6 +27,17 @@ import {
   type QualityResult,
 } from '@/features/menu-scan/imageQuality'
 import { cn } from '@/shared/lib/cn'
+import { Reveal } from '@/shared/components/motion/Reveal'
+import { SectionCard } from '@/shared/components/SectionCard'
+import { IconBadge } from '@/shared/components/IconBadge'
+import { Button } from '@/shared/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
+
+interface SimpleDiningSession {
+  id: string
+  name: string | null
+  status: string
+}
 
 const ACCEPT_ATTR = ALLOWED_EXTENSIONS.map((ext) =>
   ext === 'pdf' ? 'application/pdf' : `image/${ext}`,
@@ -80,6 +92,11 @@ export function UploadPanel() {
   const { t, i18n } = useTranslation()
   useDocumentTitle(`${t('scan.title')} | MenuScan`)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const { user, accessToken } = useAuth()
+
+  const diningSessionQueryParam = searchParams.get('dining_session_id')
+
   const steps = t('scan.steps', { returnObjects: true }) as Array<{
     title: string
     desc: string
@@ -87,6 +104,41 @@ export function UploadPanel() {
 
   const [selected, setSelected] = useState<SelectedFile | null>(null)
   const [quality, setQuality] = useState<QualityResult | null>(null)
+
+  const [diningSessions, setDiningSessions] = useState<SimpleDiningSession[]>([])
+  const [selectedDiningSessionId, setSelectedDiningSessionId] = useState<string>('')
+
+  // Load dining sessions of the host
+  useEffect(() => {
+    if (!user) return
+    const loadDiningSessions = async () => {
+      try {
+        const data = await apiRequest<SimpleDiningSession[]>('/api/v1/dining/sessions', {
+          method: 'GET',
+          token: accessToken ?? undefined,
+        })
+        setDiningSessions(data.filter((s: SimpleDiningSession) => s.status === 'COLLECTING'))
+      } catch (err) {
+        console.error('Failed to load dining sessions:', err)
+      }
+    }
+    void loadDiningSessions()
+  }, [accessToken, user])
+
+  // Pre-select if passed in query param
+  useEffect(() => {
+    if (diningSessionQueryParam) {
+      let active = true
+      Promise.resolve().then(() => {
+        if (active) {
+          setSelectedDiningSessionId(diningSessionQueryParam)
+        }
+      })
+      return () => {
+        active = false
+      }
+    }
+  }, [diningSessionQueryParam])
   // Default the scan target to the user's interface language (set at login /
   // in the language switcher); they can still override it per scan below.
   const [targetLanguage, setTargetLanguage] = useState(() => {
@@ -158,6 +210,9 @@ export function UploadPanel() {
     const formData = new FormData()
     formData.append('file', selected.file)
     formData.append('target_language', targetLanguage)
+    if (selectedDiningSessionId) {
+      formData.append('dining_session_id', selectedDiningSessionId)
+    }
     try {
       const scan = await apiRequest<ScanData>('/api/v1/scans', {
         method: 'POST',
@@ -167,10 +222,15 @@ export function UploadPanel() {
       // the extracted menu once the pipeline completes.
       navigate(`/app/scans/${scan.id}`)
     } catch (error) {
-      const message =
-        error instanceof ApiError
-          ? error.message
-          : `${t('scan.errors.genericPrefix')}${error instanceof Error ? error.message : String(error)}`
+      let message: string
+      if (error instanceof ApiError && error.status === 429) {
+        // Throttled: called AI again too soon. Friendly, localized message.
+        message = t('scan.errors.rateLimited')
+      } else if (error instanceof ApiError) {
+        message = error.message
+      } else {
+        message = `${t('scan.errors.genericPrefix')}${error instanceof Error ? error.message : String(error)}`
+      }
       setSubmitError(message)
     } finally {
       setIsSubmitting(false)
@@ -187,14 +247,12 @@ export function UploadPanel() {
   return (
     <div className="grid grid-cols-1 gap-[40px] lg:grid-cols-[minmax(0,1fr)_360px]">
       {/* LEFT COLUMN: input choice + dropzone + file list */}
-      <div className="flex flex-col gap-[30px]">
+      <Reveal className="flex flex-col gap-[30px]">
         {/* Input choice cards */}
-        <div className="grid grid-cols-1 gap-[20px] sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           {/* Upload (active) */}
-          <div className="relative flex min-h-[92px] items-center gap-5 rounded-[12px] border-2 border-primary-dark bg-surface-muted p-[22px]">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary">
-              <Upload className="size-6 text-white" aria-hidden />
-            </span>
+          <div className="relative flex min-h-[92px] items-center gap-5 rounded-2xl border-2 border-primary bg-primary/5 p-5 shadow-2">
+            <IconBadge icon={Upload} solid size="md" />
             <div className="flex flex-col gap-0.5">
               <span className="text-[18px] leading-[26px] text-primary-dark">
                 {t('scan.uploadCard.title')}
@@ -203,18 +261,20 @@ export function UploadPanel() {
                 {t('scan.uploadCard.desc')}
               </span>
             </div>
-            <span className="absolute right-2 top-2 flex size-5 items-center justify-center rounded-full bg-primary-dark">
+            <span className="absolute right-2 top-2 flex size-5 items-center justify-center rounded-full bg-primary">
               <Check className="size-3 text-white" aria-hidden />
             </span>
           </div>
           {/* Camera (link) */}
           <Link
             to="/app/scan/camera"
-            className="flex min-h-[92px] items-center gap-5 rounded-[12px] border border-hairline bg-canvas p-[21px] transition-colors hover:bg-surface-muted"
+            className="group flex min-h-[92px] items-center gap-5 rounded-2xl border border-border bg-surface p-5 shadow-1 transition-all duration-200 ease-[var(--ease-out-quint)] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-2"
           >
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-surface-muted">
-              <Camera className="size-6 text-primary-dark" aria-hidden />
-            </span>
+            <IconBadge
+              icon={Camera}
+              size="md"
+              className="transition-transform duration-200 group-hover:scale-110"
+            />
             <div className="flex flex-col gap-0.5">
               <span className="text-[18px] leading-[26px] text-primary-dark">
                 {t('scan.cameraCard.title')}
@@ -245,10 +305,10 @@ export function UploadPanel() {
           }}
           aria-label={t('scan.dropzone.aria')}
           className={cn(
-            'flex h-[256px] cursor-pointer flex-col items-center justify-center gap-5 rounded-[12px] border border-dashed p-px text-center transition-colors',
+            'flex h-[256px] cursor-pointer flex-col items-center justify-center gap-5 rounded-3xl border-2 border-dashed bg-surface p-8 text-center transition-all duration-200',
             isDragging
-              ? 'border-primary-dark bg-secondary'
-              : 'border-hairline bg-secondary hover:bg-surface-muted',
+              ? 'scale-[1.01] border-primary bg-panel'
+              : 'border-border hover:border-primary/40 hover:bg-panel',
           )}
         >
           <input
@@ -258,11 +318,9 @@ export function UploadPanel() {
             onChange={handleInputChange}
             className="hidden"
           />
-          <div className="flex size-16 items-center justify-center rounded-full border border-hairline bg-canvas shadow-sm">
-            <Upload className="size-7 text-primary-dark" aria-hidden />
-          </div>
+          <IconBadge icon={Upload} solid size="lg" />
           <div className="flex flex-col items-center gap-1.5">
-            <p className="text-[20px] leading-[30px] text-primary-dark">
+            <p className="text-[20px] font-bold leading-[30px] text-ink">
               {t('scan.dropzone.title')}
             </p>
             <p className="text-[14px] leading-[20px] text-ink-variant">
@@ -277,13 +335,11 @@ export function UploadPanel() {
             <p className="text-[14px] font-medium uppercase tracking-[0.7px] text-ink-variant">
               {t('scan.selectedFile')}
             </p>
-            <div className="flex items-center gap-5 rounded-[8px] border border-hairline bg-canvas p-[9px]">
+            <div className="flex items-center gap-5 rounded-2xl border border-border bg-surface p-3 shadow-1">
               {isPdf ? (
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-[4px] bg-surface-muted">
-                  <FileText className="size-5 text-primary-dark" aria-hidden />
-                </div>
+                <IconBadge icon={FileText} tone="primary" size="sm" />
               ) : (
-                <div className="size-10 shrink-0 overflow-hidden rounded-[4px] bg-surface-muted">
+                <div className="size-10 shrink-0 overflow-hidden rounded-xl bg-panel">
                   {selected.previewUrl ? (
                     <img
                       src={selected.previewUrl}
@@ -307,7 +363,7 @@ export function UploadPanel() {
               <button
                 type="button"
                 onClick={handleRemove}
-                className="flex items-center gap-1.5 rounded-[4px] p-2 text-[14px] text-ink-variant transition-colors hover:bg-secondary hover:text-primary-dark"
+                className="flex items-center gap-1.5 rounded-full p-2 text-[14px] text-ink-variant transition-all duration-200 ease-[var(--ease-out-quint)] hover:bg-destructive/10 hover:text-destructive"
                 aria-label={t('scan.removeAria', { name: selected.file.name })}
               >
                 <X className="size-5" aria-hidden />
@@ -326,7 +382,7 @@ export function UploadPanel() {
             {!selected.error && quality && !quality.ok && (
               <div
                 role="status"
-                className="flex items-start gap-3 rounded-[8px] border border-[#e0a800]/50 bg-[#fff8e1] px-3 py-2.5 text-[14px] text-[#8a6d00]"
+                className="flex items-start gap-3 rounded-2xl border border-amber/40 bg-amber/10 px-3 py-2.5 text-[14px] text-amber"
               >
                 <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
                 <div className="flex flex-col gap-0.5">
@@ -347,21 +403,18 @@ export function UploadPanel() {
         {submitError && (
           <p
             role="alert"
-            className="flex items-center gap-2 rounded-[8px] border border-destructive/30 bg-destructive/5 px-3 py-2 text-[14px] text-destructive"
+            className="flex items-center gap-2 rounded-2xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-[14px] text-destructive"
           >
             <AlertCircle className="size-4 shrink-0" aria-hidden />
             {submitError}
           </p>
         )}
-      </div>
+      </Reveal>
 
-      {/* RIGHT COLUMN: processing status stepper + CTA */}
-      <div className="flex flex-col gap-[30px]">
-        <div className="rounded-[12px] border border-hairline bg-canvas p-[21px]">
-          <h2 className="border-b border-hairline pb-[9px] text-[18px] leading-[26px] text-primary-dark">
-            {t('scan.statusTitle')}
-          </h2>
-          <ol className="relative mt-4 flex flex-col">
+      {/* RIGHT COLUMN: processing status stepper + selects + CTA */}
+      <Reveal delay={0.08} className="flex flex-col gap-[30px]">
+        <SectionCard title={t('scan.statusTitle')}>
+          <ol className="flex flex-col">
             {steps.map((step, index) => {
               const stepNum = index + 1
               const state =
@@ -376,23 +429,23 @@ export function UploadPanel() {
                   {/* Indicator + connector */}
                   <div className="relative flex flex-col items-center">
                     {state === 'complete' && (
-                      <span className="flex size-6 items-center justify-center rounded-full bg-primary-dark">
+                      <span className="flex size-6 items-center justify-center rounded-full bg-primary">
                         <Check className="size-3.5 text-white" aria-hidden />
                       </span>
                     )}
                     {state === 'current' && (
-                      <span className="flex size-6 items-center justify-center rounded-full border-2 border-primary-dark bg-canvas">
-                        <span className="size-2 rounded-full bg-primary-dark" />
+                      <span className="flex size-6 items-center justify-center rounded-full border-2 border-primary bg-surface">
+                        <span className="size-2 rounded-full bg-primary" />
                       </span>
                     )}
                     {state === 'pending' && (
-                      <span className="size-6 rounded-full border border-hairline bg-canvas" />
+                      <span className="size-6 rounded-full border border-border bg-surface" />
                     )}
                     {!isLast && (
                       <span
                         className={cn(
                           'mt-1 w-[2px] flex-1',
-                          state === 'complete' ? 'bg-primary-dark' : 'bg-hairline',
+                          state === 'complete' ? 'bg-primary' : 'bg-border',
                         )}
                       />
                     )}
@@ -424,41 +477,83 @@ export function UploadPanel() {
               )
             })}
           </ol>
-        </div>
+        </SectionCard>
 
         {/* Ngôn ngữ đích */}
-        <div className="flex flex-col gap-2 rounded-[12px] border border-hairline bg-canvas p-[21px]">
-          <label
-            htmlFor="targetLanguage"
-            className="text-[15px] font-bold text-primary-dark"
-          >
-            {t('scan.translateTo')}
-          </label>
-          <select
-            id="targetLanguage"
-            value={targetLanguage}
-            onChange={(e) => setTargetLanguage(e.target.value)}
-            disabled={isSubmitting}
-            className="h-[44px] w-full rounded-[8px] border border-hairline bg-surface-muted px-3 text-[15px] text-ink outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
-          >
-            {TARGET_LANGUAGES.map((lang) => (
-              <option key={lang.code} value={lang.code}>
-                {lang.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <SectionCard>
+          <div className="flex flex-col gap-2">
+            <label
+              htmlFor="targetLanguage"
+              className="text-[15px] font-bold text-primary-dark"
+            >
+              {t('scan.translateTo')}
+            </label>
+            <Select
+              value={targetLanguage}
+              onValueChange={setTargetLanguage}
+              disabled={isSubmitting}
+            >
+              <SelectTrigger
+                id="targetLanguage"
+                className="h-[44px] w-full rounded-xl border border-border bg-surface px-3 text-[15px] text-ink"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TARGET_LANGUAGES.map((lang) => (
+                  <SelectItem key={lang.code} value={lang.code}>
+                    {lang.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </SectionCard>
 
-        <button
+        {user && (diningSessions.length > 0 || diningSessionQueryParam) && (
+          <SectionCard>
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="diningSessionSelect"
+                className="text-[15px] font-bold text-primary-dark"
+              >
+                Liên kết phiên ăn uống (Tùy chọn)
+              </label>
+              <Select
+                value={selectedDiningSessionId || 'none'}
+                onValueChange={(v) => setSelectedDiningSessionId(v === 'none' ? '' : v)}
+                disabled={isSubmitting}
+              >
+                <SelectTrigger
+                  id="diningSessionSelect"
+                  className="h-[44px] w-full rounded-xl border border-border bg-surface px-3 text-[15px] text-ink"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">-- Không liên kết --</SelectItem>
+                  {diningSessionQueryParam && !diningSessions.some(s => s.id === diningSessionQueryParam) && (
+                    <SelectItem value={diningSessionQueryParam}>
+                      Phiên ăn {diningSessionQueryParam.slice(0, 8)} (Đang liên kết)
+                    </SelectItem>
+                  )}
+                  {diningSessions.map((session: SimpleDiningSession) => (
+                    <SelectItem key={session.id} value={session.id}>
+                      {session.name || `Phiên ăn ${session.id.slice(0, 8)}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </SectionCard>
+        )}
+
+        <Button
           type="button"
+          size="lg"
           onClick={handleSubmit}
           disabled={!canSubmit}
-          className={cn(
-            'flex h-[56px] w-full items-center justify-center gap-2 rounded-[12px] text-[17px] font-bold transition-colors',
-            canSubmit
-              ? 'bg-primary-dark text-white hover:opacity-90'
-              : 'cursor-not-allowed bg-surface-muted text-ink-variant',
-          )}
+          className="h-[56px] w-full text-[17px]"
         >
           {isSubmitting ? (
             <>
@@ -471,8 +566,8 @@ export function UploadPanel() {
               {t('scan.start')}
             </>
           )}
-        </button>
-      </div>
+        </Button>
+      </Reveal>
     </div>
   )
 }

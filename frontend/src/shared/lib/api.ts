@@ -60,13 +60,22 @@ export class ApiError extends Error {
 
 /**
  * Fetch wrapper for endpoints under API_V1_PREFIX. The backend answers with
- * the `{ success, data } | { success, error }` envelope.
+ * the `{ success, data } | { success, error }` envelope. Used for
+ * unauthenticated requests (e.g. requesting a magic link); authenticated calls
+ * use `apiRequest`, which attaches the bearer token and auto-refreshes.
  */
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE}${PREFIX}${path}`, {
     headers: { 'Content-Type': 'application/json', ...init?.headers },
     ...init,
   })
+
+  // Thêm độ trễ 800ms khi chạy ở môi trường DEV (Localhost) để lập trình viên
+  // và người dùng nội bộ có thể kịp thời ngắm hiệu ứng loading Sầu Riêng lăn.
+  // Khi build ra Production (thực tế), lệnh này sẽ không được chạy.
+  if (import.meta.env.DEV) {
+    await new Promise((resolve) => setTimeout(resolve, 800))
+  }
 
   const json = (await response.json().catch(() => null)) as Envelope<T> | null
 
@@ -110,6 +119,11 @@ export async function apiRequestWithMeta<T = unknown, M = unknown>(
     headers: requestHeaders,
     credentials: 'include',
   })
+
+  // Thêm độ trễ 800ms ở môi trường DEV để trải nghiệm loading state
+  if (import.meta.env.DEV) {
+    await new Promise((resolve) => setTimeout(resolve, 800))
+  }
 
   // Auto-refresh once on a 401 when we had a token. Single-flight: concurrent
   // 401s share the one in-flight refresh via auth-token; if another call has

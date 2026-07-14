@@ -23,6 +23,8 @@ from src.modules.menu import models as _menu_models  # noqa: F401
 from src.modules.menu_scan import models as _menu_scan_models  # noqa: F401
 from src.modules.identity import models as _identity_models  # noqa: F401
 from src.modules.billing import models as _billing_models  # noqa: F401
+from src.modules.dining import models as _dining_models  # noqa: F401
+from src.core import rate_limit as _rate_limit_models  # noqa: F401
 
 
 
@@ -75,6 +77,12 @@ def db_session_factory(db_engine: Engine) -> Iterator[sessionmaker[Session]]:
     # reference menus (fk_bills_menu_id_menus), so clear children first to avoid
     # a FK violation on DELETE FROM menus when bill rows exist.
     with factory() as session:
+        session.execute(text("DELETE FROM food_item_recommendation_participant_breakdowns"))
+        session.execute(text("DELETE FROM food_item_recommendations"))
+        session.execute(text("DELETE FROM dining_session_participant_preferences"))
+        session.execute(text("DELETE FROM dining_session_participants"))
+        session.execute(text("DELETE FROM dining_session_invites"))
+        session.execute(text("DELETE FROM dining_sessions"))
         session.execute(text("DELETE FROM bill_adjustments"))
         session.execute(text("DELETE FROM bill_items"))
         session.execute(text("DELETE FROM bills"))

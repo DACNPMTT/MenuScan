@@ -9,6 +9,7 @@
     "saveChanges": "Lưu thay đổi",
     "cancel": "Hủy",
     "back": "Quay lại",
+    "next": "Tiếp tục",
     "retry": "Thử lại",
     "edit": "Sửa",
     "delete": "Xóa",
@@ -44,6 +45,7 @@
     "errors": {
       "fileTooLarge": "File quá lớn. Dung lượng tối đa là 10 MB.",
       "unsupportedType": "Định dạng không được hỗ trợ. Chỉ chấp nhận JPG, PNG, WEBP, PDF.",
+      "rateLimited": "Thao tác quá nhanh. Vui lòng đợi vài giây rồi thử lại.",
       "genericPrefix": "Lỗi: "
     }
   },
@@ -52,7 +54,8 @@
     "scan": "Quét",
     "menus": "Thực đơn",
     "bills": "Hóa đơn",
-    "profile": "Tài khoản"
+    "profile": "Tài khoản",
+    "dining": "Phiên ăn"
   },
   "footer": {
     "rights": "© {{year}} MenuScan. Đã đăng ký bản quyền."
@@ -117,7 +120,7 @@
     "newPassword": "Mật khẩu mới",
     "confirmPassword": "Xác nhận mật khẩu",
     "minCharsPlaceholder": "Tối thiểu 6 ký tự",
-    "reenterPlaceholder": "Nhập lại mật khẩu",
+    "reenterPlaceholder": "Xác nhận mật khẩu",
     "saving": "Đang lưu…",
     "save": "Lưu mật khẩu",
     "errors": {
@@ -236,6 +239,14 @@
     "dishCount_other": "{{count}} món",
     "unsavedChanges_other": "Có {{count}} món đang chỉnh sửa chưa lưu.",
     "searching": "Đang tìm món phù hợp…",
+    "sortedByAdvice": "Đã xếp theo đề xuất",
+    "sortedByProfile": "Đã xếp theo hồ sơ của bạn",
+    "legendTitle": "Mức đề xuất:",
+    "pageStatus": "Hiển thị {{from}}-{{to}} / {{total}} món",
+    "prevPage": "Trang trước",
+    "nextPage": "Trang sau",
+    "enriching": "Đang phân tích các món…",
+    "enrichFailed": "Chưa phân tích được các món. Menu vẫn dùng bình thường — tải lại trang để thử lại, hoặc hỏi trợ lý.",
     "resultCount_other": "{{count}} món",
     "resultCountOf_other": "{{count}} món trên {{total}}",
     "noFilterMatch": "Không có món phù hợp với bộ lọc.",
@@ -287,7 +298,7 @@
     "save": "Lưu món"
   },
   "filter": {
-    "searchPlaceholder": "Tìm món theo tên hoặc mô tả…",
+    "searchPlaceholder": "Tìm món…",
     "searchAria": "Tìm kiếm món",
     "clearSearchAria": "Xóa tìm kiếm",
     "minPrice": "Giá từ",
@@ -322,20 +333,100 @@
       "no_alcohol": "Không rượu bia"
     }
   },
+  "dining": {
+    "title": "Phiên ăn uống",
+    "createTitle": "Tạo phiên ăn uống mới",
+    "createSubtitle": "Tạo phiên để mọi người quét mã QR và gửi sở thích ăn uống của họ.",
+    "hostTitle": "Màn hình Host",
+    "joinTitle": "Tham gia phiên ăn",
+    "joinSubtitle": "Nhập thông tin ăn uống của bạn để Host biết món ăn nào phù hợp nhất.",
+    "scanQrPrompt": "Quét mã để tham gia",
+    "scanQrDesc": "Mọi người quét mã này để nhập sở thích ăn uống nhanh chóng mà không cần tài khoản.",
+    "fullscreenQr": "Nhấp để xem toàn màn hình",
+    "participants": "Danh sách tham gia ({{count}} người)",
+    "noParticipants": "Chưa có ai tham gia. Hãy chia sẻ mã QR ở trên để mọi người quét!",
+    "status": {
+      "COLLECTING": "Đang thu thập",
+      "SCANNING": "Đang quét",
+      "COMPLETED": "Hoàn thành",
+      "CLOSED": "Đã đóng"
+    },
+    "fields": {
+      "mode": "Chế độ",
+      "expires": "Hết hạn sau (giờ)"
+    },
+    "modes": {
+      "GROUP": "Nhóm đông người",
+      "PERSONAL": "Cá nhân"
+    },
+    "createBtn": "Tạo phiên ăn",
+    "creating": "Đang tạo...",
+    "joinSuccess": "Đã gửi thông tin thành công!",
+    "joinSuccessDesc": "Sở thích ăn uống của bạn đã được gửi tới Host. Bạn có thể đóng tab này bây giờ.",
+    "closeFullscreen": "Đóng toàn màn hình",
+    "guestName": "Tên của bạn",
+    "guestNamePlaceholder": "Nhập tên hiển thị của bạn",
+    "sessionNotFound": "Không tìm thấy phiên ăn uống này hoặc mã không hợp lệ.",
+    "sessionExpired": "Phiên ăn uống đã hết hạn hoặc đã đóng.",
+    "invalidToken": "Mã mời không hợp lệ.",
+    "recentSessions": "Các phiên ăn gần đây"
+  },
   "onboarding": {
     "docTitle": "Thiết lập sở thích",
-    "title": "Cho chúng tôi biết sở thích ăn uống",
-    "subtitle": "Chúng tôi sẽ cảnh báo món có dị ứng hoặc lệch khẩu phần của bạn. Có thể bỏ qua và chỉnh sau trong hồ sơ.",
+    "title": "Tạo hồ sơ ăn uống",
+    "subtitle": "Thiết lập hồ sơ ban đầu để AI gợi ý món phù hợp. Có thể bỏ qua và thêm sau trong tài khoản.",
+    "defaultProfileName": "Hồ sơ ăn uống của tôi",
+    "profileName": "Tên hồ sơ",
+    "nameRequired": "Hãy nhập tên hồ sơ trước.",
+    "steps": {
+      "profile": "Hồ sơ",
+      "allergies": "Dị ứng",
+      "diet": "Ăn kiêng",
+      "likes": "Yêu thích",
+      "avoids": "Hạn chế"
+    },
     "save": "Lưu & tiếp tục",
     "saving": "Đang lưu…",
     "skip": "Bỏ qua",
     "saveError": "Không lưu được. Vui lòng thử lại."
   },
+  "verdict": {
+    "avoid": "Nên tránh",
+    "caution": "Cân nhắc",
+    "good": "Nên ăn",
+    "reason": {
+      "allergen": "có thể chứa {{list}} — nên hỏi kỹ trước khi gọi",
+      "diet": "không hợp chế độ ăn của bạn ({{list}})",
+      "favorite": "hợp khẩu vị bạn thích"
+    }
+  },
+  "chat": {
+    "title": "Hỏi trợ lý chọn món",
+    "hint": "Hỏi về các món trong menu này.",
+    "placeholder": "Hỏi về menu…",
+    "send": "Gửi",
+    "askAbout": "Hỏi về {{name}}",
+    "allSelected": "Tất cả món đã chọn",
+    "pickDish": "Chọn món để hỏi",
+    "removeFocus": "Bỏ chọn",
+    "rateLimited": "Bạn hỏi hơi nhanh. Đợi vài giây rồi thử lại nhé.",
+    "error": "Trợ lý đang bận, thử lại sau ít phút nhé.",
+    "disclaimer": "Trả lời dựa trên menu bạn quét, chỉ mang tính tham khảo — không đảm bảo an toàn dị ứng."
+  },
   "billItem": {
+    "recommendation": "Khuyến nghị",
+    "verdict": {
+      "RECOMMENDED": "Nên dùng",
+      "OK": "Phù hợp",
+      "CAUTION": "Cân nhắc",
+      "AVOID": "Nên tránh"
+    },
     "lowConfidence": "OCR confidence thấp ({{value}}%).",
     "allergyWarning": "CẢNH BÁO: Phát hiện dị ứng (Hải sản)",
+    "contains": "Thành phần cần lưu ý: {{list}}",
     "allergyMatch": "CẢNH BÁO: Chứa {{list}}",
     "dietMatch": "Không hợp khẩu phần: {{list}}",
+    "recommended": "Gợi ý cho bạn",
     "namePlaceholder": "Tên món",
     "originalNamePlaceholder": "Tên trên ảnh",
     "pricePlaceholder": "Giá",
@@ -381,7 +472,7 @@
     "setPassword": "Đặt mật khẩu",
     "infoTitle": "Thông tin hồ sơ",
     "displayName": "Tên hiển thị",
-    "enterDisplayName": "Nhập tên hiển thị",
+    "enterDisplayName": "Tên hiển thị",
     "email": "Email",
     "noEmail": "Chưa có email",
     "notSet": "Chưa thiết lập",
@@ -397,6 +488,52 @@
       "nameTooLong": "Tên hiển thị tối đa 150 ký tự.",
       "updateFailed": "Không thể cập nhật profile. Vui lòng thử lại.",
       "loadFailed": "Không thể tải đầy đủ thông tin tài khoản."
+    }
+  },
+  "foodProfile": {
+    "title": "Hồ sơ ăn uống",
+    "subtitle": "Lưu sở thích ăn uống để trợ lý AI dùng trước khi quét menu.",
+    "add": "Thêm hồ sơ",
+    "empty": "Chưa có hồ sơ ăn uống. Bạn có thể thêm ngay hoặc tạo sau trước khi quét.",
+    "name": "Tên hồ sơ",
+    "language": "Ngôn ngữ",
+    "defaultProfile": "Dùng làm hồ sơ mặc định",
+    "defaultBadge": "Mặc định",
+    "addOther": "Thêm",
+    "otherPlaceholder": "Mục khác...",
+    "otherLabel": "Mục khác cho {{section}}",
+    "sections": {
+      "allergies": "Dị ứng",
+      "dietary_preferences": "Ăn kiêng",
+      "likes": "Yêu thích",
+      "avoids": "Hạn chế / không thích"
+    },
+    "preferenceLabels": {
+      "spicy": "Thích cay",
+      "mild_spicy": "Cay nhẹ",
+      "savory": "Đậm đà",
+      "sour": "Vị chua",
+      "fresh": "Tươi mát",
+      "grilled": "Đồ nướng",
+      "soup": "Món nước",
+      "noodles": "Mì / bún / phở",
+      "rice": "Cơm",
+      "vegetables": "Nhiều rau",
+      "too_spicy": "Quá cay",
+      "too_sweet": "Quá ngọt",
+      "too_oily": "Nhiều dầu mỡ",
+      "fish_sauce": "Có mắm",
+      "strong_smell": "Mùi nặng",
+      "raw_food": "Đồ sống",
+      "organ_meat": "Nội tạng",
+      "bitter": "Vị đắng",
+      "heavy_cream": "Nhiều kem / béo",
+      "deep_fried": "Chiên ngập dầu"
+    },
+    "errors": {
+      "nameRequired": "Hãy nhập tên hồ sơ.",
+      "saveFailed": "Không thể lưu hồ sơ ăn uống. Vui lòng thử lại.",
+      "deleteFailed": "Không thể xóa hồ sơ ăn uống. Vui lòng thử lại."
     }
   },
   "scanResult": {
@@ -460,7 +597,7 @@
     "successTitle": "Thành công",
     "emailLabel": "Địa chỉ email",
     "passwordLabel": "Mật khẩu",
-    "passwordPlaceholder": "Nhập mật khẩu của bạn",
+    "passwordPlaceholder": "Mật khẩu",
     "loggingIn": "Đang đăng nhập…",
     "showPassword": "Hiện mật khẩu",
     "hidePassword": "Ẩn mật khẩu",
@@ -483,46 +620,54 @@
     "linkSent": "Liên kết đăng nhập đã được gửi!",
     "sendFailed": "Không thể gửi email. Vui lòng thử lại sau."
   },
-  "landing": {
-    "nav": {
-      "features": "Tính năng",
-      "howItWorks": "Cách hoạt động",
-      "signup": "Đăng ký",
-      "goToApp": "Vào ứng dụng"
-    },
-    "hero": {
-      "title": "Biến ảnh thực đơn thành dữ liệu có cấu trúc",
-      "badge": "Dịch thực đơn bằng AI",
-      "subtitle": "Tự động trích xuất món ăn, giá, mô tả và thông tin dinh dưỡng từ bất kỳ ảnh thực đơn nào chỉ trong vài giây.",
-      "startScanning": "Bắt đầu quét",
-      "imageAlt": "Ứng dụng MenuScan đang quét một tờ thực đơn"
-    },
-    "stats": {
-      "badge": "Những con số",
-      "labels": ["Thực đơn đã số hóa", "Thời gian xử lý TB", "Độ chính xác trường", "Luôn sẵn sàng"]
-    },
-    "features": [
-      { "title": "Tải ảnh lên", "body": "Kéo thả hoặc chọn ảnh của bất kỳ thực đơn nhà hàng nào." },
-      { "title": "Quét bằng camera", "body": "Dùng camera của thiết bị để chụp thực đơn trực tiếp theo thời gian thực." },
-      { "title": "Trích xuất dữ liệu", "body": "Nhận ngay JSON có cấu trúc gồm món ăn, giá và danh mục." }
+"landing": {
+  "nav": {
+    "howItWorks": "Cách hoạt động",
+    "partners": "Đối tác",
+    "reviews": "Đánh giá",
+    "signup": "Bắt đầu",
+    "goToApp": "Vào ứng dụng"
+  },
+  "hero": {
+    "badge": "Quét menu bằng AI",
+    "title": "Chụp menu. Lấy dữ liệu sạch. Trong vài giây.",
+    "subtitle": "Tải lên hoặc chụp bất kỳ thực đơn nào, MenuScan tự động trích xuất tên món, giá, mô tả và nhãn dị ứng — không gõ tay, không sai sót, chỉ dữ liệu sẵn sàng dùng.",
+    "solves": [
+      "Món ăn, giá cả và danh mục ngay từ ảnh",
+      "Cờ dị ứng & chế độ ăn — chay, halal, không gluten",
+      "Menu tiếng Việt có dấu và đa ngữ đều mượt"
     ],
-    "how": {
-      "title": "Cách hoạt động",
-      "steps": [
-        { "title": "Tải lên", "body": "Cung cấp ảnh thực đơn." },
-        { "title": "Phân tích AI", "body": "Bộ máy xử lý ảnh." },
-        { "title": "Trích xuất", "body": "Ánh xạ dữ liệu có cấu trúc." },
-        { "title": "Xem lại", "body": "Xuất hoặc chỉnh sửa kết quả." }
-      ]
-    },
-    "testimonials": {
-      "title": "Khách hàng nói gì",
-      "subtitle": "Người dùng trên khắp nơi đang số hóa menu với MenuScan.",
-      "items": [
-        { "quote": "MenuScan giảm 80% thời gian nhập menu cho quán mình.", "name": "Minh Anh", "role": "Quản lý · Cafe Sài Gòn", "initials": "MA" },
-        { "quote": "OCR nhận diện tốt cả menu tiếng Việt có dấu, ít phải sửa.", "name": "Hoàng Nguyên", "role": "Chủ · Phở 24", "initials": "HN" },
-        { "quote": "Có dữ liệu JSON ngay sau khi upload, tích hợp rất nhanh.", "name": "Trần Vy", "role": "Dev · FoodApp", "initials": "TV" }
-      ]
-    }
+    "startScanning": "Bắt đầu quét",
+    "dragHint": "Từ phở đến bánh mì — quét tất cả 🍜"
+  },
+  "how": {
+    "title": "bốn bước. không gõ tay.",
+    "subtitle": "Từ ảnh thực đơn đến dữ liệu sẵn sàng dùng trong vài giây.",
+    "steps": [
+      { "title": "Tải lên", "body": "Kéo thả ảnh hoặc PDF thực đơn — hoặc chọn file.", "tip": "Không giới hạn trang" },
+      { "title": "AI đọc", "body": "Bộ máy tự động đọc bố cục, ngôn ngữ và bảng giá.", "tip": "Giây, không phải phút" },
+      { "title": "Dữ liệu cấu trúc", "body": "Nhận món, giá, danh mục và mô tả dạng dữ liệu sạch.", "tip": "JSON sẵn sàng xuất" },
+      { "title": "Sửa & xuất", "body": "Chỉnh sửa, xuất hoặc tích hợp ngay — không gõ lại.", "tip": "Đồng bộ mọi nơi" }
+    ]
+  },
+  "partners": {
+    "title": "Được tin dùng bởi",
+    "subtitle": "Hàng trăm nhà hàng, quán cà phê và nền tảng F&B tin dùng MenuScan.",
+    "items": ["Sài Gòn Eats", "Phở House", "Bia Corner", "Cafe Mộc", "FoodApp", "Green Bowl", "Banana Leaf", "Sky Lounge"]
+  },
+  "reviews": {
+    "title": "Được yêu thích bởi mọi nhà hàng",
+    "subtitle": "Câu chuyện thật từ bếp và quán cà phê trên khắp cả nước.",
+    "items": [
+      { "quote": "Trước đây nhân viên phải gõ menu 2-3 tiếng mỗi lần đổi mùa. Với MenuScan, 5 phút là xong, gần như không phải sửa.", "name": "Minh Anh", "role": "Quản lý", "location": "Cafe Sài Gòn", "rating": 5, "initials": "MA" },
+      { "quote": "OCR nhận diện rất tốt menu tiếng Việt có dấu, cả giá và emoji món ăn. Tích hợp API vào app chỉ trong một buổi chiều.", "name": "Hoàng Nguyên", "role": "Chủ nhà hàng", "location": "Phở 24", "rating": 5, "initials": "HN" },
+      { "quote": "Tính năng cờ dị ứng giúp khách ăn kiêng chọn món dễ hơn hẳn, khách khen nhiều.", "name": "Trần Vy", "role": "Developer", "location": "FoodApp", "rating": 5, "initials": "TV" },
+      { "quote": "Giao diện dễ dùng, nhân viên lớn tuổi cũng tự quét được. Quản lý menu giờ nhàn hẳn.", "name": "Lê Gia Huy", "role": "Giám đốc vận hành", "location": "Sky Lounge", "rating": 4, "initials": "LG" }
+    ]
+  },
+  "cta": {
+    "title": "Sẵn sàng số hóa thực đơn?",
+    "subtitle": "Tham gia cùng MenuScan ngay — bắt đầu miễn phí, dùng rất vui."
   }
+}
 }

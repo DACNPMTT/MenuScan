@@ -2,6 +2,12 @@
 
 Coordinates: Storage → OCR → Parser → Translation → Persist results.
 Each stage commits its state transition so GET /scans/{id} reflects real progress.
+
+The pipeline reads a menu and saves it. That is all. It does not tag dishes with
+taste profiles and it does not score dietary verdicts — both need a second LLM
+pass, and both belong to the moment the diner opens the menu, not to the scan.
+Keeping them here made every scan wait for work the diner had not asked for yet,
+and scored verdicts against tags that did not exist.
 """
 
 from __future__ import annotations
@@ -14,6 +20,7 @@ from decimal import Decimal, InvalidOperation
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from src.modules.dining.service import DiningSessionService
 from src.modules.menu.models import FoodItem, Menu
 from src.modules.menu.repository import MenuRepository
 from src.modules.menu_scan.adapters.storage import (
@@ -304,6 +311,7 @@ class ScanPipeline:
                 images=images or None,
             )
         except Exception as error:
+            logger.exception("pipeline_parse_error scan_id=%s", scan_id)
             raise _PipelineError(
                 _ERROR_PARSING_FAILED,
                 "Menu parsing failed.",
@@ -411,6 +419,18 @@ class ScanPipeline:
             ]
 
             self.menu_repository.save_menu_with_items(session, menu, food_items)
+            session.flush()
+
+            # A scan started from a GROUP dining session must point that session
+            # at the menu it produced — the menu screen resolves verdicts by
+            # dining_session.menu_id. That is the pipeline's only dining concern:
+            # it creates no session and scores no verdict. Verdicts belong to the
+            # enrichment pass, which is the first moment a dish actually has the
+            # taste tags a verdict is scored from.
+            DiningSessionService(session=session).attach_menu(
+                scan_session_id=scan.id,
+                menu=menu,
+            )
 
             _update_scan(
                 scan,

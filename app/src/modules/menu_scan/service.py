@@ -312,15 +312,20 @@ class ScanService:
             total_items = len(sorted_items)
             offset = (page - 1) * page_size
             paged_items = sorted_items[offset : offset + page_size]
+
+            # No verdicts here, by design. This is the raw read of the menu: the
+            # dishes have not been enriched yet, so any verdict scored at this
+            # point would be scored against empty tags — which is exactly how
+            # every dish came to be labelled "100/100 recommended". Advice appears
+            # on the menu screen, after the enrichment pass has run.
+            items_response = [MenuItemData.model_validate(item) for item in paged_items]
+
             menu_data = MenuResultData(
                 id=scan.menu.id,
                 title=scan.menu.title,
                 default_currency=scan.menu.default_currency,
                 is_saved=scan.menu.is_saved,
-                items=[
-                    MenuItemData.model_validate(item)
-                    for item in paged_items
-                ],
+                items=items_response,
             )
 
         return (

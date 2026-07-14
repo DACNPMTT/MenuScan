@@ -9,6 +9,7 @@
     "saveChanges": "Save changes",
     "cancel": "Cancel",
     "back": "Back",
+    "next": "Next",
     "retry": "Try again",
     "edit": "Edit",
     "delete": "Delete",
@@ -44,6 +45,7 @@
     "errors": {
       "fileTooLarge": "File is too large. The maximum size is 10 MB.",
       "unsupportedType": "Unsupported format. Only JPG, PNG, WEBP, PDF are accepted.",
+      "rateLimited": "You're going too fast. Please wait a few seconds and try again.",
       "genericPrefix": "Error: "
     }
   },
@@ -52,7 +54,8 @@
     "scan": "Scan",
     "menus": "Menus",
     "bills": "Bills",
-    "profile": "Profile"
+    "profile": "Profile",
+    "dining": "Dining"
   },
   "footer": {
     "rights": "© {{year}} MenuScan. All rights reserved."
@@ -117,7 +120,7 @@
     "newPassword": "New Password",
     "confirmPassword": "Confirm Password",
     "minCharsPlaceholder": "Minimum 6 characters",
-    "reenterPlaceholder": "Re-enter your password",
+    "reenterPlaceholder": "Confirm password",
     "saving": "Saving…",
     "save": "Save Password",
     "errors": {
@@ -243,6 +246,14 @@
     "unsavedChanges_one": "{{count}} dish has unsaved edits.",
     "unsavedChanges_other": "{{count}} dishes have unsaved edits.",
     "searching": "Finding matching dishes…",
+    "sortedByAdvice": "Sorted by advice",
+    "sortedByProfile": "Sorted for your profile",
+    "legendTitle": "Advice level:",
+    "pageStatus": "Showing {{from}}-{{to}} of {{total}} dishes",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
+    "enriching": "Analysing the dishes…",
+    "enrichFailed": "Couldn't analyse the dishes. The menu still works — reload to retry, or just ask the assistant.",
     "resultCount_one": "{{count}} dish",
     "resultCount_other": "{{count}} dishes",
     "resultCountOf_one": "{{count}} dish of {{total}}",
@@ -298,7 +309,7 @@
     "save": "Save Item"
   },
   "filter": {
-    "searchPlaceholder": "Search dishes by name or description…",
+    "searchPlaceholder": "Search dishes…",
     "searchAria": "Search dishes",
     "clearSearchAria": "Clear search",
     "minPrice": "Min price",
@@ -333,20 +344,100 @@
       "no_alcohol": "No alcohol"
     }
   },
+  "dining": {
+    "title": "Dining Session",
+    "createTitle": "Create New Dining Session",
+    "createSubtitle": "Create a session for everyone to scan the QR code and submit their dining preferences.",
+    "hostTitle": "Host Screen",
+    "joinTitle": "Join Dining Session",
+    "joinSubtitle": "Input your dining preferences so the Host knows what dishes fit best.",
+    "scanQrPrompt": "Scan QR to join",
+    "scanQrDesc": "Scan this code to quickly input your food preferences without an account.",
+    "fullscreenQr": "Click to view fullscreen",
+    "participants": "Participants ({{count}})",
+    "noParticipants": "No one has joined yet. Share the QR code above to start!",
+    "status": {
+      "COLLECTING": "Collecting",
+      "SCANNING": "Scanning",
+      "COMPLETED": "Completed",
+      "CLOSED": "Closed"
+    },
+    "fields": {
+      "mode": "Mode",
+      "expires": "Expires in (hours)"
+    },
+    "modes": {
+      "GROUP": "Group Session",
+      "PERSONAL": "Personal"
+    },
+    "createBtn": "Create Session",
+    "creating": "Creating...",
+    "joinSuccess": "Preferences submitted successfully!",
+    "joinSuccessDesc": "Your dining preferences have been sent to the Host. You can close this tab now.",
+    "closeFullscreen": "Close fullscreen",
+    "guestName": "Your Name",
+    "guestNamePlaceholder": "Enter your display name",
+    "sessionNotFound": "Dining session not found.",
+    "sessionExpired": "Dining session has expired or is closed.",
+    "invalidToken": "Invalid invite token.",
+    "recentSessions": "Recent Sessions"
+  },
   "onboarding": {
     "docTitle": "Set preferences",
-    "title": "Tell us your dietary preferences",
-    "subtitle": "We'll flag dishes with your allergies or that don't fit your diet. You can skip this and change it later in your profile.",
+    "title": "Create your food profile",
+    "subtitle": "Set a starting profile for dish recommendations. You can skip this and add it later in your account.",
+    "defaultProfileName": "My food profile",
+    "profileName": "Profile name",
+    "nameRequired": "Enter a profile name first.",
+    "steps": {
+      "profile": "Profile",
+      "allergies": "Allergies",
+      "diet": "Diet",
+      "likes": "Likes",
+      "avoids": "Limits"
+    },
     "save": "Save & continue",
     "saving": "Saving…",
     "skip": "Skip for now",
     "saveError": "Couldn't save. Please try again."
   },
+  "verdict": {
+    "avoid": "Avoid",
+    "caution": "Consider",
+    "good": "Recommended",
+    "reason": {
+      "allergen": "may contain {{list}} — ask before ordering",
+      "diet": "doesn't fit your diet ({{list}})",
+      "favorite": "matches your taste"
+    }
+  },
+  "chat": {
+    "title": "Ask the dish assistant",
+    "hint": "Ask about the dishes on this menu.",
+    "placeholder": "Ask about the menu…",
+    "send": "Send",
+    "askAbout": "Ask about {{name}}",
+    "allSelected": "All selected dishes",
+    "pickDish": "Pick a dish to ask about",
+    "removeFocus": "Remove",
+    "rateLimited": "You're asking a bit fast. Please wait a few seconds and try again.",
+    "error": "The assistant is busy. Please try again in a moment.",
+    "disclaimer": "Answers are based on your scanned menu, for reference only — not an allergy safety guarantee."
+  },
   "billItem": {
+    "recommendation": "Advice",
+    "verdict": {
+      "RECOMMENDED": "Recommended",
+      "OK": "Fine",
+      "CAUTION": "Consider",
+      "AVOID": "Avoid"
+    },
     "lowConfidence": "Low OCR confidence ({{value}}%).",
     "allergyWarning": "WARNING: Allergy Match Found (Seafood)",
+    "contains": "Contains: {{list}}",
     "allergyMatch": "WARNING: Contains {{list}}",
     "dietMatch": "Doesn't match your diet: {{list}}",
+    "recommended": "Recommended for you",
     "namePlaceholder": "Dish name",
     "originalNamePlaceholder": "Name on the image",
     "pricePlaceholder": "Price",
@@ -393,7 +484,7 @@
     "setPassword": "Set password",
     "infoTitle": "Profile information",
     "displayName": "Display name",
-    "enterDisplayName": "Enter a display name",
+    "enterDisplayName": "Display name",
     "email": "Email",
     "noEmail": "No email",
     "notSet": "Not set",
@@ -409,6 +500,52 @@
       "nameTooLong": "The display name can be at most 150 characters.",
       "updateFailed": "Couldn't update the profile. Please try again.",
       "loadFailed": "Couldn't load the full account information."
+    }
+  },
+  "foodProfile": {
+    "title": "Food profiles",
+    "subtitle": "Saved food preferences used by the AI assistant before scanning a menu.",
+    "add": "Add profile",
+    "empty": "No food profile yet. Add one now or create it later before scanning.",
+    "name": "Profile name",
+    "language": "Language",
+    "defaultProfile": "Use as default profile",
+    "defaultBadge": "Default",
+    "addOther": "Add",
+    "otherPlaceholder": "Other preference...",
+    "otherLabel": "Other value for {{section}}",
+    "sections": {
+      "allergies": "Allergies",
+      "dietary_preferences": "Diet",
+      "likes": "Likes",
+      "avoids": "Limits / avoid"
+    },
+    "preferenceLabels": {
+      "spicy": "Spicy",
+      "mild_spicy": "Mild spicy",
+      "savory": "Savory",
+      "sour": "Sour",
+      "fresh": "Fresh",
+      "grilled": "Grilled",
+      "soup": "Soup",
+      "noodles": "Noodles",
+      "rice": "Rice",
+      "vegetables": "Vegetables",
+      "too_spicy": "Too spicy",
+      "too_sweet": "Too sweet",
+      "too_oily": "Too oily",
+      "fish_sauce": "Fish sauce",
+      "strong_smell": "Strong smell",
+      "raw_food": "Raw food",
+      "organ_meat": "Organ meat",
+      "bitter": "Bitter",
+      "heavy_cream": "Heavy cream",
+      "deep_fried": "Deep fried"
+    },
+    "errors": {
+      "nameRequired": "Enter a profile name.",
+      "saveFailed": "Couldn't save the food profile. Please try again.",
+      "deleteFailed": "Couldn't delete the food profile. Please try again."
     }
   },
   "scanResult": {
@@ -473,7 +610,7 @@
     "successTitle": "Success",
     "emailLabel": "Email Address",
     "passwordLabel": "Password",
-    "passwordPlaceholder": "Enter your password",
+    "passwordPlaceholder": "Password",
     "loggingIn": "Logging in…",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
@@ -496,46 +633,54 @@
     "linkSent": "Login link sent!",
     "sendFailed": "Couldn't send the email. Please try again later."
   },
-  "landing": {
-    "nav": {
-      "features": "Features",
-      "howItWorks": "How it works",
-      "signup": "Sign up",
-      "goToApp": "Go to app"
-    },
-    "hero": {
-      "title": "Turn menu photos into structured data",
-      "badge": "AI-powered menu translation",
-      "subtitle": "Automatically extract dishes, prices, descriptions, and dietary information from any physical menu image in seconds.",
-      "startScanning": "Start scanning",
-      "imageAlt": "The MenuScan app scanning a printed menu"
-    },
-    "stats": {
-      "badge": "By the numbers",
-      "labels": ["Menus digitized", "Avg. processing", "Field accuracy", "Always available"]
-    },
-    "features": [
-      { "title": "Upload image", "body": "Drag and drop or select a photo of any restaurant menu." },
-      { "title": "Scan camera", "body": "Use your device's camera to capture a menu directly in real-time." },
-      { "title": "Extract data", "body": "Instantly receive structured JSON with items, prices, and categories." }
+"landing": {
+  "nav": {
+    "howItWorks": "How it works",
+    "partners": "Trusted by",
+    "reviews": "Reviews",
+    "signup": "Get started",
+    "goToApp": "Go to app"
+  },
+  "hero": {
+    "badge": "AI menu scanner",
+    "title": "Snap a menu. Get clean data. In seconds.",
+    "subtitle": "Upload or photograph any menu and MenuScan extracts dish names, prices, descriptions and dietary tags — automatically. No typing. No mistakes. Just data ready to use.",
+    "solves": [
+      "Dishes, prices and categories straight from the photo",
+      "Allergy & diet flags — vegetarian, halal, gluten-free",
+      "Accented Vietnamese and multilingual menus handled"
     ],
-    "how": {
-      "title": "How it Works",
-      "steps": [
-        { "title": "Upload", "body": "Provide menu image." },
-        { "title": "AI Analysis", "body": "Engine processes image." },
-        { "title": "Extraction", "body": "Structure data mapped." },
-        { "title": "Review", "body": "Export or edit results." }
-      ]
-    },
-    "testimonials": {
-      "title": "What customers say",
-      "subtitle": "People everywhere are digitizing menus with MenuScan.",
-      "items": [
-        { "quote": "MenuScan cut our menu entry time by 80%.", "name": "Minh Anh", "role": "Manager · Cafe Sài Gòn", "initials": "MA" },
-        { "quote": "The OCR handles accented Vietnamese menus well, with few fixes needed.", "name": "Hoàng Nguyên", "role": "Owner · Phở 24", "initials": "HN" },
-        { "quote": "We get JSON right after upload — integration was very fast.", "name": "Trần Vy", "role": "Dev · FoodApp", "initials": "TV" }
-      ]
-    }
+    "startScanning": "Start scanning",
+    "dragHint": "From phở to bánh mì — we scan it all 🍜"
+  },
+  "how": {
+    "title": "four steps. zero typing.",
+    "subtitle": "From menu photo to ready-to-use data in seconds.",
+    "steps": [
+      { "title": "Upload", "body": "Drop a menu photo or PDF — drag, drop or pick a file.", "tip": "Unlimited pages" },
+      { "title": "AI reads it", "body": "The engine reads layout, language and price tables automatically.", "tip": "Seconds, not minutes" },
+      { "title": "Structured data", "body": "Get dishes, prices, categories and descriptions as clean data.", "tip": "Export-ready JSON" },
+      { "title": "Edit & export", "body": "Tweak, export or integrate right away — no re-typing.", "tip": "Synced everywhere" }
+    ]
+  },
+  "partners": {
+    "title": "Trusted by",
+    "subtitle": "Hundreds of restaurants, cafés and F&B platforms rely on MenuScan.",
+    "items": ["Sai Gon Eats", "Pho House", "Bia Corner", "Cafe Moc", "FoodApp", "Green Bowl", "Banana Leaf", "Sky Lounge"]
+  },
+  "reviews": {
+    "title": "Loved by restaurants everywhere",
+    "subtitle": "Real stories from kitchens and cafés across the country.",
+    "items": [
+      { "quote": "Staff used to type menus for 2-3 hours every seasonal change. With MenuScan it's done in 5 minutes with almost no fixes.", "name": "Minh Anh", "role": "Manager", "location": "Cafe Sai Gon", "rating": 5, "initials": "MA" },
+      { "quote": "The OCR handles accented Vietnamese menus remarkably well, including prices and dish emojis. Integrated the API into our app in one afternoon.", "name": "Hoang Nguyen", "role": "Restaurant owner", "location": "Pho 24", "rating": 5, "initials": "HN" },
+      { "quote": "The allergy flags make it much easier for diet-conscious guests to choose — they love it.", "name": "Tran Vy", "role": "Developer", "location": "FoodApp", "rating": 5, "initials": "TV" },
+      { "quote": "Easy to use — even older staff can scan on their own. Managing menus is so much easier now.", "name": "Le Gia Huy", "role": "Operations lead", "location": "Sky Lounge", "rating": 4, "initials": "LG" }
+    ]
+  },
+  "cta": {
+    "title": "Ready to digitize your menu?",
+    "subtitle": "Join MenuScan today — free to start, fun to use."
   }
+}
 }

@@ -26,6 +26,7 @@ from unittest.mock import Mock
 from fastapi.testclient import TestClient
 
 from src.core.application import create_app
+from src.core.rate_limit import enforce_scan_throttle
 from src.core.config import EmailConfig, Settings, StorageConfig
 from src.modules.identity.dependencies import get_optional_current_user
 from src.modules.identity.models import User
@@ -167,6 +168,8 @@ def _make_client(
     )
     app.dependency_overrides[get_scan_service] = lambda: stub
     app.dependency_overrides[get_scan_pipeline] = lambda: StubScanPipeline()
+    # Throttle hits the DB; these contract tests have no DB, so bypass it.
+    app.dependency_overrides[enforce_scan_throttle] = lambda: None
     if authenticated:
         app.dependency_overrides[get_optional_current_user] = lambda: user
     else:
@@ -408,3 +411,50 @@ def test_response_includes_source_file_metadata() -> None:
     assert source["file_name"] == "menu.png"
     assert source["mime_type"] == "image/png"
     assert source["file_size"] == len(PNG_BYTES)
+
+
+def test_dining_session_id_is_associated_with_scan() -> None:
+    from src.modules.dining.dependencies import get_dining_session_service
+
+    class StubDiningSessionServiceForScan:
+        def __init__(self) -> None:
+            self.associations = []
+
+        def associate_scan_session(self, user, *, session_id, scan_session_id):
+            self.associations.append(
+                {
+                    "user_id": user.id,
+                    "session_id": session_id,
+                    "scan_session_id": scan_session_id,
+                }
+            )
+
+    dining_stub = StubDiningSessionServiceForScan()
+    stub = StubScanService()
+    user = _stub_user()
+
+    app = create_app(
+        application_settings=_settings(),
+        database_engine=Mock(),
+    )
+    app.dependency_overrides[get_scan_service] = lambda: stub
+    app.dependency_overrides[get_scan_pipeline] = lambda: StubScanPipeline()
+    app.dependency_overrides[get_optional_current_user] = lambda: user
+    app.dependency_overrides[get_dining_session_service] = lambda: dining_stub
+    # Contract test: must not touch the DB (conftest promises HTTP-contract
+    # tests never do). Without this override the real throttle dependency opens
+    # a DB session and the test fails to connect when no Postgres is running.
+    app.dependency_overrides[enforce_scan_throttle] = lambda: None
+
+    client = TestClient(app, raise_server_exceptions=False)
+
+    session_id = uuid.uuid4()
+    files = {"file": ("menu.png", PNG_BYTES, "application/octet-stream")}
+    data = {"dining_session_id": str(session_id)}
+
+    response = client.post("/api/v1/scans", files=files, data=data)
+
+    assert response.status_code == 202
+    assert len(dining_stub.associations) == 1
+    assert dining_stub.associations[0]["session_id"] == session_id
+    assert dining_stub.associations[0]["user_id"] == user.id

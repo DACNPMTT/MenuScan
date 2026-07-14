@@ -1,6 +1,7 @@
 import { Loader2, Plus, Search, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ALL_CATEGORY } from '@/features/menu-scan/lib'
+import { Button } from '@/shared/components/ui/button'
 
 export interface MenuFilterBarProps {
   searchInput: string
@@ -37,7 +38,7 @@ export function MenuFilterBar({
 }: MenuFilterBarProps) {
   const { t } = useTranslation()
   return (
-    <div className="mb-6 flex flex-col gap-3">
+    <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-hairline bg-surface p-4 shadow-1">
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
         <label className="relative block">
           <Search
@@ -50,21 +51,21 @@ export function MenuFilterBar({
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder={t('filter.searchPlaceholder')}
             aria-label={t('filter.searchAria')}
-            className="h-11 w-full rounded-[8px] border border-hairline bg-canvas pl-10 pr-9 text-[14px] text-ink outline-none transition-colors placeholder:text-placeholder focus:border-primary-dark"
+            className="h-11 w-full rounded-xl border border-hairline bg-surface pl-10 pr-9 text-[14px] text-ink outline-none transition-colors placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary"
           />
           {searchInput && (
             <button
               type="button"
               onClick={() => onSearchChange('')}
               aria-label={t('filter.clearSearchAria')}
-              className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-ink-variant transition-colors hover:bg-surface-muted hover:text-ink"
+              className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-ink-variant transition-colors hover:bg-panel hover:text-ink"
             >
               <X className="size-4" aria-hidden />
             </button>
           )}
         </label>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex h-11 items-center overflow-hidden rounded-[8px] border border-hairline bg-canvas">
+          <div className="flex h-11 items-center overflow-hidden rounded-xl border border-hairline bg-surface transition-colors focus-within:border-primary">
             <input
               type="text"
               inputMode="decimal"
@@ -87,11 +88,11 @@ export function MenuFilterBar({
               className="h-full w-[88px] bg-transparent pr-3 text-[14px] text-ink outline-none placeholder:text-placeholder"
             />
           </div>
-          <button
+          <Button
             type="button"
+            variant="default"
             onClick={onAddManualItem}
             disabled={addingManual}
-            className="flex h-11 items-center gap-2 rounded-[8px] bg-primary-dark px-4 text-[14px] font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {addingManual ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -99,36 +100,34 @@ export function MenuFilterBar({
               <Plus className="size-4" aria-hidden />
             )}
             {t('filter.addItem')}
-          </button>
+          </Button>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {categories.map((category) => (
-          <button
+          <Button
             type="button"
             key={category}
+            variant={activeCategory === category ? 'default' : 'outline'}
+            size="sm"
             onClick={() => onCategoryChange(category)}
-            className={
-              activeCategory === category
-                ? 'h-9 rounded-full bg-primary-dark px-4 text-[13px] font-bold text-white'
-                : 'h-9 rounded-full border border-hairline bg-canvas px-4 text-[13px] font-medium text-primary-dark transition-colors hover:bg-surface-muted'
-            }
           >
             {category === ALL_CATEGORY ? t('filter.allCategories') : category}
-          </button>
+          </Button>
         ))}
         {hasActiveFilter && (
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={onClearFilters}
-            className="ml-auto flex h-9 items-center gap-1.5 rounded-full border border-hairline bg-canvas px-3 text-[13px] font-medium text-ink-variant transition-colors hover:bg-surface-muted hover:text-ink"
+            className="ml-auto"
           >
             <X className="size-3.5" aria-hidden />
             {t('menuDetail.clearFilters')}
-          </button>
+          </Button>
         )}
       </div>
     </div>
   )
 }
-

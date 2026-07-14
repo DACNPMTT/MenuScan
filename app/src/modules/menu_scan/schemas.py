@@ -6,6 +6,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.modules.dining.schemas import (  # noqa: F401 — re-exported for existing importers
+    ParticipantBreakdownResponse,
+    RecommendationResponse,
+)
 from src.modules.menu_scan.models import ScanStatus
 
 
@@ -69,6 +73,19 @@ class MenuItemData(BaseModel):
     translated_name: str | None
     original_description: str | None
     translated_description: str | None
+    assistant_summary: str | None = None
+    main_ingredients: list[str] = Field(default_factory=list)
+    ingredient_tags: list[str] = Field(default_factory=list)
+    flavor_tags: list[str] = Field(default_factory=list)
+    texture_tags: list[str] = Field(default_factory=list)
+    cooking_methods: list[str] = Field(default_factory=list)
+    spice_level: int | None = None
+    sweetness_level: int | None = None
+    saltiness_level: int | None = None
+    sourness_level: int | None = None
+    richness_level: int | None = None
+    oiliness_level: int | None = None
+    risk_notes: str | None = None
     price: Decimal | None
     currency: str | None
     category: str | None
@@ -76,8 +93,18 @@ class MenuItemData(BaseModel):
     dietary_tags: list[str] = Field(default_factory=list)
     confidence_score: Decimal | None
     sort_order: int
+    recommendation: RecommendationResponse | None = None
 
-    @field_validator("allergens", "dietary_tags", mode="before")
+    @field_validator(
+        "allergens",
+        "dietary_tags",
+        "main_ingredients",
+        "ingredient_tags",
+        "flavor_tags",
+        "texture_tags",
+        "cooking_methods",
+        mode="before",
+    )
     @classmethod
     def _coerce_none_to_list(cls, value: object) -> object:
         return value if value is not None else []

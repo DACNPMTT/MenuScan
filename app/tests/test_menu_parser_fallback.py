@@ -32,6 +32,7 @@ class _StubParser:
         *,
         target_language: str = "en",
         images: object = None,
+        **kwargs,
     ) -> ParsedMenuDraft:
         self.called = True
         self.received_images = images

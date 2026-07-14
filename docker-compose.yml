@@ -9,7 +9,7 @@ services:
     container_name: menuscan-db
     restart: unless-stopped
     ports:
-      - "${DB_PORT:-54320}:5432"
+      - "${DB_PORT:-5432}:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-menuscan}
       POSTGRES_USER: ${POSTGRES_USER:-menuscan}
@@ -27,7 +27,7 @@ services:
     container_name: menuscan-redis
     restart: unless-stopped
     ports:
-      - "${REDIS_PORT:-63790}:6379"
+      - "${REDIS_PORT:-6379}:6379"
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redisdata:/data

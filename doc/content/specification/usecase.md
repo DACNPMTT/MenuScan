@@ -124,3 +124,138 @@
 **Ngoại lệ:**
 
 - Tỷ giá không lấy được: hiển thị giá theo tiền gốc.
+
+## UC-08 - Quản lý hồ sơ ăn uống
+
+**Actor:** User đã đăng nhập
+
+**Tiền điều kiện:** User có session hợp lệ.
+
+**Luồng chính:**
+
+1. User mở trang Profile và tạo hồ sơ ăn uống (`POST /auth/me/food-profiles`).
+2. User khai preference: dị ứng, món không ăn, khẩu vị ưa thích, quy tắc ăn kiêng —
+   mỗi mục gồm `code`, `category`, `preference_type`, `intensity`, `importance`.
+3. Hồ sơ đầu tiên tự động được đặt `is_default = true`.
+4. User sửa (`PATCH`) hoặc xóa (`DELETE`) hồ sơ khi cần.
+
+**Ngoại lệ:**
+
+- Gửi `preferences` khi update: backend thay thế **toàn bộ** danh sách preference cũ.
+- Xóa hồ sơ đang là default: backend chọn hồ sơ còn lại đầu tiên làm default; nếu
+  không còn hồ sơ nào, `users.allergies` và `users.dietary_preferences` được reset.
+
+## UC-09 - Làm giàu menu và sinh gợi ý món
+
+**Actor:** User đã đăng nhập
+
+**Tiền điều kiện:** Menu đã tồn tại từ một scan `COMPLETED`.
+
+**Luồng chính:**
+
+1. User mở một menu đã lưu.
+2. Frontend gọi `POST /menus/{id}/enrich`.
+3. Backend chạy lượt LLM thứ hai: sinh food tag, nguyên liệu chính, mức vị
+   (cay/ngọt/mặn/chua/béo/dầu mỡ) và cảnh báo rủi ro cho từng món.
+4. Backend chấm verdict cho từng món dựa trên preference đang có, ghi vào
+   `food_item_recommendations`.
+5. Frontend hiển thị verdict kèm lý do phù hợp / lý do nên tránh.
+
+Bước enrich **cố tình tách khỏi luồng scan** — giữ nó ngoài đường scan chính là
+lý do scan nhanh.
+
+**Ngoại lệ:**
+
+- Gọi lại trên menu đã enrich: idempotent, chỉ xử lý các món còn `pending`.
+- LLM lỗi: response báo `status` và số món thực sự enrich được, không báo thành
+  công giả.
+- Vượt throttle: `429 RATE_LIMITED`.
+
+## UC-10 - Tạo phiên ăn nhóm và mời người tham gia
+
+**Actor:** Host (user đã đăng nhập)
+
+**Tiền điều kiện:** Host có session hợp lệ.
+
+**Luồng chính:**
+
+1. Host tạo phiên (`POST /dining/sessions`) với `mode = GROUP`.
+2. Backend tạo phiên ở trạng thái `COLLECTING` và sinh invite token.
+3. Backend trả `invite_token` **đúng một lần**; database chỉ lưu hash của token.
+4. Host chia link mời cho những người cùng bàn.
+5. Host theo dõi danh sách người đã tham gia (`GET /dining/sessions/{id}`).
+6. Khi mọi người đã khai khẩu vị, host scan menu; gợi ý được chấm trên tập
+   preference của **tất cả** participant.
+7. Host có thể gỡ một người khỏi bàn — gợi ý sẽ được chấm lại trên tập còn lại.
+
+**Ngoại lệ:**
+
+- Link mời hết hạn (mặc định 12 giờ, tối đa 168 giờ): người mới không vào được.
+- Host xóa phiên: soft-delete.
+
+## UC-11 - Tham gia phiên ăn bằng link mời
+
+**Actor:** Participant (**không cần tài khoản**)
+
+**Tiền điều kiện:** Có link mời còn hiệu lực.
+
+**Luồng chính:**
+
+1. Participant mở link mời chứa `invite_token`.
+2. Frontend gọi `GET /dining/public/sessions?invite_token=...` xem thông tin phiên.
+3. Participant nhập tên hiển thị và khai khẩu vị/dị ứng của mình.
+4. Frontend gọi `POST /dining/public/sessions/join?invite_token=...`.
+5. Backend tạo participant kèm snapshot preference.
+
+Hai endpoint `public/*` **không yêu cầu đăng nhập** — đây chính là điểm để khách
+du lịch được mời vào bàn mà không phải tạo tài khoản.
+
+**Ngoại lệ:**
+
+- Token sai: `404 INVITE_NOT_FOUND`.
+- Token hết hạn hoặc hết lượt dùng: `410 INVITE_EXPIRED`.
+
+## UC-12 - Hỏi trợ lý về menu
+
+**Actor:** User đã đăng nhập
+
+**Tiền điều kiện:** Menu đã scan xong.
+
+**Luồng chính:**
+
+1. User đặt câu hỏi về menu (ví dụ "món nào không có đậu phộng?").
+2. Frontend gửi `POST /advisor/chat` kèm `menu_id`, câu hỏi, lịch sử hội thoại và
+   danh sách món đang quan tâm (`focus_dishes`).
+3. Backend grounding câu trả lời trên danh sách món của chính menu đó cộng hồ sơ
+   ăn uống của user.
+4. Frontend hiển thị câu trả lời.
+
+Lịch sử hội thoại do **client giữ** và gửi kèm mỗi lượt; server **không lưu** tin
+nhắn nào.
+
+**Ngoại lệ:**
+
+- Vượt throttle: `429 RATE_LIMITED`.
+- Provider lỗi: `503`, và cooldown được **hoàn lại** — user không bị phạt cho một
+  lượt họ chưa dùng được.
+
+## UC-13 - Quản lý menu đã lưu
+
+**Actor:** User đã đăng nhập
+
+**Tiền điều kiện:** User có ít nhất một menu đã lưu.
+
+**Luồng chính:**
+
+1. User xem danh sách menu đã lưu (`GET /menus`).
+2. User mở một menu (`GET /menus/{id}`).
+3. User lọc/tìm món **trong menu đó** (`GET /menus/{id}/items?search=...`).
+4. User xóa menu không cần nữa (`DELETE /menus/{id}`) — soft-delete cả menu và
+   phiên scan liên quan.
+
+Lưu ý: hệ thống **không có tìm kiếm toàn cục**. `search` chỉ lọc món bên trong
+một menu.
+
+**Ngoại lệ:**
+
+- Menu không thuộc user: `403 FORBIDDEN` / `404 MENU_NOT_FOUND`.

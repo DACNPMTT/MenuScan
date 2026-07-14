@@ -4,19 +4,22 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Coins,
   HandCoins,
   Loader2,
   Percent,
-  Plus,
   Receipt,
   ReceiptText,
   RefreshCw,
+  Sparkles,
   Tag,
   Trash2,
   Users,
   XCircle,
 } from 'lucide-react'
+import { Spinner } from '@/shared/components/Spinner'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
@@ -25,11 +28,14 @@ import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue'
 import { useExchangeRates } from '@/shared/hooks/useExchangeRates'
 import { CurrencySelect } from '@/shared/components/CurrencySelect'
+import { Button } from '@/shared/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
+import { PageTransition } from '@/shared/components/motion/PageTransition'
+import { Reveal } from '@/shared/components/motion/Reveal'
 import { CURRENCY_OPTIONS, convertAmount, formatConvertedAmount } from '@/shared/lib/currency'
 import { cn } from '@/shared/lib/cn'
 import {
   ALL_CATEGORY,
-  ITEMS_PAGE_SIZE,
   SEARCH_DEBOUNCE_MS,
   clampPercent,
   draftFromItem,
@@ -41,7 +47,15 @@ import {
   validateDraft,
 } from '@/features/menu-scan/lib'
 import { type DietProfile } from '@/features/menu-scan/dietary'
+import {
+  VERDICT_LEVELS,
+  hasVerdicts,
+  isProfileActive,
+  rankByVerdict,
+  rankDishes,
+} from '@/features/menu-scan/ranking'
 import { BillItemCard } from '@/features/menu-scan/components/menu-detail/BillItemCard'
+import { AssistantChat } from '@/features/menu-scan/components/menu-detail/AssistantChat'
 import { ItemDisplayName } from '@/features/menu-scan/components/menu-detail/ItemDisplayName'
 import { ManualItemCard } from '@/features/menu-scan/components/menu-detail/ManualItemCard'
 import { MenuFilterBar } from '@/features/menu-scan/components/menu-detail/MenuFilterBar'
@@ -50,9 +64,11 @@ import { SourcePreview } from '@/features/menu-scan/components/menu-detail/Sourc
 import type {
   BillItem,
   BillLineState,
+  EnrichmentStatus,
   ItemDraft,
   ItemValidationErrors,
   MenuDetail,
+  MenuEnrichResult,
   MenuItemResult,
   PaginationMeta,
 } from '@/features/menu-scan/types'
@@ -63,14 +79,29 @@ import type {
 const ADJUSTMENT_FIELD = 'flex flex-col gap-1.5'
 const ADJUSTMENT_LABEL = 'flex items-center gap-1.5 text-[13px] font-medium text-ink'
 const ADJUSTMENT_INPUT =
-  'h-9 w-full rounded-[8px] border border-hairline bg-white px-3 text-right text-[14px] text-ink outline-none focus:border-primary-dark'
+  'h-9 w-full rounded-xl border border-border bg-surface px-3 text-right text-[14px] text-ink outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary'
 // A money field: a right-aligned number glued to a compact currency picker.
 const MONEY_GROUP =
-  'flex h-9 overflow-hidden rounded-[8px] border border-hairline bg-white focus-within:border-primary-dark'
+  'flex h-9 overflow-hidden rounded-xl border border-border bg-surface transition-colors focus-within:border-primary'
 const MONEY_INPUT =
   'min-w-0 flex-1 px-3 text-right text-[14px] text-ink outline-none'
-const MONEY_CURRENCY =
-  'shrink-0 border-l border-hairline bg-surface-muted px-1 text-[12px] font-bold text-primary-dark outline-none disabled:opacity-60'
+
+/** Dishes per page on the menu grid.
+ *
+ * Not ITEMS_PAGE_SIZE (50) — that is the server's search page. These cards are tall
+ * and editable, two to a row; fifty of them is a page nobody scrolls to the bottom
+ * of, and the diner is standing in a restaurant. */
+const MENU_PAGE_SIZE = 10
+
+/** Legend swatches. These must stay the same colours the cards carry on their left
+ * edge (verdictCardClass in BillItemCard) — a key that does not match the thing it
+ * is keying is worse than no key. */
+const VERDICT_LEGEND_COLOR = {
+  RECOMMENDED: 'bg-primary',
+  OK: 'bg-primary/50',
+  CAUTION: 'bg-amber',
+  AVOID: 'bg-destructive',
+} as const
 
 /** Round to the 2 decimals the backend stores (NUMERIC(14,2)). */
 function roundMoney(value: number): number {
@@ -105,19 +136,21 @@ function MoneyField({
         onChange={(event) => onValueChange(Math.max(0, Number(event.target.value) || 0))}
         className={MONEY_INPUT}
       />
-      <select
-        value={currency}
-        onChange={(event) => onCurrencyChange(event.target.value)}
-        disabled={currencyDisabled}
-        aria-label={currencyLabel}
-        className={MONEY_CURRENCY}
-      >
-        {CURRENCY_OPTIONS.map((option) => (
-          <option key={option.code} value={option.code}>
-            {option.code}
-          </option>
-        ))}
-      </select>
+      <Select value={currency} onValueChange={onCurrencyChange} disabled={currencyDisabled}>
+        <SelectTrigger
+          aria-label={currencyLabel}
+          className="h-9 shrink-0 gap-1 border-0 border-l border-border bg-panel px-2 text-[12px] font-bold text-primary-dark shadow-none focus-visible:ring-0 data-[placeholder]:text-primary-dark"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {CURRENCY_OPTIONS.map((option) => (
+            <SelectItem key={option.code} value={option.code}>
+              {option.code}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }
@@ -183,6 +216,9 @@ export function MenuDetailPage() {
   const [surchargeInput, setSurchargeInput] = useState(0)
   const [surchargeCurrency, setSurchargeCurrency] = useState<string | null>(null)
   const [billLines, setBillLines] = useState<Record<string, BillLineState>>({})
+  // The dish the diner most recently added — the assistant suggests it for a
+  // quick question.
+  const [lastSelectedItemId, setLastSelectedItemId] = useState<string | null>(null)
   const [addingManual, setAddingManual] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [manualName, setManualName] = useState('')
@@ -200,8 +236,14 @@ export function MenuDetailPage() {
 
   useDocumentTitle(menu ? `${menu.title} | MenuScan` : 'Menu | MenuScan')
 
+  // Guards a slow GET /menus from landing after — and overwriting — the enriched
+  // menu the POST /enrich just gave us. A token refresh or a language switch is
+  // enough to re-fire loadMenu mid-enrichment, and the stale response wins.
+  const menuRequestRef = useRef(0)
+
   const loadMenu = useCallback(async () => {
     if (!menuId) return
+    const requestId = ++menuRequestRef.current
     setLoading(true)
     setError(null)
     try {
@@ -209,15 +251,17 @@ export function MenuDetailPage() {
         method: 'GET',
         token: accessToken ?? undefined,
       })
+      if (requestId !== menuRequestRef.current) return
       setMenu(data)
       setItemDrafts({})
       setItemValidationErrors({})
       setItemSaveErrors({})
       setEditingItemIds(new Set())
     } catch (err) {
+      if (requestId !== menuRequestRef.current) return
       setError(err instanceof ApiError ? err.message : t('menuDetail.errors.loadFailed'))
     } finally {
-      setLoading(false)
+      if (requestId === menuRequestRef.current) setLoading(false)
     }
   }, [accessToken, menuId, t])
 
@@ -225,14 +269,66 @@ export function MenuDetailPage() {
     void Promise.resolve().then(loadMenu)
   }, [loadMenu])
 
+  // Food tags, taste levels and verdicts come from a second LLM pass, kept off the
+  // scan path so scanning stays fast. It runs by itself, once, when the diner opens
+  // the menu — there is no button, because there is no decision for them to make:
+  // they never asked for "tags", they asked for a menu. The cards fill in behind
+  // them, and re-opening the menu costs nothing (the pass is idempotent server-side).
+  const [enriching, setEnriching] = useState(false)
+  const [enrichStatus, setEnrichStatus] = useState<EnrichmentStatus | null>(null)
+  const enrichedRef = useRef(false)
+
+  const needsEnrichment = useMemo(
+    () =>
+      (menu?.items ?? []).some(
+        (item) =>
+          !item.assistant_summary &&
+          (item.ingredient_tags?.length ?? 0) === 0 &&
+          (item.main_ingredients?.length ?? 0) === 0,
+      ),
+    [menu?.items],
+  )
+
+  useEffect(() => {
+    if (!menuId || !menu || !needsEnrichment || enrichedRef.current) return
+    enrichedRef.current = true
+
+    let cancelled = false
+    setEnriching(true)
+    void apiRequest<MenuEnrichResult>(`/api/v1/menus/${menuId}/enrich`, {
+      method: 'POST',
+      token: accessToken ?? undefined,
+    })
+      .then((result) => {
+        if (cancelled) return
+        menuRequestRef.current += 1 // newer than any GET still in flight
+        setMenu(result.menu)
+        setEnrichStatus(result.status)
+      })
+      .catch(() => {
+        if (!cancelled) setEnrichStatus('UNAVAILABLE')
+      })
+      .finally(() => {
+        if (!cancelled) setEnriching(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, menu, menuId, needsEnrichment])
+
   const allItems = useMemo<BillItem[]>(() => menu?.items ?? [], [menu?.items])
 
   const currency = useMemo(
     () => menu?.default_currency ?? allItems.find((item) => item.currency)?.currency ?? 'VND',
     [allItems, menu?.default_currency],
   )
-  const [displayCurrency, setDisplayCurrency] = useState(currency)
-  const { rates: exchangeRates } = useExchangeRates(currency)
+  // Null until the diner actually picks a currency, so the menu is always priced
+  // in its own currency first — that is the number printed on the paper in front
+  // of them. Seeding this from `currency` did not work anyway: on the first render
+  // the menu is still loading, so it froze on the 'VND' fallback.
+  const [pickedCurrency, setPickedCurrency] = useState<string | null>(null)
+  const displayCurrency = pickedCurrency ?? currency
 
   const dirtyItemIds = useMemo(
     () =>
@@ -280,11 +376,66 @@ export function MenuDetailPage() {
     [activeCategory, browseItems],
   )
 
-  const canLoadMoreItems =
-    hasActiveFilter && itemsMeta ? itemsPage < itemsMeta.total_pages : false
+  // Personalized ordering: when the diner has a profile, float best-fit dishes
+  // up and sink risky ones (reusing assessDish). With no profile, keep the menu
+  // in its original order.
+  const profileActive = isProfileActive(dietProfile)
+  // Three tiers of ordering, in decreasing order of how much we actually know:
+  //   1. Real verdicts (the enrichment pass ran AND the diner has a food profile)
+  //      — sort by the advice itself: recommended first, avoid last.
+  //   2. No verdicts, but a declared profile — fall back to the allergen/diet
+  //      signal we can compute client-side.
+  //   3. Nothing declared — leave the menu exactly as the restaurant wrote it.
+  //      Inventing an order for someone we know nothing about is just noise.
+  const verdictsShown = hasVerdicts(filteredItems)
+  const rankedItems = useMemo(() => {
+    if (verdictsShown) return rankByVerdict(filteredItems)
+    if (profileActive) return rankDishes(filteredItems, dietProfile)
+    return filteredItems
+  }, [dietProfile, filteredItems, profileActive, verdictsShown])
+
+  // Name the ordering the diner is looking at. Sorting a menu silently is the same
+  // as not sorting it: they cannot tell "best dish first" from "the order the
+  // restaurant printed". Empty when we are not reordering anything — claiming a
+  // sort we did not do would be worse than saying nothing.
+  const sortLabel = verdictsShown
+    ? t('menuDetail.sortedByAdvice')
+    : profileActive
+      ? t('menuDetail.sortedByProfile')
+      : ''
+
+  // Pagination.
+  //
+  // Two sources, one pager. With no filter the whole menu is already in the detail
+  // payload, so we slice it here — which also means the ordering above is applied
+  // across the WHOLE menu before it is cut into pages. Sorting each page on its own
+  // would put a "recommended" dish on page 3 below an "avoid" dish on page 1.
+  //
+  // With a search/price filter the server does the paging (it owns the
+  // Vietnamese-aware search), so a page is whatever it hands back.
+  const totalItems = hasActiveFilter
+    ? itemsMeta?.total ?? rankedItems.length
+    : rankedItems.length
+  const totalPages = hasActiveFilter
+    ? itemsMeta?.total_pages ?? 1
+    : Math.max(1, Math.ceil(rankedItems.length / MENU_PAGE_SIZE))
+  const pagedItems = useMemo(
+    () =>
+      hasActiveFilter
+        ? rankedItems
+        : rankedItems.slice(
+            (itemsPage - 1) * MENU_PAGE_SIZE,
+            itemsPage * MENU_PAGE_SIZE,
+          ),
+    [hasActiveFilter, itemsPage, rankedItems],
+  )
+  const pageStart = totalItems === 0 ? 0 : (itemsPage - 1) * MENU_PAGE_SIZE + 1
+  const pageEnd = hasActiveFilter
+    ? Math.min(itemsPage * (itemsMeta?.page_size ?? MENU_PAGE_SIZE), totalItems)
+    : Math.min(itemsPage * MENU_PAGE_SIZE, totalItems)
 
   const loadItems = useCallback(
-    async (page: number, mode: 'replace' | 'append') => {
+    async (page: number) => {
       if (!menuId) return
       // Cancel any in-flight request and stamp this one so a slow earlier
       // response can never overwrite a newer one (no stale results).
@@ -294,11 +445,13 @@ export function MenuDetailPage() {
       const requestId = ++requestIdRef.current
       setItemsLoading(true)
       setItemsError(null)
-      if (mode === 'replace') setServerItems([])
+      setServerItems([])
       try {
         const params = new URLSearchParams()
         params.set('page', String(page))
-        params.set('page_size', String(ITEMS_PAGE_SIZE))
+        // Same page size as the unfiltered grid, or searching would silently switch
+        // the diner from 10-dish pages to 50-dish ones.
+        params.set('page_size', String(MENU_PAGE_SIZE))
         if (trimmedSearch) params.set('search', trimmedSearch)
         if (normalizedMinPrice) params.set('min_price', normalizedMinPrice)
         if (normalizedMaxPrice) params.set('max_price', normalizedMaxPrice)
@@ -307,9 +460,7 @@ export function MenuDetailPage() {
           { method: 'GET', token: accessToken ?? undefined, signal: controller.signal },
         )
         if (requestId !== requestIdRef.current) return // superseded by a newer request
-        setServerItems((current) =>
-          mode === 'replace' ? result.data : [...current, ...result.data],
-        )
+        setServerItems(result.data)
         setItemsMeta(result.meta)
         setItemsPage(page)
       } catch (err) {
@@ -334,8 +485,39 @@ export function MenuDetailPage() {
       setItemsPage(1)
       return
     }
-    void loadItems(1, 'replace')
+    void loadItems(1)
   }, [hasActiveFilter, loadItems])
+
+  // Switching category re-cuts the list; page 4 of a two-page list shows nothing.
+  useEffect(() => {
+    setItemsPage(1)
+  }, [activeCategory])
+
+  const goToPage = useCallback(
+    (next: number) => {
+      const clamped = Math.min(Math.max(1, next), totalPages)
+      if (clamped === itemsPage) return
+      // Filtered results are paged by the server (it owns the search); the
+      // unfiltered menu is already in memory, so we just move the window.
+      if (hasActiveFilter) {
+        void loadItems(clamped)
+      } else {
+        setItemsPage(clamped)
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    },
+    [hasActiveFilter, itemsPage, loadItems, totalPages],
+  )
+
+  // Enrichment rewrote the dishes, but the filtered grid is served by a different
+  // endpoint and holds its own copy. Without this, a diner who was searching when
+  // enrichment landed keeps staring at the pre-enrichment cards with no way to
+  // refresh short of clearing the filter.
+  useEffect(() => {
+    if (!hasActiveFilter) return
+    if (enrichStatus !== 'COMPLETED' && enrichStatus !== 'PARTIAL') return
+    void loadItems(1)
+  }, [enrichStatus, hasActiveFilter, loadItems])
 
   // Reflect the applied (debounced) filters in the URL so a refresh or shared
   // link preserves the current view. `replace` keeps filter edits out of the
@@ -367,6 +549,16 @@ export function MenuDetailPage() {
     [allItems, billLines],
   )
 
+  // Selected dishes passed to the assistant for quick-ask chips + the "+" picker.
+  const selectedDishes = useMemo(
+    () =>
+      selectedLines.map(({ item }) => ({
+        id: item.id,
+        name: item.translated_name || item.original_name,
+      })),
+    [selectedLines],
+  )
+
   const subtotal = useMemo(
     () =>
       selectedLines.reduce(
@@ -381,6 +573,24 @@ export function MenuDetailPage() {
   const billCurrency = currency ?? 'VND'
   const tipMoneyCurrency = tipCurrency ?? billCurrency
   const surchargeMoneyCurrency = surchargeCurrency ?? billCurrency
+
+  // Rates are only worth fetching once something actually has to be converted:
+  // the diner asked to see another currency, or typed a tip/surcharge in one.
+  // Until then the menu is shown in its own currency and nothing is converted, so
+  // loading rates on every menu open was a request spent on nothing.
+  const needsConversion =
+    displayCurrency !== currency ||
+    tipMoneyCurrency !== billCurrency ||
+    surchargeMoneyCurrency !== billCurrency
+  const { rates: exchangeRates, error: ratesError } = useExchangeRates(
+    currency,
+    needsConversion,
+  )
+  // A conversion we cannot perform yet. `toBill` below would quietly turn the
+  // amount into 0 — the tip would vanish from the bill with no warning — so the
+  // confirm action is blocked until the rates land.
+  const ratesPending = needsConversion && !exchangeRates
+
   // Flat amounts are typed in the diner's chosen currency; every figure below is
   // expressed in the bill's currency, which is what the server stores.
   const toBill = (amount: number, from: string) =>
@@ -657,7 +867,7 @@ export function MenuDetailPage() {
   }
 
   const handleCreateReceipt = async () => {
-    if (!menuId || creatingBill || selectedLines.length === 0) return
+    if (!menuId || creatingBill || ratesPending || selectedLines.length === 0) return
     setCreatingBill(true)
     try {
       const bill = await apiRequest<Bill>(`/api/v1/bills`, {
@@ -746,7 +956,7 @@ export function MenuDetailPage() {
   }
 
   return (
-    <div className="min-h-full bg-app-bg">
+    <PageTransition className="min-h-full bg-app-bg">
       <div className="mx-auto w-full max-w-[1240px] px-4 py-[24px] pb-[150px] sm:px-[50px]">
         <Link
           to="/app/menus"
@@ -762,7 +972,7 @@ export function MenuDetailPage() {
         {error && (
           <div
             role="alert"
-            className="mb-5 flex items-center gap-3 rounded-[8px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[14px] text-destructive"
+            className="mb-5 flex items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[14px] text-destructive"
           >
             <AlertCircle className="size-4 shrink-0" aria-hidden />
             {error}
@@ -770,16 +980,15 @@ export function MenuDetailPage() {
         )}
 
         {loading ? (
-          <div className="flex flex-col items-center gap-4 rounded-[8px] border border-hairline bg-canvas px-4 py-[70px] text-center text-ink-variant">
-            <Loader2 className="size-8 animate-spin text-primary-dark" aria-hidden />
-            {t('menuDetail.loading')}
+          <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-surface px-4 py-[70px] text-center text-ink-variant shadow-1">
+            <Spinner label={t('menuDetail.loading')} />
           </div>
         ) : menu ? (
           <>
             <header className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <span className="flex items-center gap-1 rounded-full bg-[#e4f4df] px-2.5 py-0.5 text-[12px] font-bold text-[#256b2b]">
+                  <span className="flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-[12px] font-bold text-primary-dark">
                     <CheckCircle2 className="size-3.5" aria-hidden />
                     {menu.status === 'CONFIRMED' ? t('menuDetail.confirmed') : t('menuDetail.draft')}
                   </span>
@@ -794,28 +1003,59 @@ export function MenuDetailPage() {
                   {menu.source.file_name} · {menu.default_currency ?? currency}
                 </p>
               </div>
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="flex min-h-10 w-fit items-center gap-2 rounded-[8px] border border-destructive/30 px-4 py-2 text-[14px] font-bold text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"
+                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
                 {deleting ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                  <Loader2 className="animate-spin" aria-hidden />
                 ) : (
-                  <Trash2 className="size-4" aria-hidden />
+                  <Trash2 aria-hidden />
                 )}
                 {t('menuDetail.deleteMenu')}
-              </button>
+              </Button>
             </header>
+
+            {/* The pass runs on its own, so the only thing worth saying is when it
+                is still working, or when it failed — silence on failure is how the
+                last broken enrichment went unnoticed for a whole release. */}
+            {(enriching || enrichStatus === 'UNAVAILABLE') && (
+              <p
+                role="status"
+                className="mb-5 flex items-center gap-2 text-[13px] text-ink-variant"
+              >
+                {enriching ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    {t('menuDetail.enriching')}
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="size-3.5 shrink-0" aria-hidden />
+                    {t('menuDetail.enrichFailed')}
+                  </>
+                )}
+              </p>
+            )}
 
             <SourcePreview source={menu.source} accessToken={accessToken} />
 
             {hasUnsavedChanges && (
-              <div className="mb-5 flex items-center gap-3 rounded-[8px] border border-[#d7a315]/40 bg-[#fff8e2] px-4 py-3 text-[14px] font-medium text-[#80600d]">
+              <div className="mb-5 flex items-center gap-3 rounded-2xl border border-amber/30 bg-amber/10 px-4 py-3 text-[14px] font-medium text-amber">
                 <AlertCircle className="size-4 shrink-0" aria-hidden />
                 {t('menuDetail.unsavedChanges', { count: dirtyItemIds.length })}
               </div>
+            )}
+
+            {menuId && (
+              <AssistantChat
+                menuId={menuId}
+                selectedDishes={selectedDishes}
+                lastSelectedId={lastSelectedItemId}
+              />
             )}
 
             <MenuFilterBar
@@ -837,21 +1077,51 @@ export function MenuDetailPage() {
             {itemsError && (
               <div
                 role="alert"
-                className="mb-4 flex items-center gap-3 rounded-[8px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[14px] text-destructive"
+                className="mb-4 flex items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[14px] text-destructive"
               >
                 <AlertCircle className="size-4 shrink-0" aria-hidden />
                 {itemsError}
               </div>
             )}
 
-            <p className="mb-3 text-[13px] text-ink-variant" aria-live="polite">
-              {itemsLoading && hasActiveFilter
-                ? t('menuDetail.searching')
-                : (hasActiveFilter && itemsMeta ? t('menuDetail.resultCountOf', { count: filteredItems.length, total: itemsMeta.total }) : t('menuDetail.resultCount', { count: filteredItems.length }))}
-            </p>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[13px] text-ink-variant" aria-live="polite">
+                {itemsLoading && hasActiveFilter
+                  ? t('menuDetail.searching')
+                  : t('menuDetail.pageStatus', {
+                      from: pageStart,
+                      to: pageEnd,
+                      total: totalItems,
+                    })}
+              </p>
+              {sortLabel && (
+                <p className="flex items-center gap-1.5 text-[12px] font-medium text-primary-dark">
+                  <Sparkles className="size-3.5" aria-hidden />
+                  {sortLabel}
+                </p>
+              )}
+            </div>
 
+            {/* The colour key. Only shown when the cards are actually tinted — a
+                legend for a colour system that is not in use is pure noise. */}
+            {verdictsShown && (
+              <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-border bg-panel/50 px-3 py-2 text-[12px] text-ink-variant">
+                <span className="font-bold">{t('menuDetail.legendTitle')}</span>
+                {VERDICT_LEVELS.map((level) => (
+                  <span key={level} className="flex items-center gap-1.5">
+                    <span
+                      className={cn('h-3.5 w-1 rounded-full', VERDICT_LEGEND_COLOR[level])}
+                      aria-hidden
+                    />
+                    {t(`billItem.verdict.${level}`)}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <Reveal>
             <main className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-              {filteredItems.map((item) => (
+              {pagedItems.map((item) => (
                 <BillItemCard
                   key={item.id}
                   item={item}
@@ -876,12 +1146,13 @@ export function MenuDetailPage() {
                   onSave={() => void handleSaveItem(item)}
                   onCancel={() => cancelItemDraft(item.id)}
                   onDelete={() => void handleDeleteItem(item)}
-                  onQuantityChange={(nextQuantity) =>
+                  onQuantityChange={(nextQuantity) => {
+                    if (nextQuantity >= 1) setLastSelectedItemId(item.id)
                     updateLine(item.id, (line) => ({
                       ...line,
                       quantity: Math.max(0, nextQuantity),
                     }))
-                  }
+                  }}
                   onNoteChange={(note) =>
                     updateLine(item.id, (line) => ({ ...line, note }))
                   }
@@ -898,18 +1169,20 @@ export function MenuDetailPage() {
                 onSave={() => void handleAddManualItem()}
               />
               {!itemsLoading && filteredItems.length === 0 && (
-                <div className="col-span-full flex min-h-[170px] flex-col items-center justify-center gap-3 rounded-[8px] border border-dashed border-hairline bg-canvas/70 p-6 text-center text-ink-variant">
+                <div className="col-span-full flex min-h-[170px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-surface/70 p-6 text-center text-ink-variant">
                   <XCircle className="size-7" aria-hidden />
                   {hasActiveFilter ? (
                     <>
                       <span>{t('menuDetail.noFilterMatch')}</span>
-                      <button
+                      <Button
                         type="button"
+                        variant="outline"
+                        size="sm"
                         onClick={handleClearFilters}
-                        className="rounded-[8px] border border-primary-dark px-4 py-2 text-[13px] font-bold text-primary-dark transition-colors hover:bg-primary/10"
+                        className="border-primary text-primary hover:bg-primary/10 hover:text-primary"
                       >
                         {t('menuDetail.clearFilters')}
-                      </button>
+                      </Button>
                     </>
                   ) : (
                     <span>{t('menuDetail.noItems')}</span>
@@ -917,34 +1190,59 @@ export function MenuDetailPage() {
                 </div>
               )}
               {itemsLoading && hasActiveFilter && filteredItems.length === 0 && (
-                <div className="col-span-full flex min-h-[170px] items-center justify-center gap-3 rounded-[8px] border border-dashed border-hairline bg-canvas/70 p-6 text-[14px] text-ink-variant">
+                <div className="col-span-full flex min-h-[170px] items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-surface/70 p-6 text-[14px] text-ink-variant">
                   <Loader2 className="size-6 animate-spin text-primary-dark" aria-hidden />
                   {t('menuDetail.loadingShort')}
                 </div>
               )}
             </main>
+            </Reveal>
 
-            {canLoadMoreItems && (
-              <div className="mt-5 flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => void loadItems(itemsPage + 1, 'append')}
-                  disabled={itemsLoading}
-                  className="flex min-h-10 items-center gap-2 rounded-[8px] border border-primary-dark px-4 py-2 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {itemsLoading ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Plus className="size-4" aria-hidden />
-                  )}
-                  {t('menuDetail.loadMore')}
-                </button>
+            {totalPages > 1 && (
+              <div className="mt-5 flex flex-col items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-3 py-2 shadow-1 sm:flex-row">
+                <p className="text-[13px] text-ink-variant" aria-live="polite">
+                  {t('menuDetail.pageStatus', {
+                    from: pageStart,
+                    to: pageEnd,
+                    total: totalItems,
+                  })}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    onClick={() => goToPage(itemsPage - 1)}
+                    disabled={itemsLoading || itemsPage <= 1}
+                    aria-label={t('menuDetail.prevPage')}
+                  >
+                    <ChevronLeft aria-hidden />
+                  </Button>
+                  <span className="min-w-[72px] text-center text-[13px] font-bold text-ink">
+                    {itemsPage} / {totalPages}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    onClick={() => goToPage(itemsPage + 1)}
+                    disabled={itemsLoading || itemsPage >= totalPages}
+                    aria-label={t('menuDetail.nextPage')}
+                  >
+                    {itemsLoading ? (
+                      <Loader2 className="animate-spin" aria-hidden />
+                    ) : (
+                      <ChevronRight aria-hidden />
+                    )}
+                  </Button>
+                </div>
               </div>
             )}
 
+            <Reveal className="mt-8">
             <section
               aria-labelledby="bill-calculator-title"
-              className="mt-8 rounded-[8px] border border-hairline bg-canvas px-4 py-4"
+              className="rounded-3xl border border-border bg-surface px-5 py-5 shadow-2"
             >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -962,7 +1260,7 @@ export function MenuDetailPage() {
                 </div>
                 <CurrencySelect
                   value={displayCurrency}
-                  onChange={setDisplayCurrency}
+                  onChange={setPickedCurrency}
                 />
                 <label className="flex items-center gap-3 text-[14px] font-medium text-ink">
                   <Users className="size-4 text-primary-dark" aria-hidden />
@@ -974,7 +1272,7 @@ export function MenuDetailPage() {
                     onChange={(event) =>
                       setPeopleCount(Math.max(1, Number(event.target.value) || 1))
                     }
-                    className="h-9 w-20 rounded-[8px] border border-hairline bg-white px-3 text-center text-[14px] text-ink outline-none focus:border-primary-dark"
+                    className="h-9 w-20 rounded-xl border border-border bg-surface px-3 text-center text-[14px] text-ink outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
                   />
                 </label>
                 <div className="flex items-center gap-2 text-[14px] text-ink-variant">
@@ -988,7 +1286,7 @@ export function MenuDetailPage() {
               {/* VAT / tip / surcharge / discount — percentages apply to the subtotal.
                   Label sits above a full-width input so every field lines up, no
                   matter how long its label is. */}
-              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-hairline pt-4 sm:grid-cols-4">
+              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4 sm:grid-cols-4">
                 <label className={ADJUSTMENT_FIELD}>
                   <span className={ADJUSTMENT_LABEL}>
                     <Percent className="size-4 shrink-0 text-primary-dark" aria-hidden />
@@ -1012,7 +1310,7 @@ export function MenuDetailPage() {
                   <span className={ADJUSTMENT_LABEL}>
                     <HandCoins className="size-4 shrink-0 text-primary-dark" aria-hidden />
                     <span className="truncate">{t('menuDetail.tip')}</span>
-                    <span className="ml-auto flex shrink-0 overflow-hidden rounded-[6px] border border-hairline">
+                    <span className="ml-auto flex shrink-0 overflow-hidden rounded-lg border border-border">
                       {(['PERCENT', 'AMOUNT'] as const).map((mode) => (
                         <button
                           key={mode}
@@ -1027,7 +1325,7 @@ export function MenuDetailPage() {
                           className={cn(
                             'flex h-6 w-7 items-center justify-center text-[11px] font-bold transition-colors',
                             tipMode === mode
-                              ? 'bg-primary-dark text-white'
+                              ? 'bg-primary text-white'
                               : 'bg-canvas text-ink-variant hover:bg-surface-muted',
                           )}
                         >
@@ -1054,7 +1352,7 @@ export function MenuDetailPage() {
                       currency={tipMoneyCurrency}
                       onCurrencyChange={setTipCurrency}
                       currencyLabel={t('menuDetail.tipCurrencyAria')}
-                      currencyDisabled={!exchangeRates}
+                      currencyDisabled={ratesError}
                     />
                   )}
                 </div>
@@ -1069,7 +1367,7 @@ export function MenuDetailPage() {
                     currency={surchargeMoneyCurrency}
                     onCurrencyChange={setSurchargeCurrency}
                     currencyLabel={t('menuDetail.surchargeCurrencyAria')}
-                    currencyDisabled={!exchangeRates}
+                    currencyDisabled={ratesError}
                   />
                 </div>
                 <label className={ADJUSTMENT_FIELD}>
@@ -1094,12 +1392,12 @@ export function MenuDetailPage() {
               </div>
 
               {selectedLines.length > 0 && (
-                <div className="mt-4 border-t border-hairline pt-4">
+                <div className="mt-4 border-t border-border pt-4">
                   <div className="flex flex-col gap-2">
                     {selectedLines.map(({ item, state }) => (
                       <div
                         key={item.id}
-                        className="flex items-start justify-between gap-3 rounded-[8px] bg-surface-muted px-3 py-2 text-[14px]"
+                        className="flex items-start justify-between gap-3 rounded-xl bg-panel px-3 py-2 text-[14px]"
                       >
                         <div className="min-w-0">
                           <p className="mb-0 truncate font-semibold text-ink">
@@ -1126,7 +1424,7 @@ export function MenuDetailPage() {
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4 flex flex-col gap-2 border-t border-hairline pt-4 text-[14px] sm:items-end">
+                  <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4 text-[14px] sm:items-end">
                     <div className="flex w-full justify-between gap-3 sm:w-[280px]">
                       <span className="text-ink-variant">{t('menuDetail.subtotal')}</span>
                       <strong className="text-ink">
@@ -1172,7 +1470,7 @@ export function MenuDetailPage() {
                         </span>
                       </div>
                     )}
-                    <div className="flex w-full justify-between gap-3 border-t border-hairline pt-2 sm:w-[280px]">
+                    <div className="flex w-full justify-between gap-3 border-t border-border pt-2 sm:w-[280px]">
                       <span className="font-bold text-ink">{t('menuDetail.total')}</span>
                       <strong className="text-[16px] text-ink">
                         {formatConvertedAmount(total, currency, displayCurrency, exchangeRates)}
@@ -1188,74 +1486,80 @@ export function MenuDetailPage() {
                 </div>
               )}
             </section>
-            <div className="fixed inset-x-0 bottom-0 z-20 border-t border-hairline bg-surface-muted px-4 py-[20px] shadow-[0_-10px_30px_rgba(24,29,21,0.08)] sm:px-[50px] sm:py-[30px]">
+            </Reveal>
+            <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-panel px-4 py-[20px] shadow-3 sm:px-[50px] sm:py-[30px]">
               <div className="mx-auto flex max-w-[1240px] flex-col justify-center gap-3 sm:min-h-11 sm:flex-row sm:items-center sm:justify-end">
-                <Link
-                  to="/app/scan"
-                  onClick={(event) => {
-                    if (!confirmLeaveWithUnsavedChanges()) event.preventDefault()
-                  }}
-                  className="flex min-h-11 items-center justify-center rounded-[8px] border border-hairline bg-canvas px-5 text-[14px] font-bold text-ink transition-colors hover:bg-white"
-                >
-                  {t('menuDetail.scanAnother')}
-                </Link>
-                <button
+                <Button asChild variant="outline" size="lg">
+                  <Link
+                    to="/app/scan"
+                    onClick={(event) => {
+                      if (!confirmLeaveWithUnsavedChanges()) event.preventDefault()
+                    }}
+                  >
+                    {t('menuDetail.scanAnother')}
+                  </Link>
+                </Button>
+                <Button
                   type="button"
+                  variant="outline"
+                  size="lg"
                   onClick={() => void handleCreateReceipt()}
-                  disabled={creatingBill || selectedLines.length === 0}
-                  className="flex min-h-11 items-center justify-center gap-2 rounded-[8px] border border-primary-dark bg-canvas px-5 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  // Blocked while a needed rate is still in flight: the tip would be
+                  // converted to 0 and silently disappear from the bill.
+                  disabled={creatingBill || ratesPending || selectedLines.length === 0}
+                  className="border-primary bg-surface text-primary hover:bg-primary/10 hover:text-primary"
                 >
                   {creatingBill ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    <Loader2 className="animate-spin" aria-hidden />
                   ) : (
-                    <ReceiptText className="size-4" aria-hidden />
+                    <ReceiptText aria-hidden />
                   )}
                   {t('menuDetail.showBill')}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  size="lg"
                   onClick={() => void handleConfirmMenu()}
                   disabled={confirming || selectedLines.length === 0}
-                  className="flex min-h-11 items-center justify-center rounded-[8px] bg-primary-dark px-8 text-[14px] font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {confirming ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+                    <Loader2 className="animate-spin" aria-hidden />
                   ) : null}
                   {menu.status === 'CONFIRMED' ? t('menuDetail.confirmedBtn') : t('menuDetail.reviewConfirm')}
-                </button>
+                </Button>
               </div>
             </div>
           </>
         ) : error ? (
-          <div className="flex flex-col items-center gap-4 rounded-[8px] border border-hairline bg-canvas px-4 py-[70px] text-center">
-            <span className="flex size-14 items-center justify-center rounded-full bg-destructive/10">
+          <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface px-4 py-[70px] text-center shadow-1">
+            <span className="flex size-14 items-center justify-center rounded-2xl bg-destructive/10">
               <AlertCircle className="size-7 text-destructive" aria-hidden />
             </span>
             <p role="alert" className="max-w-[360px] text-[14px] text-destructive">
               {error}
             </p>
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => void loadMenu()}
-              className="flex min-h-10 items-center gap-2 rounded-[8px] border border-destructive/30 px-4 py-2 text-[14px] font-medium text-destructive transition-colors hover:bg-destructive/10"
+              className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
-              <RefreshCw className="size-4" aria-hidden />
+              <RefreshCw aria-hidden />
               {t('common.retry')}
-            </button>
+            </Button>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-4 rounded-[8px] border border-hairline bg-canvas px-4 py-[70px] text-center text-ink-variant">
-            <XCircle className="size-8 text-destructive" aria-hidden />
+          <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface px-4 py-[70px] text-center text-ink-variant shadow-1">
+            <span className="flex size-16 items-center justify-center rounded-3xl bg-destructive/10">
+              <XCircle className="size-8 text-destructive" aria-hidden />
+            </span>
             <p className="text-[15px] font-medium text-ink">{t('menuDetail.notFound')}</p>
-            <Link
-              to="/app/menus"
-              className="rounded-[8px] bg-primary-dark px-5 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
-            >
-              {t('menuDetail.backToMenus')}
-            </Link>
+            <Button asChild>
+              <Link to="/app/menus">{t('menuDetail.backToMenus')}</Link>
+            </Button>
           </div>
         )}
       </div>
-    </div>
+    </PageTransition>
   )
 }

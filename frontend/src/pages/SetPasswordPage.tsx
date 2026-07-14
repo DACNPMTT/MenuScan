@@ -6,6 +6,8 @@ import { useAuth } from '@/app/providers/AuthProvider'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
+import { AuthShell } from '@/features/auth/components/AuthShell'
+import { IconBadge } from '@/shared/components/IconBadge'
 
 export function SetPasswordPage() {
   const { t } = useTranslation()
@@ -59,71 +61,58 @@ export function SetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-canvas px-5 py-[75px] font-sans">
-      <div className="flex w-full max-w-[400px] flex-col">
-        <header className="mb-[45px] flex flex-col items-center gap-[18px] text-center">
-          <h1 className="text-[30px] font-bold leading-[34px] tracking-normal text-primary-dark">
-            MenuScan
+    <AuthShell>
+      <div className="flex flex-col items-center gap-4 text-center">
+        <IconBadge icon={Check} tone="success" size="lg" />
+        <div className="flex flex-col gap-2">
+          <h1 className="text-[22px] font-bold leading-tight text-ink">
+            {t('setPassword.emailVerified')}
           </h1>
-          <div className="flex size-16 items-center justify-center rounded-full bg-primary">
-            <Check className="size-8 text-white" aria-hidden />
-          </div>
-          <div className="flex flex-col gap-[7px]">
-            <p className="text-[20px] leading-[30px] text-ink">
-              {t('setPassword.emailVerified')}
-            </p>
-            <p className="text-[15px] leading-[22px] text-ink-variant">
-              {t('setPassword.subtitle')}
-            </p>
-          </div>
-        </header>
-
-        <form onSubmit={handleSetPassword} noValidate className="flex flex-col gap-[30px] pb-4">
-          <label className="flex flex-col gap-[5px]">
-            <span className="text-[14px] leading-[14px] text-ink">{t('setPassword.newPassword')}</span>
-            <Input
-              type="password"
-              required
-              autoComplete="new-password"
-              value={password}
-              onChange={(event) => setPasswordInput(event.target.value)}
-              placeholder={t('setPassword.minCharsPlaceholder')}
-              aria-label={t('setPassword.newPassword')}
-              disabled={savingPassword}
-              className="rounded-none border-0 border-b border-hairline bg-transparent px-0 py-1 text-[16px] text-ink shadow-none placeholder:text-placeholder focus-visible:border-primary-dark focus-visible:ring-0"
-            />
-          </label>
-
-          <label className="flex flex-col gap-[5px]">
-            <span className="text-[14px] leading-[14px] text-ink">{t('setPassword.confirmPassword')}</span>
-            <Input
-              type="password"
-              required
-              autoComplete="new-password"
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              placeholder={t('setPassword.reenterPlaceholder')}
-              aria-label={t('setPassword.confirmPassword')}
-              disabled={savingPassword}
-              className="rounded-none border-0 border-b border-hairline bg-transparent px-0 py-1 text-[16px] text-ink shadow-none placeholder:text-placeholder focus-visible:border-primary-dark focus-visible:ring-0"
-            />
-          </label>
-
-          {passwordError && (
-            <p role="alert" className="-mt-4 text-[14px] text-destructive">
-              {passwordError}
-            </p>
-          )}
-
-          <Button
-            type="submit"
-            disabled={savingPassword}
-            className="h-12 rounded-full bg-primary text-[17px] font-bold text-white hover:bg-primary/90"
-          >
-            {savingPassword ? t('setPassword.saving') : t('setPassword.save')}
-          </Button>
-        </form>
+          <p className="max-w-[300px] text-[15px] leading-relaxed text-ink-variant">
+            {t('setPassword.subtitle')}
+          </p>
+        </div>
       </div>
-    </div>
+
+      <form onSubmit={handleSetPassword} noValidate className="flex flex-col gap-6 pb-2">
+        <label className="flex flex-col gap-2">
+          <span className="text-[14px] font-semibold text-ink">{t('setPassword.newPassword')}</span>
+          <Input
+            type="password"
+            required
+            autoComplete="new-password"
+            value={password}
+            onChange={(event) => setPasswordInput(event.target.value)}
+            placeholder={t('setPassword.minCharsPlaceholder')}
+            aria-label={t('setPassword.newPassword')}
+            disabled={savingPassword}
+          />
+        </label>
+
+        <label className="flex flex-col gap-2">
+          <span className="text-[14px] font-semibold text-ink">{t('setPassword.confirmPassword')}</span>
+          <Input
+            type="password"
+            required
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+            placeholder={t('setPassword.reenterPlaceholder')}
+            aria-label={t('setPassword.confirmPassword')}
+            disabled={savingPassword}
+          />
+        </label>
+
+        {passwordError && (
+          <p role="alert" className="-mt-2 text-[14px] text-destructive">
+            {passwordError}
+          </p>
+        )}
+
+        <Button type="submit" size="lg" disabled={savingPassword}>
+          {savingPassword ? t('setPassword.saving') : t('setPassword.save')}
+        </Button>
+      </form>
+    </AuthShell>
   )
 }

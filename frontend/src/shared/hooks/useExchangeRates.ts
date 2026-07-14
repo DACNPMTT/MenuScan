@@ -18,8 +18,16 @@ interface UseExchangeRatesResult {
 }
 
 /** Fetches conversion rates for `base` from the backend, cached per base.
- * On failure `rates` stays null and callers fall back to the source currency. */
-export function useExchangeRates(base: string): UseExchangeRatesResult {
+ * On failure `rates` stays null and callers fall back to the source currency.
+ *
+ * `enabled` gates the request. Pass false while the diner is still looking at the
+ * menu's own prices: converting nothing needs no rates, and fetching them on every
+ * page load spent a request on a conversion most diners never ask for. The fetch
+ * fires the moment they actually pick a different currency. */
+export function useExchangeRates(
+  base: string,
+  enabled: boolean = true,
+): UseExchangeRatesResult {
   const normalizedBase = base.toUpperCase()
   // Fetched results tracked in state so a completed fetch re-renders; cached
   // bases are read during render — no synchronous setState inside the effect.
@@ -30,6 +38,7 @@ export function useExchangeRates(base: string): UseExchangeRatesResult {
   const error = Boolean(errored[normalizedBase])
 
   useEffect(() => {
+    if (!enabled) return
     if (cache.has(normalizedBase)) return
     let active = true
     apiRequest<ExchangeRatesResponse>(
@@ -49,7 +58,7 @@ export function useExchangeRates(base: string): UseExchangeRatesResult {
     return () => {
       active = false
     }
-  }, [normalizedBase])
+  }, [enabled, normalizedBase])
 
   return { rates, error }
 }

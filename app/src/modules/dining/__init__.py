@@ -1,0 +1,1 @@
+"""Dining session domain."""

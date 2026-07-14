@@ -7,8 +7,8 @@ param(
 
     [int]$BackendPort = 8000,
     [int]$FrontendPort = 5173,
-    [int]$DbPort = 54321,
-    [int]$RedisPort = 63790
+    [int]$DbPort = 5432,
+    [int]$RedisPort = 6379
 )
 
 $ErrorActionPreference = "Stop"

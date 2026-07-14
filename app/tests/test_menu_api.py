@@ -620,12 +620,28 @@ def test_delete_menu_item_returns_no_content() -> None:
     assert stub.calls[0]["action"] == "delete_item"
 
 
+class _EmptyResult:
+    """No dining session, no food profile — so no verdicts, which is the point."""
+
+    def first(self) -> None:
+        return None
+
+    def all(self) -> list[object]:
+        return []
+
+
 class FakeSession:
     def __init__(self) -> None:
         self.committed = False
 
     def commit(self) -> None:
         self.committed = True
+
+    def flush(self) -> None:
+        return None
+
+    def scalars(self, _statement: object) -> _EmptyResult:
+        return _EmptyResult()
 
 
 class FakeMenuRepository:

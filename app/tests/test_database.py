@@ -7,6 +7,8 @@ from sqlalchemy import CHAR, Numeric, func
 from src.core import database
 from src.core.database import Base
 from src.modules.identity.models import (  # noqa: F401
+    FoodProfile,
+    FoodProfilePreference,
     MagicLinkToken,
     User,
     UserSession,
@@ -18,6 +20,14 @@ from src.modules.billing.models import (  # noqa: F401
     BillAdjustment,
     BillItem,
 )
+from src.modules.dining.models import (  # noqa: F401
+    DiningSession,
+    DiningSessionInvite,
+    DiningSessionParticipant,
+    DiningSessionParticipantPreference,
+    FoodItemRecommendation,
+    FoodItemRecommendationParticipantBreakdown,
+)
 
 EXPECTED_TABLES = {
     "users",
@@ -28,9 +38,18 @@ EXPECTED_TABLES = {
     "ocr_results",
     "menus",
     "food_items",
+    "food_profiles",
+    "food_profile_preferences",
+    "dining_sessions",
+    "dining_session_invites",
+    "dining_session_participants",
+    "dining_session_participant_preferences",
+    "food_item_recommendations",
+    "food_item_recommendation_participant_breakdowns",
     "bills",
     "bill_adjustments",
     "bill_items",
+    "ai_throttle",
 }
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -53,20 +72,27 @@ def test_models_do_not_define_password_columns() -> None:
             assert "password_hash" not in column_names
 
 
+def test_initial_migration_does_not_contain_password_fields() -> None:
+    # 001 predates password_hash (added later by ea82caf848bf); it must stay as authored.
+    path = REPOSITORY_ROOT / "app/alembic/versions/001_create_mvp_schema.py"
+    content = path.read_text(encoding="utf-8")
+    assert "password_hash" not in content
+    assert "password:" not in content
+
+
 @pytest.mark.parametrize(
     "relative_path",
     [
-        "app/alembic/versions/001_create_mvp_schema.py",
         "DB/schema.sql",
         "doc/diagrams/ERD Diagram.drawio",
     ],
 )
-def test_mvp_schema_sources_do_not_contain_password_fields(
+def test_schema_sources_document_password_hash_without_raw_passwords(
     relative_path: str,
 ) -> None:
     content = (REPOSITORY_ROOT / relative_path).read_text(encoding="utf-8")
-    assert "password_hash" not in content
-    assert "password:" not in content
+    assert "password_hash" in content  # must mirror users.password_hash in the model
+    assert "password:" not in content  # raw passwords must never be stored
 
 
 def test_price_and_currency_use_exact_database_types() -> None:

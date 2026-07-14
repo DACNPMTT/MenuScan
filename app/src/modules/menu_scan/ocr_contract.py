@@ -122,6 +122,18 @@ class OcrDocument(BaseModel):
 
 
 class ParsedMenuItemDraft(BaseModel):
+    """One dish as the extraction call read it off the menu.
+
+    Extraction only. Food intelligence (taste tags, taste levels, summaries) and
+    dining verdicts are not part of this contract: they are produced later, by
+    the enrichment pass, straight onto the saved ``FoodItem`` rows. Asking the
+    extraction model for them cost us dishes on long menus — the response hit its
+    output ceiling and came back truncated.
+
+    ``allergens`` and ``dietary_tags`` DO belong here: they are safety data and
+    the extraction model infers them from the printed dish itself.
+    """
+
     model_config = ConfigDict(frozen=True)
 
     original_name: str

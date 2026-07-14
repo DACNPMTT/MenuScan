@@ -1,9 +1,12 @@
-# MenuScan MVP Database Specification
+# MenuScan Database Specification
 
 > Nguồn nghiệp vụ chuẩn: [MenuScan MVP Contract](../mvp-contract.md)
 > Schema thực thi hiện hành là toàn bộ Alembic history trong
 > `app/alembic/versions/`. Migration là nguồn sự thật duy nhất; không duy trì
 > schema SQL thủ công song song.
+> Tài liệu này mô tả schema tại migration head `e8b5d3f07a24` — **19 bảng nghiệp
+> vụ + 1 bảng hạ tầng (`ai_throttle`)**. Toàn bộ bảng ở đây đã được triển khai
+> bằng migration, kể cả nhóm dining/recommendation.
 
 ## 1. Quy ước
 
@@ -24,15 +27,29 @@ erDiagram
     USERS ||--o{ MAGIC_LINK_TOKENS : requests
     USERS ||--o{ USER_SESSIONS : owns
     USERS ||--o{ SCAN_SESSIONS : creates
+    USERS ||--o{ FOOD_PROFILES : owns
+    FOOD_PROFILES ||--o{ FOOD_PROFILE_PREFERENCES : contains
     SCAN_SESSIONS ||--o{ SCAN_SOURCE_FILES : stores
     SCAN_SESSIONS ||--o| OCR_RESULTS : produces
     SCAN_SESSIONS ||--o| MENUS : creates
     MENUS ||--o{ FOOD_ITEMS : contains
+    USERS ||--o{ DINING_SESSIONS : creates
+    SCAN_SESSIONS ||--o| DINING_SESSIONS : attached_to
+    MENUS ||--o| DINING_SESSIONS : produces_recommendations_for
+    DINING_SESSIONS ||--o{ DINING_SESSION_INVITES : exposes
+    DINING_SESSIONS ||--o{ DINING_SESSION_PARTICIPANTS : includes
+    DINING_SESSION_PARTICIPANTS ||--o{ DINING_SESSION_PARTICIPANT_PREFERENCES : declares
+    DINING_SESSIONS ||--o{ FOOD_ITEM_RECOMMENDATIONS : scores
+    FOOD_ITEMS ||--o{ FOOD_ITEM_RECOMMENDATIONS : recommended_as
+    FOOD_ITEM_RECOMMENDATIONS ||--o{ FOOD_ITEM_RECOMMENDATION_PARTICIPANT_BREAKDOWNS : explains
     USERS ||--o{ BILLS : creates
     MENUS ||--o{ BILLS : sourced_by
     BILLS ||--o{ BILL_ITEMS : contains
     BILLS ||--o{ BILL_ADJUSTMENTS : adjusts
 ```
+
+`ai_throttle` (mục 4.19) không xuất hiện trong sơ đồ trên: nó là bảng hạ tầng
+chống spam, không có foreign key và không tham gia quan hệ nghiệp vụ nào.
 
 ## 3. Enum
 
@@ -45,8 +62,12 @@ erDiagram
 | `bill_status` | `DRAFT`, `FINALIZED` |
 | `bill_adjustment_type` | `DISCOUNT`, `SURCHARGE`, `TAX`, `SERVICE_CHARGE`, `ROUNDING` |
 | `bill_adjustment_calculation_type` | `FIXED`, `PERCENTAGE` |
+| `dining_session_mode` | `PERSONAL`, `GROUP` |
+| `dining_session_status` | `COLLECTING`, `SCANNING`, `COMPLETED`, `CLOSED` |
+| `preference_type` | `LIKE`, `DISLIKE`, `AVOID`, `ALLERGY`, `DIETARY_RULE` |
+| `recommendation_verdict` | `RECOMMENDED`, `OK`, `CAUTION`, `AVOID` |
 
-## 4. Bảng MVP
+## 4. Bảng nghiệp vụ
 
 ### 4.1 `users`
 
@@ -201,6 +222,19 @@ tất cả và merge thành một `OcrDocument`.
 | `translated_name` | VARCHAR(255) | NULL |
 | `original_description` | TEXT | NULL |
 | `translated_description` | TEXT | NULL |
+| `assistant_summary` | TEXT | NULL |
+| `main_ingredients` | TEXT[] | NOT NULL, default `{}` |
+| `ingredient_tags` | TEXT[] | NOT NULL, default `{}` |
+| `flavor_tags` | TEXT[] | NOT NULL, default `{}` |
+| `texture_tags` | TEXT[] | NOT NULL, default `{}` |
+| `cooking_methods` | TEXT[] | NOT NULL, default `{}` |
+| `spice_level` | SMALLINT | NULL, `0..5` |
+| `sweetness_level` | SMALLINT | NULL, `0..5` |
+| `saltiness_level` | SMALLINT | NULL, `0..5` |
+| `sourness_level` | SMALLINT | NULL, `0..5` |
+| `richness_level` | SMALLINT | NULL, `0..5` |
+| `oiliness_level` | SMALLINT | NULL, `0..5` |
+| `risk_notes` | TEXT | NULL |
 | `price` | NUMERIC(14,2) | NULL, `>=0` |
 | `currency` | CHAR(3) | NULL |
 | `category` | VARCHAR(100) | NULL |
@@ -214,7 +248,183 @@ tất cả và merge thành một `OcrDocument`.
 Unique `(menu_id, sort_order)`. MVP không lưu `image_url` cho từng món; giao
 diện dùng file gốc của `scan_sessions`.
 
-### 4.8 `bills`
+Các cột `assistant_summary`, `main_ingredients`, `flavor_tags`,
+`cooking_methods` và các `*_level` là dữ liệu khách quan do AI suy luận để item
+menu hoạt động như trợ lý chọn món: món này làm từ gì, vị thế nào, chế biến ra
+sao, cay/ngọt/béo/dầu ở mức nào và có rủi ro chung gì. Kết quả phù hợp với
+người dùng/nhóm không lưu trực tiếp ở `food_items` vì cùng một món có thể hợp
+người này nhưng không hợp người khác.
+
+### 4.8 `food_profiles`
+
+| Cột | Kiểu | Ràng buộc |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `user_id` | UUID | FK `users.id`, NOT NULL, cascade |
+| `display_name` | VARCHAR(150) | NOT NULL |
+| `preferred_language` | VARCHAR(10) | NOT NULL, check language-tag regex |
+| `is_default` | BOOLEAN | NOT NULL, default `FALSE` |
+| `notes` | TEXT | NULL |
+| `created_at` | TIMESTAMPTZ | NOT NULL |
+| `updated_at` | TIMESTAMPTZ | NOT NULL |
+| `deleted_at` | TIMESTAMPTZ | NULL |
+
+`food_profiles` lưu profile ăn uống lâu dài của user đăng nhập. Một user có thể
+có nhiều profile, nhưng mỗi user chỉ nên có một profile mặc định chưa bị xóa.
+Profile này dùng cho flow cá nhân hoặc làm nguồn copy preference vào một phiên
+ăn/chọn món.
+
+Index đề xuất:
+
+- `ix_food_profiles_user_id`
+- unique partial `(user_id) WHERE is_default = true AND deleted_at IS NULL`
+
+### 4.9 `food_profile_preferences`
+
+| Cột | Kiểu | Ràng buộc |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `food_profile_id` | UUID | FK `food_profiles.id`, NOT NULL, cascade |
+| `code` | VARCHAR(80) | NOT NULL |
+| `category` | VARCHAR(40) | NOT NULL |
+| `preference_type` | `preference_type` | NOT NULL |
+| `intensity` | SMALLINT | NULL, `0..5` |
+| `importance` | SMALLINT | NOT NULL, default `3`, `1..5` |
+| `note` | TEXT | NULL |
+| `created_at` | TIMESTAMPTZ | NOT NULL |
+
+Ví dụ `code`: `spicy`, `seafood`, `fish_sauce`, `oily`, `sweet`, `beef`,
+`pork`, `peanut`. `category` phân nhóm như `taste`, `ingredient`, `allergen`,
+`cooking`, `dietary`. `preference_type` phân biệt thích, không thích, tránh,
+dị ứng hoặc luật ăn kiêng.
+
+Unique đề xuất: `(food_profile_id, code, preference_type)`.
+
+### 4.10 `dining_sessions`
+
+| Cột | Kiểu | Ràng buộc |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `created_by_user_id` | UUID | FK `users.id`, NULL cho guest |
+| `scan_session_id` | UUID | FK `scan_sessions.id`, NULL trước khi scan, UNIQUE |
+| `menu_id` | UUID | FK `menus.id`, NULL trước khi scan hoàn tất, UNIQUE |
+| `mode` | `dining_session_mode` | NOT NULL |
+| `status` | `dining_session_status` | NOT NULL, default `COLLECTING` |
+| `target_language` | VARCHAR(10) | NOT NULL, check language-tag regex |
+| `created_at` | TIMESTAMPTZ | NOT NULL |
+| `updated_at` | TIMESTAMPTZ | NOT NULL |
+| `completed_at` | TIMESTAMPTZ | NULL |
+| `closed_at` | TIMESTAMPTZ | NULL |
+| `deleted_at` | TIMESTAMPTZ | NULL |
+
+`dining_sessions` là context dùng để AI recommend. Kể cả flow cá nhân cũng tạo
+session ngầm với `mode = PERSONAL`, một participant và không có invite QR. Flow
+nhóm dùng `mode = GROUP`, tạo invite QR và nhiều participant. Session được tạo
+trước khi scan; sau khi scan xong mới cập nhật `scan_session_id` và `menu_id`.
+
+### 4.11 `dining_session_invites`
+
+| Cột | Kiểu | Ràng buộc |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `dining_session_id` | UUID | FK `dining_sessions.id`, NOT NULL, cascade |
+| `token_hash` | VARCHAR(255) | NOT NULL, UNIQUE |
+| `expires_at` | TIMESTAMPTZ | NULL |
+| `revoked_at` | TIMESTAMPTZ | NULL |
+| `max_uses` | INTEGER | NULL, `>0` |
+| `use_count` | INTEGER | NOT NULL, default `0`, `>=0` |
+| `created_at` | TIMESTAMPTZ | NOT NULL |
+
+QR code chứa raw invite token trong URL; database chỉ lưu hash. Invite hợp lệ
+khi chưa hết hạn, chưa bị revoke và chưa vượt `max_uses` nếu có cấu hình.
+
+### 4.12 `dining_session_participants`
+
+| Cột | Kiểu | Ràng buộc |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `dining_session_id` | UUID | FK `dining_sessions.id`, NOT NULL, cascade |
+| `user_id` | UUID | FK `users.id`, NULL |
+| `display_name` | VARCHAR(150) | NOT NULL |
+| `preferred_language` | VARCHAR(10) | NOT NULL, check language-tag regex |
+| `joined_at` | TIMESTAMPTZ | NOT NULL |
+| `left_at` | TIMESTAMPTZ | NULL |
+
+Mỗi người quét QR tạo một participant trong session, không bắt buộc tài khoản.
+Nếu participant là user đã đăng nhập thì `user_id` có thể được lưu để truy vết,
+nhưng recommendation luôn dùng snapshot trong
+`dining_session_participant_preferences`.
+
+### 4.13 `dining_session_participant_preferences`
+
+| Cột | Kiểu | Ràng buộc |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `participant_id` | UUID | FK `dining_session_participants.id`, NOT NULL, cascade |
+| `code` | VARCHAR(80) | NOT NULL |
+| `category` | VARCHAR(40) | NOT NULL |
+| `preference_type` | `preference_type` | NOT NULL |
+| `intensity` | SMALLINT | NULL, `0..5` |
+| `importance` | SMALLINT | NOT NULL, default `3`, `1..5` |
+| `note` | TEXT | NULL |
+| `created_at` | TIMESTAMPTZ | NOT NULL |
+
+Đây là bản snapshot preference dùng cho đúng session hiện tại. Với user đăng
+nhập, app có thể copy từ `food_profile_preferences`; với guest/quét QR, app lưu
+trực tiếp các lựa chọn họ nhập. Sau khi đã copy vào session, việc user sửa
+profile cá nhân không làm thay đổi recommendation của session cũ.
+
+Unique đề xuất: `(participant_id, code, preference_type)`.
+
+### 4.14 `food_item_recommendations`
+
+| Cột | Kiểu | Ràng buộc |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `dining_session_id` | UUID | FK `dining_sessions.id`, NOT NULL, cascade |
+| `food_item_id` | UUID | FK `food_items.id`, NOT NULL, cascade |
+| `verdict` | `recommendation_verdict` | NOT NULL |
+| `score` | NUMERIC(5,2) | NULL, `0..100` |
+| `explanation` | TEXT | NULL |
+| `why_suitable` | TEXT | NULL |
+| `why_not_suitable` | TEXT | NULL |
+| `suggested_for` | TEXT[] | NOT NULL, default `{}` |
+| `warning_for` | TEXT[] | NOT NULL, default `{}` |
+| `fit_reasons` | TEXT[] | NOT NULL, default `{}` |
+| `risk_reasons` | TEXT[] | NOT NULL, default `{}` |
+| `warning_reasons` | TEXT[] | NOT NULL, default `{}` |
+| `confidence_score` | NUMERIC(5,4) | NULL, `0..1` |
+| `created_at` | TIMESTAMPTZ | NOT NULL |
+
+Recommendation được tạo trong cùng pipeline scan/menu, sau khi AI nhận toàn bộ
+participant preferences của `dining_session`. Bảng này trả lời câu hỏi "món này
+có hợp với session cá nhân/nhóm hiện tại không, vì sao". Không lưu kết quả này
+trực tiếp trên `food_items` vì recommendation phụ thuộc vào từng session.
+
+Unique bắt buộc: `(dining_session_id, food_item_id)`.
+
+### 4.15 `food_item_recommendation_participant_breakdowns`
+
+| Cột | Kiểu | Ràng buộc |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `food_item_recommendation_id` | UUID | FK `food_item_recommendations.id`, NOT NULL, cascade |
+| `participant_id` | UUID | FK `dining_session_participants.id`, NOT NULL, cascade |
+| `verdict` | `recommendation_verdict` | NOT NULL |
+| `score` | NUMERIC(5,2) | NULL, `0..100` |
+| `explanation` | TEXT | NULL |
+| `fit_reasons` | TEXT[] | NOT NULL, default `{}` |
+| `risk_reasons` | TEXT[] | NOT NULL, default `{}` |
+| `created_at` | TIMESTAMPTZ | NOT NULL |
+
+Bảng này dùng cho UI cần giải thích theo từng người: món này hợp ai, không hợp
+ai, và vì sao. Có thể chưa bắt buộc ở MVP đầu tiên nếu UI chỉ cần
+`suggested_for` / `warning_for` ở `food_item_recommendations`, nhưng nên có để
+giữ dữ liệu giải thích ổn định.
+
+Unique bắt buộc: `(food_item_recommendation_id, participant_id)`.
+
+### 4.16 `bills`
 
 | Cột | Kiểu | Ràng buộc |
 | --- | --- | --- |
@@ -234,7 +444,7 @@ diện dùng file gốc của `scan_sessions`.
 `finalized_at` bắt buộc có giá trị khi `status = FINALIZED`. Bill `FINALIZED`
 không cho phép sửa items hoặc adjustments.
 
-### 4.9 `bill_items`
+### 4.17 `bill_items`
 
 | Cột | Kiểu | Ràng buộc |
 | --- | --- | --- |
@@ -253,7 +463,7 @@ không cho phép sửa items hoặc adjustments.
 `food_item_id` chỉ dùng để truy xuất nguồn gốc; `name_snapshot` và
 `unit_price_snapshot` là giá trị tại thời điểm thêm vào bill.
 
-### 4.10 `bill_adjustments`
+### 4.18 `bill_adjustments`
 
 | Cột | Kiểu | Ràng buộc |
 | --- | --- | --- |
@@ -270,6 +480,29 @@ không cho phép sửa items hoặc adjustments.
 các loại còn lại). Mỗi adjustment được tính độc lập từ `subtotal_amount`, không
 cộng dồn trên running total. Khi `calculation_type = PERCENTAGE`, `value <= 100`.
 
+### 4.19 `ai_throttle`
+
+Bảng hạ tầng (không phải nghiệp vụ), định nghĩa tại `app/src/core/rate_limit.py`.
+Chống spam các lời gọi tốn tiền vào AI (scan, chat).
+
+| Cột | Kiểu | Ràng buộc |
+| --- | --- | --- |
+| `subject_type` | VARCHAR(8) | PK (composite), `user` hoặc `ip` |
+| `subject_id` | VARCHAR(255) | PK (composite), user id hoặc địa chỉ IP |
+| `action` | VARCHAR(16) | PK (composite), `scan` hoặc `chat` |
+| `last_at` | TIMESTAMPTZ | NOT NULL, default `now()` |
+
+PK là bộ ba `(subject_type, subject_id, action)` — mỗi subject có đúng một dòng
+cho mỗi loại hành động, giữ nguyên mốc thời gian gọi gần nhất.
+
+Đây **không** phải quota theo ngày, chỉ là khoảng cách tối thiểu giữa hai lời
+gọi (`SCAN_MIN_GAP_SECONDS`, `CHAT_MIN_GAP_SECONDS`). Guest bị throttle theo IP,
+user đã đăng nhập bị throttle theo user id.
+
+Kiểm tra được thực hiện bằng **một upsert atomic duy nhất trong Postgres**, cùng
+cơ chế với cooldown magic-link. Đây là lý do hệ thống **không cần Redis** — xem
+`doc/ai/database.md`.
+
 ## 5. Quy tắc toàn vẹn
 
 1. Guest được tạo `scan_sessions` với `user_id = NULL`.
@@ -281,8 +514,15 @@ cộng dồn trên running total. Khi `calculation_type = PERCENTAGE`, `value <=
 7. Xóa user phải thu hồi session; dữ liệu nghiệp vụ dùng soft delete.
 8. Bill `FINALIZED` không được sửa items hoặc adjustments.
 9. Bill chỉ được tạo trên menu thuộc chính user đó.
+10. `food_items` lưu thông tin khách quan của món; recommendation theo cá nhân/nhóm phải lưu ở `food_item_recommendations`.
+11. Flow cá nhân vẫn tạo `dining_sessions` với `mode = PERSONAL`, một participant và không có invite QR.
+12. Flow nhóm tạo `dining_sessions` với `mode = GROUP`; participant quét QR không bắt buộc có tài khoản.
+13. AI recommendation dùng snapshot trong `dining_session_participant_preferences`, không đọc trực tiếp profile cá nhân sau khi session đã bắt đầu scan.
+14. `dining_sessions.status = COMPLETED` phải có `scan_session_id`, `menu_id` và recommendation cho các món được AI đánh giá.
+15. Invite token QR chỉ lưu dạng hash; raw token không lưu database.
 
 ## 6. Phạm vi mở rộng
 
-Dashboard analytics, order và các tính năng ngoài bảng hiện tại phải được thiết
-kế bằng migration mới và cập nhật contract/auth/scan nếu làm đổi hành vi.
+Dashboard analytics, order, thanh toán online và các tính năng ngoài bảng hiện
+tại phải được thiết kế bằng migration mới và cập nhật contract/auth/scan nếu làm
+đổi hành vi.

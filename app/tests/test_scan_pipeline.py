@@ -296,6 +296,51 @@ def _create_scan_session(
     return scan
 
 
+def test_pipeline_links_an_existing_group_dining_session_to_the_menu(
+    db_session_factory: sessionmaker[Session],
+) -> None:
+    """A host who scans for their table must still get the menu linked back.
+
+    This is the one dining thing the scan still does — a SELECT and an UPDATE, no
+    scoring. Without it the menu screen cannot find the session and would serve
+    the host a personal verdict on a group menu.
+    """
+    from src.modules.dining.models import (
+        DiningSession,
+        DiningSessionMode,
+        DiningSessionStatus,
+        FoodItemRecommendation,
+    )
+
+    with db_session_factory() as session:
+        scan = _create_scan_session(session)
+        scan_id = scan.id
+        dining_session = DiningSession(
+            created_by_user_id=scan.user_id,
+            scan_session_id=scan_id,
+            mode=DiningSessionMode.GROUP,
+            status=DiningSessionStatus.SCANNING,
+        )
+        session.add(dining_session)
+        session.commit()
+        dining_session_id = dining_session.id
+
+    pipeline = _build_pipeline(db_session_factory, menu_parser=FakeMenuParser())
+    pipeline.process(scan_id)
+
+    with db_session_factory() as session:
+        scan = session.get(ScanSession, scan_id)
+        assert scan is not None and scan.menu is not None
+
+        dining_session = session.get(DiningSession, dining_session_id)
+        assert dining_session is not None
+        assert dining_session.menu_id == scan.menu.id
+        assert dining_session.status == DiningSessionStatus.COMPLETED
+
+        # Linked, but NOT scored: the dishes have no tags yet.
+        assert session.query(FoodItemRecommendation).count() == 0
+
+
 def _build_pipeline(
     session_factory: sessionmaker[Session],
     *,
@@ -342,7 +387,8 @@ def test_happy_path_pending_to_completed(
         scan = _create_scan_session(session)
         scan_id = scan.id
 
-    pipeline = _build_pipeline(db_session_factory)
+    parser = FakeMenuParser()
+    pipeline = _build_pipeline(db_session_factory, menu_parser=parser)
     pipeline.process(scan_id)
 
     with db_session_factory() as session:
@@ -370,6 +416,28 @@ def test_happy_path_pending_to_completed(
         assert item_0.original_name == "Phở bò"
         assert item_0.price == Decimal("60000.00")
         assert item_0.currency == "VND"
+
+        # A scan produces a menu. Nothing else.
+        #
+        # It used to also invent a dining session per scan and score a verdict for
+        # every dish — against tags that do not exist yet, since tagging is the
+        # enrichment pass's job. Every dish came out "100/100 recommended". Those
+        # assertions are inverted here on purpose: this is the guard.
+        from src.modules.dining.models import DiningSession, FoodItemRecommendation
+
+        assert item_0.assistant_summary is None
+        assert item_0.ingredient_tags == []
+        assert item_0.flavor_tags == []
+        assert item_0.spice_level is None
+        # allergens/dietary_tags DO come from extraction — they are safety data.
+
+        assert (
+            session.query(DiningSession)
+            .filter(DiningSession.scan_session_id == scan_id)
+            .count()
+            == 0
+        )
+        assert session.query(FoodItemRecommendation).count() == 0
 
 
 def test_pipeline_forwards_page_images_when_attach_images(

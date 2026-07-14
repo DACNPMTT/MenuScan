@@ -14,6 +14,7 @@ from sqlalchemy import (
     Index,
     Integer,
     Numeric,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -121,6 +122,44 @@ class FoodItem(Base):
     translated_name: Mapped[str | None] = mapped_column(String(255))
     original_description: Mapped[str | None] = mapped_column(Text)
     translated_description: Mapped[str | None] = mapped_column(Text)
+    assistant_summary: Mapped[str | None] = mapped_column(Text)
+    main_ingredients: Mapped[list[str]] = mapped_column(
+        ARRAY(Text),
+        nullable=False,
+        default=list,
+        server_default=text("'{}'::text[]"),
+    )
+    ingredient_tags: Mapped[list[str]] = mapped_column(
+        ARRAY(Text),
+        nullable=False,
+        default=list,
+        server_default=text("'{}'::text[]"),
+    )
+    flavor_tags: Mapped[list[str]] = mapped_column(
+        ARRAY(Text),
+        nullable=False,
+        default=list,
+        server_default=text("'{}'::text[]"),
+    )
+    texture_tags: Mapped[list[str]] = mapped_column(
+        ARRAY(Text),
+        nullable=False,
+        default=list,
+        server_default=text("'{}'::text[]"),
+    )
+    cooking_methods: Mapped[list[str]] = mapped_column(
+        ARRAY(Text),
+        nullable=False,
+        default=list,
+        server_default=text("'{}'::text[]"),
+    )
+    spice_level: Mapped[int | None] = mapped_column(SmallInteger)
+    sweetness_level: Mapped[int | None] = mapped_column(SmallInteger)
+    saltiness_level: Mapped[int | None] = mapped_column(SmallInteger)
+    sourness_level: Mapped[int | None] = mapped_column(SmallInteger)
+    richness_level: Mapped[int | None] = mapped_column(SmallInteger)
+    oiliness_level: Mapped[int | None] = mapped_column(SmallInteger)
+    risk_notes: Mapped[str | None] = mapped_column(Text)
     price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     currency: Mapped[str | None] = mapped_column(CHAR(3))
     category: Mapped[str | None] = mapped_column(String(100))
@@ -160,6 +199,30 @@ class FoodItem(Base):
             name="uq_food_items_menu_id_sort_order",
         ),
         CheckConstraint("price >= 0", name="price_non_negative"),
+        CheckConstraint(
+            "spice_level BETWEEN 0 AND 5",
+            name="spice_level",
+        ),
+        CheckConstraint(
+            "sweetness_level BETWEEN 0 AND 5",
+            name="sweetness_level",
+        ),
+        CheckConstraint(
+            "saltiness_level BETWEEN 0 AND 5",
+            name="saltiness_level",
+        ),
+        CheckConstraint(
+            "sourness_level BETWEEN 0 AND 5",
+            name="sourness_level",
+        ),
+        CheckConstraint(
+            "richness_level BETWEEN 0 AND 5",
+            name="richness_level",
+        ),
+        CheckConstraint(
+            "oiliness_level BETWEEN 0 AND 5",
+            name="oiliness_level",
+        ),
         CheckConstraint(
             "confidence_score BETWEEN 0 AND 1",
             name="confidence",

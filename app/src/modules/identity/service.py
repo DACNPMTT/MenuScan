@@ -6,6 +6,7 @@ Synchronous to match the existing SQLAlchemy ``Session`` layer.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import logging
 import secrets
 import uuid
@@ -21,6 +22,7 @@ from src.modules.identity.adapters.email import EmailDeliveryError, EmailSender
 from src.modules.identity.exceptions import (
     RESEND_COOLDOWN_SECONDS,
     EmailServiceUnavailableError,
+    FoodProfileNotFoundError,
     InvalidCredentialsError,
     InvalidMagicLinkError,
     MagicLinkExpiredError,
@@ -30,18 +32,25 @@ from src.modules.identity.exceptions import (
     UnauthorizedError,
 )
 from src.modules.identity.models import (
+    FoodProfile,
+    FoodProfilePreference,
     MagicLinkToken,
+    PreferenceType,
     User,
     UserRole,
     UserSession,
     UserStatus,
 )
 from src.modules.identity.repository import (
+    FoodProfileRepository,
     MagicLinkTokenRepository,
     UserRepository,
     UserSessionRepository,
 )
-from src.modules.identity.schemas import MagicLinkData
+from src.modules.identity.schemas import (
+    FoodProfilePreferenceRequest,
+    MagicLinkData,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +119,7 @@ class MagicLinkService:
         base_url: str,
         user_repository: UserRepository | None = None,
         session_repository: UserSessionRepository | None = None,
+        food_profile_repository: FoodProfileRepository | None = None,
         secret_key: str | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
@@ -119,6 +129,9 @@ class MagicLinkService:
         self._base_url = base_url
         self._user_repository = user_repository or UserRepository()
         self._session_repository = session_repository or UserSessionRepository()
+        self._food_profile_repository = (
+            food_profile_repository or FoodProfileRepository()
+        )
         self._secret_key = secret_key or settings.secret_key
         self._clock = clock or _utcnow
 
@@ -293,6 +306,200 @@ class MagicLinkService:
         self._session.commit()
         return user
 
+    def list_food_profiles(self, user: User) -> list[FoodProfile]:
+        """Return active food profiles owned by the current user."""
+        return self._food_profile_repository.list_by_user(self._session, user.id)
+
+    def get_food_profile(
+        self,
+        user: User,
+        *,
+        profile_id: uuid.UUID,
+    ) -> FoodProfile:
+        """Return one food profile owned by the current user."""
+        profile = self._food_profile_repository.get_owned(
+            self._session,
+            user_id=user.id,
+            profile_id=profile_id,
+        )
+        if profile is None:
+            raise FoodProfileNotFoundError()
+        return profile
+
+    def create_food_profile(
+        self,
+        user: User,
+        *,
+        display_name: str,
+        preferred_language: str,
+        is_default: bool,
+        notes: str | None,
+        preferences: list[FoodProfilePreferenceRequest],
+    ) -> FoodProfile:
+        """Create a persistent food profile for a signed-in user."""
+        now = self._clock()
+        should_be_default = is_default or not self._food_profile_repository.has_active_profiles(
+            self._session,
+            user.id,
+        )
+        if should_be_default:
+            self._food_profile_repository.clear_default(self._session, user_id=user.id)
+
+        profile = FoodProfile(
+            user_id=user.id,
+            display_name=display_name,
+            preferred_language=preferred_language,
+            is_default=should_be_default,
+            notes=notes,
+            created_at=now,
+            updated_at=now,
+        )
+        profile.preferences = self._build_food_profile_preferences(preferences)
+        self._food_profile_repository.add(self._session, profile)
+
+        if profile.is_default:
+            self._sync_user_dietary_snapshot_from_profile(user, profile)
+        user.updated_at = now
+        self._session.commit()
+        return profile
+
+    def update_food_profile(
+        self,
+        user: User,
+        *,
+        profile_id: uuid.UUID,
+        display_name: str | None | object = _UNSET,
+        preferred_language: str | object = _UNSET,
+        is_default: bool | object = _UNSET,
+        notes: str | None | object = _UNSET,
+        preferences: list[FoodProfilePreferenceRequest] | object = _UNSET,
+    ) -> FoodProfile:
+        """Update a food profile owned by the current user."""
+        profile = self._food_profile_repository.get_owned(
+            self._session,
+            user_id=user.id,
+            profile_id=profile_id,
+        )
+        if profile is None:
+            raise FoodProfileNotFoundError()
+
+        now = self._clock()
+        if display_name is not _UNSET and isinstance(display_name, str):
+            profile.display_name = display_name
+        if preferred_language is not _UNSET and isinstance(preferred_language, str):
+            profile.preferred_language = preferred_language
+        if notes is not _UNSET:
+            profile.notes = notes if isinstance(notes, str) else None
+        if is_default is not _UNSET and isinstance(is_default, bool):
+            if is_default:
+                self._food_profile_repository.clear_default(
+                    self._session,
+                    user_id=user.id,
+                    exclude_profile_id=profile.id,
+                )
+            profile.is_default = is_default
+        if preferences is not _UNSET and isinstance(preferences, list):
+            self._food_profile_repository.replace_preferences(
+                self._session,
+                profile,
+                self._build_food_profile_preferences(preferences),
+            )
+
+        profile.updated_at = now
+        user.updated_at = now
+        if profile.is_default:
+            self._sync_user_dietary_snapshot_from_profile(user, profile)
+        self._session.commit()
+        return profile
+
+    def delete_food_profile(self, user: User, *, profile_id: uuid.UUID) -> None:
+        """Soft-delete a food profile owned by the current user."""
+        profile = self._food_profile_repository.get_owned(
+            self._session,
+            user_id=user.id,
+            profile_id=profile_id,
+        )
+        if profile is None:
+            raise FoodProfileNotFoundError()
+
+        now = self._clock()
+        was_default = profile.is_default
+        profile.deleted_at = now
+        profile.is_default = False
+        profile.updated_at = now
+        user.updated_at = now
+
+        if was_default:
+            self._session.flush()
+            remaining = self._food_profile_repository.list_by_user(self._session, user.id)
+            next_default = next(
+                (item for item in remaining if item.id != profile.id),
+                None,
+            )
+            if next_default is not None:
+                next_default.is_default = True
+                next_default.updated_at = now
+                self._sync_user_dietary_snapshot_from_profile(user, next_default)
+            else:
+                user.allergies = []
+                user.dietary_preferences = []
+
+        self._session.commit()
+
+    @staticmethod
+    def _build_food_profile_preferences(
+        preferences: list[FoodProfilePreferenceRequest],
+    ) -> list[FoodProfilePreference]:
+        seen: set[tuple[str, str]] = set()
+        records: list[FoodProfilePreference] = []
+        for item in preferences:
+            if isinstance(item, dict):
+                code = str(item["code"])
+                category = str(item["category"])
+                preference_type = str(item["preference_type"])
+                intensity = item.get("intensity")
+                importance = int(item.get("importance", 3))
+                note = item.get("note")
+            else:
+                code = item.code
+                category = item.category
+                preference_type = item.preference_type
+                intensity = item.intensity
+                importance = item.importance
+                note = item.note
+
+            key = (code, preference_type)
+            if key in seen:
+                continue
+            seen.add(key)
+            records.append(
+                FoodProfilePreference(
+                    code=code,
+                    category=category,
+                    preference_type=PreferenceType(preference_type),
+                    intensity=intensity,
+                    importance=importance,
+                    note=note,
+                )
+            )
+        return records
+
+    @staticmethod
+    def _sync_user_dietary_snapshot_from_profile(
+        user: User,
+        profile: FoodProfile,
+    ) -> None:
+        user.allergies = [
+            item.code
+            for item in profile.preferences
+            if item.preference_type == PreferenceType.ALLERGY
+        ]
+        user.dietary_preferences = [
+            item.code
+            for item in profile.preferences
+            if item.preference_type == PreferenceType.DIETARY_RULE
+        ]
+
     # --- Traditional Password Login -------------------------------------------
 
     def login_with_password(
@@ -365,7 +572,7 @@ class MagicLinkService:
             raise SessionRevokedError()
 
         incoming_hash = hash_token(raw_token_secret)
-        if incoming_hash != user_session.refresh_token_hash:
+        if not hmac.compare_digest(incoming_hash, user_session.refresh_token_hash):
             # REPLAY ATTACK: Revoke entire session chain
             logger.warning(
                 "refresh_token_reuse_detected session_id=%s",
