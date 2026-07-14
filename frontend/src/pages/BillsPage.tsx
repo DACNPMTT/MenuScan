@@ -6,6 +6,7 @@ import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
 import { ApiError, apiRequest } from '@/shared/lib/api'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
+import { Spinner } from '@/shared/components/Spinner'
 import { formatMoney } from '@/features/menu-scan/lib'
 import { PageTransition } from '@/shared/components/motion/PageTransition'
 import { Reveal } from '@/shared/components/motion/Reveal'
@@ -15,6 +16,7 @@ import { EmptyState } from '@/shared/components/EmptyState'
 import { Button } from '@/shared/components/ui/button'
 import { Badge } from '@/shared/components/ui/badge'
 import { DatePicker } from '@/shared/components/ui/date-picker'
+import { Pagination } from '@/shared/components/ui/pagination'
 import type { BillStatus, BillSummary } from '@/features/billing/types'
 
 type StatusFilter = 'ALL' | BillStatus
@@ -46,6 +48,9 @@ export function BillsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const PAGE_SIZE = 5
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -98,6 +103,16 @@ export function BillsPage() {
       }),
     [bills, statusFilter, fromDate, toDate],
   )
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [statusFilter, fromDate, toDate])
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+  const paginatedBills = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return filtered.slice(start, start + PAGE_SIZE)
+  }, [filtered, currentPage])
 
   const clearFilters = () => {
     setStatusFilter('ALL')
@@ -181,9 +196,8 @@ export function BillsPage() {
 
         {loading && (
           <SectionCard>
-            <div className="flex items-center justify-center gap-2 py-8 text-[14px] text-ink-variant">
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-              {t('bills.loading')}
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-ink-variant">
+              <Spinner label={t('bills.loading')} />
             </div>
           </SectionCard>
         )}
@@ -220,7 +234,7 @@ export function BillsPage() {
 
         {!loading && filtered.length > 0 && (
           <div className="flex flex-col gap-3">
-            {filtered.map((bill, index) => (
+            {paginatedBills.map((bill, index) => (
               <Reveal key={bill.id} delay={Math.min(index * 0.04, 0.24)}>
                 <div className="flex items-center gap-2 overflow-hidden rounded-2xl border border-border bg-surface pr-2 shadow-2 transition-all duration-200 ease-[var(--ease-out-quint)] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-3">
                   <Link
@@ -264,6 +278,13 @@ export function BillsPage() {
                 </div>
               </Reveal>
             ))}
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            )}
           </div>
         )}
       </div>

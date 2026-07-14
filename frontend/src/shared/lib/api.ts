@@ -70,6 +70,13 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   })
 
+  // Thêm độ trễ 800ms khi chạy ở môi trường DEV (Localhost) để lập trình viên
+  // và người dùng nội bộ có thể kịp thời ngắm hiệu ứng loading Sầu Riêng lăn.
+  // Khi build ra Production (thực tế), lệnh này sẽ không được chạy.
+  if (import.meta.env.DEV) {
+    await new Promise((resolve) => setTimeout(resolve, 800))
+  }
+
   const json = (await response.json().catch(() => null)) as Envelope<T> | null
 
   if (!response.ok || !json?.success) {
@@ -112,6 +119,11 @@ export async function apiRequestWithMeta<T = unknown, M = unknown>(
     headers: requestHeaders,
     credentials: 'include',
   })
+
+  // Thêm độ trễ 800ms ở môi trường DEV để trải nghiệm loading state
+  if (import.meta.env.DEV) {
+    await new Promise((resolve) => setTimeout(resolve, 800))
+  }
 
   // Auto-refresh once on a 401 when we had a token. Single-flight: concurrent
   // 401s share the one in-flight refresh via auth-token; if another call has

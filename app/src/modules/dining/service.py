@@ -299,10 +299,12 @@ class DiningSessionService:
         *,
         mode: str,
         invite_expires_in_hours: int | None,
+        name: str | None = None,
     ) -> DiningSessionInviteBundle:
         now = self._clock()
         invite_token = self._create_invite_token()
         dining_session = DiningSession(
+            name=name,
             created_by_user_id=user.id,
             mode=DiningSessionMode(mode),
             status=DiningSessionStatus.COLLECTING,

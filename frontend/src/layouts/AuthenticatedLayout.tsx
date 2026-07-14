@@ -15,6 +15,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Spinner } from '@/shared/components/Spinner'
 import { LanguageSwitcher } from '@/shared/components/LanguageSwitcher'
+import { MenuScanLogo } from '@/shared/components/mascot/NonLaMark'
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
 import { RouteErrorFallback } from '@/shared/components/RouteErrorFallback'
 import { Button } from '@/shared/components/ui/button'
@@ -67,8 +68,8 @@ export function AuthenticatedLayout() {
             aria-label="MenuScan app"
             className="flex items-center gap-2.5"
           >
-            <span className="flex size-9 items-center justify-center rounded-2xl bg-primary text-white shadow-2 shadow-primary/40 sm:size-10">
-              <ScanText className="size-5 sm:size-[22px]" aria-hidden />
+            <span className="flex size-9 items-center justify-center rounded-2xl bg-[#d7ffb8] sm:size-10">
+              <MenuScanLogo size={26} />
             </span>
             <span className="block text-[22px] font-extrabold leading-none tracking-tight text-ink sm:text-[26px]">
               MenuScan
@@ -221,8 +222,8 @@ export function AuthenticatedLayout() {
 
       <footer className="flex shrink-0 flex-col items-center gap-3 border-t border-border bg-panel px-4 py-[24px] text-center sm:flex-row sm:justify-between sm:gap-3 sm:px-[50px] sm:py-[28px] sm:text-left">
         <div className="flex items-center gap-2">
-          <span className="flex size-8 items-center justify-center rounded-xl bg-primary text-white shadow-1">
-            <ScanText className="size-4" aria-hidden />
+          <span className="flex size-8 items-center justify-center rounded-xl bg-[#d7ffb8] shadow-1">
+            <MenuScanLogo size={22} />
           </span>
           <span className="text-[18px] font-extrabold leading-none tracking-tight text-ink">
             MenuScan

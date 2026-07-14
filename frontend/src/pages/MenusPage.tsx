@@ -21,6 +21,8 @@ import { PageTransition } from '@/shared/components/motion/PageTransition'
 import { Reveal } from '@/shared/components/motion/Reveal'
 import { SectionCard } from '@/shared/components/SectionCard'
 import { EmptyState } from '@/shared/components/EmptyState'
+import { Spinner } from '@/shared/components/Spinner'
+import { Pagination } from '@/shared/components/ui/pagination'
 import { API_BASE_URL } from '@/features/menu-scan/lib'
 import type {
   MenuSource,
@@ -28,7 +30,7 @@ import type {
   PaginationMeta,
 } from '@/features/menu-scan/types'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 5
 
 function formatTime(value: string): string {
   const date = new Date(value)
@@ -47,23 +49,19 @@ export function MenusPage() {
   const [menus, setMenus] = useState<MenuSummary[]>([])
   const [meta, setMeta] = useState<PaginationMeta | null>(null)
   const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const loadMenus = useCallback(
     async (page: number) => {
-      if (page === 1) setLoading(true)
-      else setLoadingMore(true)
+      setLoading(true)
       setError(null)
       try {
         const result = await apiRequestWithMeta<MenuSummary[], PaginationMeta>(
           `/api/v1/menus?page=${page}&page_size=${PAGE_SIZE}`,
           { method: 'GET', token: accessToken ?? undefined },
         )
-        setMenus((current) =>
-          page === 1 ? result.data : [...current, ...result.data],
-        )
+        setMenus(result.data)
         setMeta(result.meta)
       } catch (err) {
         setError(
@@ -71,7 +69,6 @@ export function MenusPage() {
         )
       } finally {
         setLoading(false)
-        setLoadingMore(false)
       }
     },
     [accessToken, t],
@@ -102,7 +99,7 @@ export function MenusPage() {
     }
   }
 
-  const canLoadMore = meta ? meta.page < meta.total_pages : false
+
 
   return (
     <PageTransition className="mx-auto w-full max-w-[1200px] px-4 py-[30px] sm:px-[50px] sm:py-[40px]">
@@ -158,9 +155,9 @@ export function MenusPage() {
         bodyClassName="flex flex-col gap-3"
       >
         {loading ? (
-          <MenuMessage icon={<Loader2 className="size-7 animate-spin" />}>
-            {t('menus.loading')}
-          </MenuMessage>
+          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-hairline bg-surface py-[60px] text-ink-variant shadow-1">
+            <Spinner label={t('menus.loading')} />
+          </div>
         ) : menus.length === 0 ? (
           <EmptyState
             icon={Utensils}
@@ -186,23 +183,12 @@ export function MenusPage() {
                 />
               </Reveal>
             ))}
-            {canLoadMore && (
-              <div className="flex justify-center pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => meta && void loadMenus(meta.page + 1)}
-                  disabled={loadingMore}
-                  className="border-primary text-primary hover:bg-primary/10 hover:text-primary"
-                >
-                  {loadingMore ? (
-                    <Loader2 className="animate-spin" aria-hidden />
-                  ) : (
-                    <RefreshCw aria-hidden />
-                  )}
-                  {t('menus.loadMore')}
-                </Button>
-              </div>
+            {meta && meta.total_pages > 1 && (
+              <Pagination
+                currentPage={meta.page}
+                totalPages={meta.total_pages}
+                onPageChange={(page) => void loadMenus(page)}
+              />
             )}
           </>
         )}

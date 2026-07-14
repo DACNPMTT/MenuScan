@@ -19,6 +19,7 @@ import {
   Users,
   XCircle,
 } from 'lucide-react'
+import { Spinner } from '@/shared/components/Spinner'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
@@ -981,9 +982,8 @@ export function MenuDetailPage() {
         )}
 
         {loading ? (
-          <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface px-4 py-[70px] text-center text-ink-variant shadow-1">
-            <Loader2 className="size-8 animate-spin text-primary-dark" aria-hidden />
-            {t('menuDetail.loading')}
+          <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-surface px-4 py-[70px] text-center text-ink-variant shadow-1">
+            <Spinner label={t('menuDetail.loading')} />
           </div>
         ) : menu ? (
           <>

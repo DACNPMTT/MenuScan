@@ -7,7 +7,6 @@ import {
   Users,
   Clock,
   RefreshCw,
-  Loader2,
   AlertCircle,
   Maximize2,
   Minimize2,
@@ -26,6 +25,7 @@ import { EmptyState } from '@/shared/components/EmptyState'
 import { Reveal } from '@/shared/components/motion/Reveal'
 import { PageTransition } from '@/shared/components/motion/PageTransition'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
+import { Spinner } from '@/shared/components/Spinner'
 
 interface DiningPreference {
   id: string
@@ -213,8 +213,7 @@ export function HostDiningSessionPage() {
   if (loading) {
     return (
       <PageTransition className="flex h-[60vh] w-full flex-col items-center justify-center text-ink-variant">
-        <Loader2 className="mb-3 size-10 animate-spin text-primary" aria-hidden />
-        <p className="text-[15px] font-medium">{t('common.loading') || 'Loading...'}</p>
+        <Spinner label={t('common.loading') || 'Loading...'} />
       </PageTransition>
     )
   }

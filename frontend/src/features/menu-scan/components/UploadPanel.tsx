@@ -35,6 +35,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 interface SimpleDiningSession {
   id: string
+  name: string | null
   status: string
 }
 
@@ -538,7 +539,7 @@ export function UploadPanel() {
                   )}
                   {diningSessions.map((session: SimpleDiningSession) => (
                     <SelectItem key={session.id} value={session.id}>
-                      Phiên ăn {session.id.slice(0, 8)}
+                      {session.name || `Phiên ăn ${session.id.slice(0, 8)}`}
                     </SelectItem>
                   ))}
                 </SelectContent>

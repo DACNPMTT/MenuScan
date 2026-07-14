@@ -5,6 +5,7 @@ import { Bot, Loader2, Plus, Send, X } from 'lucide-react'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { motion } from 'motion/react'
 import { Button } from '@/shared/components/ui/button'
+import { MenuScanLogo } from '@/shared/components/mascot/NonLaMark'
 
 /** Seconds the server told us to wait, from the 429's `details.retry_after`. */
 function retryAfterSeconds(details: unknown): number {
@@ -269,7 +270,7 @@ export const AssistantChat = memo(function AssistantChat({
   return (
     <div
       ref={containerRef}
-      className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3"
+      className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3 sm:bottom-5 sm:right-5"
       // While open, ignore the parked position so the bubble + panel snap to the
       // bottom-right corner. When closed, sit wherever the bubble was dragged.
       style={
@@ -279,10 +280,12 @@ export const AssistantChat = memo(function AssistantChat({
       }
     >
       {open && (
-        <div className="flex h-[min(78vh,600px)] w-[min(92vw,440px)] flex-col overflow-hidden rounded-3xl border border-hairline bg-surface shadow-pop">
-          <div className="flex items-center justify-between gap-2 border-b border-hairline bg-surface-muted px-4 py-3">
-            <div className="flex items-center gap-2 text-[14px] font-bold text-ink">
-              <Bot className="size-4 shrink-0 text-primary-dark" aria-hidden />
+        <div className="flex h-[82dvh] w-[calc(100vw-32px)] flex-col overflow-hidden rounded-3xl border border-hairline bg-surface shadow-pop sm:h-[min(78vh,600px)] sm:w-[440px]">
+          <div className="flex items-center justify-between gap-2 border-b border-black/5 bg-gradient-to-r from-[#d7ffb8]/60 to-white px-5 py-4">
+            <div className="flex items-center gap-2.5 text-[15px] font-extrabold text-[#042c60]">
+              <div className="flex size-8 items-center justify-center rounded-full bg-white shadow-sm">
+                <MenuScanLogo size={20} className="shrink-0" />
+              </div>
               {t('chat.title')}
             </div>
             <Button
@@ -296,9 +299,27 @@ export const AssistantChat = memo(function AssistantChat({
             </Button>
           </div>
 
-          <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 py-3">
+          <div className="flex flex-1 flex-col gap-4 overflow-y-auto bg-[#fafafa] px-5 py-6">
             {messages.length === 0 ? (
-              <p className="text-[13px] text-ink-variant">{t('chat.hint')}</p>
+              <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+                <motion.div 
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.4, type: 'spring' }}
+                  className="flex size-16 items-center justify-center rounded-full bg-[#d7ffb8] shadow-sm"
+                >
+                  <MenuScanLogo size={40} />
+                </motion.div>
+                <motion.div 
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.4, delay: 0.1 }}
+                  className="space-y-1.5"
+                >
+                  <h3 className="text-[17px] font-extrabold text-[#042c60]">MenuScan Assistant</h3>
+                  <p className="mx-auto max-w-[240px] text-[14px] leading-relaxed text-[#777777]">{t('chat.hint')}</p>
+                </motion.div>
+              </div>
             ) : (
               messages.map((message) => (
                 <motion.div
@@ -361,10 +382,10 @@ export const AssistantChat = memo(function AssistantChat({
 
           <form
             onSubmit={send}
-            className="relative flex items-center gap-2 border-t border-hairline px-3 py-3"
+            className="relative flex items-end gap-2 bg-white px-4 py-3 shadow-[0_-4px_24px_rgba(0,0,0,0.03)]"
           >
             {pickerOpen && selectedDishes.length > 0 && (
-              <div className="absolute bottom-[calc(100%+4px)] left-3 z-10 max-h-[220px] w-[260px] overflow-y-auto rounded-2xl border border-hairline bg-surface py-1 shadow-3">
+              <div className="absolute bottom-[calc(100%+8px)] left-4 z-10 max-h-[220px] w-[260px] overflow-y-auto rounded-2xl border border-hairline bg-surface py-1 shadow-3">
                 <button
                   type="button"
                   onClick={focusAll}
@@ -387,31 +408,30 @@ export const AssistantChat = memo(function AssistantChat({
             <Button
               type="button"
               variant="outline"
-              size="icon"
+              className="size-11 shrink-0 rounded-full border-[#e5e5e5] text-[#777777] hover:bg-[#f5f5f5] hover:text-[#042c60]"
               onClick={() => setPickerOpen((value) => !value)}
               disabled={selectedDishes.length === 0}
               aria-label={t('chat.pickDish')}
             >
-              <Plus className="size-4" aria-hidden />
+              <Plus className="size-5" aria-hidden />
             </Button>
             <input
               value={input}
               onChange={(event) => setInput(event.target.value)}
               placeholder={t('chat.placeholder')}
-              className="min-h-10 flex-1 rounded-full border border-hairline bg-canvas px-4 text-[14px] text-ink outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+              className="min-h-11 flex-1 rounded-3xl border border-[#e5e5e5] bg-[#fdfdfc] px-5 py-2.5 text-[14px] text-[#042c60] outline-none transition-all placeholder:text-[#afafaf] focus:border-[#58cc02] focus:bg-white focus:ring-2 focus:ring-[#58cc02]/20"
             />
             <Button
               type="submit"
-              variant="default"
-              size="icon"
+              className="size-11 shrink-0 rounded-full bg-[#58cc02] text-white shadow-sm transition-transform hover:scale-105 hover:bg-[#4ea802] disabled:opacity-50 disabled:hover:scale-100"
               disabled={loading || cooldown > 0 || !input.trim()}
               aria-label={t('chat.send')}
             >
-              {cooldown > 0 ? cooldown : <Send className="size-4" aria-hidden />}
+              {cooldown > 0 ? cooldown : <Send className="size-4 -translate-x-[1px] translate-y-[1px]" aria-hidden />}
             </Button>
           </form>
 
-          <p className="border-t border-hairline px-4 py-2 text-[11px] text-ink-variant">
+          <p className="bg-white px-4 pb-3 pt-1 text-center text-[11px] text-[#afafaf]">
             {t('chat.disclaimer')}
           </p>
         </div>
@@ -424,9 +444,15 @@ export const AssistantChat = memo(function AssistantChat({
         onPointerUp={onPointerUp}
         aria-label={t('chat.title')}
         aria-expanded={open}
-        className="flex size-14 touch-none cursor-grab items-center justify-center rounded-full bg-primary text-white shadow-blue transition-transform hover:scale-105 active:cursor-grabbing"
+        className="flex size-14 touch-none cursor-grab items-center justify-center rounded-full bg-[#d7ffb8] shadow-blue transition-transform hover:scale-105 active:cursor-grabbing"
       >
-        <Bot className="size-6" aria-hidden />
+        <motion.div
+          animate={{ rotate: [-8, 8, -8], y: [-2, 2, -2] }}
+          transition={{ repeat: Infinity, duration: 3.5, ease: 'easeInOut' }}
+          className="flex items-center justify-center pt-1"
+        >
+          <MenuScanLogo size={34} />
+        </motion.div>
       </button>
     </div>
   )

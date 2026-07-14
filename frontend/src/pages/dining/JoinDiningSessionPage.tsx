@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   User,
 } from 'lucide-react'
+import { Spinner } from '@/shared/components/Spinner'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -154,8 +155,7 @@ export function JoinDiningSessionPage() {
   if (loadingSession) {
     return (
       <PageTransition className="flex min-h-dvh w-screen flex-col items-center justify-center bg-app-bg">
-        <Loader2 className="mb-2 size-10 animate-spin text-primary" aria-hidden />
-        <p className="text-[15px] font-medium text-ink-variant">Đang kết nối tới phiên ăn...</p>
+        <Spinner label="Đang kết nối tới phiên ăn..." />
       </PageTransition>
     )
   }

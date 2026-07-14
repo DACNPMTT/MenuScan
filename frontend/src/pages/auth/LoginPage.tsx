@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, useRef, type FormEvent, type KeyboardEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -23,6 +23,7 @@ export function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const passwordRef = useRef<HTMLInputElement>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -78,6 +79,12 @@ export function LoginPage() {
             onChange={(event) => setEmail(event.target.value)}
             placeholder={t('auth.emailLabel')}
             aria-label={t('auth.emailLabel')}
+            onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                passwordRef.current?.focus()
+              }
+            }}
           />
         </label>
 
@@ -85,6 +92,7 @@ export function LoginPage() {
           <span className="text-[14px] font-semibold text-ink">{t('auth.passwordLabel')}</span>
           <div className="relative">
             <Input
+              ref={passwordRef}
               type={showPassword ? 'text' : 'password'}
               required
               autoComplete="current-password"

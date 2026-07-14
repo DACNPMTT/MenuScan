@@ -21,6 +21,7 @@ import {
 import { PageTransition } from '@/shared/components/motion/PageTransition'
 import { Reveal } from '@/shared/components/motion/Reveal'
 import { Button } from '@/shared/components/ui/button'
+import { Spinner } from '@/shared/components/Spinner'
 
 type CameraState = 'starting' | 'live' | 'captured' | 'submitting' | 'error'
 
@@ -194,7 +195,7 @@ export function CameraScanPage() {
 
           {(state === 'starting' || state === 'submitting') && (
             <div className="absolute inset-0 flex items-center justify-center bg-ink/60">
-              <Loader2 className="size-8 animate-spin text-white" aria-hidden />
+              <Spinner label={state === 'starting' ? t('camera.starting') : t('scan.uploading')} />
             </div>
           )}
 

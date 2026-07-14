@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { NonLaMark } from '@/shared/components/mascot/NonLaMark'
+import { MenuScanLogo } from '@/shared/components/mascot/NonLaMark'
 import { SectionCard } from '@/shared/components/SectionCard'
 import { PageTransition } from '@/shared/components/motion/PageTransition'
 import { cn } from '@/shared/lib/cn'
@@ -33,7 +33,7 @@ export function AuthShell({ children, maxWidth = 'max-w-[420px]' }: AuthShellPro
                 aria-label="MenuScan home"
                 className="flex size-11 items-center justify-center rounded-2xl bg-[#f59e0b] shadow-2 shadow-[#f59e0b]/40"
               >
-                <NonLaMark size={30} />
+                <MenuScanLogo size={30} />
               </Link>
               <span className="text-[24px] font-extrabold tracking-tight text-ink">
                 MenuScan

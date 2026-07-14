@@ -11,7 +11,7 @@ import { PageTransition } from '@/shared/components/motion/PageTransition'
 import { DotGrid } from '@/shared/components/rb/DotGrid'
 import { BlurText } from '@/shared/components/rb/BlurText'
 import { Magnetic } from '@/shared/components/rb/Magnetic'
-import { NonLaMark } from '@/shared/components/mascot/NonLaMark'
+import { MenuScanLogo } from '@/shared/components/mascot/NonLaMark'
 import { HeroScene } from '@/shared/components/mascot/HeroScene'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { useAuth } from '@/app/providers/AuthProvider'
@@ -53,7 +53,8 @@ function TopNav() {
     >
       <Link to="/" className="flex items-center gap-2.5" aria-label="MenuScan home">
         <span className="flex size-9 items-center justify-center rounded-2xl bg-[#d7ffb8]">
-          <NonLaMark size={26} />
+          {/* Logo mới */}
+          <MenuScanLogo size={26} />
         </span>
         <span className="hidden text-[22px] font-black tracking-tight text-[#042c60] min-[420px]:inline">MenuScan</span>
       </Link>
@@ -177,9 +178,6 @@ function Hero() {
           <div className="w-full max-w-[300px] sm:max-w-[440px]">
             <HeroScene />
           </div>
-          <span className="text-[14px] font-bold text-[#58a700]">
-            {t('landing.hero.dragHint')}
-          </span>
         </div>
       </div>
     </section>
@@ -344,7 +342,7 @@ function FinalCTA() {
     <section className="bg-white px-5 py-20 md:px-[75px] md:py-28">
       <Reveal className="mx-auto max-w-[1152px]">
         <div className="overflow-hidden rounded-[24px] bg-[#58cc02] px-5 py-12 text-center shadow-[0_8px_0_0_#58a700] sm:px-6 sm:py-16 md:px-12 md:py-20">
-          <NonLaMark size={72} className="mx-auto" />
+          <MenuScanLogo size={72} className="mx-auto" />
           <h2 className="mx-auto mt-4 max-w-[24ch] text-[24px] font-black leading-tight tracking-tight text-white sm:text-[28px] md:text-[40px]">
             {t('landing.cta.title')}
           </h2>
@@ -374,7 +372,7 @@ function Footer() {
       <div className="mx-auto flex max-w-[1152px] flex-col items-center justify-between gap-4 sm:flex-row">
         <div className="flex flex-col items-center gap-1 sm:flex-row sm:gap-3">
           <span className="flex items-center gap-2 text-[20px] font-black text-[#042c60]">
-            <NonLaMark size={22} />
+            <MenuScanLogo size={22} />
             MenuScan
           </span>
           <span className="text-[14px] font-medium text-[#afafaf]">

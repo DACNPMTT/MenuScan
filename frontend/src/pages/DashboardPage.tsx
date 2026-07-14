@@ -23,6 +23,7 @@ import type {
 } from '@/features/menu-scan/types'
 import { PageTransition } from '@/shared/components/motion/PageTransition'
 import { Reveal } from '@/shared/components/motion/Reveal'
+import { Spinner } from '@/shared/components/Spinner'
 import { SectionCard } from '@/shared/components/SectionCard'
 import { IconBadge } from '@/shared/components/IconBadge'
 import { StatTile } from '@/shared/components/StatTile'
@@ -31,8 +32,9 @@ import { TiltCard } from '@/shared/components/rb/TiltCard'
 import { Button } from '@/shared/components/ui/button'
 import { Badge } from '@/shared/components/ui/badge'
 import { Card } from '@/shared/components/ui/card'
+import { Pagination } from '@/shared/components/ui/pagination'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 5
 const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '')
 
 // Status pill variants, mapped onto the design-system Badge tones.
@@ -68,24 +70,17 @@ export function DashboardPage() {
   const [scans, setScans] = useState<ScanHistoryItem[]>([])
   const [meta, setMeta] = useState<PaginationMeta | null>(null)
   const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const loadScans = async (page: number) => {
-    if (page === 1) {
-      setLoading(true)
-    } else {
-      setLoadingMore(true)
-    }
+    setLoading(true)
     setError(null)
     try {
       const result = await apiRequestWithMeta<ScanHistoryItem[], PaginationMeta>(
         `/api/v1/scans?page=${page}&page_size=${PAGE_SIZE}`,
         { method: 'GET', token: accessToken ?? undefined },
       )
-      setScans((current) =>
-        page === 1 ? result.data : [...current, ...result.data],
-      )
+      setScans(result.data)
       setMeta(result.meta)
     } catch (err) {
       setError(
@@ -95,7 +90,6 @@ export function DashboardPage() {
       )
     } finally {
       setLoading(false)
-      setLoadingMore(false)
     }
   }
 
@@ -104,7 +98,7 @@ export function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const canLoadMore = meta ? meta.page < meta.total_pages : false
+
   const totalScans = meta?.total ?? scans.length
   const loadedItemCount = scans.reduce(
     (sum, scan) => sum + (scan.menu?.item_count ?? 0),
@@ -187,9 +181,9 @@ export function DashboardPage() {
             }
           >
             {loading ? (
-              <HistoryMessage icon={<Loader2 className="size-7 animate-spin" />}>
-                {t('dashboard.loadingHistory')}
-              </HistoryMessage>
+              <div className="flex flex-col items-center justify-center gap-4 px-6 py-12 text-center text-ink-variant">
+                <Spinner label={t('dashboard.loadingHistory')} />
+              </div>
             ) : error ? (
               <HistoryError message={error} onRetry={() => void loadScans(1)} />
             ) : scans.length === 0 ? (
@@ -201,21 +195,12 @@ export function DashboardPage() {
                     <ScanHistoryRow scan={scan} accessToken={accessToken} />
                   </Reveal>
                 ))}
-                {canLoadMore && (
-                  <div className="flex justify-center px-6 py-5">
-                    <Button
-                      variant="outline"
-                      onClick={() => meta && void loadScans(meta.page + 1)}
-                      disabled={loadingMore}
-                    >
-                      {loadingMore ? (
-                        <Loader2 className="size-4 animate-spin" aria-hidden />
-                      ) : (
-                        <RefreshCw className="size-4" aria-hidden />
-                      )}
-                      {t('dashboard.loadMore')}
-                    </Button>
-                  </div>
+                {meta && meta.total_pages > 1 && (
+                  <Pagination
+                    currentPage={meta.page}
+                    totalPages={meta.total_pages}
+                    onPageChange={(page) => void loadScans(page)}
+                  />
                 )}
               </div>
             )}
