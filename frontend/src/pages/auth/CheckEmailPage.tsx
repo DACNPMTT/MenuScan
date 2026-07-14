@@ -25,35 +25,49 @@ export function CheckEmailPage() {
 
   return (
     <AuthShell>
-      <div className="flex flex-col items-center gap-5 text-center">
-        <IconBadge icon={Mail} tone="primary" size="lg" />
-        <div className="flex flex-col gap-2">
-          <h1 className="text-[22px] font-bold leading-tight text-ink">
-            {t('auth.checkInbox')}
-          </h1>
-          <p className="max-w-[300px] text-[15px] leading-relaxed text-ink-variant">
-            {email
-              ? t('checkEmail.bodyWithEmail', { email })
-              : t('checkEmail.bodyNoEmail')}
-          </p>
+      <div className="flex w-full flex-col items-center gap-6 text-center">
+        <div className="flex flex-col items-center gap-5">
+          <IconBadge icon={Mail} tone="primary" size="lg" />
+          <div className="flex flex-col items-center gap-2">
+            <h1 className="text-[22px] font-bold leading-tight text-ink">
+              {t('auth.checkInbox')}
+            </h1>
+            {email ? (
+              <p className="max-w-[300px] text-[15px] leading-relaxed text-ink-variant">
+                {t('checkEmail.bodyWithEmailPrefix')}
+                <span
+                  className="mx-auto mt-1 block max-w-full truncate font-bold text-ink"
+                  title={email}
+                >
+                  {email}
+                </span>
+                <span className="mt-1 block">{t('checkEmail.bodyWithEmailSuffix')}</span>
+              </p>
+            ) : (
+              <p className="max-w-[300px] text-[15px] leading-relaxed text-ink-variant">
+                {t('checkEmail.bodyNoEmail')}
+              </p>
+            )}
+          </div>
         </div>
+
+        {errorMessage && (
+          <p role="alert" className="text-center text-[14px] text-destructive">
+            {errorMessage}
+          </p>
+        )}
+
+        <Button
+          type="button"
+          onClick={handleResend}
+          disabled={isLoading || !email}
+          variant="outline"
+          size="lg"
+          className="self-center"
+        >
+          {isLoading ? t('checkEmail.sending') : t('auth.resendEmail')}
+        </Button>
       </div>
-
-      {errorMessage && (
-        <p role="alert" className="text-center text-[14px] text-destructive">
-          {errorMessage}
-        </p>
-      )}
-
-      <Button
-        type="button"
-        onClick={handleResend}
-        disabled={isLoading || !email}
-        variant="outline"
-        size="lg"
-      >
-        {isLoading ? t('checkEmail.sending') : t('auth.resendEmail')}
-      </Button>
     </AuthShell>
   )
 }

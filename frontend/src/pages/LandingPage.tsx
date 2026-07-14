@@ -49,14 +49,14 @@ function TopNav() {
       initial={{ opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: EASE }}
-      className="sticky top-0 z-30 flex h-[70px] items-center justify-between border-b-2 border-[#e5e5e5] bg-white/90 px-5 backdrop-blur-xl md:px-[75px]"
+      className="sticky top-0 z-30 flex min-h-[64px] items-center justify-between gap-2 border-b-2 border-[#e5e5e5] bg-white/95 px-4 backdrop-blur-xl md:h-[70px] md:px-[75px]"
     >
-      <a href="/" className="flex items-center gap-2.5" aria-label="MenuScan home">
-        <span className="flex size-9 items-center justify-center rounded-2xl bg-[#d7ffb8]">
+      <a href="/" className="flex min-w-0 shrink items-center gap-2" aria-label="MenuScan home">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-[#d7ffb8]">
           {/* Logo mới */}
           <MenuScanLogo size={26} />
         </span>
-        <span className="hidden text-[22px] font-black tracking-tight text-[#042c60] min-[420px]:inline">MenuScan</span>
+        <span className="hidden truncate text-[20px] font-black tracking-tight text-[#042c60] min-[390px]:inline md:text-[22px]">MenuScan</span>
       </a>
       <nav className="hidden items-center gap-8 md:flex" aria-label="Marketing">
         <a href="#how" className="text-[15px] font-bold text-[#777777] transition-colors hover:text-[#042c60]">
@@ -69,21 +69,25 @@ function TopNav() {
           {t('landing.nav.reviews')}
         </a>
       </nav>
-      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-        <LanguageSwitcher />
+      <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-3">
+        <LanguageSwitcher className="size-9 shrink-0" />
         {user ? (
-          <Magnetic>
-            <Button asChild variant="duo">
+          <Magnetic className="shrink-0">
+            <Button asChild variant="duo" className="h-9 px-3 text-[12px] sm:h-10 sm:px-5 sm:text-sm">
               <Link to="/app">{t('landing.nav.goToApp')}</Link>
             </Button>
           </Magnetic>
         ) : (
           <>
-            <Button asChild variant="duo-outline">
+            <Button
+              asChild
+              variant="duo-outline"
+              className="hidden h-9 px-3 text-[12px] min-[440px]:inline-flex sm:h-10 sm:px-5 sm:text-sm"
+            >
               <Link to="/auth/login">{t('common.login')}</Link>
             </Button>
-            <Magnetic>
-              <Button asChild variant="duo">
+            <Magnetic className="shrink-0">
+              <Button asChild variant="duo" className="h-9 px-3 text-[12px] sm:h-10 sm:px-5 sm:text-sm">
                 <Link to="/auth/register">{t('landing.nav.signup')}</Link>
               </Button>
             </Magnetic>
