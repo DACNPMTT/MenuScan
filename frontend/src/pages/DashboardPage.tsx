@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertCircle,
@@ -305,23 +305,6 @@ function ScanThumbnail({
       ) : (
         <FileText className="size-7 text-primary" aria-hidden />
       )}
-    </div>
-  )
-}
-
-function HistoryMessage({
-  icon,
-  children,
-}: {
-  icon: ReactNode
-  children: ReactNode
-}) {
-  return (
-    <div className="flex flex-col items-center gap-4 px-6 py-12 text-center text-ink-variant">
-      <span className="flex size-14 items-center justify-center rounded-2xl bg-panel text-primary">
-        {icon}
-      </span>
-      <p className="text-[15px]">{children}</p>
     </div>
   )
 }

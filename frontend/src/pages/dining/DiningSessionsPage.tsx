@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import {
   Users,
@@ -10,7 +10,6 @@ import {
   AlertCircle,
   Sparkles,
   Trash2,
-  QrCode,
 } from 'lucide-react'
 import { Spinner } from '@/shared/components/Spinner'
 import { useAuth } from '@/app/providers/AuthProvider'

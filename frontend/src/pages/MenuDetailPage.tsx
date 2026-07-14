@@ -85,8 +85,6 @@ const MONEY_GROUP =
   'flex h-9 overflow-hidden rounded-xl border border-border bg-surface transition-colors focus-within:border-primary'
 const MONEY_INPUT =
   'min-w-0 flex-1 px-3 text-right text-[14px] text-ink outline-none'
-const MONEY_CURRENCY =
-  'shrink-0 border-l border-border bg-panel px-1 text-[12px] font-bold text-primary-dark outline-none disabled:opacity-60'
 
 /** Dishes per page on the menu grid.
  *
