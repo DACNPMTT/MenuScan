@@ -122,7 +122,11 @@ class EmailConfig:
         if self.provider == "console":
             return True
         if self.provider == "gmail_smtp":
-            return bool(self.smtp_username) and bool(self.smtp_password) and bool(self.from_address)
+            return (
+                bool(self.smtp_username)
+                and bool(self.smtp_password)
+                and bool(self.from_address)
+            )
         return bool(self.from_address) and bool(self.api_key)
 
 
@@ -388,7 +392,9 @@ class Settings:
             database_url=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
             magic_link_base_url=os.getenv(
                 "MAGIC_LINK_BASE_URL", DEFAULT_MAGIC_LINK_BASE_URL
-            ).rstrip("/"),
+            )
+            .strip()
+            .rstrip("/"),
             app_env=app_env,
             log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
             api_v1_prefix=api_v1_prefix,
@@ -406,7 +412,8 @@ class Settings:
             ).rstrip("/"),
             exchange_rate_timeout_seconds=float(
                 os.getenv(
-                    "EXCHANGE_RATE_TIMEOUT_SECONDS", DEFAULT_EXCHANGE_RATE_TIMEOUT_SECONDS
+                    "EXCHANGE_RATE_TIMEOUT_SECONDS",
+                    DEFAULT_EXCHANGE_RATE_TIMEOUT_SECONDS,
                 )
             ),
             exchange_rate_cache_ttl_seconds=int(
@@ -498,7 +505,9 @@ def _load_llm_config() -> LlmConfig:
     if models_env:
         models = tuple(models_env)
     else:
-        models = (model,) + ((fallback_model,) if fallback_model and fallback_model != model else ())
+        models = (model,) + (
+            (fallback_model,) if fallback_model and fallback_model != model else ()
+        )
 
     return LlmConfig(
         provider=os.getenv("LLM_PROVIDER", DEFAULT_LLM_PROVIDER),
