@@ -172,6 +172,21 @@ def test_settings_use_local_dev_cors_defaults() -> None:
     )
 
 
+def test_settings_strip_magic_link_base_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stray space pasted into the secret must not reach the verify link.
+
+    A trailing space survives into the URL as %20 ("https://x.app%20/auth/verify")
+    and every magic link in production 404s. This happened once.
+    """
+    monkeypatch.setenv("MAGIC_LINK_BASE_URL", " https://menuscans.app/ ")
+
+    settings = Settings.from_environment()
+
+    assert settings.magic_link_base_url == "https://menuscans.app"
+
+
 def test_settings_reject_wildcard_cors_with_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
