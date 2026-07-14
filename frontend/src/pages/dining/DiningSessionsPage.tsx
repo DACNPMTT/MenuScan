@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import {
   Users,
@@ -10,13 +11,22 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react'
+import { Spinner } from '@/shared/components/Spinner'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { Button } from '@/shared/components/ui/button'
+import { Badge } from '@/shared/components/ui/badge'
+import { Card } from '@/shared/components/ui/card'
+import { EmptyState } from '@/shared/components/EmptyState'
+import { Reveal } from '@/shared/components/motion/Reveal'
+import { PageTransition } from '@/shared/components/motion/PageTransition'
+import { SectionCard } from '@/shared/components/SectionCard'
+import { Pagination } from '@/shared/components/ui/pagination'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 
 interface DiningSessionSummary {
   id: string
+  name: string | null
   created_by_user_id: string | null
   mode: 'GROUP' | 'PERSONAL'
   status: 'COLLECTING' | 'SCANNING' | 'COMPLETED' | 'CLOSED'
@@ -35,9 +45,14 @@ export function DiningSessionsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const [currentPage, setCurrentPage] = useState(1)
+  const PAGE_SIZE = 5
+
   // Creation form state
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [sessionNameInput, setSessionNameInput] = useState('')
 
   const loadSessions = async () => {
     setLoading(true)
@@ -68,6 +83,12 @@ export function DiningSessionsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const totalPages = Math.ceil(sessions.length / PAGE_SIZE)
+  const paginatedSessions = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return sessions.slice(start, start + PAGE_SIZE)
+  }, [sessions, currentPage])
+
   const handleCreateSession = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreating(true)
@@ -82,6 +103,7 @@ export function DiningSessionsPage() {
         body: JSON.stringify({
           mode: 'GROUP',
           invite_expires_in_hours: null,
+          name: sessionNameInput.trim() || null,
         }),
       })
       navigate(`/app/dining/sessions/${result.session.id}`, {
@@ -122,13 +144,13 @@ export function DiningSessionsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-4 py-[30px] sm:px-[50px] sm:py-[40px] font-sans">
+    <PageTransition className="mx-auto w-full max-w-[1200px] px-4 py-[30px] sm:px-[50px] sm:py-[40px]">
       <div className="flex flex-col gap-2">
-        <h1 className="text-[32px] font-bold leading-[40px] text-primary-dark sm:text-[44px] sm:leading-[52px]">
+        <h1 className="text-[32px] font-bold leading-[40px] text-ink sm:text-[44px] sm:leading-[52px]">
           {t('dining.title')}
         </h1>
         <p className="flex items-center gap-2 text-[14px] text-ink-variant">
-          <Sparkles className="size-4 text-primary-dark" aria-hidden />
+          <Sparkles className="size-4 text-amber" aria-hidden />
           {t('dining.createSubtitle')}
         </p>
       </div>
@@ -136,112 +158,174 @@ export function DiningSessionsPage() {
       <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">
         {/* Left column: List of sessions */}
         <div className="flex flex-col gap-4">
-          <h2 className="text-[20px] font-bold text-primary-dark border-b border-hairline pb-2">
+          <h2 className="border-b border-hairline pb-2 text-[20px] font-bold text-ink">
             {t('dining.recentSessions')}
           </h2>
 
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-16 text-ink-variant">
-              <Loader2 className="size-8 animate-spin text-primary-dark mb-2" />
-              <p className="text-[14px]">{t('common.loading') || 'Loading...'}</p>
+            <div className="flex flex-col items-center justify-center py-20 text-ink-variant">
+              <Spinner label={t('common.loading') || 'Loading...'} />
             </div>
           ) : error ? (
-            <div className="flex flex-col items-center justify-center py-12 border border-dashed border-destructive/30 rounded-[12px] bg-destructive/5 text-center px-4">
-              <AlertCircle className="size-8 text-destructive mb-2" />
-              <p className="text-[14px] text-destructive font-medium mb-3">{error}</p>
-              <Button onClick={loadSessions} variant="outline" className="h-9">
-                {t('common.retry') || 'Retry'}
-              </Button>
-            </div>
+            <EmptyState
+              icon={AlertCircle}
+              tone="destructive"
+              title={error}
+              action={
+                <Button variant="outline" onClick={loadSessions}>
+                  {t('common.retry') || 'Retry'}
+                </Button>
+              }
+            />
           ) : sessions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 border border-dashed border-hairline rounded-[12px] bg-canvas text-center px-4">
-              <Users className="size-12 text-ink-variant mb-3" />
-              <p className="text-[16px] font-medium text-ink mb-1">
-                {t('dining.noParticipants').replace(/Mã QR.*/, '')}
-              </p>
-              <p className="text-[14px] text-ink-variant max-w-[360px] mb-4">
-                Chưa có phiên ăn uống nào. Hãy tạo phiên ăn uống đầu tiên của bạn ở biểu mẫu bên cạnh!
-              </p>
-            </div>
+            <EmptyState
+              icon={Users}
+              tone="primary"
+              title={t('dining.noParticipants').replace(/Mã QR.*/, '')}
+              description="Chưa có phiên ăn uống nào. Hãy tạo phiên ăn uống đầu tiên của bạn ở biểu mẫu bên cạnh!"
+            />
           ) : (
             <div className="flex flex-col gap-3">
-              {sessions.map((session) => (
-                <Link
-                  key={session.id}
-                  to={`/app/dining/sessions/${session.id}`}
-                  className="group flex items-center justify-between rounded-[12px] border border-hairline bg-canvas p-4 transition-colors hover:bg-surface-muted"
-                >
-                  <div className="flex flex-col gap-2 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[15px] font-bold text-ink uppercase tracking-wide">
-                        Session: {session.id.slice(0, 8)}
-                      </span>
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
-                          session.status === 'COLLECTING'
-                            ? 'bg-[#e4f4df] text-[#256b2b]'
-                            : 'bg-secondary text-ink-variant'
-                        }`}
-                      >
-                        {t(`dining.status.${session.status}`)}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-variant">
-                      <span className="flex items-center gap-1">
-                        <Users className="size-3.5" />
-                        {t('dining.participants', { count: session.participant_count })}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Calendar className="size-3.5" />
-                        {formatDate(session.created_at)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={(e) => handleDeleteSession(e, session.id)}
-                      className="flex size-9 items-center justify-center rounded-full text-ink-variant hover:text-destructive hover:bg-destructive/10 transition-colors"
-                      title="Xóa phiên ăn"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
-                    <ChevronRight className="size-5 text-ink-variant transition-transform group-hover:translate-x-1" />
-                  </div>
-                </Link>
+              {paginatedSessions.map((session, index) => (
+                <Reveal key={session.id} delay={index * 0.05}>
+                  <Link to={`/app/dining/sessions/${session.id}`} className="group block">
+                    <Card className="flex-row items-center justify-between gap-4 rounded-2xl p-4 shadow-1 transition-all duration-200 ease-[var(--ease-out-quint)] hover:-translate-y-1 hover:shadow-3">
+                      <div className="flex min-w-0 flex-col gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`text-[15px] font-bold tracking-wide text-ink ${session.name ? '' : 'uppercase'}`}>
+                            {session.name || `Session: ${session.id.slice(0, 8)}`}
+                          </span>
+                          <Badge
+                            variant={session.status === 'COLLECTING' ? 'accent' : 'secondary'}
+                            className="text-[11px]"
+                          >
+                            {t(`dining.status.${session.status}`)}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-variant">
+                          <span className="flex items-center gap-1">
+                            <Users className="size-3.5" aria-hidden />
+                            {t('dining.participants', { count: session.participant_count })}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="size-3.5" aria-hidden />
+                            {formatDate(session.created_at)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-sm"
+                          onClick={(e) => handleDeleteSession(e, session.id)}
+                          title="Xóa phiên ăn"
+                          aria-label="Xóa phiên ăn"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                        <ChevronRight
+                          className="size-5 text-ink-variant transition-transform group-hover:translate-x-1"
+                          aria-hidden
+                        />
+                      </div>
+                    </Card>
+                  </Link>
+                </Reveal>
               ))}
+              {totalPages > 1 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
+              )}
             </div>
           )}
         </div>
 
-        {/* Right column: Create Session Form */}
-        <div className="rounded-[12px] border border-hairline bg-canvas p-5 shadow-sm h-fit">
-          <h2 className="text-[18px] font-bold text-primary-dark mb-1">
-            {t('dining.createTitle')}
-          </h2>
-          <p className="text-[13px] text-ink-variant mb-4">
-            Thiết lập thông tin bàn ăn để bắt đầu chia sẻ.
-          </p>
-
-          <form onSubmit={handleCreateSession} className="flex flex-col gap-4">
-            {createError && (
-              <p className="text-[13px] text-destructive font-medium flex items-center gap-1.5">
-                <AlertCircle className="size-4 shrink-0" />
-                {createError}
-              </p>
-            )}
-
-            <Button
-              type="submit"
-              disabled={creating}
-              className="mt-2 h-11 w-full bg-primary-dark font-bold text-white rounded-[8px] hover:bg-primary-dark/95"
-            >
-              {creating && <Loader2 className="size-4 animate-spin mr-2 inline" />}
-              {creating ? t('dining.creating') : t('dining.createBtn')}
-            </Button>
-          </form>
-        </div>
+        {/* Right column: Create Session Button */}
+        <SectionCard
+          title={t('dining.createTitle')}
+          description="Thiết lập thông tin bàn ăn để bắt đầu chia sẻ."
+          className="h-fit"
+        >
+          <Button 
+            type="button" 
+            size="lg" 
+            className="mt-2 w-full"
+            onClick={() => {
+              setSessionNameInput('')
+              setCreateError(null)
+              setIsCreateModalOpen(true)
+            }}
+          >
+            {t('dining.createBtn')}
+          </Button>
+        </SectionCard>
       </div>
-    </div>
+
+      <AnimatePresence>
+        {isCreateModalOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-sm"
+              onClick={() => !creating && setIsCreateModalOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed left-1/2 top-1/2 z-50 w-[90%] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl border border-border bg-surface p-6 shadow-3"
+            >
+              <h3 className="mb-2 text-[20px] font-bold text-ink">
+                Tên phiên ăn
+              </h3>
+              <p className="mb-5 text-[14px] text-ink-variant">
+                Nhập tên gợi nhớ cho phiên ăn này (ví dụ: "Ăn trưa với team"). Bỏ trống để dùng mã mặc định.
+              </p>
+              
+              <form onSubmit={handleCreateSession} className="flex flex-col gap-4">
+                <input
+                  type="text"
+                  value={sessionNameInput}
+                  onChange={(e) => setSessionNameInput(e.target.value)}
+                  placeholder="Tên phiên ăn (tùy chọn)"
+                  className="w-full rounded-xl border border-border bg-panel px-4 py-3 text-[14px] text-ink outline-none transition-colors focus:border-primary focus:bg-surface"
+                  autoFocus
+                  disabled={creating}
+                />
+                
+                {createError && (
+                  <p className="flex items-center gap-1.5 text-[13px] font-medium text-destructive">
+                    <AlertCircle className="size-4 shrink-0" aria-hidden />
+                    {createError}
+                  </p>
+                )}
+
+                <div className="mt-2 flex justify-end gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsCreateModalOpen(false)}
+                    disabled={creating}
+                  >
+                    Hủy
+                  </Button>
+                  <Button type="submit" disabled={creating}>
+                    {creating && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />}
+                    {creating ? t('dining.creating') : t('dining.createBtn')}
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </PageTransition>
   )
 }

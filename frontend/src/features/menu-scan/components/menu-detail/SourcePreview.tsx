@@ -63,8 +63,8 @@ export function SourcePreview({ source, accessToken }: SourcePreviewProps) {
   }, [accessToken, source.preview_url])
 
   return (
-    <section className="mb-6 grid gap-4 rounded-[8px] border border-hairline bg-canvas p-4 lg:grid-cols-[300px_minmax(0,1fr)]">
-      <div className="flex min-h-[220px] items-center justify-center overflow-hidden rounded-[8px] border border-hairline bg-surface-muted">
+    <section className="mb-6 grid gap-4 rounded-2xl border border-hairline bg-surface p-4 shadow-1 lg:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="flex min-h-[220px] items-center justify-center overflow-hidden rounded-2xl border border-hairline bg-panel">
         {objectUrl && isImage ? (
           <img
             src={objectUrl}

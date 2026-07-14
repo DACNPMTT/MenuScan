@@ -17,15 +17,15 @@ interface ToastProps extends ToastData {
 }
 
 const toastIcon: Record<ToastVariant, ReactNode> = {
-  success: <CheckCircle2 className="size-5 text-[#256b2b]" aria-hidden />,
+  success: <CheckCircle2 className="size-5 text-success" aria-hidden />,
   error: <XCircle className="size-5 text-destructive" aria-hidden />,
-  info: <Info className="size-5 text-primary-dark" aria-hidden />,
+  info: <Info className="size-5 text-primary" aria-hidden />,
 }
 
 const toastAccent: Record<ToastVariant, string> = {
-  success: 'border-[#bfd8b5] bg-[#eef6e9]',
+  success: 'border-success/30 bg-success/5',
   error: 'border-destructive/30 bg-destructive/5',
-  info: 'border-hairline bg-canvas',
+  info: 'border-border bg-surface',
 }
 
 /** A single toast notification. Self-dismissing is handled by the provider;
@@ -38,7 +38,7 @@ export function Toast({ id, variant, title, description, onDismiss }: ToastProps
       role={variant === 'error' ? 'alert' : 'status'}
       aria-live={variant === 'error' ? 'assertive' : 'polite'}
       className={cn(
-        'pointer-events-auto flex w-full items-start gap-3 rounded-[10px] border px-4 py-3 shadow-[0_8px_24px_rgba(24,29,21,0.12)]',
+        'pointer-events-auto flex w-full items-start gap-3 rounded-xl border px-4 py-3 shadow-pop',
         toastAccent[variant],
       )}
     >
@@ -55,7 +55,7 @@ export function Toast({ id, variant, title, description, onDismiss }: ToastProps
         type="button"
         onClick={() => onDismiss(id)}
         aria-label={t('toast.closeAria')}
-        className="-mr-1 shrink-0 rounded-[4px] p-1 text-ink-variant transition-colors hover:bg-surface-muted hover:text-ink"
+        className="-mr-1 shrink-0 rounded-lg p-1 text-ink-variant transition-colors hover:bg-panel hover:text-ink"
       >
         <X className="size-4" aria-hidden />
       </button>

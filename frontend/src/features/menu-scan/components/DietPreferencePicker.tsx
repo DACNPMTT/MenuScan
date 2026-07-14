@@ -32,9 +32,9 @@ export function DietPreferencePicker({
 
   const chip = (active: boolean) =>
     cn(
-      'h-8 rounded-full border px-3 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+      'h-8 rounded-full border px-3 text-[13px] font-medium transition-all duration-200 ease-[var(--ease-spring)] hover:scale-[1.04] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50',
       active
-        ? 'border-primary-dark bg-primary-dark text-white'
+        ? 'border-primary bg-primary text-white shadow-sm shadow-primary/25'
         : 'border-hairline bg-canvas text-primary-dark hover:bg-surface-muted',
     )
 

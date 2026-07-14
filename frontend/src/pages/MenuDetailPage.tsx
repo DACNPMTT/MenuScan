@@ -19,6 +19,7 @@ import {
   Users,
   XCircle,
 } from 'lucide-react'
+import { Spinner } from '@/shared/components/Spinner'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
@@ -27,6 +28,10 @@ import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue'
 import { useExchangeRates } from '@/shared/hooks/useExchangeRates'
 import { CurrencySelect } from '@/shared/components/CurrencySelect'
+import { Button } from '@/shared/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
+import { PageTransition } from '@/shared/components/motion/PageTransition'
+import { Reveal } from '@/shared/components/motion/Reveal'
 import { CURRENCY_OPTIONS, convertAmount, formatConvertedAmount } from '@/shared/lib/currency'
 import { cn } from '@/shared/lib/cn'
 import {
@@ -74,14 +79,12 @@ import type {
 const ADJUSTMENT_FIELD = 'flex flex-col gap-1.5'
 const ADJUSTMENT_LABEL = 'flex items-center gap-1.5 text-[13px] font-medium text-ink'
 const ADJUSTMENT_INPUT =
-  'h-9 w-full rounded-[8px] border border-hairline bg-white px-3 text-right text-[14px] text-ink outline-none focus:border-primary-dark'
+  'h-9 w-full rounded-xl border border-border bg-surface px-3 text-right text-[14px] text-ink outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary'
 // A money field: a right-aligned number glued to a compact currency picker.
 const MONEY_GROUP =
-  'flex h-9 overflow-hidden rounded-[8px] border border-hairline bg-white focus-within:border-primary-dark'
+  'flex h-9 overflow-hidden rounded-xl border border-border bg-surface transition-colors focus-within:border-primary'
 const MONEY_INPUT =
   'min-w-0 flex-1 px-3 text-right text-[14px] text-ink outline-none'
-const MONEY_CURRENCY =
-  'shrink-0 border-l border-hairline bg-surface-muted px-1 text-[12px] font-bold text-primary-dark outline-none disabled:opacity-60'
 
 /** Dishes per page on the menu grid.
  *
@@ -94,9 +97,9 @@ const MENU_PAGE_SIZE = 10
  * edge (verdictCardClass in BillItemCard) — a key that does not match the thing it
  * is keying is worse than no key. */
 const VERDICT_LEGEND_COLOR = {
-  RECOMMENDED: 'bg-[#2e7d32]',
-  OK: 'bg-primary-dark/50',
-  CAUTION: 'bg-amber-500',
+  RECOMMENDED: 'bg-primary',
+  OK: 'bg-primary/50',
+  CAUTION: 'bg-amber',
   AVOID: 'bg-destructive',
 } as const
 
@@ -133,19 +136,21 @@ function MoneyField({
         onChange={(event) => onValueChange(Math.max(0, Number(event.target.value) || 0))}
         className={MONEY_INPUT}
       />
-      <select
-        value={currency}
-        onChange={(event) => onCurrencyChange(event.target.value)}
-        disabled={currencyDisabled}
-        aria-label={currencyLabel}
-        className={MONEY_CURRENCY}
-      >
-        {CURRENCY_OPTIONS.map((option) => (
-          <option key={option.code} value={option.code}>
-            {option.code}
-          </option>
-        ))}
-      </select>
+      <Select value={currency} onValueChange={onCurrencyChange} disabled={currencyDisabled}>
+        <SelectTrigger
+          aria-label={currencyLabel}
+          className="h-9 shrink-0 gap-1 border-0 border-l border-border bg-panel px-2 text-[12px] font-bold text-primary-dark shadow-none focus-visible:ring-0 data-[placeholder]:text-primary-dark"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {CURRENCY_OPTIONS.map((option) => (
+            <SelectItem key={option.code} value={option.code}>
+              {option.code}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }
@@ -951,7 +956,7 @@ export function MenuDetailPage() {
   }
 
   return (
-    <div className="min-h-full bg-app-bg">
+    <PageTransition className="min-h-full bg-app-bg">
       <div className="mx-auto w-full max-w-[1240px] px-4 py-[24px] pb-[150px] sm:px-[50px]">
         <Link
           to="/app/menus"
@@ -967,7 +972,7 @@ export function MenuDetailPage() {
         {error && (
           <div
             role="alert"
-            className="mb-5 flex items-center gap-3 rounded-[8px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[14px] text-destructive"
+            className="mb-5 flex items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[14px] text-destructive"
           >
             <AlertCircle className="size-4 shrink-0" aria-hidden />
             {error}
@@ -975,16 +980,15 @@ export function MenuDetailPage() {
         )}
 
         {loading ? (
-          <div className="flex flex-col items-center gap-4 rounded-[8px] border border-hairline bg-canvas px-4 py-[70px] text-center text-ink-variant">
-            <Loader2 className="size-8 animate-spin text-primary-dark" aria-hidden />
-            {t('menuDetail.loading')}
+          <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-surface px-4 py-[70px] text-center text-ink-variant shadow-1">
+            <Spinner label={t('menuDetail.loading')} />
           </div>
         ) : menu ? (
           <>
             <header className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <span className="flex items-center gap-1 rounded-full bg-[#e4f4df] px-2.5 py-0.5 text-[12px] font-bold text-[#256b2b]">
+                  <span className="flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-[12px] font-bold text-primary-dark">
                     <CheckCircle2 className="size-3.5" aria-hidden />
                     {menu.status === 'CONFIRMED' ? t('menuDetail.confirmed') : t('menuDetail.draft')}
                   </span>
@@ -999,19 +1003,20 @@ export function MenuDetailPage() {
                   {menu.source.file_name} · {menu.default_currency ?? currency}
                 </p>
               </div>
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="flex min-h-10 w-fit items-center gap-2 rounded-[8px] border border-destructive/30 px-4 py-2 text-[14px] font-bold text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"
+                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
                 {deleting ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                  <Loader2 className="animate-spin" aria-hidden />
                 ) : (
-                  <Trash2 className="size-4" aria-hidden />
+                  <Trash2 aria-hidden />
                 )}
                 {t('menuDetail.deleteMenu')}
-              </button>
+              </Button>
             </header>
 
             {/* The pass runs on its own, so the only thing worth saying is when it
@@ -1039,7 +1044,7 @@ export function MenuDetailPage() {
             <SourcePreview source={menu.source} accessToken={accessToken} />
 
             {hasUnsavedChanges && (
-              <div className="mb-5 flex items-center gap-3 rounded-[8px] border border-[#d7a315]/40 bg-[#fff8e2] px-4 py-3 text-[14px] font-medium text-[#80600d]">
+              <div className="mb-5 flex items-center gap-3 rounded-2xl border border-amber/30 bg-amber/10 px-4 py-3 text-[14px] font-medium text-amber">
                 <AlertCircle className="size-4 shrink-0" aria-hidden />
                 {t('menuDetail.unsavedChanges', { count: dirtyItemIds.length })}
               </div>
@@ -1072,7 +1077,7 @@ export function MenuDetailPage() {
             {itemsError && (
               <div
                 role="alert"
-                className="mb-4 flex items-center gap-3 rounded-[8px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[14px] text-destructive"
+                className="mb-4 flex items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[14px] text-destructive"
               >
                 <AlertCircle className="size-4 shrink-0" aria-hidden />
                 {itemsError}
@@ -1100,7 +1105,7 @@ export function MenuDetailPage() {
             {/* The colour key. Only shown when the cards are actually tinted — a
                 legend for a colour system that is not in use is pure noise. */}
             {verdictsShown && (
-              <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-[8px] border border-hairline bg-surface-muted/50 px-3 py-2 text-[12px] text-ink-variant">
+              <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-border bg-panel/50 px-3 py-2 text-[12px] text-ink-variant">
                 <span className="font-bold">{t('menuDetail.legendTitle')}</span>
                 {VERDICT_LEVELS.map((level) => (
                   <span key={level} className="flex items-center gap-1.5">
@@ -1114,6 +1119,7 @@ export function MenuDetailPage() {
               </div>
             )}
 
+            <Reveal>
             <main className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               {pagedItems.map((item) => (
                 <BillItemCard
@@ -1163,18 +1169,20 @@ export function MenuDetailPage() {
                 onSave={() => void handleAddManualItem()}
               />
               {!itemsLoading && filteredItems.length === 0 && (
-                <div className="col-span-full flex min-h-[170px] flex-col items-center justify-center gap-3 rounded-[8px] border border-dashed border-hairline bg-canvas/70 p-6 text-center text-ink-variant">
+                <div className="col-span-full flex min-h-[170px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-surface/70 p-6 text-center text-ink-variant">
                   <XCircle className="size-7" aria-hidden />
                   {hasActiveFilter ? (
                     <>
                       <span>{t('menuDetail.noFilterMatch')}</span>
-                      <button
+                      <Button
                         type="button"
+                        variant="outline"
+                        size="sm"
                         onClick={handleClearFilters}
-                        className="rounded-[8px] border border-primary-dark px-4 py-2 text-[13px] font-bold text-primary-dark transition-colors hover:bg-primary/10"
+                        className="border-primary text-primary hover:bg-primary/10 hover:text-primary"
                       >
                         {t('menuDetail.clearFilters')}
-                      </button>
+                      </Button>
                     </>
                   ) : (
                     <span>{t('menuDetail.noItems')}</span>
@@ -1182,15 +1190,16 @@ export function MenuDetailPage() {
                 </div>
               )}
               {itemsLoading && hasActiveFilter && filteredItems.length === 0 && (
-                <div className="col-span-full flex min-h-[170px] items-center justify-center gap-3 rounded-[8px] border border-dashed border-hairline bg-canvas/70 p-6 text-[14px] text-ink-variant">
+                <div className="col-span-full flex min-h-[170px] items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-surface/70 p-6 text-[14px] text-ink-variant">
                   <Loader2 className="size-6 animate-spin text-primary-dark" aria-hidden />
                   {t('menuDetail.loadingShort')}
                 </div>
               )}
             </main>
+            </Reveal>
 
             {totalPages > 1 && (
-              <div className="mt-5 flex flex-col items-center justify-between gap-3 rounded-[8px] border border-hairline bg-canvas px-3 py-2 sm:flex-row">
+              <div className="mt-5 flex flex-col items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-3 py-2 shadow-1 sm:flex-row">
                 <p className="text-[13px] text-ink-variant" aria-live="polite">
                   {t('menuDetail.pageStatus', {
                     from: pageStart,
@@ -1199,38 +1208,41 @@ export function MenuDetailPage() {
                   })}
                 </p>
                 <div className="flex items-center gap-2">
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="icon-sm"
                     onClick={() => goToPage(itemsPage - 1)}
                     disabled={itemsLoading || itemsPage <= 1}
                     aria-label={t('menuDetail.prevPage')}
-                    className="flex size-9 items-center justify-center rounded-[8px] border border-hairline text-primary-dark transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <ChevronLeft className="size-4" aria-hidden />
-                  </button>
+                    <ChevronLeft aria-hidden />
+                  </Button>
                   <span className="min-w-[72px] text-center text-[13px] font-bold text-ink">
                     {itemsPage} / {totalPages}
                   </span>
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="icon-sm"
                     onClick={() => goToPage(itemsPage + 1)}
                     disabled={itemsLoading || itemsPage >= totalPages}
                     aria-label={t('menuDetail.nextPage')}
-                    className="flex size-9 items-center justify-center rounded-[8px] border border-hairline text-primary-dark transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {itemsLoading ? (
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                      <Loader2 className="animate-spin" aria-hidden />
                     ) : (
-                      <ChevronRight className="size-4" aria-hidden />
+                      <ChevronRight aria-hidden />
                     )}
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
 
+            <Reveal className="mt-8">
             <section
               aria-labelledby="bill-calculator-title"
-              className="mt-8 rounded-[8px] border border-hairline bg-canvas px-4 py-4"
+              className="rounded-3xl border border-border bg-surface px-5 py-5 shadow-2"
             >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -1260,7 +1272,7 @@ export function MenuDetailPage() {
                     onChange={(event) =>
                       setPeopleCount(Math.max(1, Number(event.target.value) || 1))
                     }
-                    className="h-9 w-20 rounded-[8px] border border-hairline bg-white px-3 text-center text-[14px] text-ink outline-none focus:border-primary-dark"
+                    className="h-9 w-20 rounded-xl border border-border bg-surface px-3 text-center text-[14px] text-ink outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
                   />
                 </label>
                 <div className="flex items-center gap-2 text-[14px] text-ink-variant">
@@ -1274,7 +1286,7 @@ export function MenuDetailPage() {
               {/* VAT / tip / surcharge / discount — percentages apply to the subtotal.
                   Label sits above a full-width input so every field lines up, no
                   matter how long its label is. */}
-              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-hairline pt-4 sm:grid-cols-4">
+              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4 sm:grid-cols-4">
                 <label className={ADJUSTMENT_FIELD}>
                   <span className={ADJUSTMENT_LABEL}>
                     <Percent className="size-4 shrink-0 text-primary-dark" aria-hidden />
@@ -1298,7 +1310,7 @@ export function MenuDetailPage() {
                   <span className={ADJUSTMENT_LABEL}>
                     <HandCoins className="size-4 shrink-0 text-primary-dark" aria-hidden />
                     <span className="truncate">{t('menuDetail.tip')}</span>
-                    <span className="ml-auto flex shrink-0 overflow-hidden rounded-[6px] border border-hairline">
+                    <span className="ml-auto flex shrink-0 overflow-hidden rounded-lg border border-border">
                       {(['PERCENT', 'AMOUNT'] as const).map((mode) => (
                         <button
                           key={mode}
@@ -1313,7 +1325,7 @@ export function MenuDetailPage() {
                           className={cn(
                             'flex h-6 w-7 items-center justify-center text-[11px] font-bold transition-colors',
                             tipMode === mode
-                              ? 'bg-primary-dark text-white'
+                              ? 'bg-primary text-white'
                               : 'bg-canvas text-ink-variant hover:bg-surface-muted',
                           )}
                         >
@@ -1380,12 +1392,12 @@ export function MenuDetailPage() {
               </div>
 
               {selectedLines.length > 0 && (
-                <div className="mt-4 border-t border-hairline pt-4">
+                <div className="mt-4 border-t border-border pt-4">
                   <div className="flex flex-col gap-2">
                     {selectedLines.map(({ item, state }) => (
                       <div
                         key={item.id}
-                        className="flex items-start justify-between gap-3 rounded-[8px] bg-surface-muted px-3 py-2 text-[14px]"
+                        className="flex items-start justify-between gap-3 rounded-xl bg-panel px-3 py-2 text-[14px]"
                       >
                         <div className="min-w-0">
                           <p className="mb-0 truncate font-semibold text-ink">
@@ -1412,7 +1424,7 @@ export function MenuDetailPage() {
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4 flex flex-col gap-2 border-t border-hairline pt-4 text-[14px] sm:items-end">
+                  <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4 text-[14px] sm:items-end">
                     <div className="flex w-full justify-between gap-3 sm:w-[280px]">
                       <span className="text-ink-variant">{t('menuDetail.subtotal')}</span>
                       <strong className="text-ink">
@@ -1458,7 +1470,7 @@ export function MenuDetailPage() {
                         </span>
                       </div>
                     )}
-                    <div className="flex w-full justify-between gap-3 border-t border-hairline pt-2 sm:w-[280px]">
+                    <div className="flex w-full justify-between gap-3 border-t border-border pt-2 sm:w-[280px]">
                       <span className="font-bold text-ink">{t('menuDetail.total')}</span>
                       <strong className="text-[16px] text-ink">
                         {formatConvertedAmount(total, currency, displayCurrency, exchangeRates)}
@@ -1474,76 +1486,80 @@ export function MenuDetailPage() {
                 </div>
               )}
             </section>
-            <div className="fixed inset-x-0 bottom-0 z-20 border-t border-hairline bg-surface-muted px-4 py-[20px] shadow-[0_-10px_30px_rgba(24,29,21,0.08)] sm:px-[50px] sm:py-[30px]">
+            </Reveal>
+            <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-panel px-4 py-[20px] shadow-3 sm:px-[50px] sm:py-[30px]">
               <div className="mx-auto flex max-w-[1240px] flex-col justify-center gap-3 sm:min-h-11 sm:flex-row sm:items-center sm:justify-end">
-                <Link
-                  to="/app/scan"
-                  onClick={(event) => {
-                    if (!confirmLeaveWithUnsavedChanges()) event.preventDefault()
-                  }}
-                  className="flex min-h-11 items-center justify-center rounded-[8px] border border-hairline bg-canvas px-5 text-[14px] font-bold text-ink transition-colors hover:bg-white"
-                >
-                  {t('menuDetail.scanAnother')}
-                </Link>
-                <button
+                <Button asChild variant="outline" size="lg">
+                  <Link
+                    to="/app/scan"
+                    onClick={(event) => {
+                      if (!confirmLeaveWithUnsavedChanges()) event.preventDefault()
+                    }}
+                  >
+                    {t('menuDetail.scanAnother')}
+                  </Link>
+                </Button>
+                <Button
                   type="button"
+                  variant="outline"
+                  size="lg"
                   onClick={() => void handleCreateReceipt()}
                   // Blocked while a needed rate is still in flight: the tip would be
                   // converted to 0 and silently disappear from the bill.
                   disabled={creatingBill || ratesPending || selectedLines.length === 0}
-                  className="flex min-h-11 items-center justify-center gap-2 rounded-[8px] border border-primary-dark bg-canvas px-5 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="border-primary bg-surface text-primary hover:bg-primary/10 hover:text-primary"
                 >
                   {creatingBill ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    <Loader2 className="animate-spin" aria-hidden />
                   ) : (
-                    <ReceiptText className="size-4" aria-hidden />
+                    <ReceiptText aria-hidden />
                   )}
                   {t('menuDetail.showBill')}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  size="lg"
                   onClick={() => void handleConfirmMenu()}
                   disabled={confirming || selectedLines.length === 0}
-                  className="flex min-h-11 items-center justify-center rounded-[8px] bg-primary-dark px-8 text-[14px] font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {confirming ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+                    <Loader2 className="animate-spin" aria-hidden />
                   ) : null}
                   {menu.status === 'CONFIRMED' ? t('menuDetail.confirmedBtn') : t('menuDetail.reviewConfirm')}
-                </button>
+                </Button>
               </div>
             </div>
           </>
         ) : error ? (
-          <div className="flex flex-col items-center gap-4 rounded-[8px] border border-hairline bg-canvas px-4 py-[70px] text-center">
-            <span className="flex size-14 items-center justify-center rounded-full bg-destructive/10">
+          <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface px-4 py-[70px] text-center shadow-1">
+            <span className="flex size-14 items-center justify-center rounded-2xl bg-destructive/10">
               <AlertCircle className="size-7 text-destructive" aria-hidden />
             </span>
             <p role="alert" className="max-w-[360px] text-[14px] text-destructive">
               {error}
             </p>
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => void loadMenu()}
-              className="flex min-h-10 items-center gap-2 rounded-[8px] border border-destructive/30 px-4 py-2 text-[14px] font-medium text-destructive transition-colors hover:bg-destructive/10"
+              className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
-              <RefreshCw className="size-4" aria-hidden />
+              <RefreshCw aria-hidden />
               {t('common.retry')}
-            </button>
+            </Button>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-4 rounded-[8px] border border-hairline bg-canvas px-4 py-[70px] text-center text-ink-variant">
-            <XCircle className="size-8 text-destructive" aria-hidden />
+          <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface px-4 py-[70px] text-center text-ink-variant shadow-1">
+            <span className="flex size-16 items-center justify-center rounded-3xl bg-destructive/10">
+              <XCircle className="size-8 text-destructive" aria-hidden />
+            </span>
             <p className="text-[15px] font-medium text-ink">{t('menuDetail.notFound')}</p>
-            <Link
-              to="/app/menus"
-              className="rounded-[8px] bg-primary-dark px-5 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
-            >
-              {t('menuDetail.backToMenus')}
-            </Link>
+            <Button asChild>
+              <Link to="/app/menus">{t('menuDetail.backToMenus')}</Link>
+            </Button>
           </div>
         )}
       </div>
-    </div>
+    </PageTransition>
   )
 }

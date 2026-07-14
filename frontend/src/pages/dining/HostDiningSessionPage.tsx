@@ -2,11 +2,11 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useLocation, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import QRCode from 'qrcode'
+import { motion } from 'motion/react'
 import {
   Users,
   Clock,
   RefreshCw,
-  Loader2,
   AlertCircle,
   Maximize2,
   Minimize2,
@@ -19,8 +19,13 @@ import {
 import { useAuth } from '@/app/providers/AuthProvider'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { Button } from '@/shared/components/ui/button'
-import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { Badge } from '@/shared/components/ui/badge'
+import { Card } from '@/shared/components/ui/card'
+import { EmptyState } from '@/shared/components/EmptyState'
+import { Reveal } from '@/shared/components/motion/Reveal'
+import { PageTransition } from '@/shared/components/motion/PageTransition'
+import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
+import { Spinner } from '@/shared/components/Spinner'
 
 interface DiningPreference {
   id: string
@@ -136,7 +141,7 @@ export function HostDiningSessionPage() {
       width: 512,
       margin: 1,
       color: {
-        dark: '#1c2e15', // Matches primary-dark color
+        dark: '#042c60', // navy ink — scans cleanly on white
         light: '#ffffff',
       },
     })
@@ -145,7 +150,7 @@ export function HostDiningSessionPage() {
   }, [inviteToken])
 
   // Polling effect
-  const pollTimerRef = useRef<number | null>(null)
+  const pollTimerRef = useRef<number | undefined>(undefined)
   useEffect(() => {
     let active = true
     Promise.resolve().then(() => {
@@ -161,9 +166,7 @@ export function HostDiningSessionPage() {
 
     return () => {
       active = false
-      if (pollTimerRef.current !== null) {
-        clearInterval(pollTimerRef.current)
-      }
+      clearInterval(pollTimerRef.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, pollingActive])
@@ -180,15 +183,15 @@ export function HostDiningSessionPage() {
   const getPreferenceBadgeStyle = (type: DiningPreference['preference_type']) => {
     switch (type) {
       case 'ALLERGY':
-        return 'border-destructive bg-destructive/10 text-destructive'
+        return 'border-destructive/40 bg-destructive/10 text-destructive'
       case 'AVOID':
-        return 'border-[#e67e22] bg-[#e67e22]/10 text-[#e67e22]'
+        return 'border-amber/40 bg-amber/15 text-amber'
       case 'DIETARY_RULE':
-        return 'border-[#9b59b6] bg-[#9b59b6]/10 text-[#9b59b6]'
+        return 'border-primary/30 bg-primary/15 text-primary-dark'
       case 'LIKE':
-        return 'border-[#2ecc71] bg-[#2ecc71]/10 text-[#27ae60]'
+        return 'border-success/30 bg-success/15 text-success'
       default:
-        return 'border-hairline bg-surface-muted text-ink-variant'
+        return 'border-border bg-panel text-ink-variant'
     }
   }
 
@@ -209,81 +212,89 @@ export function HostDiningSessionPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[60vh] w-full flex-col items-center justify-center text-ink-variant">
-        <Loader2 className="size-10 animate-spin text-primary-dark mb-3" />
-        <p className="text-[15px] font-medium">{t('common.loading') || 'Loading...'}</p>
-      </div>
+      <PageTransition className="flex h-[60vh] w-full flex-col items-center justify-center text-ink-variant">
+        <Spinner label={t('common.loading') || 'Loading...'} />
+      </PageTransition>
     )
   }
 
   if (error || !session) {
     return (
-      <div className="mx-auto max-w-[600px] px-4 py-16 text-center">
-        <AlertCircle className="size-12 text-destructive mx-auto mb-4" />
-        <h2 className="text-[22px] font-bold text-primary-dark mb-2">Đã xảy ra lỗi</h2>
-        <p className="text-[15px] text-ink-variant mb-6">{error || 'Không tìm thấy phiên ăn.'}</p>
-        <Link to="/app/dining">
-          <Button variant="outline" className="h-10">
-            <ArrowLeft className="size-4 mr-2" /> Quay lại danh sách
-          </Button>
-        </Link>
-      </div>
+      <PageTransition className="mx-auto max-w-[600px] px-4 py-16">
+        <EmptyState
+          icon={AlertCircle}
+          tone="destructive"
+          title="Đã xảy ra lỗi"
+          description={error || 'Không tìm thấy phiên ăn.'}
+          action={
+            <Button variant="outline" asChild>
+              <Link to="/app/dining">
+                <ArrowLeft className="size-4" aria-hidden /> Quay lại danh sách
+              </Link>
+            </Button>
+          }
+        />
+      </PageTransition>
     )
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-4 py-[30px] sm:px-[50px] sm:py-[40px] font-sans">
+    <PageTransition className="mx-auto w-full max-w-[1200px] px-4 py-[30px] sm:px-[50px] sm:py-[40px]">
       {/* Back button */}
-      <Link
-        to="/app/dining"
-        className="inline-flex items-center text-[14px] font-medium text-ink-variant hover:text-primary-dark mb-6 transition-colors"
-      >
-        <ArrowLeft className="size-4 mr-1.5" />
-        {t('common.back') || 'Quay lại'}
-      </Link>
+      <Button variant="ghost" size="sm" asChild className="mb-6 -ml-2">
+        <Link to="/app/dining">
+          <ArrowLeft className="size-4" aria-hidden />
+          {t('common.back') || 'Quay lại'}
+        </Link>
+      </Button>
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
         {/* Left column: QR code sharing */}
-        <div className="flex flex-col items-center gap-4 rounded-[16px] border border-hairline bg-canvas p-6 text-center shadow-sm w-full lg:max-w-[420px] shrink-0">
-          <div className="flex flex-col gap-1 w-full">
-            <h2 className="text-[22px] font-bold text-primary-dark">{t('dining.scanQrPrompt')}</h2>
-            <p className="text-[14px] text-ink-variant px-2">{t('dining.scanQrDesc')}</p>
+        <Card className="w-full shrink-0 items-center gap-4 rounded-3xl p-6 text-center shadow-3 lg:max-w-[420px]">
+          <div className="flex w-full flex-col gap-1">
+            <h2 className="text-[22px] font-bold text-ink">{t('dining.scanQrPrompt')}</h2>
+            <p className="px-2 text-[14px] text-ink-variant">{t('dining.scanQrDesc')}</p>
           </div>
 
           {/* QR Display */}
           {qrDataUrl ? (
-            <div className="relative group flex flex-col items-center">
-              <div className="relative border-4 border-primary/20 rounded-[12px] p-2 bg-white max-w-[280px]">
+            <div className="group flex flex-col items-center">
+              <div className="relative max-w-[280px] rounded-2xl border-4 border-primary/20 bg-white p-2">
                 <img
                   src={qrDataUrl}
                   alt="Dining Invite QR Code"
-                  className="w-full aspect-square rounded-[8px]"
+                  className="aspect-square w-full rounded-xl"
                 />
-                <button
+                <Button
                   type="button"
+                  variant="default"
+                  size="icon-sm"
                   onClick={() => setIsFullscreenQr(true)}
-                  className="absolute bottom-4 right-4 flex size-9 items-center justify-center rounded-full bg-primary-dark/80 text-white shadow-md backdrop-blur-xs transition-transform group-hover:scale-105 hover:bg-primary-dark"
+                  className="absolute bottom-4 right-4 shadow-2"
                   title={t('dining.fullscreenQr')}
+                  aria-label={t('dining.fullscreenQr')}
                 >
                   <Maximize2 className="size-4" />
-                </button>
+                </Button>
               </div>
               <button
                 type="button"
                 onClick={() => setIsFullscreenQr(true)}
-                className="mt-2.5 text-[13px] font-bold text-primary-dark hover:underline flex items-center gap-1"
+                className="mt-2.5 flex items-center gap-1 text-[13px] font-bold text-primary hover:text-primary-dark"
               >
-                <Maximize2 className="size-3.5" />
+                <Maximize2 className="size-3.5" aria-hidden />
                 {t('dining.fullscreenQr')}
               </button>
-              
-              <div className="mt-4 flex flex-col items-center gap-1.5 w-full max-w-[280px]">
-                <span className="text-[12px] text-ink-variant font-medium">Hoặc nhấp vào liên kết trực tiếp:</span>
+
+              <div className="mt-4 flex w-full max-w-[280px] flex-col items-center gap-1.5">
+                <span className="text-[12px] font-medium text-ink-variant">
+                  Hoặc nhấp vào liên kết trực tiếp:
+                </span>
                 <a
                   href={joinUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full text-[12px] font-semibold text-primary-dark bg-secondary/25 hover:bg-secondary/40 py-2 px-3 rounded-[8px] truncate block text-center border border-primary-dark/10 transition-colors"
+                  className="block w-full truncate rounded-xl border border-primary/20 bg-panel px-3 py-2 text-center text-[12px] font-semibold text-primary-dark transition-colors hover:bg-border"
                   title={joinUrl}
                 >
                   {joinUrl}
@@ -291,63 +302,59 @@ export function HostDiningSessionPage() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center border border-dashed border-destructive/30 rounded-[12px] bg-destructive/5 p-4 text-center">
-              <AlertCircle className="size-8 text-destructive mb-2" />
-              <p className="text-[13px] text-destructive font-semibold mb-1">
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-destructive/30 bg-destructive/5 p-4 text-center">
+              <AlertCircle className="mb-2 size-8 text-destructive" aria-hidden />
+              <p className="mb-1 text-[13px] font-semibold text-destructive">
                 Không thể hiển thị QR code
               </p>
-              <p className="text-[12px] text-ink-variant max-w-[260px]">
-                Token mời đã bị thiếu do tải lại trang trên thiết bị khác. Mọi người vẫn có thể tham gia nếu bạn chia sẻ link trực tiếp.
+              <p className="max-w-[260px] text-[12px] text-ink-variant">
+                Token mời đã bị thiếu do tải lại trang trên thiết bị khác. Mọi người vẫn có thể tham
+                gia nếu bạn chia sẻ link trực tiếp.
               </p>
             </div>
           )}
 
           {/* Session short details */}
-          <div className="w-full border-t border-hairline mt-2 pt-4 flex flex-col gap-3 text-left">
-            <div className="flex justify-between items-center text-[14px]">
-              <span className="text-ink-variant flex items-center gap-1.5">
-                <Clock className="size-4" />
+          <div className="mt-2 w-full border-t border-hairline pt-4 text-left">
+            <div className="flex items-center justify-between text-[14px]">
+              <span className="flex items-center gap-1.5 text-ink-variant">
+                <Clock className="size-4" aria-hidden />
                 Khởi tạo:
               </span>
-              <span className="font-medium text-ink-variant">
-                {formatDate(session.created_at)}
-              </span>
+              <span className="font-medium text-ink-variant">{formatDate(session.created_at)}</span>
             </div>
-            <div className="flex justify-between items-center text-[14px]">
-              <span className="text-ink-variant flex items-center gap-1.5">
-                <HelpCircle className="size-4" />
+            <div className="flex items-center justify-between text-[14px]">
+              <span className="flex items-center gap-1.5 text-ink-variant">
+                <HelpCircle className="size-4" aria-hidden />
                 Trạng thái:
               </span>
-              <Badge variant="outline" className="font-bold text-[11px] bg-secondary/15">
+              <Badge variant="secondary" className="text-[11px] font-bold">
                 {t(`dining.status.${session.status}`)}
               </Badge>
             </div>
           </div>
 
-          <Link
-            to={`/app/scan?dining_session_id=${session.id}`}
-            className="w-full mt-2"
-          >
-            <Button className="w-full h-11 bg-primary-dark font-bold text-white rounded-[8px] hover:bg-primary-dark/95 flex items-center justify-center gap-2">
-              <ScanLine className="size-5" />
+          <Button asChild size="lg" className="mt-2 w-full">
+            <Link to={`/app/scan?dining_session_id=${session.id}`}>
+              <ScanLine className="size-5" aria-hidden />
               Quét thực đơn phiên này
-            </Button>
-          </Link>
-        </div>
+            </Link>
+          </Button>
+        </Card>
 
         {/* Right column: Participants and their preferences */}
-        <div className="flex-1 flex flex-col gap-4">
+        <div className="flex flex-1 flex-col gap-4">
           <div className="flex items-center justify-between border-b border-hairline pb-3">
-            <h2 className="text-[22px] font-bold text-primary-dark flex items-center gap-2">
-              <Users className="size-5 text-primary-dark" />
+            <h2 className="flex items-center gap-2 text-[22px] font-bold text-ink">
+              <Users className="size-5 text-primary" aria-hidden />
               {t('dining.participants', { count: session.participants.length })}
             </h2>
             <div className="flex items-center gap-3">
               {pollingActive && (
-                <span className="flex items-center gap-1.5 text-[12px] text-green-600 font-medium">
+                <span className="flex items-center gap-1.5 text-[12px] font-medium text-success">
                   <span className="relative flex size-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full size-2 bg-green-500"></span>
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+                    <span className="relative inline-flex size-2 rounded-full bg-success" />
                   </span>
                   Đang cập nhật trực tiếp
                 </span>
@@ -355,7 +362,8 @@ export function HostDiningSessionPage() {
               <Button
                 onClick={() => void fetchSession(false)}
                 variant="outline"
-                className="h-9 px-3"
+                size="icon-sm"
+                aria-label="Refresh"
               >
                 <RefreshCw className="size-4" />
               </Button>
@@ -363,80 +371,82 @@ export function HostDiningSessionPage() {
           </div>
 
           {session.participants.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 border border-dashed border-hairline rounded-[16px] bg-canvas text-center px-4">
-              <Users className="size-14 text-ink-variant mb-3" />
-              <p className="text-[16px] font-semibold text-ink mb-1.5">Chưa có ai tham gia</p>
-              <p className="text-[14px] text-ink-variant max-w-[360px]">
-                {t('dining.noParticipants')}
-              </p>
-            </div>
+            <EmptyState
+              icon={Users}
+              tone="primary"
+              title="Chưa có ai tham gia"
+              description={t('dining.noParticipants')}
+            />
           ) : (
             <div className="flex flex-col gap-4">
-              {session.participants.map((participant) => (
-                <div
-                  key={participant.id}
-                  className="rounded-[16px] border border-hairline bg-canvas p-5 shadow-xs flex flex-col gap-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-9 items-center justify-center rounded-full bg-primary-dark text-white font-bold text-[14px]">
-                        {participant.display_name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[16px] font-bold text-primary-dark leading-tight">
-                          {participant.display_name}
-                        </span>
-                        <span className="text-[11px] text-ink-variant">
-                          Đã tham gia{' '}
-                          {new Intl.DateTimeFormat('vi-VN', { timeStyle: 'short' }).format(
-                            new Date(participant.joined_at),
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="flex items-center gap-1 text-[12px] text-primary-dark font-medium">
-                        <CheckCircle className="size-4 text-primary" /> Đã gửi sở thích
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteParticipant(participant.id)}
-                        className="flex size-8 items-center justify-center rounded-full text-ink-variant hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        title="Xóa người tham gia"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Preferences chips list */}
-                  <div className="border-t border-hairline/60 pt-3">
-                    {participant.preferences.length === 0 ? (
-                      <p className="text-[13px] text-ink-variant italic">Không khai báo sở thích ăn uống đặc biệt.</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {participant.preferences.map((pref) => (
-                          <div
-                            key={pref.id}
-                            className={`inline-flex items-center border rounded-full px-3 py-1 text-[12px] font-bold ${getPreferenceBadgeStyle(
-                              pref.preference_type,
-                            )}`}
-                          >
-                            <span className="mr-1.5 opacity-80 uppercase text-[9px] px-1 bg-black/5 rounded">
-                              {getPreferenceTypeLabel(pref.preference_type)}
-                            </span>
-                            <span className="capitalize">{pref.code.replace(/_/g, ' ')}</span>
-                            {pref.intensity !== null && (
-                              <span className="ml-1 opacity-80 text-[10px]">
-                                ({pref.intensity}/5)
-                              </span>
+              {session.participants.map((participant, index) => (
+                <Reveal key={participant.id} delay={index * 0.05}>
+                  <Card className="gap-3 rounded-2xl p-5 shadow-1 transition-all duration-200 ease-[var(--ease-out-quint)] hover:-translate-y-1 hover:shadow-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="flex size-9 items-center justify-center rounded-full bg-primary text-[14px] font-bold text-white shadow-2 shadow-primary/30">
+                          {participant.display_name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[16px] font-bold leading-tight text-ink">
+                            {participant.display_name}
+                          </span>
+                          <span className="text-[11px] text-ink-variant">
+                            Đã tham gia{' '}
+                            {new Intl.DateTimeFormat('vi-VN', { timeStyle: 'short' }).format(
+                              new Date(participant.joined_at),
                             )}
-                          </div>
-                        ))}
+                          </span>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </div>
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1 text-[12px] font-medium text-primary">
+                          <CheckCircle className="size-4 text-primary" aria-hidden /> Đã gửi sở thích
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-sm"
+                          onClick={() => handleDeleteParticipant(participant.id)}
+                          title="Xóa người tham gia"
+                          aria-label="Xóa người tham gia"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Preferences chips list */}
+                    <div className="border-t border-hairline/60 pt-3">
+                      {participant.preferences.length === 0 ? (
+                        <p className="text-[13px] italic text-ink-variant">
+                          Không khai báo sở thích ăn uống đặc biệt.
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {participant.preferences.map((pref) => (
+                            <div
+                              key={pref.id}
+                              className={`inline-flex items-center rounded-full border px-3 py-1 text-[12px] font-bold ${getPreferenceBadgeStyle(
+                                pref.preference_type,
+                              )}`}
+                            >
+                              <span className="mr-1.5 rounded bg-black/5 px-1 text-[9px] uppercase opacity-80">
+                                {getPreferenceTypeLabel(pref.preference_type)}
+                              </span>
+                              <span className="capitalize">{pref.code.replace(/_/g, ' ')}</span>
+                              {pref.intensity !== null && (
+                                <span className="ml-1 text-[10px] opacity-80">
+                                  ({pref.intensity}/5)
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                </Reveal>
               ))}
             </div>
           )}
@@ -446,38 +456,34 @@ export function HostDiningSessionPage() {
       {/* Fullscreen QR Modal Overlay */}
       {isFullscreenQr && qrDataUrl && (
         <div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4 font-sans animate-fade-in"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4"
           onClick={() => setIsFullscreenQr(false)}
         >
-          <div
-            className="flex w-full max-w-[500px] flex-col items-center gap-6 rounded-[24px] bg-white p-8 text-center shadow-2xl"
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="flex w-full max-w-[500px] flex-col items-center gap-6 rounded-3xl bg-white p-8 text-center shadow-pop"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex flex-col gap-1">
-              <h3 className="text-[24px] font-bold text-primary-dark">
-                {t('dining.scanQrPrompt')}
-              </h3>
-              <p className="text-[14px] text-ink-variant max-w-[360px]">
-                {t('dining.scanQrDesc')}
-              </p>
+              <h3 className="text-[24px] font-bold text-ink">{t('dining.scanQrPrompt')}</h3>
+              <p className="max-w-[360px] text-[14px] text-ink-variant">{t('dining.scanQrDesc')}</p>
             </div>
 
             <img
               src={qrDataUrl}
               alt="Dining Session Fullscreen QR Code"
-              className="w-full aspect-square max-w-[360px] rounded-[16px] border border-hairline shadow-inner"
+              className="aspect-square w-full max-w-[360px] rounded-2xl border border-hairline shadow-inner"
             />
 
-            <Button
-              onClick={() => setIsFullscreenQr(false)}
-              className="h-11 px-8 bg-primary-dark text-white rounded-full font-bold flex items-center gap-1.5 hover:bg-primary-dark/90"
-            >
-              <Minimize2 className="size-4" />
+            <Button onClick={() => setIsFullscreenQr(false)} size="lg" className="px-8">
+              <Minimize2 className="size-4" aria-hidden />
               {t('dining.closeFullscreen')}
             </Button>
-          </div>
+          </motion.div>
         </div>
       )}
-    </div>
+    </PageTransition>
   )
 }

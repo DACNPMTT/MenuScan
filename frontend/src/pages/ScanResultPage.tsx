@@ -17,6 +17,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { motion } from 'motion/react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
 import { apiRequest, apiRequestWithMeta, ApiError } from '@/shared/lib/api'
@@ -35,6 +36,14 @@ import type {
   ScanError,
   ScanResult,
 } from '@/features/menu-scan/types'
+import { Button } from '@/shared/components/ui/button'
+import { Badge } from '@/shared/components/ui/badge'
+import { SectionCard } from '@/shared/components/SectionCard'
+import { IconBadge } from '@/shared/components/IconBadge'
+import { EmptyState } from '@/shared/components/EmptyState'
+import { Spinner } from '@/shared/components/Spinner'
+import { PageTransition } from '@/shared/components/motion/PageTransition'
+import { Reveal } from '@/shared/components/motion/Reveal'
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '')
 
@@ -197,47 +206,52 @@ export function ScanResultPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[900px] px-[30px] py-[40px] sm:px-[50px]">
-      <Link
-        to={user ? '/app' : '/'}
-        className="mb-6 flex w-fit items-center gap-2 text-[14px] text-ink-variant transition-colors hover:text-primary-dark"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        {user ? t('common.backToDashboard') : t('common.backToHome')}
-      </Link>
-
-      {error && (
-        <div
-          role="alert"
-          className="flex flex-col gap-4 rounded-[12px] border border-destructive/30 bg-destructive/5 px-5 py-4"
+    <PageTransition>
+      <div className="mx-auto w-full max-w-[900px] px-[30px] py-[40px] sm:px-[50px]">
+        <Link
+          to={user ? '/app' : '/'}
+          className="mb-6 flex w-fit items-center gap-2 text-[14px] text-ink-variant transition-colors hover:text-primary"
         >
-          <div className="flex items-start gap-3 text-[14px] text-destructive">
-            <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <span>{error}</span>
-          </div>
-          <Link
-            to="/app/scan"
-            className="flex w-fit items-center gap-2 rounded-[8px] border border-destructive/30 px-4 py-2 text-[14px] font-medium text-destructive transition-colors hover:bg-destructive/10"
+          <ArrowLeft className="size-4" aria-hidden />
+          {user ? t('common.backToDashboard') : t('common.backToHome')}
+        </Link>
+
+        {error && (
+          <div
+            role="alert"
+            className="flex flex-col gap-4 rounded-2xl border border-destructive/30 bg-destructive/5 px-5 py-4"
           >
-            <RefreshCw className="size-4" aria-hidden />
-            {t('scanResult.retryScan')}
-          </Link>
-        </div>
-      )}
+            <div className="flex items-start gap-3 text-[14px] text-destructive">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <span>{error}</span>
+            </div>
+            <Button
+              asChild
+              variant="outline"
+              className="w-fit border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Link to="/app/scan">
+                <RefreshCw className="size-4" aria-hidden />
+                {t('scanResult.retryScan')}
+              </Link>
+            </Button>
+          </div>
+        )}
 
-      {!error && status !== 'COMPLETED' && <ProcessingView detail={detail} />}
+        {!error && status !== 'COMPLETED' && <ProcessingView detail={detail} />}
 
-      {status === 'COMPLETED' && result && (
-        <ResultView
-          result={result}
-          itemsMeta={resultMeta}
-          accessToken={accessToken}
-          onSavedChange={handleSavedChange}
-          onConfirmed={handleConfirmed}
-          onItemsPageChange={loadResultPage}
-        />
-      )}
-    </div>
+        {status === 'COMPLETED' && result && (
+          <ResultView
+            result={result}
+            itemsMeta={resultMeta}
+            accessToken={accessToken}
+            onSavedChange={handleSavedChange}
+            onConfirmed={handleConfirmed}
+            onItemsPageChange={loadResultPage}
+          />
+        )}
+      </div>
+    </PageTransition>
   )
 }
 
@@ -249,26 +263,36 @@ function ProcessingView({ detail }: { detail: ScanDetail | null }) {
     ? t(`scanResult.stages.${detail.stage}`, { defaultValue: fallbackStage })
     : fallbackStage
   return (
-    <div className="flex flex-col gap-6 rounded-[12px] border border-hairline bg-canvas p-[30px]">
-      <div className="flex items-center gap-3">
-        <Loader2 className="size-6 animate-spin text-primary-dark" aria-hidden />
-        <div className="flex flex-col">
-          <h1 className="text-[24px] font-bold leading-[30px] text-primary-dark">
+    <SectionCard>
+      <div className="flex flex-col items-center gap-6 px-4 py-8 text-center">
+        <Spinner label={t('scanResult.processing.title')} className="text-primary" />
+        <div className="flex flex-col gap-2">
+          <h1 className="text-[24px] font-bold leading-[30px] text-ink">
             {t('scanResult.processing.title')}
           </h1>
           <p className="text-[14px] text-ink-variant">{stageLabel}</p>
+          <div className="flex items-center justify-center gap-1.5" aria-hidden>
+            {[0, 1, 2].map((i) => (
+              <motion.span
+                key={i}
+                className="size-2 rounded-full bg-primary"
+                animate={{ opacity: [0.3, 1, 0.3], y: [0, -3, 0] }}
+                transition={{ duration: 1, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="flex w-full max-w-md flex-col gap-2">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-panel">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-500 ease-[var(--ease-out-quint)]"
+              style={{ width: `${Math.max(5, progress)}%` }}
+            />
+          </div>
+          <span className="text-right text-[13px] text-ink-variant">{progress}%</span>
         </div>
       </div>
-      <div className="flex flex-col gap-2">
-        <div className="h-2 w-full overflow-hidden rounded-full bg-surface-muted">
-          <div
-            className="h-full rounded-full bg-primary-dark transition-all duration-500"
-            style={{ width: `${Math.max(5, progress)}%` }}
-          />
-        </div>
-        <span className="text-right text-[13px] text-ink-variant">{progress}%</span>
-      </div>
-    </div>
+    </SectionCard>
   )
 }
 
@@ -380,11 +404,9 @@ function ResultView({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-full bg-primary-dark">
-            <Check className="size-5 text-white" aria-hidden />
-          </span>
+          <IconBadge icon={Check} size="sm" solid />
           <div className="flex flex-col">
-            <h1 className="text-[28px] font-bold leading-[34px] text-primary-dark">
+            <h1 className="text-[28px] font-bold leading-[34px] text-ink">
               {result.menu?.title || t('scanResult.title')}
             </h1>
             <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -393,30 +415,29 @@ function ResultView({
               </span>
               <span className="hidden text-[14px] text-ink-variant sm:inline">•</span>
               {result.scan.detected_language && (
-                <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[12px] font-medium text-ink-variant">
+                <Badge variant="secondary">
                   {t('scanResult.detected')} {LANGUAGE_MAP[result.scan.detected_language] || result.scan.detected_language.toUpperCase()}
-                </span>
+                </Badge>
               )}
-              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[12px] font-medium text-primary-dark">
+              <Badge variant="primary">
                 {t('scanResult.translatedTo')} {LANGUAGE_MAP[result.scan.target_language] || result.scan.target_language.toUpperCase()}
-              </span>
+              </Badge>
             </div>
           </div>
         </div>
         {result.menu && (
           <div className="flex flex-col items-start gap-2 sm:items-end">
-            <Link
-              to={`/app/menus/${result.menu.id}`}
-              className="flex min-h-10 items-center gap-2 rounded-[8px] bg-primary-dark px-4 py-2 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
-            >
-              <ListChecks className="size-4" aria-hidden />
-              {t('scanResult.chooseAndSplit')}
-            </Link>
-            <button
+            <Button asChild>
+              <Link to={`/app/menus/${result.menu.id}`}>
+                <ListChecks className="size-4" aria-hidden />
+                {t('scanResult.chooseAndSplit')}
+              </Link>
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               onClick={handleConfirm}
               disabled={confirming}
-              className="flex min-h-10 items-center gap-2 rounded-[8px] border border-primary-dark px-4 py-2 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {confirming ? (
                 <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -424,12 +445,12 @@ function ResultView({
                 <Check className="size-4" aria-hidden />
               )}
               {result.menu.status === 'CONFIRMED' ? t('scanResult.confirmed') : t('scanResult.confirmMenu')}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               onClick={handleToggleSaved}
               disabled={saving}
-              className="flex min-h-10 items-center gap-2 rounded-[8px] border border-primary-dark px-4 py-2 text-[14px] font-bold text-primary-dark transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
               aria-pressed={result.menu.is_saved}
             >
               {saving ? (
@@ -440,7 +461,7 @@ function ResultView({
                 <Bookmark className="size-4" aria-hidden />
               )}
               {result.menu.is_saved ? t('scanResult.saved') : t('scanResult.saveMenu')}
-            </button>
+            </Button>
             {saveError && (
               <span role="alert" className="text-[13px] text-destructive">
                 {saveError}
@@ -509,7 +530,7 @@ function SourcePreview({
       <p className="text-[14px] font-medium uppercase tracking-[0.7px] text-ink-variant">
         {t('scanResult.sourceFile')}
       </p>
-      <div className="overflow-hidden rounded-[12px] border border-hairline bg-surface-muted">
+      <div className="overflow-hidden rounded-2xl border border-border bg-panel shadow-2">
         {isImage ? (
           objectUrl ? (
             <img
@@ -524,7 +545,7 @@ function SourcePreview({
           )
         ) : (
           <div className="flex items-center gap-3 p-4">
-            <AlertCircle className="size-5 text-primary-dark" aria-hidden />
+            <AlertCircle className="size-5 text-primary" aria-hidden />
             <span className="text-[14px] text-ink-variant">
               {source.file_name} (PDF)
             </span>
@@ -591,10 +612,10 @@ const ExtractedMenuItemCard = memo(function ExtractedMenuItemCard({
   )
 
   return (
-    <article className="flex h-full flex-col gap-3 rounded-[8px] border border-hairline bg-canvas p-4">
+    <article className="flex h-full flex-col gap-3 rounded-2xl border border-border bg-surface p-4 shadow-2 transition-all duration-200 ease-[var(--ease-out-quint)] hover:-translate-y-1 hover:shadow-3">
       <div className="flex min-h-7 items-start justify-between gap-3">
         {item.category ? (
-          <span className="max-w-[65%] truncate rounded-[4px] bg-secondary px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.5px] text-ink-variant">
+          <span className="max-w-[65%] truncate rounded-lg bg-panel px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.5px] text-ink-variant">
             {item.category}
           </span>
         ) : (
@@ -622,7 +643,7 @@ const ExtractedMenuItemCard = memo(function ExtractedMenuItemCard({
       </div>
 
       {description && (
-        <div className="border-t border-hairline pt-3">
+        <div className="border-t border-border pt-3">
           <p className="line-clamp-4 text-[13px] leading-relaxed text-ink-variant">
             {description}
           </p>
@@ -632,7 +653,7 @@ const ExtractedMenuItemCard = memo(function ExtractedMenuItemCard({
       {(risky || allergenList.length > 0) && (
         <div className="mt-auto flex flex-col gap-1.5">
           {risky && (
-            <p className="flex gap-1.5 rounded-[6px] border border-destructive/30 bg-destructive/5 px-2 py-1.5 text-[11px] font-bold leading-relaxed text-destructive">
+            <p className="flex gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-2 py-1.5 text-[11px] font-bold leading-relaxed text-destructive">
               <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
               <span>
                 {risk.allergens.length > 0
@@ -714,39 +735,34 @@ function ItemsList({
         )}
       </div>
       {items.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-[12px] border border-dashed border-hairline bg-canvas px-4 py-[40px] text-center">
-          <XCircle className="size-8 text-ink-variant" aria-hidden />
-          <div className="flex flex-col gap-1">
-            <p className="text-[15px] font-medium text-ink">
-              {t('scanResult.noItems.title')}
-            </p>
-            <p className="max-w-[340px] text-[14px] text-ink-variant">
-              {t('scanResult.noItems.body')}
-            </p>
-          </div>
-          <Link
-            to="/app/scan"
-            className="mt-1 rounded-[8px] bg-primary-dark px-[20px] py-[10px] text-[15px] font-bold text-white transition-opacity hover:opacity-90"
-          >
-            {t('scanResult.scanAnother')}
-          </Link>
-        </div>
+        <SectionCard>
+          <EmptyState
+            icon={XCircle}
+            title={t('scanResult.noItems.title')}
+            description={t('scanResult.noItems.body')}
+            action={
+              <Button asChild>
+                <Link to="/app/scan">{t('scanResult.scanAnother')}</Link>
+              </Button>
+            }
+          />
+        </SectionCard>
       ) : (
         <>
-          <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 2xl:grid-cols-3">
-          {rankedItems.map((item) => (
-            <ExtractedMenuItemCard
-              key={item.id}
-              item={item}
-              dietProfile={dietProfile}
-              baseCurrency={baseCurrency}
-              displayCurrency={displayCurrency}
-              rates={rates}
-            />
-          ))}
-          </div>
+          <Reveal className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+            {rankedItems.map((item) => (
+              <ExtractedMenuItemCard
+                key={item.id}
+                item={item}
+                dietProfile={dietProfile}
+                baseCurrency={baseCurrency}
+                displayCurrency={displayCurrency}
+                rates={rates}
+              />
+            ))}
+          </Reveal>
           {showPagination && itemsMeta && (
-            <div className="flex flex-col items-center justify-between gap-3 rounded-[8px] border border-hairline bg-canvas px-3 py-2 sm:flex-row">
+            <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-3 py-2 shadow-1 sm:flex-row">
               <p className="text-[13px] text-ink-variant" aria-live="polite">
                 {t('scanResult.pageStatus', {
                   from: pageStart,
@@ -755,31 +771,33 @@ function ItemsList({
                 })}
               </p>
               <div className="flex items-center gap-2">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="icon-sm"
                   onClick={() => onPageChange(itemsMeta.page - 1)}
                   disabled={itemsLoading || itemsMeta.page <= 1}
                   aria-label={t('scanResult.prevPage')}
-                  className="flex size-9 items-center justify-center rounded-[8px] border border-hairline text-primary-dark transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <ChevronLeft className="size-4" aria-hidden />
-                </button>
+                </Button>
                 <span className="min-w-[72px] text-center text-[13px] font-bold text-ink">
                   {itemsMeta.page} / {itemsMeta.total_pages}
                 </span>
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="icon-sm"
                   onClick={() => onPageChange(itemsMeta.page + 1)}
                   disabled={itemsLoading || itemsMeta.page >= itemsMeta.total_pages}
                   aria-label={t('scanResult.nextPage')}
-                  className="flex size-9 items-center justify-center rounded-[8px] border border-hairline text-primary-dark transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {itemsLoading ? (
                     <Loader2 className="size-4 animate-spin" aria-hidden />
                   ) : (
                     <ChevronRight className="size-4" aria-hidden />
                   )}
-                </button>
+                </Button>
               </div>
             </div>
           )}

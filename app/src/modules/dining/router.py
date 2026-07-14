@@ -33,6 +33,7 @@ def create_session(
         current_user,
         mode=payload.mode,
         invite_expires_in_hours=payload.invite_expires_in_hours,
+        name=payload.name,
     )
     response_data = CreateDiningSessionResponse(
         session=DiningSessionResponse.model_validate(bundle.dining_session),

@@ -77,6 +77,7 @@ class DiningPreferenceRequest(BaseModel):
 class CreateDiningSessionRequest(BaseModel):
     mode: Literal["GROUP", "PERSONAL"] = "GROUP"
     invite_expires_in_hours: int | None = Field(default=12, ge=1, le=168)
+    name: str | None = Field(default=None, max_length=255)
 
 
 class JoinDiningSessionRequest(BaseModel):
@@ -119,6 +120,7 @@ class DiningSessionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    name: str | None
     created_by_user_id: uuid.UUID | None
     mode: str
     status: str

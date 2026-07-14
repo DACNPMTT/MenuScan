@@ -1,10 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, useRef, type FormEvent, type KeyboardEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
+import { AuthShell } from '@/features/auth/components/AuthShell'
+import { SplitText } from '@/shared/components/rb/SplitText'
 
 interface LocationState {
   from?: {
@@ -21,6 +23,7 @@ export function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const passwordRef = useRef<HTMLInputElement>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -58,82 +61,79 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-canvas px-5 py-[75px] font-sans">
-      <div className="flex w-full max-w-[400px] flex-col">
-        <header className="mb-[50px] flex flex-col gap-[5px]">
-          <h1 className="text-center text-[30px] font-bold leading-[34px] tracking-normal text-primary-dark">
-            MenuScan
-          </h1>
-          <p className="text-center text-[20px] leading-[30px] text-ink">
-            {t('auth.welcomeBack')}
-          </p>
-        </header>
+    <AuthShell>
+      <SplitText
+        as="h1"
+        text={t('auth.welcomeBack')}
+        className="text-center text-[24px] font-bold leading-tight tracking-tight text-ink"
+      />
 
-        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-[30px] pb-4">
-          <label className="flex flex-col gap-[5px]">
-            <span className="text-[14px] leading-[14px] text-ink">{t('auth.emailLabel')}</span>
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6 pb-2">
+        <label className="flex flex-col gap-2">
+          <span className="text-[14px] font-semibold text-ink">{t('auth.emailLabel')}</span>
+          <Input
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder={t('auth.emailLabel')}
+            aria-label={t('auth.emailLabel')}
+            onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                passwordRef.current?.focus()
+              }
+            }}
+          />
+        </label>
+
+        <label className="flex flex-col gap-2">
+          <span className="text-[14px] font-semibold text-ink">{t('auth.passwordLabel')}</span>
+          <div className="relative">
             <Input
-              type="email"
+              ref={passwordRef}
+              type={showPassword ? 'text' : 'password'}
               required
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder={t('auth.emailLabel')}
-              aria-label={t('auth.emailLabel')}
-              className="rounded-none border-0 border-b border-hairline bg-transparent px-0 py-1 text-[16px] text-ink shadow-none placeholder:text-placeholder focus-visible:border-primary-dark focus-visible:ring-0"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder={t('auth.passwordPlaceholder')}
+              aria-label={t('auth.passwordLabel')}
+              className="pr-11"
             />
-          </label>
+            <button
+              type="button"
+              className="absolute right-1 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-lg text-ink-variant transition-colors hover:bg-panel hover:text-primary"
+              onClick={() => setShowPassword((current) => !current)}
+              aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+            >
+              {showPassword ? (
+                <EyeOff className="size-5" aria-hidden />
+              ) : (
+                <Eye className="size-5" aria-hidden />
+              )}
+            </button>
+          </div>
+        </label>
 
-          <label className="flex flex-col gap-[5px]">
-            <span className="text-[14px] leading-[14px] text-ink">{t('auth.passwordLabel')}</span>
-            <div className="relative">
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder={t('auth.passwordPlaceholder')}
-                aria-label={t('auth.passwordLabel')}
-                className="rounded-none border-0 border-b border-hairline bg-transparent px-0 py-1 pr-10 text-[16px] text-ink shadow-none placeholder:text-placeholder focus-visible:border-primary-dark focus-visible:ring-0"
-              />
-              <button
-                type="button"
-                className="absolute right-0 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center text-ink-variant transition-colors hover:text-primary-dark"
-                onClick={() => setShowPassword((current) => !current)}
-                aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
-              >
-                {showPassword ? (
-                  <EyeOff className="size-5" aria-hidden />
-                ) : (
-                  <Eye className="size-5" aria-hidden />
-                )}
-              </button>
-            </div>
-          </label>
+        {errorMessage && (
+          <p role="alert" className="-mt-2 text-[14px] text-destructive">
+            {errorMessage}
+          </p>
+        )}
 
-          {errorMessage && (
-            <p role="alert" className="-mt-4 text-[14px] text-destructive">
-              {errorMessage}
-            </p>
-          )}
+        <Button type="submit" size="lg" disabled={isSubmitting}>
+          {isSubmitting ? t('auth.loggingIn') : t('auth.logIn')}
+        </Button>
+      </form>
 
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className="h-12 rounded-full bg-primary text-[17px] font-bold text-white hover:bg-primary/90"
-          >
-            {isSubmitting ? t('auth.loggingIn') : t('auth.logIn')}
-          </Button>
-        </form>
-
-        <p className="pt-[50px] text-center text-[14px] leading-[21px] text-ink-variant">
-          {t('auth.noAccount')}{' '}
-          <Link to="/auth/register" className="font-bold text-primary-dark">
-            {t('auth.signUp')}
-          </Link>
-        </p>
-      </div>
-    </div>
+      <p className="pt-2 text-center text-[14px] leading-relaxed text-ink-variant">
+        {t('auth.noAccount')}{' '}
+        <Link to="/auth/register" className="font-bold text-primary">
+          {t('auth.signUp')}
+        </Link>
+      </p>
+    </AuthShell>
   )
 }

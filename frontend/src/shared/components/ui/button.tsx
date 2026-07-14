@@ -5,30 +5,37 @@ import { Slot } from "radix-ui"
 import { cn } from "@/shared/lib/cn"
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl font-semibold whitespace-nowrap transition-all duration-200 ease-[var(--ease-out-quint)] outline-none active:scale-[0.97] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default:
+          "bg-primary text-white font-bold border-0 shadow-[0_4px_0_0_var(--primary-dark)] hover:bg-[#61d20a] active:translate-y-[2px] active:scale-100 active:shadow-[0_2px_0_0_var(--primary-dark)]",
         destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40",
+          "bg-destructive text-white font-bold border-0 shadow-[0_4px_0_0_#9f1239] hover:bg-destructive/90 active:translate-y-[2px] active:scale-100 active:shadow-[0_2px_0_0_#9f1239] focus-visible:ring-destructive/20",
         outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border-2 border-border bg-surface text-ink font-bold shadow-[0_4px_0_0_var(--border)] hover:bg-panel active:translate-y-[2px] active:scale-100 active:shadow-[0_2px_0_0_var(--border)]",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "bg-panel text-ink hover:bg-border",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+          "text-ink-variant hover:bg-panel hover:text-primary",
+        accent:
+          "bg-accent text-accent-foreground font-bold border-0 shadow-[0_4px_0_0_#cc9f00] hover:brightness-95 active:translate-y-[2px] active:scale-100 active:shadow-[0_2px_0_0_#cc9f00]",
+        duo:
+          "rounded-2xl bg-[#58cc02] text-white font-extrabold uppercase tracking-[0.8px] border-0 shadow-[0_4px_0_0_#58a700] hover:bg-[#61d20a] active:translate-y-[2px] active:scale-100 active:shadow-[0_2px_0_0_#58a700]",
+        "duo-outline":
+          "rounded-2xl bg-white text-[#1cb0f6] font-extrabold uppercase tracking-[0.8px] border-2 border-[#e5e5e5] shadow-[0_4px_0_0_#e5e5e5] hover:border-[#d4d4d4] hover:bg-[#f7f7f7] active:translate-y-[2px] active:scale-100 active:shadow-[0_2px_0_0_#e5e5e5]",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9",
-        "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm": "size-8",
-        "icon-lg": "size-10",
+        default: "h-10 px-5 py-2 text-sm has-[>svg]:px-4",
+        xs: "h-7 gap-1 px-2.5 text-xs has-[>svg]:px-2 [&_svg:not([class*='size-'])]:size-3.5",
+        sm: "h-9 gap-1.5 px-4 text-sm has-[>svg]:px-3",
+        lg: "h-11 px-6 text-base has-[>svg]:px-5",
+        icon: "size-10",
+        "icon-xs": "size-7 [&_svg:not([class*='size-'])]:size-3.5",
+        "icon-sm": "size-9",
+        "icon-lg": "size-11",
       },
     },
     defaultVariants: {
