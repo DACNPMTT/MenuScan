@@ -28,13 +28,13 @@ export function AuthShell({ children, maxWidth = 'max-w-[420px]' }: AuthShellPro
         >
           <SectionCard className="gap-7 px-8 py-10 shadow-pop">
             <header className="flex flex-col items-center gap-2">
-              <Link
-                to="/"
+              <a
+                href="/"
                 aria-label="MenuScan home"
                 className="flex size-11 items-center justify-center rounded-2xl bg-[#f59e0b] shadow-2 shadow-[#f59e0b]/40"
               >
                 <MenuScanLogo size={30} />
-              </Link>
+              </a>
               <span className="text-[24px] font-extrabold tracking-tight text-ink">
                 MenuScan
               </span>

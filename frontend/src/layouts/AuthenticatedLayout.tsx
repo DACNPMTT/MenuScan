@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   LogOut,
   ReceiptText,
-  ScanText,
   ScanLine,
   UserCircle,
   Utensils,
@@ -63,9 +62,8 @@ export function AuthenticatedLayout() {
     <div className="flex min-h-dvh flex-col bg-app-bg">
       <header className="sticky top-0 z-30 flex min-h-[64px] shrink-0 items-center justify-between gap-2 border-b border-border bg-surface/70 px-3 py-2 backdrop-blur-xl sm:h-[72px] sm:gap-6 sm:px-[50px] sm:py-0">
         <div className="min-w-0">
-          <NavLink
-            to="/"
-            aria-label="MenuScan app"
+          <a
+            href="/"
             className="flex items-center gap-2.5"
           >
             <span className="flex size-9 items-center justify-center rounded-2xl bg-[#d7ffb8] sm:size-10">
@@ -74,7 +72,7 @@ export function AuthenticatedLayout() {
             <span className="block text-[22px] font-extrabold leading-none tracking-tight text-ink sm:text-[26px]">
               MenuScan
             </span>
-          </NavLink>
+          </a>
           {user && (
             <NavLink
               to="/app/profile"

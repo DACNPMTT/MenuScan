@@ -104,9 +104,22 @@ export function BillsPage() {
     [bills, statusFilter, fromDate, toDate],
   )
 
-  useEffect(() => {
+  // Changing a filter resets to the first page, otherwise the current page
+  // could land outside the new result set.
+  const applyStatusFilter = (value: StatusFilter) => {
+    setStatusFilter(value)
     setCurrentPage(1)
-  }, [statusFilter, fromDate, toDate])
+  }
+
+  const applyFromDate = (value: string) => {
+    setFromDate(value)
+    setCurrentPage(1)
+  }
+
+  const applyToDate = (value: string) => {
+    setToDate(value)
+    setCurrentPage(1)
+  }
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paginatedBills = useMemo(() => {
@@ -118,6 +131,7 @@ export function BillsPage() {
     setStatusFilter('ALL')
     setFromDate('')
     setToDate('')
+    setCurrentPage(1)
   }
 
   return (
@@ -150,7 +164,7 @@ export function BillsPage() {
                     size="sm"
                     variant={statusFilter === value ? 'default' : 'outline'}
                     aria-pressed={statusFilter === value}
-                    onClick={() => setStatusFilter(value)}
+                    onClick={() => applyStatusFilter(value)}
                   >
                     {value === 'ALL' ? t('bills.filterAll') : t(`bills.status.${value}`)}
                   </Button>
@@ -160,7 +174,7 @@ export function BillsPage() {
                 {t('bills.from')}
                 <DatePicker
                   value={fromDate}
-                  onChange={setFromDate}
+                  onChange={applyFromDate}
                   max={toDate || undefined}
                   aria-label={t('bills.from')}
                 />
@@ -169,7 +183,7 @@ export function BillsPage() {
                 {t('bills.to')}
                 <DatePicker
                   value={toDate}
-                  onChange={setToDate}
+                  onChange={applyToDate}
                   min={fromDate || undefined}
                   aria-label={t('bills.to')}
                 />

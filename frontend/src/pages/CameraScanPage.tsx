@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   Camera,
   CheckCircle2,
-  Loader2,
   RefreshCw,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'

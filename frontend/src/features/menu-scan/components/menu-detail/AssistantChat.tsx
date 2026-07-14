@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Bot, Loader2, Plus, Send, X } from 'lucide-react'
+import { Loader2, Plus, Send, X } from 'lucide-react'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { motion } from 'motion/react'
 import { Button } from '@/shared/components/ui/button'

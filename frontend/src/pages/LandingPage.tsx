@@ -51,13 +51,13 @@ function TopNav() {
       transition={{ duration: 0.4, ease: EASE }}
       className="sticky top-0 z-30 flex h-[70px] items-center justify-between border-b-2 border-[#e5e5e5] bg-white/90 px-5 backdrop-blur-xl md:px-[75px]"
     >
-      <Link to="/" className="flex items-center gap-2.5" aria-label="MenuScan home">
+      <a href="/" className="flex items-center gap-2.5" aria-label="MenuScan home">
         <span className="flex size-9 items-center justify-center rounded-2xl bg-[#d7ffb8]">
           {/* Logo mới */}
           <MenuScanLogo size={26} />
         </span>
         <span className="hidden text-[22px] font-black tracking-tight text-[#042c60] min-[420px]:inline">MenuScan</span>
-      </Link>
+      </a>
       <nav className="hidden items-center gap-8 md:flex" aria-label="Marketing">
         <a href="#how" className="text-[15px] font-bold text-[#777777] transition-colors hover:text-[#042c60]">
           {t('landing.nav.howItWorks')}

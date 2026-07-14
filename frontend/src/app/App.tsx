@@ -6,7 +6,8 @@ import { GlobalErrorFallback } from '@/shared/components/GlobalErrorFallback'
 import { SplashScreen } from '@/shared/components/SplashScreen'
 
 export function App() {
-  const [splashDone, setSplashDone] = useState(false)
+  const isHomePage = window.location.pathname === '/' || window.location.pathname === ''
+  const [splashDone, setSplashDone] = useState(!isHomePage)
 
   return (
     <AppProviders>

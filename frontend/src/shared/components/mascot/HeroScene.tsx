@@ -1,14 +1,5 @@
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'motion/react'
-import { CheckCircle2, ChevronRight, Lightbulb, Search, Smartphone } from 'lucide-react'
-
-const STORY_STEPS = [
-  { id: 1, title: 'Bước 1', desc: 'Cầm menu xong không hiểu', icon: Search },
-  { id: 2, title: 'Bước 2', desc: 'Cầm điện thoại dịch cũng thấy khó hiểu', icon: Smartphone },
-  { id: 3, title: 'Bước 3', desc: 'Sau đó xuất hiện bóng đèn ý tưởng', icon: Lightbulb },
-  { id: 4, title: 'Bước 4', desc: 'Sử dụng điện thoại truy cập web', icon: Smartphone },
-  { id: 5, title: 'Bước 5', desc: 'Scan được liền và thấy dễ hiểu', icon: CheckCircle2 },
-]
+import { motion } from 'motion/react'
 
 export function HeroScene() {
   const [step, setStep] = useState(1)
