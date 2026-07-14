@@ -101,6 +101,17 @@ jobs:
           LLM_FALLBACK_MODEL: "gemini-2.5-flash"
           GEMINI_API_KEY: "${{ secrets.DEV_GEMINI_API_KEY }}"
           GEMINI_API_KEYS: "${{ secrets.DEV_GEMINI_API_KEYS }}"
+          # Enrichment and chat get their own key pools. Sharing the scan key
+          # means they compete for the same per-minute quota — enrichment fires
+          # batches right after a scan drains it, which is a 429 by construction:
+          # no dish tags, no verdicts. Same reasoning as env/.env.local.
+          ENRICH_LLM_PROVIDER: "gemini"
+          ENRICH_GEMINI_API_KEYS: "${{ secrets.DEV_ENRICH_GEMINI_API_KEYS }}"
+          ENRICH_LLM_MODEL: "gemini-3.1-flash-lite"
+          ENRICH_LLM_TIMEOUT_SECONDS: "60"
+          CHAT_LLM_PROVIDER: "gemini"
+          CHAT_GEMINI_API_KEYS: "${{ secrets.DEV_CHAT_GEMINI_API_KEYS }}"
+          CHAT_LLM_MODEL: "gemini-3.1-flash-lite"
           LLM_TIMEOUT_SECONDS: "100"
           LLM_MULTIMODAL: "true"
           LLM_IMAGE_MAX_DIMENSION: "1536"
