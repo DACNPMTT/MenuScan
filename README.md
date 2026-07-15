@@ -1,30 +1,39 @@
-﻿<p align="center">
+<p align="center">
   <img src="doc/assets/menuscan-banner.jpg" alt="MenuScan Banner" width="100%" style="border-radius: 16px; border: 1px solid #d9dee7; box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18);" />
 </p>
 
 <h1 align="center">MenuScan</h1>
 
 <p align="center">
-  Scan a foreign or unfamiliar menu and get a personalized dining assistant:
-  each dish is translated, explained, and matched against your own diet — so you
+  <b>Scan an unfamiliar menu → get a personalized dining assistant.</b><br />
+  Every dish is translated, explained, and matched against your own diet — so you
   know what it is, whether it suits you, and why.
 </p>
 
 <p align="center">
-  <strong>Menu Image -> OCR + AI -> Structured Menu -> Personalized Advice</strong>
+  📷 <b>Menu Image</b> &nbsp;→&nbsp; 🔍 <b>OCR + AI</b> &nbsp;→&nbsp; 📋 <b>Structured Menu</b> &nbsp;→&nbsp; ✨ <b>Personalized Advice</b>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-active-success" alt="Project Status" />
-  <img src="https://img.shields.io/badge/python-3.12+-3776AB?logo=python&logoColor=white" alt="Python" />
-  <img src="https://img.shields.io/badge/react-19-61DAFB?logo=react&logoColor=111111" alt="React" />
-  <img src="https://img.shields.io/badge/vite-8-646CFF?logo=vite&logoColor=white" alt="Vite" />
-  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License" />
+  <img alt="Status" src="https://img.shields.io/badge/status-active-58CC02?style=for-the-badge&labelColor=042C60" />
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.12+-58CC02?style=for-the-badge&logo=python&logoColor=white&labelColor=042C60" />
+  <img alt="React" src="https://img.shields.io/badge/React-19-58CC02?style=for-the-badge&logo=react&logoColor=white&labelColor=042C60" />
+  <img alt="Vite" src="https://img.shields.io/badge/Vite-8-58CC02?style=for-the-badge&logo=vite&logoColor=white&labelColor=042C60" />
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-58CC02?style=for-the-badge&logo=fastapi&logoColor=white&labelColor=042C60" />
+  <img alt="License" src="https://img.shields.io/badge/License-MIT-FFC800?style=for-the-badge&labelColor=042C60" />
+</p>
+
+<p align="center">
+  <a href="#overview">Overview</a> &nbsp;·&nbsp;
+  <a href="#features">Features</a> &nbsp;·&nbsp;
+  <a href="#architecture">Architecture</a> &nbsp;·&nbsp;
+  <a href="#getting-started">Getting Started</a> &nbsp;·&nbsp;
+  <a href="#roadmap">Roadmap</a>
 </p>
 
 ---
 
-# Overview
+## Overview
 
 MenuScan is a **personalized dining assistant** for travelers and people who are
 particular about what they eat. Point your camera at a menu in a language you
@@ -53,213 +62,146 @@ The agreed MVP scope and business rules are documented in
 
 ---
 
-# Features
+## Features
 
-- **Menu Image Upload**  
-  Upload a menu photo or PDF (single or multi-page) for automated processing.
-
-- **OCR & AI Analysis**  
-  Detect text, menu sections, prices, item names, descriptions, and layout
-  context, then infer likely ingredients, allergens, and dietary tags per dish.
-
-- **Structured Menu Extraction**  
-  Convert unstructured visual menu content into predictable digital records with
-  per-field confidence scores.
-
-- **Dietary Profile**  
-  Save your allergies, diet (e.g. vegetarian, halal), and food likes/dislikes
-  once, from a fixed taxonomy, and reuse them on every scan.
-
-- **Personalized Dish Advice**  
-  Each dish gets a per-user verdict — *recommended for you* / *maybe* /
-  *avoid* — with a short reason, plus allergy and preference flags. Matching
-  dishes are ranked to the top.
-
-- **Group Dining (planned)**  
-  Create a dining group, share it by QR, let each member fill in their own
-  profile without logging in, and split the bill by headcount.
-
-- **API-Ready Output**  
-  Structured JSON suitable for backend storage, integrations, and frontend
-  rendering.
+| | Feature | What it does |
+|---|---|---|
+| 📷 | **Menu Image Upload** | Upload a menu photo or PDF (single or multi-page) for automated processing. |
+| 🔍 | **OCR & AI Analysis** | Detect text, sections, prices, names, descriptions and layout, then infer likely ingredients, allergens, and dietary tags per dish. |
+| 📋 | **Structured Extraction** | Convert unstructured visual menus into predictable digital records with per-field confidence scores. |
+| 👤 | **Dietary Profile** | Save allergies, diet (vegetarian, halal…), and food likes/dislikes once, from a fixed taxonomy, and reuse them on every scan. |
+| ✨ | **Personalized Advice** | Each dish gets a per-user verdict — *recommended* / *maybe* / *avoid* — with a short reason plus allergy & preference flags. Matches rank to the top. |
+| 👥 | **Group Dining** *(planned)* | Create a dining group, share by QR, let members fill their own profile without login, and split the bill by headcount. |
+| 🔌 | **API-Ready Output** | Structured JSON suitable for backend storage, integrations, and frontend rendering. |
 
 ---
 
-# Contributors
+## System Workflow
 
-<a href="https://github.com/DACNPMTT/MenuScan/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=DACNPMTT/MenuScan" />
-</a>
+```mermaid
+flowchart LR
+    A["📷 Menu Image"] --> B["🔍 OCR & AI Analysis"]
+    B --> C["📋 Menu Extraction"]
+    C --> D["👤 Personalization"]
+    D --> E["✨ Personalized Result"]
 
----
-
-# System Workflow
-
-```text
-Menu Image
-   ↓
-OCR & AI Analysis
-   ↓
-Menu Extraction (structured dishes + inferred dietary metadata)
-   ↓
-Personalization (match dishes against the diner's profile)
-   ↓
-Personalized Result (ranked dishes + per-dish advice)
+    classDef brand fill:#58CC02,stroke:#3C8A02,color:#ffffff;
+    classDef gold fill:#FFC800,stroke:#E0A800,color:#3C3C3C;
+    class A,B,C,D brand;
+    class E gold;
 ```
 
-## Workflow Details
+<details>
+<summary><b>Step-by-step details</b></summary>
 
-1. **Menu Image**  
-   A menu is uploaded as an image or document.
+1. **Menu Image** — a menu is uploaded as an image or document.
+2. **OCR & AI Analysis** — the system extracts text and analyzes visual
+   structure, grouping related content into dishes.
+3. **Menu Extraction** — dish names, descriptions, prices, and inferred metadata
+   (ingredients, allergens, dietary tags) are identified and normalized. This
+   step is **profile-agnostic**, so its result can be cached and reused.
+4. **Personalization** — the structured menu is matched against the diner's saved
+   profile. A separate advisor step produces a per-dish verdict, reason, and
+   flags — without re-running OCR.
+5. **Personalized Result** — dishes that fit are ranked to the top and labelled;
+   risky dishes are flagged with a reason.
 
-2. **OCR & AI Analysis**  
-   The system extracts text and analyzes visual structure, grouping related
-   content into dishes.
-
-3. **Menu Extraction**  
-   Dish names, descriptions, prices, and inferred metadata (ingredients,
-   allergens, dietary tags) are identified and normalized. This step is
-   **profile-agnostic** so its result can be cached and reused.
-
-4. **Personalization**  
-   The structured menu is matched against the diner's saved profile. A separate
-   advisor step produces a per-dish verdict, reason, and flags — without
-   re-running OCR.
-
-5. **Personalized Result**  
-   Dishes that fit are ranked to the top and labelled; risky dishes are flagged
-   with a reason.
+</details>
 
 ---
 
-# Architecture
+## Architecture
 
-MenuScan is designed as a modular application with clear ownership boundaries between the frontend, API, AI pipeline, and data store.
+MenuScan is a modular application with clear ownership boundaries between the
+frontend, API, AI pipeline, and data store.
 
-```text
-Client Application
-   ↓
-Backend API
-   ↓
-AI Processing Layer
-   ↓
-Structured Data Store
+```mermaid
+flowchart TD
+    Client["🖥️ Client — React 19 + Vite"] --> API["⚙️ Backend API — FastAPI"]
+    API --> AI["🧠 AI Layer — OCR + LLM"]
+    AI --> DB[("🗄️ Postgres — structured menus")]
+
+    classDef brand fill:#58CC02,stroke:#3C8A02,color:#ffffff;
+    classDef ink fill:#042C60,stroke:#021b3d,color:#ffffff;
+    class Client,API,AI brand;
+    class DB ink;
 ```
 
-## Architectural Principles
+**Principles**
 
-- **Frontend-first workflow clarity**  
-  The React frontend is organized around product features and reusable shared components.
-
-- **Backend API boundary**  
-  The Python backend is responsible for request handling, processing orchestration, validation, and data delivery.
-
-- **AI processing isolation**  
-  OCR and AI extraction logic can evolve independently from the API and UI layers.
-
-- **Structured output contract**  
-  Extracted menu data follows a predictable JSON shape for integration and review.
-
-- **Deployment-ready separation**  
-  Infrastructure, documentation, app code, and frontend code are kept in dedicated directories.
+- **Frontend-first clarity** — the React app is organized around product features
+  and reusable shared components.
+- **Backend API boundary** — the Python backend owns request handling, processing
+  orchestration, validation, and data delivery.
+- **AI processing isolation** — OCR and AI extraction evolve independently from
+  the API and UI layers.
+- **Structured output contract** — extracted data follows a predictable JSON
+  shape for integration and review.
+- **Deployment-ready separation** — infrastructure, docs, app, and frontend live
+  in dedicated directories.
 
 ---
 
-# Tech Stack
+## Tech Stack
 
-| Layer              | Technology                 | Purpose                                           |
-| ------------------ | -------------------------- | ------------------------------------------------- |
-| Frontend           | React                      | Interactive web application                       |
-| Frontend Build     | Vite                       | Fast development and production bundling          |
-| Language           | TypeScript                 | Type-safe frontend development                    |
-| Backend            | Python                     | API and AI processing orchestration               |
-| Package Management | npm, uv                    | Frontend and Python dependency management         |
-| AI Processing      | OCR + LLM pipeline         | Menu text extraction and structuring              |
-| Documentation      | Markdown                   | Architecture, database, and product documentation |
-| Infrastructure     | Docker / deployment config | Future production deployment support              |
-
----
-
-# Screenshots
-
-## Dashboard
-
-<p align="center">
-  <img src="doc/assets/screenshot-dashboard.svg" alt="MenuScan Dashboard Screenshot" width="100%" />
-</p>
-
-## Menu Upload Flow
-
-<p align="center">
-  <img src="doc/assets/screenshot-upload.svg" alt="Menu Upload Screenshot" width="100%" />
-</p>
-
-## Structured Menu Output
-
-<p align="center">
-  <img src="doc/assets/screenshot-result.svg" alt="Structured Menu Output Screenshot" width="100%" />
-</p>
+| Layer | Technology | Purpose |
+|---|---|---|
+| Frontend | React 19 + TypeScript | Type-safe interactive web app |
+| Build | Vite 8 | Fast dev server and production bundling |
+| Backend | Python 3.12 + FastAPI | API and AI processing orchestration |
+| AI Pipeline | OCR + LLM (Google Vision + Gemini) | Menu text extraction and structuring |
+| Data | PostgreSQL | Structured menu + profile storage |
+| Packaging | npm · uv | Frontend and Python dependency management |
+| Infra & CI/CD | Docker · GitHub Actions · Cloud Run · Terraform | Build, test, deploy, and infrastructure as code |
 
 ---
 
-# Project Structure
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center" width="33%"><b>Dashboard</b><br /><img src="doc/assets/screenshot-dashboard.svg" alt="MenuScan Dashboard" width="100%" /></td>
+    <td align="center" width="33%"><b>Menu Upload</b><br /><img src="doc/assets/screenshot-upload.svg" alt="Menu Upload" width="100%" /></td>
+    <td align="center" width="33%"><b>Structured Output</b><br /><img src="doc/assets/screenshot-result.svg" alt="Structured Menu Output" width="100%" /></td>
+  </tr>
+</table>
+
+---
+
+## Project Structure
 
 ```text
 MenuScan/
-├── app/
+├── app/                    # FastAPI backend + AI pipeline
 │   ├── main.py
-│   ├── pyproject.toml
-│   ├── uv.lock
-│   ├── Dockerfile.dev
-│   └── README.md
-│
-├── frontend/
-│   ├── public/
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── providers/
-│   │   │   └── routes/
-│   │   ├── features/
-│   │   │   └── menu-scan/
-│   │   ├── layouts/
-│   │   ├── pages/
-│   │   ├── shared/
-│   │   │   ├── components/
-│   │   │   ├── hooks/
-│   │   │   └── lib/
-│   │   └── styles/
-│   ├── package.json
-│   ├── Dockerfile.dev
-│   ├── vite.config.ts
-│   └── README.md
-│
-├── doc/
-│   └── ai/
-│       ├── architecture.md
-│       ├── database.md
-│       └── frontend.md
-│
+│   ├── pyproject.toml · uv.lock
+│   └── Dockerfile.dev
+├── frontend/               # React 19 + Vite app
+│   └── src/{app,features,layouts,pages,shared,styles}
 ├── infras/
-├── .github/
-├── env/                    ← Local environment templates
-├── docker-compose.yml      ← Local DB/Redis dependencies
-├── Makefile                ← Local task runner
-├── .gitignore
+│   ├── docker-compose.yml  # full-container stack
+│   └── terraform/          # GCP platform layer (IaC)
+├── load-test/              # k6 load tests
+├── doc/                    # architecture, design, devops docs
+├── .github/                # CI/CD workflows + composite actions
+├── env/                    # local environment templates
+├── docker-compose.yml      # local DB/Redis dependencies
+├── Makefile                # local task runner
 └── README.md
 ```
 
 ---
 
-# Getting Started
+## Getting Started
 
-## Prerequisites
+### Prerequisites
 
-- Docker Desktop for local dependency containers.
-- GNU Make. On Windows, use Git Bash, WSL, or another GNU Make installation.
-- Python 3.12+ and [uv](https://docs.astral.sh/uv/) for the backend.
-- Node.js 22+ and npm for the frontend.
+- **Docker Desktop** for local dependency containers.
+- **GNU Make** — on Windows use Git Bash, WSL, or another GNU Make install.
+- **Python 3.12+** and [uv](https://docs.astral.sh/uv/) for the backend.
+- **Node.js 22+** and npm for the frontend.
 
-## Quick Start
+### Quick Start
 
 ```bash
 git clone https://github.com/DACNPMTT/MenuScan.git
@@ -273,36 +215,36 @@ make deps ENV=local
 Run the backend and frontend in separate terminals:
 
 ```bash
-make backend ENV=local
-make frontend ENV=local
+make backend ENV=local     # migrations, then FastAPI
+make frontend ENV=local    # Vite dev server
 ```
 
-Open:
+Then open:
 
-| Service  | URL                            |
-| -------- | ------------------------------ |
-| Frontend | `http://localhost:5173`        |
-| Backend  | `http://localhost:8000`        |
-| Health   | `http://localhost:8000/health` |
-| Database | `localhost:5432`               |
-| Redis    | `localhost:6379`               |
+| Service | URL |
+|---|---|
+| 🖥️ Frontend | `http://localhost:5173` |
+| ⚙️ Backend | `http://localhost:8000` |
+| ❤️ Health | `http://localhost:8000/health` |
+| 🗄️ Database | `localhost:5432` |
+| 🧰 Redis | `localhost:6379` |
 
+> [!NOTE]
 > Redis is provisioned by Compose but **no application code uses it**. Rate
 > limiting runs as an atomic upsert into the Postgres `ai_throttle` table
-> (`app/src/core/rate_limit.py`), so Postgres is the only runtime datastore.
+> ([`app/src/core/rate_limit.py`](app/src/core/rate_limit.py)), so Postgres is
+> the only runtime datastore.
 
-## Dev Commands
+### Dev Commands
 
 `Makefile` is the canonical local task runner. The root `docker-compose.yml`
 only starts development dependencies; backend and frontend run natively.
 
 ```bash
-make env ENV=local        # Create env/.env.local from env/.env.local.example
+make env ENV=local        # Create env/.env.local from the example
 make deps ENV=local       # Start Postgres and Redis
 make deps-down ENV=local  # Stop local dependency containers
 make deps-reset ENV=local # Recreate dependencies and remove volumes
-make deps-logs ENV=local  # Tail dependency logs
-make deps-ps ENV=local    # Show dependency container status
 make backend ENV=local    # Run migrations, then start FastAPI
 make frontend ENV=local   # Start Vite
 make migrate ENV=local    # Apply Alembic migrations
@@ -310,29 +252,27 @@ make test-be ENV=local    # Run backend tests
 make lint                 # Run backend and frontend lint
 ```
 
-## Environment Files
+### Environment Files
 
-Local environment templates live in `env/`. Real env files such as
-`env/.env.local` are gitignored.
+Local templates live in `env/`; real files such as `env/.env.local` are
+gitignored. The local defaults point the backend at Postgres on `localhost:5432`
+and Redis on `localhost:6379`.
 
-```bash
-make env ENV=local
-```
+### Compose & CI/CD
 
-The local defaults point the backend at Postgres on `localhost:5432` and Redis
-on `localhost:6379`.
+The root `docker-compose.yml` is limited to local dependency containers.
+`infras/docker-compose.yml` holds the full-container stack, and
+`infras/terraform/` holds the Terraform for the GCP platform layer.
 
-## Compose and CI/CD
-
-The root `docker-compose.yml` is intentionally limited to local dependency
-containers. The `infras/` directory is reserved for full-container or future
-CI/CD deployment compose configuration.
+CI/CD lives in `.github/workflows/` (orchestrators `ci.yml` / `cd.yml` calling
+reusable workflows, with shared setup in `.github/actions/`) — covering build,
+test, security scanning, and zero-downtime deploys to Cloud Run.
 
 ---
 
-# API Examples
+## API Examples
 
-## Upload Menu Image
+**Upload a menu image**
 
 ```http
 POST /api/v1/scans
@@ -340,16 +280,12 @@ Content-Type: multipart/form-data
 Authorization: Bearer <access_token>
 ```
 
-### Example Request
-
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/scans \
   -H "Authorization: Bearer <access_token>" \
   -F "file=@menu.jpg" \
   -F "target_language=en"
 ```
-
-### Example Response
 
 ```json
 {
@@ -370,9 +306,9 @@ curl -X POST http://127.0.0.1:8000/api/v1/scans \
 
 ---
 
-# Roadmap
+## Roadmap
 
-**Now — personalization core (current focus)**
+**🟢 Now — personalization core (current focus)**
 
 - Dietary profile: allergies, diet, likes/dislikes from a fixed taxonomy.
 - Per-dish ingredient/flavor inference for preference matching.
@@ -380,13 +316,13 @@ curl -X POST http://127.0.0.1:8000/api/v1/scans \
 - Result screen: rank matching dishes, keep allergy/preference flags.
 - Bilingual UI (Vietnamese / English) for all new screens.
 
-**Next**
+**🟡 Next**
 
 - In-menu chat assistant ("is this spicy?", "what's in this?").
 - Group dining: create group, QR share, per-member profiles without login,
   headcount-based bill split.
 
-**Later**
+**⚪ Later**
 
 - Scan history and saved menus.
 - Automated image preprocessing for low-quality photos.
@@ -394,3 +330,15 @@ curl -X POST http://127.0.0.1:8000/api/v1/scans \
 - Production hardening (rate limiting, monitoring, audit log).
 
 ---
+
+## Contributors
+
+<a href="https://github.com/DACNPMTT/MenuScan/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=DACNPMTT/MenuScan" alt="Contributors" />
+</a>
+
+---
+
+<p align="center">
+  <sub>Built with 💚 by the MenuScan team · Licensed under MIT</sub>
+</p>

@@ -1,0 +1,31 @@
+name: Setup gcloud
+description: >-
+  Authenticate to Google Cloud via Workload Identity Federation, install the
+  Cloud SDK, and configure Docker for Artifact Registry.
+
+inputs:
+  workload_identity_provider:
+    description: Full resource name of the Workload Identity provider.
+    required: true
+  service_account:
+    description: Deploy service account email.
+    required: true
+  region:
+    description: GCP region (used to configure the Artifact Registry Docker host).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Authenticate to Google Cloud (Workload Identity Federation)
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ inputs.workload_identity_provider }}
+        service_account: ${{ inputs.service_account }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Configure Docker for Artifact Registry
+      shell: bash
+      run: gcloud auth configure-docker ${{ inputs.region }}-docker.pkg.dev --quiet

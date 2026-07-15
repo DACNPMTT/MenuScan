@@ -1,0 +1,14 @@
+# Terraform working files — never commit state or downloaded providers.
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Local variable overrides that may contain secrets.
+*.tfvars
+!example.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

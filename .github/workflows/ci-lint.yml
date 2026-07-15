@@ -1,0 +1,25 @@
+name: Lint
+
+on:
+  workflow_call:
+
+jobs:
+  lint:
+    name: Lint (Gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup backend
+        uses: ./.github/actions/setup-backend
+
+      - name: Backend lint
+        working-directory: ./app
+        run: uv run ruff check .
+
+      - name: Setup frontend
+        uses: ./.github/actions/setup-frontend
+
+      - name: Frontend lint
+        working-directory: ./frontend
+        run: npm run lint
