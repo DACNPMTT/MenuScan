@@ -100,6 +100,8 @@ interface AuthContextType {
   ) => Promise<FoodProfile>
   deleteFoodProfile: (profileId: string) => Promise<void>
   logout: () => Promise<void>
+  requestDeleteAccount: () => Promise<{ message: string }>
+  confirmDeleteAccount: (token: string) => Promise<void>
   refreshSession: () => Promise<void>
 }
 
@@ -261,6 +263,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [logoutState])
 
+  // 5b. Delete Account — two-step flow
+  const requestDeleteAccount = useCallback(async () => {
+    const token = getAccessToken()
+    if (!token) throw new Error('Not authenticated')
+    return apiRequest<{ message: string }>('/api/v1/auth/me/delete-request', {
+      method: 'POST',
+      token,
+    })
+  }, [])
+
+  const confirmDeleteAccount = useCallback(async (deleteToken: string) => {
+    const token = getAccessToken()
+    if (!token) throw new Error('Not authenticated')
+    await apiRequest('/api/v1/auth/me/confirm-delete', {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ token: deleteToken }),
+    })
+    logoutState()
+  }, [logoutState])
+
   // 6. Refresh Session — delegates to the token manager (single-flight, raw
   // fetch so it never recurses into apiRequest). Kept on the context for
   // future callers; the mount effect and 401 auto-refresh go through the manager.
@@ -322,6 +345,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updateFoodProfile,
         deleteFoodProfile,
         logout,
+        requestDeleteAccount,
+        confirmDeleteAccount,
         refreshSession,
       }}
     >

@@ -682,7 +682,29 @@
   },
   "cta": {
     "title": "Ready to digitize your menu?",
-    "subtitle": "Join MenuScan today — free to start, fun to use."
+    "subtitle": "Join MenuScan today — start free, upgrade anytime."
+  }
+},
+"deleteAccount": {
+  "dangerZone": "Danger Zone",
+  "deleteAccount": "Delete Account",
+  "warning": "This action cannot be undone. All your personal data, food profiles, and active sessions will be permanently disabled.",
+  "typeEmailToConfirm": "Type your email to confirm:",
+  "confirmDelete": "Send confirmation email",
+  "emailSent": "Confirmation email sent",
+  "processing": "Deleting account...",
+  "processingDesc": "Please wait a moment.",
+  "deleted": "Goodbye!",
+  "deletedDesc": "Your account has been successfully deleted.",
+  "seeYouNextMeal": "See you at your next meal! 🍽️",
+  "backToHome": "Back to Home",
+  "confirmTitle": "Confirm Account Deletion",
+  "errors": {
+    "emailMismatch": "Email doesn't match. Please type it exactly.",
+    "requestFailed": "Couldn't send the confirmation email. Please try again later.",
+    "confirmFailed": "Couldn't delete account. The link might have expired.",
+    "missingToken": "Invalid link. Please check your email again.",
+    "title": "Confirmation Error"
   }
 }
 }

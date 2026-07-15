@@ -5,6 +5,7 @@ import { AuthenticatedLayout } from '@/layouts/AuthenticatedLayout'
 import { RequireGuest } from '@/app/routes/RequireGuest'
 import { RequireAuth } from '@/app/routes/RequireAuth'
 import { CheckEmailPage } from '@/pages/auth/CheckEmailPage'
+import { ConfirmDeletePage } from '@/pages/auth/ConfirmDeletePage'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterPage } from '@/pages/auth/RegisterPage'
 import { VerifyPage } from '@/pages/auth/VerifyPage'
@@ -49,6 +50,7 @@ export function AnimatedRoutes() {
         <Route path="auth/login" element={<RequireGuest><LoginPage /></RequireGuest>} />
         <Route path="auth/register" element={<RequireGuest><RegisterPage /></RequireGuest>} />
         <Route path="auth/check-email" element={<RequireGuest><CheckEmailPage /></RequireGuest>} />
+        <Route path="auth/confirm-delete" element={<ConfirmDeletePage />} />
         <Route path="auth/verify" element={<VerifyPage />} />
         <Route path="auth/set-password" element={<SetPasswordPage />} />
         <Route path="auth/onboarding" element={<OnboardingPage />} />

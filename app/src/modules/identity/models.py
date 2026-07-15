@@ -93,6 +93,11 @@ class User(Base):
         server_default=func.now(),
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Account deletion confirmation token (one-time, 15-minute TTL).
+    delete_token_hash: Mapped[str | None] = mapped_column(String(255))
+    delete_token_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+    )
 
     magic_link_tokens: Mapped[list["MagicLinkToken"]] = relationship(
         back_populates="user"
