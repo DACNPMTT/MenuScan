@@ -258,35 +258,27 @@ export function HostDiningSessionPage() {
 
           {/* QR Display */}
           {qrDataUrl ? (
-            <div className="group flex flex-col items-center">
-              <div className="relative max-w-[280px] rounded-2xl border-4 border-primary/20 bg-white p-2">
+            <div className="group flex w-full flex-col items-center">
+              <div className="w-full max-w-[320px] sm:max-w-[360px] rounded-2xl border-4 border-primary/20 bg-white p-2 shadow-sm transition-shadow hover:shadow-md">
                 <img
                   src={qrDataUrl}
                   alt="Dining Invite QR Code"
-                  className="aspect-square w-full rounded-xl"
-                />
-                <Button
-                  type="button"
-                  variant="default"
-                  size="icon-sm"
+                  className="aspect-square w-full rounded-xl cursor-pointer"
                   onClick={() => setIsFullscreenQr(true)}
-                  className="absolute bottom-4 right-4 shadow-2"
-                  title={t('dining.fullscreenQr')}
-                  aria-label={t('dining.fullscreenQr')}
-                >
-                  <Maximize2 className="size-4" />
-                </Button>
+                  title={t('dining.fullscreenQr') ?? undefined}
+                />
               </div>
-              <button
+              <Button
                 type="button"
+                size="lg"
                 onClick={() => setIsFullscreenQr(true)}
-                className="mt-2.5 flex items-center gap-1 text-[13px] font-bold text-primary hover:text-primary-dark"
+                className="mt-4 w-full"
               >
-                <Maximize2 className="size-3.5" aria-hidden />
+                <Maximize2 className="mr-2 size-5" aria-hidden />
                 {t('dining.fullscreenQr')}
-              </button>
+              </Button>
 
-              <div className="mt-4 flex w-full max-w-[280px] flex-col items-center gap-1.5">
+              <div className="mt-4 flex w-full max-w-[320px] sm:max-w-[360px] flex-col items-center gap-1.5">
                 <span className="text-[12px] font-medium text-ink-variant">
                   Hoặc nhấp vào liên kết trực tiếp:
                 </span>
@@ -302,7 +294,7 @@ export function HostDiningSessionPage() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-destructive/30 bg-destructive/5 p-4 text-center">
+            <div className="flex w-full flex-col items-center justify-center rounded-2xl border border-dashed border-destructive/30 bg-destructive/5 p-4 text-center">
               <AlertCircle className="mb-2 size-8 text-destructive" aria-hidden />
               <p className="mb-1 text-[13px] font-semibold text-destructive">
                 Không thể hiển thị QR code

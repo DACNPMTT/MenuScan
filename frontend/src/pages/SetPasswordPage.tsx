@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check } from 'lucide-react'
+import { Check, Eye, EyeOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { Button } from '@/shared/components/ui/button'
@@ -19,6 +19,8 @@ export function SetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [savingPassword, setSavingPassword] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   // Protect route: redirect to login if not authenticated and not loading
   useEffect(() => {
@@ -77,30 +79,54 @@ export function SetPasswordPage() {
       <form onSubmit={handleSetPassword} noValidate className="flex flex-col gap-6 pb-2">
         <label className="flex flex-col gap-2">
           <span className="text-[14px] font-semibold text-ink">{t('setPassword.newPassword')}</span>
-          <Input
-            type="password"
-            required
-            autoComplete="new-password"
-            value={password}
-            onChange={(event) => setPasswordInput(event.target.value)}
-            placeholder={t('setPassword.minCharsPlaceholder')}
-            aria-label={t('setPassword.newPassword')}
-            disabled={savingPassword}
-          />
+          <div className="relative">
+            <Input
+              type={showPassword ? 'text' : 'password'}
+              required
+              autoComplete="new-password"
+              value={password}
+              onChange={(event) => setPasswordInput(event.target.value)}
+              placeholder={t('setPassword.minCharsPlaceholder')}
+              aria-label={t('setPassword.newPassword')}
+              disabled={savingPassword}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-variant hover:text-ink"
+              onClick={() => setShowPassword((prev) => !prev)}
+              tabIndex={-1}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
         </label>
 
         <label className="flex flex-col gap-2">
           <span className="text-[14px] font-semibold text-ink">{t('setPassword.confirmPassword')}</span>
-          <Input
-            type="password"
-            required
-            autoComplete="new-password"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-            placeholder={t('setPassword.reenterPlaceholder')}
-            aria-label={t('setPassword.confirmPassword')}
-            disabled={savingPassword}
-          />
+          <div className="relative">
+            <Input
+              type={showConfirmPassword ? 'text' : 'password'}
+              required
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              placeholder={t('setPassword.reenterPlaceholder')}
+              aria-label={t('setPassword.confirmPassword')}
+              disabled={savingPassword}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-variant hover:text-ink"
+              onClick={() => setShowConfirmPassword((prev) => !prev)}
+              tabIndex={-1}
+              aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+            >
+              {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
         </label>
 
         {passwordError && (
