@@ -244,7 +244,7 @@ export function JoinDiningSessionPage() {
         </div>
 
         {/* Stepper Card container */}
-        <div className="overflow-hidden rounded-2xl border border-border bg-canvas shadow-1">
+        <div className="w-full overflow-hidden rounded-2xl border border-border bg-canvas shadow-1">
           <div
             className="flex transition-transform duration-300 ease-[var(--ease-out-quint)]"
             style={{ transform: `translateX(-${step * 100}%)` }}
@@ -327,14 +327,14 @@ export function JoinDiningSessionPage() {
 
         {/* Error notification */}
         {error && (
-          <p role="alert" className="mt-3 flex items-center gap-1.5 text-[14px] text-destructive">
+          <p role="alert" className="mt-3 flex w-full items-center gap-1.5 text-[14px] text-destructive">
             <AlertCircle className="size-4 shrink-0" aria-hidden />
             {error}
           </p>
         )}
 
         {/* Navigation actions */}
-        <div className="mt-6 flex flex-col gap-3">
+        <div className="mt-6 flex w-full flex-col gap-3">
           <div className="flex gap-3">
             <Button
               type="button"

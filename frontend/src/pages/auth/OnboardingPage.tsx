@@ -126,7 +126,7 @@ export function OnboardingPage() {
       </div>
 
       {/* Stepper carousel */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-panel p-1">
+      <div className="w-full overflow-hidden rounded-2xl border border-border bg-panel p-1">
         <div
           className="flex transition-transform duration-300 ease-out"
           style={{ transform: `translateX(-${step * 100}%)` }}
@@ -144,6 +144,7 @@ export function OnboardingPage() {
                 onChange={(event) => setProfileName(event.target.value)}
                 maxLength={150}
                 disabled={saving}
+                className="w-full"
               />
             </label>
           </section>
@@ -195,12 +196,12 @@ export function OnboardingPage() {
       </div>
 
       {error && (
-        <p role="alert" className="text-[14px] text-destructive">
+        <p role="alert" className="w-full text-center text-[14px] text-destructive">
           {error}
         </p>
       )}
 
-      <div className="flex flex-col gap-3">
+      <div className="flex w-full flex-col gap-3">
         <div className="flex gap-3">
           <Button
             type="button"

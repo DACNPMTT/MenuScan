@@ -1,152 +1,21 @@
 name: CD - Deploy to Cloud Run
 
+# Orchestrator. The actual pipeline lives in the reusable workflow deploy.yml.
+#
+# NOTE: `main` is currently treated as the single live environment and reuses
+# the existing `DEV_*` secrets + Cloud SQL instance `menuscan-db`. To split a
+# separate production environment later, add a second job that calls deploy.yml
+# with `PROD_*` secrets and a dedicated Cloud SQL instance / service name.
+
 on:
   push:
     branches: [main]
 
-# NOTE: `main` is currently treated as the single live environment and reuses
-# the existing `DEV_*` secrets + Cloud SQL instance `menuscan-db`. To split a
-# separate production environment later, duplicate this job with `PROD_*`
-# secrets and a dedicated Cloud SQL instance / service name.
-
-env:
-  PROJECT_ID: menuscan-500911
-  REGION: asia-southeast1
-  SERVICE: menuscan-api
-  IMAGE: asia-southeast1-docker.pkg.dev/menuscan-500911/cloud-run-source-deploy/menuscan-api
-  CLOUDSQL_INSTANCE: menuscan-500911:asia-southeast1:menuscan-db
-
 jobs:
-  build-and-deploy:
-    name: Build, Push & Deploy to Cloud Run
-    runs-on: ubuntu-latest
-    environment: dev
+  deploy:
+    name: Deploy
+    uses: ./.github/workflows/cd-deploy.yml
+    secrets: inherit
     permissions:
       contents: read
-      id-token: write # required for Workload Identity Federation
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud (Workload Identity Federation)
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: 'projects/754814183582/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider'
-          service_account: 'github-actions-deploy@menuscan-500911.iam.gserviceaccount.com'
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
-
-      - name: Compute image tag
-        id: vars
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
-
-      - name: Build and push Docker image
-        run: |
-          docker build \
-            -t ${{ env.IMAGE }}:sha-${{ steps.vars.outputs.sha_short }} \
-            -t ${{ env.IMAGE }}:latest \
-            ./app
-          docker push ${{ env.IMAGE }}:sha-${{ steps.vars.outputs.sha_short }}
-          docker push ${{ env.IMAGE }}:latest
-
-      # ── Run Alembic migrations BEFORE updating Cloud Run ────────────────────
-      - name: Run database migrations (Cloud Run Job)
-        run: |
-          gcloud run jobs deploy menuscan-migrate \
-            --image ${{ env.IMAGE }}:sha-${{ steps.vars.outputs.sha_short }} \
-            --region ${{ env.REGION }} \
-            --set-cloudsql-instances ${{ env.CLOUDSQL_INSTANCE }} \
-            --set-env-vars "DATABASE_URL=${{ secrets.DEV_DATABASE_URL }}" \
-            --set-env-vars "APP_ENV=production" \
-            --set-env-vars "SECRET_KEY=${{ secrets.DEV_SECRET_KEY }}" \
-            --command "uv" \
-            --args "run,python,-m,alembic,upgrade,head" \
-            --max-retries 1 \
-            --task-timeout 120s \
-            --execute-now \
-            --wait
-
-      # ── Build the Cloud Run env file ────────────────────────────────────────
-      # A YAML env-vars-file is used instead of repeated --set-env-vars so that
-      # values containing commas (e.g. GEMINI_API_KEYS, LLM_MODELS) are not
-      # mis-parsed by gcloud. Secret values are injected from GitHub Secrets;
-      # GitHub masks them in logs. TODO: migrate secrets to GCP Secret Manager
-      # and switch to `--set-secrets` so they are not stored in the revision config.
-      - name: Generate Cloud Run env file
-        run: |
-          cat > /tmp/env.yaml <<EOF
-          APP_ENV: "production"
-          LOG_LEVEL: "INFO"
-          API_V1_PREFIX: "/api/v1"
-          MAGIC_LINK_BASE_URL: "${{ secrets.DEV_FRONTEND_URL }}"
-          CORS_ORIGINS: "${{ secrets.DEV_CORS_ORIGINS || secrets.DEV_FRONTEND_URL }}"
-          DATABASE_URL: "${{ secrets.DEV_DATABASE_URL }}"
-          SECRET_KEY: "${{ secrets.DEV_SECRET_KEY }}"
-          EMAIL_PROVIDER: "gmail_smtp"
-          EMAIL_FROM_ADDRESS: "${{ secrets.DEV_EMAIL_SMTP_USERNAME }}"
-          EMAIL_SMTP_USERNAME: "${{ secrets.DEV_EMAIL_SMTP_USERNAME }}"
-          EMAIL_SMTP_PASSWORD: "${{ secrets.DEV_EMAIL_SMTP_PASSWORD }}"
-          EMAIL_TIMEOUT_SECONDS: "10"
-          OCR_PROVIDER: "google_vision"
-          GOOGLE_VISION_API_KEY: "${{ secrets.DEV_GOOGLE_VISION_API_KEY }}"
-          GOOGLE_VISION_MODEL: "DOCUMENT_TEXT_DETECTION"
-          LLM_PROVIDER: "gemini"
-          LLM_MODEL: "gemini-3.1-flash-lite"
-          LLM_MODELS: "gemini-3.1-flash-lite,gemini-2.5-flash"
-          LLM_FALLBACK_MODEL: "gemini-2.5-flash"
-          GEMINI_API_KEY: "${{ secrets.DEV_GEMINI_API_KEY }}"
-          GEMINI_API_KEYS: "${{ secrets.DEV_GEMINI_API_KEYS }}"
-          # Enrichment and chat get their own key pools. Sharing the scan key
-          # means they compete for the same per-minute quota — enrichment fires
-          # batches right after a scan drains it, which is a 429 by construction:
-          # no dish tags, no verdicts. Same reasoning as env/.env.local.
-          ENRICH_LLM_PROVIDER: "gemini"
-          ENRICH_GEMINI_API_KEYS: "${{ secrets.DEV_ENRICH_GEMINI_API_KEYS }}"
-          ENRICH_LLM_MODEL: "gemini-3.1-flash-lite"
-          ENRICH_LLM_TIMEOUT_SECONDS: "60"
-          CHAT_LLM_PROVIDER: "gemini"
-          CHAT_GEMINI_API_KEYS: "${{ secrets.DEV_CHAT_GEMINI_API_KEYS }}"
-          CHAT_LLM_MODEL: "gemini-3.1-flash-lite"
-          LLM_TIMEOUT_SECONDS: "100"
-          LLM_MULTIMODAL: "true"
-          LLM_IMAGE_MAX_DIMENSION: "1536"
-          LLM_PREALIGN_CSV: "true"
-          SCAN_MIN_GAP_SECONDS: "10"
-          CHAT_MIN_GAP_SECONDS: "5"
-          STORAGE_PROVIDER: "local"
-          STORAGE_LOCAL_ROOT: "/app/storage/objects"
-          SCAN_STALE_TIMEOUT_MINUTES: "10"
-          EXCHANGE_RATE_API_BASE_URL: "https://open.er-api.com/v6"
-          EXCHANGE_RATE_TIMEOUT_SECONDS: "10"
-          EXCHANGE_RATE_CACHE_TTL_SECONDS: "3600"
-          EOF
-
-      # ── Deploy to Cloud Run ─────────────────────────────────────────────────
-      - name: Deploy to Cloud Run
-        run: |
-          gcloud run deploy ${{ env.SERVICE }} \
-            --image ${{ env.IMAGE }}:sha-${{ steps.vars.outputs.sha_short }} \
-            --region ${{ env.REGION }} \
-            --platform managed \
-            --allow-unauthenticated \
-            --add-cloudsql-instances ${{ env.CLOUDSQL_INSTANCE }} \
-            --env-vars-file /tmp/env.yaml \
-            --memory 512Mi \
-            --cpu 1 \
-            --min-instances 0 \
-            --max-instances 3 \
-            --timeout 300
-
-      - name: Show Cloud Run service URL
-        run: |
-          URL=$(gcloud run services describe ${{ env.SERVICE }} \
-            --region ${{ env.REGION }} \
-            --format 'value(status.url)')
-          echo "Deployed: $URL"
-          echo "### Deployed to Cloud Run :rocket:" >> "$GITHUB_STEP_SUMMARY"
-          echo "$URL" >> "$GITHUB_STEP_SUMMARY"
+      id-token: write
