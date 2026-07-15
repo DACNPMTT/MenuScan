@@ -119,7 +119,12 @@ class FakeEmailSender:
         self.sent: list[dict[str, str]] = []
         self.should_fail = should_fail
 
-    def send_magic_link(self, *, to_email: str, magic_link_url: str) -> None:
+    def send_magic_link(self, *, to_email: str, magic_link_url: str, lang: str = "vi") -> None:
         if self.should_fail:
             raise EmailDeliveryError("fake delivery failure")
-        self.sent.append({"to_email": to_email, "magic_link_url": magic_link_url})
+        self.sent.append({"to_email": to_email, "magic_link_url": magic_link_url, "lang": lang})
+
+    def send_delete_confirmation(self, *, to_email: str, confirm_url: str, lang: str = "vi") -> None:
+        if self.should_fail:
+            raise EmailDeliveryError("fake delivery failure")
+        self.sent.append({"to_email": to_email, "confirm_url": confirm_url, "lang": lang})

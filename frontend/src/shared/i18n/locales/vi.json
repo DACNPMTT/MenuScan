@@ -671,5 +671,27 @@
     "title": "Sẵn sàng số hóa thực đơn?",
     "subtitle": "Tham gia cùng MenuScan ngay — bắt đầu miễn phí, dùng rất vui."
   }
+},
+"deleteAccount": {
+  "dangerZone": "Vùng nguy hiểm",
+  "deleteAccount": "Xoá tài khoản",
+  "warning": "Hành động này không thể hoàn tác. Tất cả dữ liệu cá nhân, hồ sơ ăn uống và phiên đăng nhập sẽ bị vô hiệu hoá vĩnh viễn.",
+  "typeEmailToConfirm": "Gõ lại email để xác nhận:",
+  "confirmDelete": "Gửi email xác nhận xoá",
+  "emailSent": "Đã gửi email xác nhận",
+  "processing": "Đang xoá tài khoản...",
+  "processingDesc": "Vui lòng đợi trong giây lát.",
+  "deleted": "Tạm biệt nhé!",
+  "deletedDesc": "Tài khoản của bạn đã được xóa thành công.",
+  "seeYouNextMeal": "Hẹn bạn vào bữa ăn tới! 🍽️",
+  "backToHome": "Về trang chủ",
+  "confirmTitle": "Xác nhận xoá tài khoản",
+  "errors": {
+    "emailMismatch": "Email không khớp. Vui lòng gõ lại chính xác.",
+    "requestFailed": "Không thể gửi email xác nhận xoá. Vui lòng thử lại sau.",
+    "confirmFailed": "Không thể xoá tài khoản. Liên kết có thể đã hết hạn.",
+    "missingToken": "Liên kết không hợp lệ. Vui lòng kiểm tra lại email.",
+    "title": "Lỗi xác nhận"
+  }
 }
 }

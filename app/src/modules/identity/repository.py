@@ -103,6 +103,22 @@ class UserSessionRepository:
         session.add(user_session)
         session.flush()
 
+    def revoke_all_for_user(
+        self,
+        session: Session,
+        user_id: uuid.UUID,
+        now: datetime,
+    ) -> None:
+        """Bulk-revoke every active session for the given user."""
+        session.execute(
+            update(UserSession)
+            .where(
+                UserSession.user_id == user_id,
+                UserSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=now)
+        )
+
 
 class FoodProfileRepository:
     def list_by_user(self, session: Session, user_id: uuid.UUID) -> list[FoodProfile]:

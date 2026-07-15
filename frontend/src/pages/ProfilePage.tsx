@@ -4,6 +4,7 @@ import {
   AlertCircle,
   BadgeCheck,
   CalendarDays,
+  CheckCircle2,
   KeyRound,
   Languages,
   Loader2,
@@ -41,6 +42,7 @@ import { IconBadge } from '@/shared/components/IconBadge'
 import { Spinner } from '@/shared/components/Spinner'
 import { PageTransition } from '@/shared/components/motion/PageTransition'
 import { Reveal } from '@/shared/components/motion/Reveal'
+import { AnimatePresence, motion } from 'motion/react'
 
 function displayValue(value: string | null | undefined, fallback = 'Chưa thiết lập') {
   return value?.trim() ? value : fallback
@@ -78,6 +80,7 @@ export function ProfilePage() {
     createFoodProfile,
     updateFoodProfile,
     deleteFoodProfile,
+    requestDeleteAccount,
   } = useAuth()
   const [fullProfile, setFullProfile] = useState<User | null>(null)
   const [foodProfiles, setFoodProfiles] = useState<FoodProfile[]>([])
@@ -98,6 +101,14 @@ export function ProfilePage() {
   )
   const [foodProfileSaving, setFoodProfileSaving] = useState(false)
   const [foodProfileError, setFoodProfileError] = useState<string | null>(null)
+
+  // Delete Account State
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteDialogStep, setDeleteDialogStep] = useState<1 | 2>(1)
+  const [deleteEmailInput, setDeleteEmailInput] = useState('')
+  const [deleteRequesting, setDeleteRequesting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleteSuccessMsg, setDeleteSuccessMsg] = useState<string | null>(null)
 
   const loadProfile = useCallback(async (mode: 'initial' | 'refresh') => {
     if (!accessToken) return
@@ -275,6 +286,28 @@ export function ProfilePage() {
       )
     } finally {
       setFoodProfileSaving(false)
+    }
+  }
+
+  const handleRequestDelete = async (e: FormEvent) => {
+    e.preventDefault()
+    if (deleteEmailInput !== profile?.email) {
+      setDeleteError(t('deleteAccount.errors.emailMismatch'))
+      return
+    }
+    setDeleteRequesting(true)
+    setDeleteError(null)
+    setDeleteSuccessMsg(null)
+    try {
+      const res = await requestDeleteAccount()
+      setDeleteSuccessMsg(res.message)
+      setDeleteEmailInput('')
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : t('deleteAccount.errors.requestFailed'),
+      )
+    } finally {
+      setDeleteRequesting(false)
     }
   }
 
@@ -589,7 +622,151 @@ export function ProfilePage() {
             )}
           </SectionCard>
         </Reveal>
+
+        <Reveal delay={0.3}>
+          <div className="mt-8 flex justify-center">
+            <Button
+              variant="outline"
+              size="lg"
+              className="w-full max-w-[300px] rounded-full border-destructive/30 text-[15px] font-bold text-destructive hover:bg-destructive/10"
+              onClick={() => {
+                setDeleteDialogStep(1)
+                setDeleteEmailInput('')
+                setDeleteSuccessMsg(null)
+                setDeleteError(null)
+                setDeleteDialogOpen(true)
+              }}
+            >
+              <Trash2 className="mr-2 size-5" />
+              {t('deleteAccount.deleteAccount')}
+            </Button>
+          </div>
+        </Reveal>
       </div>
+
+      {/* Delete Account Modal */}
+      <AnimatePresence>
+        {deleteDialogOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-sm"
+              onClick={() => {
+                if (!deleteRequesting && !deleteSuccessMsg) setDeleteDialogOpen(false)
+              }}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed left-1/2 top-1/2 z-50 w-[90%] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl border border-border bg-surface p-6 shadow-3"
+            >
+              <h3 className="mb-2 text-[20px] font-bold text-destructive">
+                {t('deleteAccount.deleteAccount')}
+              </h3>
+
+              <div className="text-left mt-4">
+                {deleteSuccessMsg ? (
+                  <div className="text-center py-4">
+                    <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-success/10 mb-4">
+                      <CheckCircle2 className="size-6 text-success" />
+                    </div>
+                    <h4 className="text-[16px] font-bold text-ink mb-2">
+                      {t('deleteAccount.emailSent')}
+                    </h4>
+                    <p className="text-[14px] text-ink-variant">
+                      {deleteSuccessMsg}
+                    </p>
+                    <Button 
+                      size="lg"
+                      className="mt-6 w-full rounded-xl"
+                      onClick={() => setDeleteDialogOpen(false)}
+                    >
+                      Đóng
+                    </Button>
+                  </div>
+                ) : deleteDialogStep === 1 ? (
+                  <div className="flex flex-col gap-6">
+                    <p className="text-[14px] text-destructive leading-relaxed">
+                      ⚠️ <strong>Cảnh báo:</strong> {t('deleteAccount.warning')}
+                    </p>
+                    <div className="flex flex-col gap-3">
+                      <Button 
+                        type="button" 
+                        variant="destructive"
+                        size="lg"
+                        className="rounded-xl"
+                        onClick={() => setDeleteDialogStep(2)}
+                      >
+                        Tiếp tục
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="lg"
+                        className="rounded-xl"
+                        onClick={() => setDeleteDialogOpen(false)}
+                      >
+                        {t('common.cancel')}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleRequestDelete} className="flex flex-col gap-4">
+                    <p className="text-[14px] text-destructive">
+                      {t('deleteAccount.typeEmailToConfirm')} <strong className="select-all text-destructive">{profile?.email}</strong>
+                    </p>
+                    
+                    <input
+                      type="email"
+                      value={deleteEmailInput}
+                      onChange={(e) => setDeleteEmailInput(e.target.value)}
+                      placeholder={profile?.email}
+                      required
+                      disabled={deleteRequesting}
+                      className="w-full rounded-xl border border-border bg-panel px-4 py-3 text-[14px] text-ink outline-none transition-colors focus:border-destructive focus:bg-surface"
+                      autoFocus
+                    />
+
+                    {deleteError && (
+                      <p className="flex items-center gap-2 text-[14px] font-medium text-destructive mt-1">
+                        <AlertCircle className="size-4 shrink-0" />
+                        {deleteError}
+                      </p>
+                    )}
+
+                    <div className="flex flex-col gap-3 mt-4">
+                      <Button 
+                        type="submit" 
+                        variant="destructive"
+                        size="lg"
+                        className="rounded-xl"
+                        disabled={deleteRequesting || deleteEmailInput !== profile?.email}
+                      >
+                        {deleteRequesting ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+                        {t('deleteAccount.confirmDelete')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="lg"
+                        className="rounded-xl"
+                        onClick={() => setDeleteDialogStep(1)}
+                        disabled={deleteRequesting}
+                      >
+                        Trở lại
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </PageTransition>
   )
 }

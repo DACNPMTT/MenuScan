@@ -74,15 +74,6 @@ export function AuthenticatedLayout() {
               MenuScan
             </span>
           </a>
-          {user && (
-            <NavLink
-              to="/app/profile"
-              className="mt-1 block max-w-[min(58vw,220px)] truncate pl-[46px] text-[12px] font-medium leading-none text-ink-variant transition-colors hover:text-primary sm:hidden"
-              title={user.email}
-            >
-              {accountLabel}
-            </NavLink>
-          )}
         </div>
         <nav
           className="relative hidden items-center gap-1 rounded-full bg-panel/80 p-1 sm:flex"
@@ -132,11 +123,12 @@ export function AuthenticatedLayout() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="hidden max-w-[220px] items-center gap-1.5 px-2 text-[14px] font-medium text-ink-variant md:inline-flex"
+                  className="flex max-w-[220px] items-center gap-1.5 px-2 text-[14px] font-medium text-ink-variant"
                   title={user.email}
                 >
-                  <span className="truncate">{accountLabel}</span>
-                  <ChevronDown className="size-4 shrink-0" aria-hidden />
+                  <span className="hidden truncate md:inline-block">{accountLabel}</span>
+                  <ChevronDown className="hidden size-4 shrink-0 md:inline-block" aria-hidden />
+                  <UserCircle className="size-6 shrink-0 md:hidden" aria-hidden />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
