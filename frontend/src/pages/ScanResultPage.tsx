@@ -402,16 +402,21 @@ function ResultView({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
           <IconBadge icon={Check} size="sm" solid />
-          <div className="flex flex-col">
+          <div className="flex min-w-0 flex-col">
             <h1 className="text-[28px] font-bold leading-[34px] text-ink">
               {result.menu?.title || t('scanResult.title')}
             </h1>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <span className="text-[14px] text-ink-variant">
-                {t('scanResult.dishCount', { count: totalItems })} · {source.file_name}
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
+              <span className="flex min-w-0 max-w-full items-center text-[14px] text-ink-variant">
+                <span className="shrink-0">
+                  {t('scanResult.dishCount', { count: totalItems })} ·
+                </span>
+                <span className="min-w-0 truncate pl-1" title={source.file_name}>
+                  {source.file_name}
+                </span>
               </span>
               <span className="hidden text-[14px] text-ink-variant sm:inline">•</span>
               {result.scan.detected_language && (
@@ -544,9 +549,9 @@ function SourcePreview({
             </div>
           )
         ) : (
-          <div className="flex items-center gap-3 p-4">
-            <AlertCircle className="size-5 text-primary" aria-hidden />
-            <span className="text-[14px] text-ink-variant">
+          <div className="flex min-w-0 items-center gap-3 p-4">
+            <AlertCircle className="size-5 shrink-0 text-primary" aria-hidden />
+            <span className="min-w-0 truncate text-[14px] text-ink-variant" title={source.file_name}>
               {source.file_name} (PDF)
             </span>
           </div>

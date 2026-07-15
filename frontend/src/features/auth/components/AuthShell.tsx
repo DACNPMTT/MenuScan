@@ -18,14 +18,14 @@ interface AuthShellProps {
 export function AuthShell({ children, maxWidth = 'max-w-[420px]' }: AuthShellProps) {
   return (
     <PageTransition>
-      <div className="flex min-h-dvh flex-col items-center justify-center bg-app-bg px-5 py-[75px]">
+      <div className="grid min-h-dvh place-items-center bg-app-bg px-4 py-8 sm:px-5 sm:py-[75px]">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           className={cn('w-full', maxWidth)}
         >
-          <SectionCard className="gap-7 px-8 py-10 shadow-pop">
+          <SectionCard className="shadow-pop" bodyClassName="flex flex-col items-center gap-7 px-5 py-9 sm:px-8 sm:py-10">
             <header className="flex flex-col items-center gap-2">
               <a
                 href="/"

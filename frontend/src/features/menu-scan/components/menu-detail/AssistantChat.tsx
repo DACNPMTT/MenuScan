@@ -1,11 +1,48 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2, Plus, Send, X } from 'lucide-react'
+import { Loader2, Mic, Plus, Send, X } from 'lucide-react'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { motion } from 'motion/react'
 import { Button } from '@/shared/components/ui/button'
 import { MenuScanLogo } from '@/shared/components/mascot/NonLaMark'
+import { cn } from '@/shared/lib/cn'
+
+/** Minimal shape of the Web Speech API — TS ships no lib types for it, and only
+ *  the members used here are declared (voice input for the chat box). */
+interface SpeechRecognitionResultLike {
+  0: { transcript: string }
+}
+interface SpeechRecognitionEventLike {
+  resultIndex: number
+  results: { length: number; [index: number]: SpeechRecognitionResultLike }
+}
+interface SpeechRecognitionLike {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null
+  onerror: ((event: { error: string }) => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+}
+type SpeechRecognitionCtor = new () => SpeechRecognitionLike
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionCtor
+    webkitSpeechRecognition?: SpeechRecognitionCtor
+  }
+}
+
+/** Speech support never changes at runtime, so resolve it once instead of
+ *  flipping state inside an effect (which the lint gate flags as a cascading
+ *  render). */
+function detectSpeechSupport(): boolean {
+  if (typeof window === 'undefined') return false
+  return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition)
+}
 
 /** Seconds the server told us to wait, from the 429's `details.retry_after`. */
 function retryAfterSeconds(details: unknown): number {
@@ -113,7 +150,7 @@ export const AssistantChat = memo(function AssistantChat({
   selectedDishes = [],
   lastSelectedId,
 }: AssistantChatProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [input, setInput] = useState('')
@@ -125,10 +162,48 @@ export const AssistantChat = memo(function AssistantChat({
   const [focusIds, setFocusIds] = useState<string[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
 
+  const [isListening, setIsListening] = useState(false)
+  const [speechSupported] = useState(detectSpeechSupport)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
+
   const abortRef = useRef<AbortController | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => () => abortRef.current?.abort(), [])
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition()
+        recognition.continuous = false
+        recognition.interimResults = true
+
+        recognition.onresult = (event: SpeechRecognitionEventLike) => {
+          let transcript = ''
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript
+          }
+          setInput(transcript)
+        }
+
+        recognition.onerror = (event: { error: string }) => {
+          console.error('Speech recognition error', event.error)
+          setIsListening(false)
+        }
+
+        recognition.onend = () => {
+          setIsListening(false)
+        }
+        recognitionRef.current = recognition
+      }
+    }
+    
+    return () => {
+      abortRef.current?.abort()
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+      }
+    }
+  }, [])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' })
@@ -209,6 +284,19 @@ export const AssistantChat = memo(function AssistantChat({
     setPickerOpen(false)
   }
 
+  const toggleListen = () => {
+    if (isListening) {
+      recognitionRef.current?.stop()
+    } else {
+      if (recognitionRef.current) {
+        // Map i18n language to BCP 47 tag.
+        recognitionRef.current.lang = i18n.language === 'vi' ? 'vi-VN' : 'en-US'
+        recognitionRef.current.start()
+        setIsListening(true)
+      }
+    }
+  }
+
   const send = useCallback(
     async (event: FormEvent) => {
       event.preventDefault()
@@ -280,8 +368,8 @@ export const AssistantChat = memo(function AssistantChat({
       }
     >
       {open && (
-        <div className="flex h-[82dvh] w-[calc(100vw-32px)] flex-col overflow-hidden rounded-3xl border border-hairline bg-surface shadow-pop sm:h-[min(78vh,600px)] sm:w-[440px]">
-          <div className="flex items-center justify-between gap-2 border-b border-black/5 bg-gradient-to-r from-[#d7ffb8]/60 to-white px-5 py-4">
+        <div className="flex h-[82dvh] w-[calc(100vw-32px)] flex-col overflow-hidden overscroll-contain rounded-3xl border border-hairline bg-canvas shadow-pop sm:h-[min(78vh,600px)] sm:w-[440px]">
+          <div className="flex items-center justify-between gap-2 border-b border-hairline bg-canvas px-5 py-4">
             <div className="flex items-center gap-2.5 text-[15px] font-extrabold text-[#042c60]">
               <div className="flex size-8 items-center justify-center rounded-full bg-white shadow-sm">
                 <MenuScanLogo size={20} className="shrink-0" />
@@ -299,7 +387,7 @@ export const AssistantChat = memo(function AssistantChat({
             </Button>
           </div>
 
-          <div className="flex flex-1 flex-col gap-4 overflow-y-auto bg-[#fafafa] px-5 py-6">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain bg-panel px-5 py-6">
             {messages.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
                 <motion.div 
@@ -330,7 +418,7 @@ export const AssistantChat = memo(function AssistantChat({
                   className={
                     message.role === 'user'
                       ? 'max-w-[85%] self-end rounded-3xl rounded-br-md bg-primary px-3 py-2 text-[13px] text-white'
-                      : 'max-w-[85%] self-start rounded-3xl rounded-bl-md border border-hairline bg-panel px-3 py-2 text-[13px] text-ink'
+                      : 'max-w-[85%] self-start rounded-3xl rounded-bl-md border border-hairline bg-canvas px-3 py-2 text-[13px] text-ink'
                   }
                 >
                   {message.role === 'assistant' ? (
@@ -342,7 +430,7 @@ export const AssistantChat = memo(function AssistantChat({
               ))
             )}
             {loading && (
-              <div className="self-start rounded-3xl rounded-bl-md border border-hairline bg-surface-muted px-3 py-2 text-ink-variant">
+              <div className="self-start rounded-3xl rounded-bl-md border border-hairline bg-panel px-3 py-2 text-ink-variant">
                 <Loader2 className="size-4 animate-spin" aria-hidden />
               </div>
             )}
@@ -351,7 +439,7 @@ export const AssistantChat = memo(function AssistantChat({
 
           {/* Focus chips + last-selected suggestion */}
           {(focusDishes.length > 0 || suggestion) && (
-            <div className="flex flex-wrap items-center gap-1.5 border-t border-hairline px-4 py-2">
+            <div className="flex flex-wrap items-center gap-1.5 border-t border-hairline bg-canvas px-4 py-2">
               {focusDishes.map((dish) => (
                 <span
                   key={dish.id}
@@ -385,11 +473,11 @@ export const AssistantChat = memo(function AssistantChat({
             className="relative flex items-end gap-2 bg-white px-4 py-3 shadow-[0_-4px_24px_rgba(0,0,0,0.03)]"
           >
             {pickerOpen && selectedDishes.length > 0 && (
-              <div className="absolute bottom-[calc(100%+8px)] left-4 z-10 max-h-[220px] w-[260px] overflow-y-auto rounded-2xl border border-hairline bg-surface py-1 shadow-3">
+              <div className="absolute bottom-[calc(100%+8px)] left-4 z-10 max-h-[220px] w-[260px] overflow-y-auto overscroll-contain rounded-2xl border border-hairline bg-canvas py-1 shadow-3">
                 <button
                   type="button"
                   onClick={focusAll}
-                  className="w-full px-3 py-2 text-left text-[13px] font-semibold text-primary-dark hover:bg-surface-muted"
+                  className="w-full px-3 py-2 text-left text-[13px] font-semibold text-primary-dark hover:bg-panel"
                 >
                   {t('chat.allSelected')}
                 </button>
@@ -398,7 +486,7 @@ export const AssistantChat = memo(function AssistantChat({
                     key={dish.id}
                     type="button"
                     onClick={() => addFocus(dish.id)}
-                    className="w-full truncate px-3 py-2 text-left text-[13px] text-ink hover:bg-surface-muted"
+                    className="w-full truncate px-3 py-2 text-left text-[13px] text-ink hover:bg-panel"
                   >
                     {dish.name}
                   </button>
@@ -419,8 +507,25 @@ export const AssistantChat = memo(function AssistantChat({
               value={input}
               onChange={(event) => setInput(event.target.value)}
               placeholder={t('chat.placeholder')}
-              className="min-h-11 flex-1 rounded-3xl border border-[#e5e5e5] bg-[#fdfdfc] px-5 py-2.5 text-[14px] text-[#042c60] outline-none transition-all placeholder:text-[#afafaf] focus:border-[#58cc02] focus:bg-white focus:ring-2 focus:ring-[#58cc02]/20"
+              className="min-h-11 min-w-0 flex-1 rounded-3xl border border-[#e5e5e5] bg-[#fdfdfc] px-4 py-2.5 sm:px-5 text-[14px] text-[#042c60] outline-none transition-all placeholder:text-[#afafaf] focus:border-[#58cc02] focus:bg-white focus:ring-2 focus:ring-[#58cc02]/20"
             />
+            {speechSupported && (
+              <Button
+                type="button"
+                variant="outline"
+                className={cn(
+                  "size-11 shrink-0 rounded-full border-[#e5e5e5] transition-colors",
+                  isListening
+                    ? "animate-pulse border-red-200 bg-red-50 text-red-500"
+                    : "text-[#777777] hover:bg-[#f5f5f5] hover:text-[#042c60]"
+                )}
+                onClick={toggleListen}
+                disabled={loading || cooldown > 0}
+                aria-label="Voice Input"
+              >
+                <Mic className="size-5" aria-hidden />
+              </Button>
+            )}
             <Button
               type="submit"
               className="size-11 shrink-0 rounded-full bg-[#58cc02] text-white shadow-sm transition-transform hover:scale-105 hover:bg-[#4ea802] disabled:opacity-50 disabled:hover:scale-100"

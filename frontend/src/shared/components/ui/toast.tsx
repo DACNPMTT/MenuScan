@@ -23,9 +23,9 @@ const toastIcon: Record<ToastVariant, ReactNode> = {
 }
 
 const toastAccent: Record<ToastVariant, string> = {
-  success: 'border-success/30 bg-success/5',
-  error: 'border-destructive/30 bg-destructive/5',
-  info: 'border-border bg-surface',
+  success: 'border-success/30 bg-canvas',
+  error: 'border-destructive/30 bg-canvas',
+  info: 'border-border bg-canvas',
 }
 
 /** A single toast notification. Self-dismissing is handled by the provider;
@@ -76,7 +76,7 @@ export function ToastViewport({ toasts, onDismiss }: ToastViewportProps) {
   return (
     <div
       aria-label={t('toast.regionAria')}
-      className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex flex-col items-center gap-2 px-3 py-3 sm:inset-x-auto sm:left-auto sm:right-4 sm:top-4 sm:w-[380px] sm:items-stretch sm:px-0 sm:py-0"
+      className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+76px)] z-[100] flex flex-col items-center gap-2 px-3 py-3 sm:inset-x-auto sm:left-auto sm:right-4 sm:top-4 sm:w-[380px] sm:items-stretch sm:px-0 sm:py-0"
     >
       {visible.map((toast) => (
         <Toast key={toast.id} {...toast} onDismiss={onDismiss} />

@@ -17,6 +17,7 @@ import { LanguageSwitcher } from '@/shared/components/LanguageSwitcher'
 import { MenuScanLogo } from '@/shared/components/mascot/NonLaMark'
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
 import { RouteErrorFallback } from '@/shared/components/RouteErrorFallback'
+import { cn } from '@/shared/lib/cn'
 import { Button } from '@/shared/components/ui/button'
 import {
   DropdownMenu,
@@ -159,18 +160,25 @@ export function AuthenticatedLayout() {
         </div>
       </header>
       <nav
-        className="shrink-0 border-b border-border bg-surface/70 px-3 py-2 backdrop-blur-xl sm:hidden"
+        className="min-w-0 shrink-0 overflow-hidden border-b border-border bg-surface/70 px-3 py-2 backdrop-blur-xl sm:hidden"
         aria-label="App navigation"
       >
-        <div className="flex gap-1 rounded-full bg-panel/80 p-1">
+        <div className="flex min-w-0 gap-1 rounded-full bg-panel/80 p-1">
           {navItems.map((item) => {
             const Icon = item.icon
+            const label = t(`nav.${item.key}`)
             return (
               <NavLink
                 end={item.to === '/app'}
                 key={item.to}
                 to={item.to}
-                className="relative flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-[12px] font-semibold"
+                aria-label={label}
+                className={({ isActive }) =>
+                  cn(
+                    'relative flex min-h-10 min-w-0 items-center justify-center rounded-full text-[12px] font-semibold transition-[flex] duration-200',
+                    isActive ? 'flex-[1.75_1_0%] gap-1.5 px-2' : 'flex-1 px-1',
+                  )
+                }
               >
                 {({ isActive }) => (
                   <>
@@ -192,11 +200,11 @@ export function AuthenticatedLayout() {
                     <span
                       className={
                         isActive
-                          ? 'relative z-10 truncate text-white'
-                          : 'relative z-10 truncate text-ink-variant'
+                          ? 'relative z-10 min-w-0 truncate text-white'
+                          : 'sr-only'
                       }
                     >
-                      {t(`nav.${item.key}`)}
+                      {label}
                     </span>
                   </>
                 )}

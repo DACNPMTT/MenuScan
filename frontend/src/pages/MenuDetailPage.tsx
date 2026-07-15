@@ -985,8 +985,8 @@ export function MenuDetailPage() {
           </div>
         ) : menu ? (
           <>
-            <header className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
+            <header className="mb-5 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 sm:flex-1">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <span className="flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-[12px] font-bold text-primary-dark">
                     <CheckCircle2 className="size-3.5" aria-hidden />
@@ -999,8 +999,14 @@ export function MenuDetailPage() {
                 <h1 className="mb-1 text-[30px] font-bold leading-[38px] text-primary-dark sm:text-[38px] sm:leading-[46px]">
                   {menu.title}
                 </h1>
-                <p className="mb-0 text-[14px] text-ink-variant">
-                  {menu.source.file_name} · {menu.default_currency ?? currency}
+                <p className="mb-0 flex min-w-0 max-w-full items-center text-[14px] text-ink-variant">
+                  <span className="min-w-0 truncate" title={menu.source.file_name}>
+                    {menu.source.file_name}
+                  </span>
+                  <span className="shrink-0">
+                    {' '}
+                    · {menu.default_currency ?? currency}
+                  </span>
                 </p>
               </div>
               <Button
@@ -1008,7 +1014,7 @@ export function MenuDetailPage() {
                 variant="outline"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                className="shrink-0 self-start border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
                 {deleting ? (
                   <Loader2 className="animate-spin" aria-hidden />

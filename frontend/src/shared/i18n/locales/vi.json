@@ -93,6 +93,8 @@
   },
   "checkEmail": {
     "bodyWithEmail": "Chúng tôi đã gửi liên kết xác thực đến {{email}}. Vui lòng nhấn vào liên kết để kích hoạt tài khoản.",
+    "bodyWithEmailPrefix": "Chúng tôi đã gửi liên kết xác thực đến",
+    "bodyWithEmailSuffix": "Vui lòng nhấn vào liên kết để kích hoạt tài khoản.",
     "bodyNoEmail": "Chúng tôi đã gửi liên kết xác thực đến email của bạn. Vui lòng nhấn vào liên kết để kích hoạt tài khoản.",
     "sending": "Đang gửi…"
   },
