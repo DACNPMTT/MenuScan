@@ -1,11 +1,12 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2, Plus, Send, X } from 'lucide-react'
+import { Loader2, Mic, Plus, Send, X } from 'lucide-react'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { motion } from 'motion/react'
 import { Button } from '@/shared/components/ui/button'
 import { MenuScanLogo } from '@/shared/components/mascot/NonLaMark'
+import { cn } from '@/shared/lib/cn'
 
 /** Seconds the server told us to wait, from the 429's `details.retry_after`. */
 function retryAfterSeconds(details: unknown): number {
@@ -113,7 +114,7 @@ export const AssistantChat = memo(function AssistantChat({
   selectedDishes = [],
   lastSelectedId,
 }: AssistantChatProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [input, setInput] = useState('')
@@ -125,10 +126,49 @@ export const AssistantChat = memo(function AssistantChat({
   const [focusIds, setFocusIds] = useState<string[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
 
+  const [isListening, setIsListening] = useState(false)
+  const [speechSupported, setSpeechSupported] = useState(false)
+  const recognitionRef = useRef<any>(null)
+
   const abortRef = useRef<AbortController | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => () => abortRef.current?.abort(), [])
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+      if (SpeechRecognition) {
+        setSpeechSupported(true)
+        const recognition = new SpeechRecognition()
+        recognition.continuous = false
+        recognition.interimResults = true
+        
+        recognition.onresult = (event: any) => {
+          let transcript = ''
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript
+          }
+          setInput(transcript)
+        }
+        
+        recognition.onerror = (event: any) => {
+          console.error('Speech recognition error', event.error)
+          setIsListening(false)
+        }
+        
+        recognition.onend = () => {
+          setIsListening(false)
+        }
+        recognitionRef.current = recognition
+      }
+    }
+    
+    return () => {
+      abortRef.current?.abort()
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+      }
+    }
+  }, [])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' })
@@ -207,6 +247,19 @@ export const AssistantChat = memo(function AssistantChat({
   const focusAll = () => {
     setFocusIds(selectedDishes.map((dish) => dish.id))
     setPickerOpen(false)
+  }
+
+  const toggleListen = () => {
+    if (isListening) {
+      recognitionRef.current?.stop()
+    } else {
+      if (recognitionRef.current) {
+        // Map i18n language to BCP 47 tag.
+        recognitionRef.current.lang = i18n.language === 'vi' ? 'vi-VN' : 'en-US'
+        recognitionRef.current.start()
+        setIsListening(true)
+      }
+    }
   }
 
   const send = useCallback(
@@ -419,8 +472,25 @@ export const AssistantChat = memo(function AssistantChat({
               value={input}
               onChange={(event) => setInput(event.target.value)}
               placeholder={t('chat.placeholder')}
-              className="min-h-11 flex-1 rounded-3xl border border-[#e5e5e5] bg-[#fdfdfc] px-5 py-2.5 text-[14px] text-[#042c60] outline-none transition-all placeholder:text-[#afafaf] focus:border-[#58cc02] focus:bg-white focus:ring-2 focus:ring-[#58cc02]/20"
+              className="min-h-11 min-w-0 flex-1 rounded-3xl border border-[#e5e5e5] bg-[#fdfdfc] px-4 py-2.5 sm:px-5 text-[14px] text-[#042c60] outline-none transition-all placeholder:text-[#afafaf] focus:border-[#58cc02] focus:bg-white focus:ring-2 focus:ring-[#58cc02]/20"
             />
+            {speechSupported && (
+              <Button
+                type="button"
+                variant="outline"
+                className={cn(
+                  "size-11 shrink-0 rounded-full border-[#e5e5e5] transition-colors",
+                  isListening
+                    ? "animate-pulse border-red-200 bg-red-50 text-red-500"
+                    : "text-[#777777] hover:bg-[#f5f5f5] hover:text-[#042c60]"
+                )}
+                onClick={toggleListen}
+                disabled={loading || cooldown > 0}
+                aria-label="Voice Input"
+              >
+                <Mic className="size-5" aria-hidden />
+              </Button>
+            )}
             <Button
               type="submit"
               className="size-11 shrink-0 rounded-full bg-[#58cc02] text-white shadow-sm transition-transform hover:scale-105 hover:bg-[#4ea802] disabled:opacity-50 disabled:hover:scale-100"
