@@ -1,0 +1,15 @@
+# Trivy ignore file — accepted IaC misconfigurations, with justification.
+# Reviewed for the MenuScan graduation project (single demo environment).
+
+# AVD-GCP-0017 — Cloud SQL instance has a public IP address.
+#
+# Accepted (deferred), rationale:
+#   - Cloud Run reaches the database through the managed Cloud SQL Auth Proxy,
+#     which connects to the instance via this public IP over an encrypted,
+#     IAM-authenticated tunnel — not a plaintext connection.
+#   - Removing the public IP (ipv4_enabled = false) would require provisioning
+#     Private IP + a VPC connector for Cloud Run first; doing that mid-project
+#     risks breaking the live DB connection, so it is deferred.
+#   - TLS is now enforced on the instance (ssl_mode = ENCRYPTED_ONLY), which
+#     addresses the related AVD-GCP-0015 finding for real.
+AVD-GCP-0017
