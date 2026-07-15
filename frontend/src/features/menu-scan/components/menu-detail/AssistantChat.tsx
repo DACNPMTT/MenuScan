@@ -8,6 +8,42 @@ import { Button } from '@/shared/components/ui/button'
 import { MenuScanLogo } from '@/shared/components/mascot/NonLaMark'
 import { cn } from '@/shared/lib/cn'
 
+/** Minimal shape of the Web Speech API — TS ships no lib types for it, and only
+ *  the members used here are declared (voice input for the chat box). */
+interface SpeechRecognitionResultLike {
+  0: { transcript: string }
+}
+interface SpeechRecognitionEventLike {
+  resultIndex: number
+  results: { length: number; [index: number]: SpeechRecognitionResultLike }
+}
+interface SpeechRecognitionLike {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null
+  onerror: ((event: { error: string }) => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+}
+type SpeechRecognitionCtor = new () => SpeechRecognitionLike
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionCtor
+    webkitSpeechRecognition?: SpeechRecognitionCtor
+  }
+}
+
+/** Speech support never changes at runtime, so resolve it once instead of
+ *  flipping state inside an effect (which the lint gate flags as a cascading
+ *  render). */
+function detectSpeechSupport(): boolean {
+  if (typeof window === 'undefined') return false
+  return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition)
+}
+
 /** Seconds the server told us to wait, from the 429's `details.retry_after`. */
 function retryAfterSeconds(details: unknown): number {
   if (details && typeof details === 'object' && 'retry_after' in details) {
@@ -127,34 +163,33 @@ export const AssistantChat = memo(function AssistantChat({
   const [pickerOpen, setPickerOpen] = useState(false)
 
   const [isListening, setIsListening] = useState(false)
-  const [speechSupported, setSpeechSupported] = useState(false)
-  const recognitionRef = useRef<any>(null)
+  const [speechSupported] = useState(detectSpeechSupport)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
 
   const abortRef = useRef<AbortController | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
       if (SpeechRecognition) {
-        setSpeechSupported(true)
         const recognition = new SpeechRecognition()
         recognition.continuous = false
         recognition.interimResults = true
-        
-        recognition.onresult = (event: any) => {
+
+        recognition.onresult = (event: SpeechRecognitionEventLike) => {
           let transcript = ''
           for (let i = event.resultIndex; i < event.results.length; i++) {
             transcript += event.results[i][0].transcript
           }
           setInput(transcript)
         }
-        
-        recognition.onerror = (event: any) => {
+
+        recognition.onerror = (event: { error: string }) => {
           console.error('Speech recognition error', event.error)
           setIsListening(false)
         }
-        
+
         recognition.onend = () => {
           setIsListening(false)
         }
