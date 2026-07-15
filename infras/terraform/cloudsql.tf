@@ -5,7 +5,7 @@ resource "google_sql_database_instance" "menuscan_db" {
   database_version = "POSTGRES_18"
 
   # Terraform-side guard: keep true so `terraform destroy` can never drop the
-  # live database. (This is separate from the GCP-side flag below.)
+  # live database.
   deletion_protection = true
 
   settings {
@@ -13,34 +13,32 @@ resource "google_sql_database_instance" "menuscan_db" {
     availability_type = "ZONAL"
     disk_size         = 10
     disk_type         = "PD_SSD"
-
-    # activation_policy is toggled by hand — ALWAYS for demos, NEVER to stop
-    # billing between them. It is ignored below so the manual start/stop is not
-    # flagged as drift on every plan.
     activation_policy = "ALWAYS"
+
+    # Matches the live instance (GCP-side delete guard is ON).
+    deletion_protection_enabled = true
 
     backup_configuration {
       enabled = true
     }
 
     ip_configuration {
-      # Reject any non-TLS connection (fixes Trivy AVD-GCP-0015). The Cloud SQL
-      # Auth Proxy that Cloud Run uses already connects over SSL, so enforcing
-      # this does not break the app.
-      ssl_mode = "ENCRYPTED_ONLY"
-
-      # Public IP is kept on purpose (Trivy AVD-GCP-0017 is suppressed in
-      # .trivyignore with justification). Cloud Run reaches the instance through
-      # the managed proxy via this public IP; removing it would require setting
-      # up Private IP + a VPC connector first — deferred as future hardening.
+      # The live instance already enforces TLS (ssl_mode = ENCRYPTED_ONLY); this
+      # keeps the file in sync and satisfies Trivy AVD-GCP-0015. Public IP is
+      # kept on purpose (AVD-GCP-0017 is suppressed in .trivyignore).
+      ssl_mode     = "ENCRYPTED_ONLY"
       ipv4_enabled = true
     }
-
-    deletion_protection_enabled = false
   }
 
   lifecycle {
-    ignore_changes = [settings[0].activation_policy]
+    # The instance's detailed live settings — PITR, backup location, database
+    # flags (cloudsql.iam_authentication), authorized networks, maintenance
+    # window, password policy, dataplex, etc. — are managed outside Terraform
+    # (console/gcloud). Ignore the whole settings block so an apply can NEVER
+    # strip or overwrite that live configuration; Terraform still tracks the
+    # instance's existence and identity.
+    ignore_changes = [settings]
   }
 
   depends_on = [google_project_service.enabled]
@@ -48,7 +46,7 @@ resource "google_sql_database_instance" "menuscan_db" {
 
 # The application database. The auto-created `postgres` database and the SQL
 # users/passwords are intentionally NOT managed here — credentials stay out of
-# Terraform state (they belong in Secret Manager, see the deploy TODO).
+# Terraform state (they live in Secret Manager, see secrets.tf).
 resource "google_sql_database" "menuscan" {
   project  = var.project_id
   name     = "menuscan"

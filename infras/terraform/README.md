@@ -56,10 +56,10 @@ Plan: N to import, M to add, 0 to change, 0 to destroy.
   1 dashboard) and the `secrets.tf` set (8 secret containers + 8 IAM bindings +
   the Secret Manager API). If any *existing* platform resource (SQL, registry,
   SA, WIF...) shows up as "to add", it failed to import — investigate.
-- **1 expected change**: `google_sql_database_instance.menuscan_db` will show a
-  change to `settings.ip_configuration.ssl_mode` → `ENCRYPTED_ONLY`. This is an
-  intentional hardening (enforce TLS); the Cloud SQL Auth Proxy already uses SSL
-  so it does not break the app. Any *other* change should be investigated.
+- **0 to change is expected too.** The Cloud SQL instance's detailed settings
+  are ignored (`lifecycle.ignore_changes = [settings]`) so Terraform never
+  rewrites the live DB config it did not create. A verified clean plan reads:
+  `18 to import, 24 to add, 0 to change, 0 to destroy`.
 - **0 to destroy / 0 to replace** is mandatory. If you see a destroy or replace,
   STOP — the `.tf` does not match reality. Fix the config (not the cloud) and
   re-plan.
