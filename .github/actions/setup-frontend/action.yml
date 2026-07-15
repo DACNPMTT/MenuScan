@@ -1,0 +1,19 @@
+name: Setup Frontend
+description: >-
+  Set up Node 22 (npm cache) and install the frontend/ dependencies with
+  `npm ci`. Assumes the repository is already checked out.
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v6
+      with:
+        node-version: "22"
+        cache: npm
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ./frontend
+      run: npm ci

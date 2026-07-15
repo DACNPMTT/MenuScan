@@ -1,0 +1,23 @@
+name: Setup Backend
+description: >-
+  Set up Python 3.12 + uv (cached) and install the app/ dependencies with the
+  locked lockfile. Assumes the repository is already checked out.
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.12"
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+        cache-dependency-glob: "app/uv.lock"
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ./app
+      run: uv sync --locked --all-groups
