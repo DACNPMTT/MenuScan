@@ -71,6 +71,12 @@ class SetPasswordRequest(BaseModel):
     password: str
 
 
+class ConfirmDeleteRequest(BaseModel):
+    """Request body for ``POST /auth/me/confirm-delete``."""
+
+    token: str
+
+
 class UpdateUserProfileRequest(BaseModel):
     """Request body for updating editable profile preferences."""
 

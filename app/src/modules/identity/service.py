@@ -203,10 +203,14 @@ class MagicLinkService:
         # still expires and is one-time-use (harmless); the caller gets 503 and is
         # rate-limited for the cooldown window (acceptable MVP failure behavior).
         url = f"{self._base_url}/auth/verify?token={raw_token}"
+        user = self._user_repository.get_by_email(self._session, email)
+        lang = user.preferred_language if user else "vi"
+
         try:
             self._email_sender.send_magic_link(
                 to_email=email,
                 magic_link_url=url,
+                lang=lang,
             )
         except EmailDeliveryError:
             # No raw email/token in the log.
@@ -627,3 +631,74 @@ class MagicLinkService:
         if user_session.revoked_at is None:
             user_session.revoked_at = now
             self._session.commit()
+
+    # --- Account Deletion (email-verified) ------------------------------------
+
+    DELETE_TOKEN_TTL = timedelta(minutes=15)
+
+    def request_account_deletion(self, user: User) -> None:
+        """Generate a delete-confirmation token and email it to the user.
+
+        The token is stored as a SHA-256 hash on the user row (no extra table).
+        """
+        now = self._clock()
+        raw_token = secrets.token_urlsafe(MAGIC_LINK_TOKEN_BYTES)
+        user.delete_token_hash = hash_token(raw_token)
+        user.delete_token_expires_at = now + self.DELETE_TOKEN_TTL
+        self._session.commit()
+
+        confirm_url = f"{self._base_url}/auth/confirm-delete?token={raw_token}"
+        try:
+            self._email_sender.send_delete_confirmation(
+                to_email=user.email,
+                confirm_url=confirm_url,
+                lang=user.preferred_language,
+            )
+        except EmailDeliveryError:
+            logger.warning("delete_confirmation_email_send_failed")
+            raise EmailServiceUnavailableError() from None
+
+    def confirm_account_deletion(self, user: User, token: str) -> None:
+        """Verify the delete token and soft-delete the user account.
+
+        Revokes all sessions, soft-deletes food profiles, and marks the user as
+        DISABLED with ``deleted_at`` set.
+        """
+        now = self._clock()
+
+        if (
+            user.delete_token_hash is None
+            or user.delete_token_expires_at is None
+        ):
+            raise InvalidMagicLinkError()
+
+        if now > user.delete_token_expires_at:
+            user.delete_token_hash = None
+            user.delete_token_expires_at = None
+            self._session.commit()
+            raise MagicLinkExpiredError()
+
+        if not hmac.compare_digest(hash_token(token), user.delete_token_hash):
+            raise InvalidMagicLinkError()
+
+        # 1. Soft-delete all food profiles
+        for profile in self._food_profile_repository.list_by_user(
+            self._session, user.id
+        ):
+            profile.deleted_at = now
+            profile.is_default = False
+
+        # 2. Revoke all sessions
+        self._session_repository.revoke_all_for_user(
+            self._session, user.id, now
+        )
+
+        # 3. Soft-delete user
+        user.status = UserStatus.DISABLED
+        user.deleted_at = now
+        user.delete_token_hash = None
+        user.delete_token_expires_at = None
+        user.updated_at = now
+
+        self._session.commit()
+

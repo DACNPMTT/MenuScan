@@ -10,6 +10,7 @@ from src.modules.identity.cookies import (
 from src.modules.identity.dependencies import get_current_user, get_magic_link_service
 from src.modules.identity.models import User
 from src.modules.identity.schemas import (
+    ConfirmDeleteRequest,
     CreateFoodProfileRequest,
     FoodProfileResponse,
     LoginRequest,
@@ -113,7 +114,6 @@ def login(
     """Authenticate user with email and password, establish a session and set refresh cookie."""
     user_agent = request.headers.get("user-agent")
 
-    print(f"DEBUG_LOGIN: email='{payload.email}' password='{payload.password}'")
     access_token, user, refresh_token = service.login_with_password(
         email=payload.email,
         password=payload.password,
@@ -283,3 +283,28 @@ def delete_food_profile(
 ) -> None:
     """Soft-delete one food profile owned by the current user."""
     service.delete_food_profile(current_user, profile_id=profile_id)
+
+
+@router.post("/me/delete-request", status_code=status.HTTP_202_ACCEPTED)
+def request_account_deletion(
+    current_user: User = Depends(get_current_user),
+    service: MagicLinkService = Depends(get_magic_link_service),
+) -> dict[str, object]:
+    """Send a delete-confirmation email to the current user."""
+    service.request_account_deletion(current_user)
+    return success_response(
+        data={"message": "Email xác nhận xoá tài khoản đã được gửi."}
+    )
+
+
+@router.post("/me/confirm-delete", status_code=status.HTTP_200_OK)
+def confirm_account_deletion(
+    payload: ConfirmDeleteRequest,
+    current_user: User = Depends(get_current_user),
+    service: MagicLinkService = Depends(get_magic_link_service),
+) -> dict[str, object]:
+    """Verify the delete token and soft-delete the user account."""
+    service.confirm_account_deletion(current_user, payload.token)
+    return success_response(
+        data={"message": "Tài khoản đã được xoá thành công."}
+    )
