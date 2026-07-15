@@ -279,7 +279,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await apiRequest('/api/v1/auth/me/confirm-delete', {
       method: 'POST',
       token,
-      body: { token: deleteToken },
+      body: JSON.stringify({ token: deleteToken }),
     })
     logoutState()
   }, [logoutState])

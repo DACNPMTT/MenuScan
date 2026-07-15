@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
-import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { AlertCircle, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
@@ -14,16 +14,28 @@ export function ConfirmDeletePage() {
   useDocumentTitle(t('deleteAccount.confirmTitle') + ' | MenuScan')
   const { confirmDeleteAccount } = useAuth()
   const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
   const token = searchParams.get('token')
 
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('success')
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [errorMessage, setErrorMessage] = useState('')
   const calledRef = useRef(false)
 
   useEffect(() => {
-    // Mocked for user preview
-  }, [token, confirmDeleteAccount, navigate, t])
+    if (!token || calledRef.current) return
+    calledRef.current = true
+
+    setStatus('loading')
+    confirmDeleteAccount(token)
+      .then(() => {
+        setStatus('success')
+      })
+      .catch((error) => {
+        setStatus('error')
+        setErrorMessage(
+          error instanceof Error ? error.message : t('deleteAccount.errors.unknown')
+        )
+      })
+  }, [token, confirmDeleteAccount, t])
 
   return (
     <PageTransition>
