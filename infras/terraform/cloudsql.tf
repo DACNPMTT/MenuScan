@@ -24,6 +24,15 @@ resource "google_sql_database_instance" "menuscan_db" {
     }
 
     ip_configuration {
+      # Reject any non-TLS connection (fixes Trivy AVD-GCP-0015). The Cloud SQL
+      # Auth Proxy that Cloud Run uses already connects over SSL, so enforcing
+      # this does not break the app.
+      ssl_mode = "ENCRYPTED_ONLY"
+
+      # Public IP is kept on purpose (Trivy AVD-GCP-0017 is suppressed in
+      # .trivyignore with justification). Cloud Run reaches the instance through
+      # the managed proxy via this public IP; removing it would require setting
+      # up Private IP + a VPC connector first — deferred as future hardening.
       ipv4_enabled = true
     }
 
