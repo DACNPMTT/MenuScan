@@ -18,15 +18,6 @@ export function MenuScanLogo({ size = 40, className }: NonLaMarkProps) {
       aria-label="MenuScan logo"
       className={className}
     >
-      {/* Hat */}
-      <g transform="translate(100, 55)">
-        <ellipse cx="0" cy="35" rx="90" ry="15" fill="#c8a156" />
-        <path d="M 0 -55 L -95 35 Q 0 55 95 35 Z" fill="#eed9a1" stroke="#a57f36" strokeWidth="2" strokeLinejoin="round" />
-        <path d="M -18 -38 Q 0 -35 18 -38" stroke="#a57f36" strokeWidth="1.5" fill="none" opacity="0.4" />
-        <path d="M -36 -15 Q 0 -10 36 -15" stroke="#a57f36" strokeWidth="1.5" fill="none" opacity="0.4" />
-        <path d="M -54 8 Q 0 15 54 8" stroke="#a57f36" strokeWidth="1.5" fill="none" opacity="0.4" />
-        <path d="M -72 25 Q 0 35 72 25" stroke="#a57f36" strokeWidth="1.5" fill="none" opacity="0.4" />
-      </g>
       {/* Body */}
       <g transform="translate(100, 140)">
         <path d="M 0 -85 L 15 -95 L 35 -80 L 50 -90 L 65 -70 L 85 -65 L 75 -45 L 95 -30 L 80 -10 L 100 10 L 85 30 L 95 50 L 75 65 L 85 85 L 50 85 L 40 100 L 20 90 L 0 105 L -20 90 L -40 100 L -50 85 L -85 85 L -75 65 L -95 50 L -85 30 L -100 10 L -80 -10 L -95 -30 L -75 -45 L -85 -65 L -65 -70 L -50 -90 L -35 -80 L -15 -95 Z" fill="#89b653" stroke="#4d6f21" strokeWidth="3" strokeLinejoin="round" />
@@ -40,6 +31,15 @@ export function MenuScanLogo({ size = 40, className }: NonLaMarkProps) {
         <path d="M 8 -5 Q 15 -13 22 -5" stroke="#222" strokeWidth="4" fill="none" strokeLinecap="round" />
         <path d="M -15 5 Q 0 35 15 5 Z" fill="#c1432e" stroke="#222" strokeWidth="2.5" strokeLinejoin="round" />
         <path d="M -8 15 Q 0 25 8 15 Z" fill="#ffb6c1" />
+      </g>
+      {/* Hat */}
+      <g transform="translate(100, 55)">
+        <ellipse cx="0" cy="35" rx="90" ry="15" fill="#c8a156" />
+        <path d="M 0 -55 L -95 35 Q 0 55 95 35 Z" fill="#eed9a1" stroke="#a57f36" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M -18 -38 Q 0 -35 18 -38" stroke="#a57f36" strokeWidth="1.5" fill="none" opacity="0.4" />
+        <path d="M -36 -15 Q 0 -10 36 -15" stroke="#a57f36" strokeWidth="1.5" fill="none" opacity="0.4" />
+        <path d="M -54 8 Q 0 15 54 8" stroke="#a57f36" strokeWidth="1.5" fill="none" opacity="0.4" />
+        <path d="M -72 25 Q 0 35 72 25" stroke="#a57f36" strokeWidth="1.5" fill="none" opacity="0.4" />
       </g>
     </svg>
   )
