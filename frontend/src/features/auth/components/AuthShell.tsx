@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { motion } from 'motion/react'
+import { Link } from 'react-router-dom'
 import { MenuScanLogo } from '@/shared/components/mascot/NonLaMark'
 import { SectionCard } from '@/shared/components/SectionCard'
 import { PageTransition } from '@/shared/components/motion/PageTransition'
@@ -27,13 +28,13 @@ export function AuthShell({ children, maxWidth = 'max-w-[420px]' }: AuthShellPro
         >
           <SectionCard className="shadow-pop w-full min-w-0" bodyClassName="flex flex-col items-center gap-7 px-5 py-9 sm:px-8 sm:py-10">
             <header className="flex flex-col items-center gap-2">
-              <a
-                href="/"
+              <Link
+                to="/"
                 aria-label="MenuScan home"
                 className="flex size-11 items-center justify-center rounded-2xl bg-[#f59e0b] shadow-2 shadow-[#f59e0b]/40"
               >
                 <MenuScanLogo size={30} />
-              </a>
+              </Link>
               <span className="text-[24px] font-extrabold tracking-tight text-ink">
                 MenuScan
               </span>
