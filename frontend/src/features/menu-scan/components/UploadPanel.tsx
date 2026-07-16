@@ -88,6 +88,12 @@ const TARGET_LANGUAGES = [
   { code: 'ar', label: '🇸🇦 العربية' },
 ] as const
 
+
+interface LocalSelectedFile extends SelectedFile {
+  id: string
+  quality?: QualityResult | null
+}
+
 export function UploadPanel() {
   const { t, i18n } = useTranslation()
   useDocumentTitle(`${t('scan.title')} | MenuScan`)
@@ -102,9 +108,8 @@ export function UploadPanel() {
     desc: string
   }>
 
-  const [selected, setSelected] = useState<SelectedFile | null>(null)
-  const [quality, setQuality] = useState<QualityResult | null>(null)
-
+  const [selectedFiles, setSelectedFiles] = useState<LocalSelectedFile[]>([])
+  
   const [diningSessions, setDiningSessions] = useState<SimpleDiningSession[]>([])
   const [selectedDiningSessionId, setSelectedDiningSessionId] = useState<string>('')
 
@@ -151,64 +156,72 @@ export function UploadPanel() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  // Guards the async quality check: a slow decode from a replaced file must not
-  // overwrite the current result.
-  const currentFileRef = useRef<File | null>(null)
 
-  // Revoke object URLs so we don't leak them on every replace/remove.
+  // Revoke object URLs so we don't leak them on unmount.
   useEffect(() => {
     return () => {
-      if (selected?.previewUrl) URL.revokeObjectURL(selected.previewUrl)
-    }
-  }, [selected?.previewUrl])
-
-  const acceptFile = (file: File | undefined | null) => {
-    if (!file) return
-    if (selected?.previewUrl) URL.revokeObjectURL(selected.previewUrl)
-    const isImage = file.type.startsWith('image/')
-    const validationError = validateFile(file, t)
-    setSelected({
-      file,
-      previewUrl: isImage ? URL.createObjectURL(file) : null,
-      error: validationError,
-    })
-    setSubmitError(null)
-    // Advisory sharpness/brightness check for valid images (PDF skipped). It
-    // never blocks upload — it only surfaces a "retake / choose another" hint.
-    currentFileRef.current = file
-    setQuality(null)
-    if (isImage && !validationError) {
-      void assessImageFile(file).then((result) => {
-        if (currentFileRef.current === file) setQuality(result)
+      selectedFiles.forEach(f => {
+        if (f.previewUrl) URL.revokeObjectURL(f.previewUrl)
       })
     }
+  }, [selectedFiles])
+
+  const acceptFiles = (files: FileList | null | undefined) => {
+    if (!files || files.length === 0) return
+    const maxFiles = user ? 8 : 2
+    if (selectedFiles.length + files.length > maxFiles) {
+      setSubmitError(t('scan.errors.genericPrefix') + `Bạn chỉ được tải lên tối đa ${maxFiles} file.`)
+      return
+    }
+
+    const newFiles: LocalSelectedFile[] = Array.from(files).map((file) => {
+      const isImage = file.type.startsWith('image/')
+      const validationError = validateFile(file, t)
+      const newFile: LocalSelectedFile = {
+        id: Math.random().toString(36).substring(7),
+        file,
+        previewUrl: isImage ? URL.createObjectURL(file) : null,
+        error: validationError,
+        quality: null,
+      }
+      if (isImage && !validationError) {
+        void assessImageFile(file).then((result) => {
+          setSelectedFiles((prev) => prev.map((p) => p.id === newFile.id ? { ...p, quality: result } : p))
+        })
+      }
+      return newFile
+    })
+    
+    setSelectedFiles((prev) => [...prev, ...newFiles])
+    setSubmitError(null)
   }
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    acceptFile(event.target.files?.[0])
+    acceptFiles(event.target.files)
     event.target.value = ''
   }
 
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     setIsDragging(false)
-    acceptFile(event.dataTransfer.files?.[0])
+    acceptFiles(event.dataTransfer.files)
   }
 
-  const handleRemove = () => {
-    if (selected?.previewUrl) URL.revokeObjectURL(selected.previewUrl)
-    setSelected(null)
-    setQuality(null)
-    currentFileRef.current = null
+  const handleRemove = (id: string) => {
+    setSelectedFiles((prev) => {
+      const file = prev.find(p => p.id === id)
+      if (file?.previewUrl) URL.revokeObjectURL(file.previewUrl)
+      return prev.filter(p => p.id !== id)
+    })
     setSubmitError(null)
   }
 
   const handleSubmit = async () => {
-    if (!selected || selected.error) return
+    if (selectedFiles.length === 0 || selectedFiles.some(f => f.error)) return
     setIsSubmitting(true)
     setSubmitError(null)
     const formData = new FormData()
-    formData.append('file', selected.file)
+    selectedFiles.forEach(f => formData.append('files', f.file))
     formData.append('target_language', targetLanguage)
     if (selectedDiningSessionId) {
       formData.append('dining_session_id', selectedDiningSessionId)
@@ -237,9 +250,8 @@ export function UploadPanel() {
     }
   }
 
-  const canSubmit = Boolean(selected && !selected.error && !isSubmitting)
-  const isPdf = selected?.file.type === 'application/pdf'
-  const fileReady = Boolean(selected && !selected.error)
+  const canSubmit = Boolean(selectedFiles.length > 0 && selectedFiles.every(f => !f.error) && !isSubmitting)
+  const fileReady = Boolean(selectedFiles.length > 0 && selectedFiles.every(f => !f.error))
   // Stepper: no file = step 1 current (awaiting upload); valid file attached
   // = step 1 complete (uploaded), step 2 current (next).
   const completedSteps = fileReady ? 1 : 0
@@ -315,6 +327,7 @@ export function UploadPanel() {
             ref={inputRef}
             type="file"
             accept={ACCEPT_ATTR}
+            multiple
             onChange={handleInputChange}
             className="hidden"
           />
@@ -329,74 +342,83 @@ export function UploadPanel() {
           </div>
         </div>
 
-        {/* Selected file + preview */}
-        {selected && (
+        {/* Selected files + preview */}
+        {selectedFiles.length > 0 && (
           <div className="flex flex-col gap-2">
             <p className="text-[14px] font-medium uppercase tracking-[0.7px] text-ink-variant">
-              {t('scan.selectedFile')}
+              {t('scan.selectedFile')} ({selectedFiles.length}/{user ? 8 : 2})
             </p>
-            <div className="flex items-center gap-5 rounded-2xl border border-border bg-surface p-3 shadow-1">
-              {isPdf ? (
-                <IconBadge icon={FileText} tone="primary" size="sm" />
-              ) : (
-                <div className="size-10 shrink-0 overflow-hidden rounded-xl bg-panel">
-                  {selected.previewUrl ? (
-                    <img
-                      src={selected.previewUrl}
-                      alt={selected.file.name}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <ImageIcon className="m-auto size-5 text-ink-variant" aria-hidden />
-                  )}
-                </div>
-              )}
-              <div className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[16px] leading-[22px] text-ink">
-                  {selected.file.name}
-                </span>
-                <span className="text-[14px] leading-[20px] text-ink-variant">
-                  {formatBytes(selected.file.size)}
-                  {isPdf ? ' · PDF' : ''}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleRemove}
-                className="flex items-center gap-1.5 rounded-full p-2 text-[14px] text-ink-variant transition-all duration-200 ease-[var(--ease-out-quint)] hover:bg-destructive/10 hover:text-destructive"
-                aria-label={t('scan.removeAria', { name: selected.file.name })}
-              >
-                <X className="size-5" aria-hidden />
-                <span className="hidden sm:inline">{t('common.delete')}</span>
-              </button>
+            <div className="flex flex-col gap-3">
+              {selectedFiles.map((selected) => {
+                const isPdf = selected.file.type === 'application/pdf'
+                return (
+                  <div key={selected.id} className="flex flex-col gap-2">
+                    <div className="flex items-center gap-5 rounded-2xl border border-border bg-surface p-3 shadow-1">
+                      {isPdf ? (
+                        <IconBadge icon={FileText} tone="primary" size="sm" />
+                      ) : (
+                        <div className="size-10 shrink-0 overflow-hidden rounded-xl bg-panel">
+                          {selected.previewUrl ? (
+                            <img
+                              src={selected.previewUrl}
+                              alt={selected.file.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <ImageIcon className="m-auto size-5 text-ink-variant" aria-hidden />
+                          )}
+                        </div>
+                      )}
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate text-[16px] leading-[22px] text-ink">
+                          {selected.file.name}
+                        </span>
+                        <span className="text-[14px] leading-[20px] text-ink-variant">
+                          {formatBytes(selected.file.size)}
+                          {isPdf ? ' · PDF' : ''}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(selected.id)}
+                        className="flex items-center gap-1.5 rounded-full p-2 text-[14px] text-ink-variant transition-all duration-200 ease-[var(--ease-out-quint)] hover:bg-destructive/10 hover:text-destructive"
+                        aria-label={t('scan.removeAria', { name: selected.file.name })}
+                      >
+                        <X className="size-5" aria-hidden />
+                        <span className="hidden sm:inline">{t('common.delete')}</span>
+                      </button>
+                    </div>
+                    {selected.error && (
+                      <p
+                        role="alert"
+                        className="flex items-center gap-2 text-[14px] text-destructive"
+                      >
+                        <AlertCircle className="size-4 shrink-0" aria-hidden />
+                        {selected.error.message}
+                      </p>
+                    )}
+                    {!selected.error && selected.quality && !selected.quality.ok && (
+                      <div
+                        role="status"
+                        className="flex items-start gap-3 rounded-2xl border border-amber/40 bg-amber/10 px-3 py-2.5 text-[14px] text-amber"
+                      >
+                        <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-bold">{t('camera.quality.warnTitle')}</span>
+                          <ul className="flex flex-col gap-0.5">
+                            {selected.quality.reasons.map((reason) => (
+                              <li key={reason}>
+                                • {t(`camera.quality.${QUALITY_REASON_I18N_KEY[reason]}`)}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-            {selected.error && (
-              <p
-                role="alert"
-                className="flex items-center gap-2 text-[14px] text-destructive"
-              >
-                <AlertCircle className="size-4 shrink-0" aria-hidden />
-                {selected.error.message}
-              </p>
-            )}
-            {!selected.error && quality && !quality.ok && (
-              <div
-                role="status"
-                className="flex items-start gap-3 rounded-2xl border border-amber/40 bg-amber/10 px-3 py-2.5 text-[14px] text-amber"
-              >
-                <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-                <div className="flex flex-col gap-0.5">
-                  <span className="font-bold">{t('camera.quality.warnTitle')}</span>
-                  <ul className="flex flex-col gap-0.5">
-                    {quality.reasons.map((reason) => (
-                      <li key={reason}>
-                        • {t(`camera.quality.${QUALITY_REASON_I18N_KEY[reason]}`)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
           </div>
         )}
 

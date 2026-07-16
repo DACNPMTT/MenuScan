@@ -105,18 +105,10 @@ def _magic_link_html(magic_link_url: str, lang: str = "vi") -> str:
 
           <!-- Header -->
           <tr>
-            <td style="padding:48px 40px 32px 40px;text-align:center;background-color:#58cc02;border-bottom:4px solid #58a700;">
-              <table cellpadding="0" cellspacing="0" style="margin:0 auto 8px auto;">
-                <tr>
-                  <td style="padding-right:16px;vertical-align:middle;">
-                    <img src="{logo_svg}" alt="MenuScan Logo" style="display:block;width:72px;height:72px;" />
-                  </td>
-                  <td style="vertical-align:middle;">
-                    <h1 style="margin:0;font-size:36px;font-weight:900;color:#ffffff;letter-spacing:-1px;">MenuScan</h1>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin:0;font-size:18px;color:#ecfccb;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;">
+            <td style="padding:40px 40px 32px 40px;text-align:center;background-color:#58cc02;border-bottom:4px solid #58a700;">
+              <img src="{logo_svg}" alt="MenuScan Logo" style="display:block;width:88px;height:auto;margin:0 auto 16px auto;" />
+              <h1 style="margin:0;font-size:36px;font-weight:900;color:#ffffff;letter-spacing:-1px;">MenuScan</h1>
+              <p style="margin:8px 0 0 0;font-size:16px;color:#ecfccb;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;">
                 {brand_desc}
               </p>
             </td>
@@ -269,18 +261,10 @@ def _delete_confirm_html(confirm_url: str, lang: str = "vi") -> str:
 
           <!-- Header -->
           <tr>
-            <td style="padding:48px 40px 32px 40px;text-align:center;background-color:#e11d48;border-bottom:4px solid #be123c;">
-              <table cellpadding="0" cellspacing="0" style="margin:0 auto 8px auto;">
-                <tr>
-                  <td style="padding-right:16px;vertical-align:middle;">
-                    <img src="{logo_svg}" alt="Crying MenuScan Logo" style="display:block;width:72px;height:72px;" />
-                  </td>
-                  <td style="vertical-align:middle;">
-                    <h1 style="margin:0;font-size:36px;font-weight:900;color:#ffffff;letter-spacing:-1px;">MenuScan</h1>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin:0;font-size:18px;color:#ffe4e6;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;">
+            <td style="padding:40px 40px 32px 40px;text-align:center;background-color:#e11d48;border-bottom:4px solid #be123c;">
+              <img src="{logo_svg}" alt="Crying MenuScan Logo" style="display:block;width:88px;height:auto;margin:0 auto 16px auto;" />
+              <h1 style="margin:0;font-size:36px;font-weight:900;color:#ffffff;letter-spacing:-1px;">MenuScan</h1>
+              <p style="margin:8px 0 0 0;font-size:16px;color:#ffe4e6;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;">
                 {header}
               </p>
             </td>
