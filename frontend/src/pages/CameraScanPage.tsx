@@ -5,9 +5,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Camera,
-  CheckCircle2,
-X,
-  RefreshCw,
+  X,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { apiRequest, ApiError } from '@/shared/lib/api'
@@ -16,7 +14,6 @@ import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import type { ScanData } from '@/features/menu-scan/types'
 import {
   assessFrame,
-  QUALITY_REASON_I18N_KEY,
   type QualityResult,
 } from '@/features/menu-scan/imageQuality'
 import { PageTransition } from '@/shared/components/motion/PageTransition'

@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import { useEffect, useState } from 'react'
-=======
-import { useState } from 'react'
->>>>>>> origin/main
 import { useSearchParams } from 'react-router-dom'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'

@@ -156,9 +156,6 @@ export function UploadPanel() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  // Guards the async quality check: a slow decode from a replaced file must not
-  // overwrite the current result.
-  const currentFileRef = useRef<File | null>(null)
 
   // Revoke object URLs so we don't leak them on unmount.
   useEffect(() => {
