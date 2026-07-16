@@ -45,7 +45,9 @@ PostFn = Callable[..., httpx.Response]
 class EmailSender(Protocol):
     """Synchronous port for sending transactional email."""
 
-    def send_magic_link(self, *, to_email: str, magic_link_url: str, lang: str = "vi") -> None:
+    def send_magic_link(
+        self, *, to_email: str, magic_link_url: str, lang: str = "vi"
+    ) -> None:
         """Send a magic-login link. Raise ``EmailDeliveryError`` on failure."""
         ...
 
@@ -58,6 +60,7 @@ class EmailSender(Protocol):
 
 def _magic_link_html(magic_link_url: str, lang: str = "vi") -> str:
     import urllib.parse
+
     parsed = urllib.parse.urlparse(magic_link_url)
     base_url = f"{parsed.scheme}://{parsed.netloc}"
     logo_svg = f"{base_url}/logo-happy.png"
@@ -68,7 +71,9 @@ def _magic_link_html(magic_link_url: str, lang: str = "vi") -> str:
         h2 = "Lightning Fast Login! 🚀"
         p_desc = "Click the magic button below to enter MenuScan instantly.<br/>No passwords required!"
         btn_text = "✨ Enter App Now"
-        warning = "⏱️ Remember, this magic button only works for <strong>15 minutes</strong>!"
+        warning = (
+            "⏱️ Remember, this magic button only works for <strong>15 minutes</strong>!"
+        )
         thanks = "Thank you for choosing MenuScan! ❤️"
         fallback_pre = "Button not working? Copy this link:<br/>"
         footer_auto = "This email was sent automatically by <strong>MenuScan</strong>. Please do not reply."
@@ -219,6 +224,7 @@ def _magic_link_text(magic_link_url: str, lang: str = "vi") -> str:
 
 def _delete_confirm_html(confirm_url: str, lang: str = "vi") -> str:
     import urllib.parse
+
     parsed = urllib.parse.urlparse(confirm_url)
     base_url = f"{parsed.scheme}://{parsed.netloc}"
     logo_svg = f"{base_url}/logo-crying.png"
@@ -229,7 +235,7 @@ def _delete_confirm_html(confirm_url: str, lang: str = "vi") -> str:
         h2 = "I'm so sad... 🥺"
         p_desc = "Do you really want to leave? If you have decided, please click the confirm button below."
         warning_strong = "⚠️ RED ALERT!<br/>"
-        warning_sub = "<span style=\"font-weight:700;color:#e11d48;\">All your data will vanish forever and cannot be recovered.</span>"
+        warning_sub = '<span style="font-weight:700;color:#e11d48;">All your data will vanish forever and cannot be recovered.</span>'
         btn_text = "🗑️ Still Delete Account"
         fallback = "⏱️ The confirmation link is only valid for <strong>15 minutes</strong>. If you change your mind, just ignore this email!"
         copy_pre = "Button not working? Just copy this link:<br/>"
@@ -241,7 +247,7 @@ def _delete_confirm_html(confirm_url: str, lang: str = "vi") -> str:
         h2 = "Tớ buồn lắm... 🥺"
         p_desc = "Bạn thực sự muốn rời đi sao? Nếu đã quyết định, hãy ấn nút xác nhận bên dưới nhé."
         warning_strong = "⚠️ BÁO ĐỘNG ĐỎ!<br/>"
-        warning_sub = "<span style=\"font-weight:700;color:#e11d48;\">Mọi dữ liệu của bạn sẽ bốc hơi vĩnh viễn và không thể lấy lại được.</span>"
+        warning_sub = '<span style="font-weight:700;color:#e11d48;">Mọi dữ liệu của bạn sẽ bốc hơi vĩnh viễn và không thể lấy lại được.</span>'
         btn_text = "🗑️ Vẫn Xoá Tài Khoản"
         fallback = "⏱️ Link xác nhận chỉ sống được <strong>15 phút</strong>. Nếu đổi ý, cứ việc bơ email này đi nha!"
         copy_pre = "Nút không bấm được? Cứ copy link này:<br/>"
@@ -386,7 +392,9 @@ class ConsoleEmailSender:
     Never raises. The logged URL contains the raw token, so this is dev-only.
     """
 
-    def send_magic_link(self, *, to_email: str, magic_link_url: str, lang: str = "vi") -> None:
+    def send_magic_link(
+        self, *, to_email: str, magic_link_url: str, lang: str = "vi"
+    ) -> None:
         logger.info(
             "magic_link_email_queued to_email=%s url=%s lang=%s",
             to_email,
@@ -429,24 +437,38 @@ class GmailSmtpEmailSender:
         self._from_address = from_address
         self._timeout = timeout_seconds
 
-    def send_magic_link(self, *, to_email: str, magic_link_url: str, lang: str = "vi") -> None:
+    def send_magic_link(
+        self, *, to_email: str, magic_link_url: str, lang: str = "vi"
+    ) -> None:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = MAGIC_LINK_SUBJECT if lang == "vi" else "MenuScan Login Link"
         msg["From"] = self._from_address
         msg["To"] = to_email
-        msg.attach(MIMEText(_magic_link_text(magic_link_url, lang=lang), "plain", "utf-8"))
-        msg.attach(MIMEText(_magic_link_html(magic_link_url, lang=lang), "html", "utf-8"))
+        msg.attach(
+            MIMEText(_magic_link_text(magic_link_url, lang=lang), "plain", "utf-8")
+        )
+        msg.attach(
+            MIMEText(_magic_link_html(magic_link_url, lang=lang), "html", "utf-8")
+        )
         self._send_smtp(msg, to_email)
 
     def send_delete_confirmation(
         self, *, to_email: str, confirm_url: str, lang: str = "vi"
     ) -> None:
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = DELETE_ACCOUNT_SUBJECT if lang == "vi" else "Confirm MenuScan Account Deletion"
+        msg["Subject"] = (
+            DELETE_ACCOUNT_SUBJECT
+            if lang == "vi"
+            else "Confirm MenuScan Account Deletion"
+        )
         msg["From"] = self._from_address
         msg["To"] = to_email
-        msg.attach(MIMEText(_delete_confirm_text(confirm_url, lang=lang), "plain", "utf-8"))
-        msg.attach(MIMEText(_delete_confirm_html(confirm_url, lang=lang), "html", "utf-8"))
+        msg.attach(
+            MIMEText(_delete_confirm_text(confirm_url, lang=lang), "plain", "utf-8")
+        )
+        msg.attach(
+            MIMEText(_delete_confirm_html(confirm_url, lang=lang), "html", "utf-8")
+        )
         self._send_smtp(msg, to_email)
 
     def _send_smtp(self, msg: MIMEMultipart, to_email: str) -> None:
@@ -489,7 +511,9 @@ class ResendEmailSender:
         self._timeout = timeout_seconds
         self._post = post or httpx.post
 
-    def send_magic_link(self, *, to_email: str, magic_link_url: str, lang: str = "vi") -> None:
+    def send_magic_link(
+        self, *, to_email: str, magic_link_url: str, lang: str = "vi"
+    ) -> None:
         self._send_resend(
             to_email=to_email,
             subject=MAGIC_LINK_SUBJECT if lang == "vi" else "MenuScan Login Link",
@@ -502,7 +526,9 @@ class ResendEmailSender:
     ) -> None:
         self._send_resend(
             to_email=to_email,
-            subject=DELETE_ACCOUNT_SUBJECT if lang == "vi" else "Confirm MenuScan Account Deletion",
+            subject=DELETE_ACCOUNT_SUBJECT
+            if lang == "vi"
+            else "Confirm MenuScan Account Deletion",
             html=_delete_confirm_html(confirm_url, lang=lang),
             text=_delete_confirm_text(confirm_url, lang=lang),
         )

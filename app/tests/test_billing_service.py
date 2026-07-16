@@ -891,7 +891,7 @@ def test_percentage_adjustment_uses_subtotal_not_running_total(db_session):
     # Both must be 10% of SUBTOTAL (65000) = 6500 each, not cumulative
     assert tax_adj.calculated_amount == Decimal("6500.00")
     assert bill.adjustment_total == Decimal("13000.00")  # 6500 + 6500
-    assert bill.total_amount == Decimal("78000.00")       # 65000 + 13000
+    assert bill.total_amount == Decimal("78000.00")  # 65000 + 13000
 
 
 def test_billing_service_has_no_send_order_to_restaurant_capability():

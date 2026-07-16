@@ -171,8 +171,7 @@ class ScanSourceFile(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "mime_type IN "
-            "('image/jpeg', 'image/png', 'image/webp', 'application/pdf')",
+            "mime_type IN ('image/jpeg', 'image/png', 'image/webp', 'application/pdf')",
             name="source_file_mime_type",
         ),
         CheckConstraint(

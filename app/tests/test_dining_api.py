@@ -301,9 +301,7 @@ def test_get_public_session_success():
     stub = StubDiningSessionService()
     client = _make_client(stub)  # No auth needed for public
 
-    response = client.get(
-        "/api/v1/dining/public/sessions?invite_token=faketoken"
-    )
+    response = client.get("/api/v1/dining/public/sessions?invite_token=faketoken")
 
     assert response.status_code == 200
     body = response.json()
@@ -329,15 +327,15 @@ def test_join_session_success():
     client = _make_client(stub)
 
     payload = {
-      "display_name": "Guest User",
-      "preferences": [
-        {
-          "code": "gluten",
-          "category": "allergen",
-          "preference_type": "ALLERGY",
-          "importance": 5,
-        }
-      ]
+        "display_name": "Guest User",
+        "preferences": [
+            {
+                "code": "gluten",
+                "category": "allergen",
+                "preference_type": "ALLERGY",
+                "importance": 5,
+            }
+        ],
     }
     response = client.post(
         "/api/v1/dining/public/sessions/join?invite_token=faketoken",
@@ -359,10 +357,7 @@ def test_join_session_closed():
     stub.effect = DiningSessionClosedError()
     client = _make_client(stub)
 
-    payload = {
-      "display_name": "Guest User",
-      "preferences": []
-    }
+    payload = {"display_name": "Guest User", "preferences": []}
     response = client.post(
         "/api/v1/dining/public/sessions/join?invite_token=faketoken",
         json=payload,
@@ -405,7 +400,9 @@ def test_remove_participant_success():
     client = _make_client(stub, user)
 
     p_id = uuid.uuid4()
-    response = client.delete(f"/api/v1/dining/sessions/{_SESSION_ID}/participants/{p_id}")
+    response = client.delete(
+        f"/api/v1/dining/sessions/{_SESSION_ID}/participants/{p_id}"
+    )
 
     assert response.status_code == 204
     assert stub.remove_calls == [
@@ -423,7 +420,9 @@ def test_remove_participant_not_found():
     client = _make_client(stub, user)
 
     p_id = uuid.UUID("00000000-0000-0000-0000-000000000000")
-    response = client.delete(f"/api/v1/dining/sessions/{_SESSION_ID}/participants/{p_id}")
+    response = client.delete(
+        f"/api/v1/dining/sessions/{_SESSION_ID}/participants/{p_id}"
+    )
 
     assert response.status_code == 404
     body = response.json()
@@ -465,7 +464,9 @@ def test_score_item_for_diner_rules():
         preference_type=PreferenceType.LIKE,
     )
 
-    verdict2, score2, fit2, risk2 = DiningSessionService._score_item_for_diner(item2, [pref2])
+    verdict2, score2, fit2, risk2 = DiningSessionService._score_item_for_diner(
+        item2, [pref2]
+    )
     assert verdict2 == RecommendationVerdict.RECOMMENDED
     assert score2 == 100.0
     assert "Phù hợp vì bạn beef" in fit2

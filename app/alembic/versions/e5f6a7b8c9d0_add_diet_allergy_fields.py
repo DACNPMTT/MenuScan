@@ -33,9 +33,7 @@ def upgrade() -> None:
     )
     op.add_column(
         "users",
-        sa.Column(
-            "dietary_preferences", _ARRAY, nullable=False, server_default=_EMPTY
-        ),
+        sa.Column("dietary_preferences", _ARRAY, nullable=False, server_default=_EMPTY),
     )
     op.add_column(
         "food_items",

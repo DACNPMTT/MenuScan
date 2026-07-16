@@ -212,9 +212,7 @@ def _items(session: Session, menu_id: uuid.UUID) -> list[FoodItem]:
 
 
 def _session_of(session: Session, menu_id: uuid.UUID) -> DiningSession:
-    return (
-        session.query(DiningSession).filter(DiningSession.menu_id == menu_id).one()
-    )
+    return session.query(DiningSession).filter(DiningSession.menu_id == menu_id).one()
 
 
 def _verdict_count(session: Session, menu_id: uuid.UUID) -> int:

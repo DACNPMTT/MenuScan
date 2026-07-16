@@ -56,8 +56,6 @@ HARD RULES:
 """
 
 
-
-
 def _item_line(item: FoodItem, currency: str | None) -> str:
     name = item.translated_name or item.original_name
     if item.translated_name and item.translated_name != item.original_name:
@@ -121,11 +119,7 @@ def _build_context(menu: Menu, preferences: list[FoodProfilePreference]) -> str:
     else:
         declared = "none declared"
 
-    return (
-        f"MENU: {menu.title}\n"
-        f"DISHES:\n{dishes}\n\n"
-        f"DINER PROFILE — {declared}"
-    )
+    return f"MENU: {menu.title}\nDISHES:\n{dishes}\n\nDINER PROFILE — {declared}"
 
 
 def _to_provider_role(role: str) -> str:

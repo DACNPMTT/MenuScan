@@ -23,30 +23,34 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.drop_constraint("ck_scan_sessions_target_language", "scan_sessions", type_="check")
+    op.drop_constraint(
+        "ck_scan_sessions_target_language", "scan_sessions", type_="check"
+    )
     op.create_check_constraint(
         "ck_scan_sessions_target_language",
         "scan_sessions",
-        "target_language ~ '^[a-z]{2,3}(-[a-z0-9]{2,8})*$'"
+        "target_language ~ '^[a-z]{2,3}(-[a-z0-9]{2,8})*$'",
     )
     op.drop_constraint("ck_menus_target_language", "menus", type_="check")
     op.create_check_constraint(
         "ck_menus_target_language",
         "menus",
-        "target_language ~ '^[a-z]{2,3}(-[a-z0-9]{2,8})*$'"
+        "target_language ~ '^[a-z]{2,3}(-[a-z0-9]{2,8})*$'",
     )
 
 
 def downgrade() -> None:
-    op.drop_constraint("ck_scan_sessions_target_language", "scan_sessions", type_="check")
+    op.drop_constraint(
+        "ck_scan_sessions_target_language", "scan_sessions", type_="check"
+    )
     op.create_check_constraint(
         "ck_scan_sessions_target_language",
         "scan_sessions",
-        "target_language IN ('vi', 'en', 'zh', 'ja', 'ko', 'fr', 'th')"
+        "target_language IN ('vi', 'en', 'zh', 'ja', 'ko', 'fr', 'th')",
     )
     op.drop_constraint("ck_menus_target_language", "menus", type_="check")
     op.create_check_constraint(
         "ck_menus_target_language",
         "menus",
-        "target_language IN ('vi', 'en', 'zh', 'ja', 'ko', 'fr', 'th')"
+        "target_language IN ('vi', 'en', 'zh', 'ja', 'ko', 'fr', 'th')",
     )

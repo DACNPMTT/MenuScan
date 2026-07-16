@@ -342,9 +342,12 @@ class MagicLinkService:
     ) -> FoodProfile:
         """Create a persistent food profile for a signed-in user."""
         now = self._clock()
-        should_be_default = is_default or not self._food_profile_repository.has_active_profiles(
-            self._session,
-            user.id,
+        should_be_default = (
+            is_default
+            or not self._food_profile_repository.has_active_profiles(
+                self._session,
+                user.id,
+            )
         )
         if should_be_default:
             self._food_profile_repository.clear_default(self._session, user_id=user.id)
@@ -435,7 +438,9 @@ class MagicLinkService:
 
         if was_default:
             self._session.flush()
-            remaining = self._food_profile_repository.list_by_user(self._session, user.id)
+            remaining = self._food_profile_repository.list_by_user(
+                self._session, user.id
+            )
             next_default = next(
                 (item for item in remaining if item.id != profile.id),
                 None,
@@ -667,9 +672,7 @@ class MagicLinkService:
         now = self._clock()
         token_hash = hash_token(token)
 
-        user = self._user_repository.get_by_delete_token_hash(
-            self._session, token_hash
-        )
+        user = self._user_repository.get_by_delete_token_hash(self._session, token_hash)
 
         if user is None or user.delete_token_expires_at is None:
             raise InvalidMagicLinkError()
@@ -688,9 +691,7 @@ class MagicLinkService:
             profile.is_default = False
 
         # 2. Revoke all sessions
-        self._session_repository.revoke_all_for_user(
-            self._session, user.id, now
-        )
+        self._session_repository.revoke_all_for_user(self._session, user.id, now)
 
         # 3. Soft-delete user
         user.status = UserStatus.DISABLED
@@ -700,4 +701,3 @@ class MagicLinkService:
         user.updated_at = now
 
         self._session.commit()
-

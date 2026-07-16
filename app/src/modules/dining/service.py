@@ -131,12 +131,15 @@ def _level(food_item: object, attr: str) -> int:
 def _matches_preference(food_item: object, code: str) -> bool:
     normalized = code.strip().lower()
     text = _item_text(food_item)
-    allergens = {str(value).lower() for value in (getattr(food_item, "allergens", []) or [])}
+    allergens = {
+        str(value).lower() for value in (getattr(food_item, "allergens", []) or [])
+    }
     dietary_tags = {
         str(value).lower() for value in (getattr(food_item, "dietary_tags", []) or [])
     }
     cooking_methods = {
-        str(value).lower() for value in (getattr(food_item, "cooking_methods", []) or [])
+        str(value).lower()
+        for value in (getattr(food_item, "cooking_methods", []) or [])
     }
     flavor_tags = {
         str(value).lower() for value in (getattr(food_item, "flavor_tags", []) or [])
@@ -145,10 +148,12 @@ def _matches_preference(food_item: object, code: str) -> bool:
         str(value).lower() for value in (getattr(food_item, "texture_tags", []) or [])
     }
     ingredient_tags = {
-        str(value).lower() for value in (getattr(food_item, "ingredient_tags", []) or [])
+        str(value).lower()
+        for value in (getattr(food_item, "ingredient_tags", []) or [])
     }
     ingredients = ingredient_tags | {
-        str(value).lower() for value in (getattr(food_item, "main_ingredients", []) or [])
+        str(value).lower()
+        for value in (getattr(food_item, "main_ingredients", []) or [])
     }
 
     if normalized in allergens or normalized in dietary_tags:
@@ -235,8 +240,12 @@ def _matches_preference(food_item: object, code: str) -> bool:
 
 def _is_dietary_rule_violated(food_item: object, rule: str) -> bool:
     normalized = rule.strip().lower()
-    allergens = {str(value).lower() for value in (getattr(food_item, "allergens", []) or [])}
-    tags = {str(value).lower() for value in (getattr(food_item, "dietary_tags", []) or [])}
+    allergens = {
+        str(value).lower() for value in (getattr(food_item, "allergens", []) or [])
+    }
+    tags = {
+        str(value).lower() for value in (getattr(food_item, "dietary_tags", []) or [])
+    }
 
     if normalized == "vegan":
         return "vegan" not in tags
@@ -500,7 +509,8 @@ class DiningSessionService:
             return 0
 
         return sum(
-            self._write_item_verdict(dining_session, item, diners) for item in food_items
+            self._write_item_verdict(dining_session, item, diners)
+            for item in food_items
         )
 
     def _write_item_verdict(
@@ -615,7 +625,6 @@ class DiningSessionService:
 
         return 1
 
-
     @staticmethod
     def _score_item_for_diner(
         food_item: FoodItem,
@@ -639,7 +648,9 @@ class DiningSessionService:
         for pref in preferences:
             code = getattr(pref, "code", "")
             pref_type = getattr(pref, "preference_type", "")
-            pref_type = pref_type.value if hasattr(pref_type, "value") else str(pref_type)
+            pref_type = (
+                pref_type.value if hasattr(pref_type, "value") else str(pref_type)
+            )
             importance = getattr(pref, "importance", 3) or 3
             label = _preference_label(code)
 
@@ -667,7 +678,10 @@ class DiningSessionService:
                 if _matches_preference(food_item, code):
                     penalty = 10.0 + importance * 5.0
                     score = max(0.0, score - penalty)
-                    if verdict not in {RecommendationVerdict.AVOID, RecommendationVerdict.CAUTION}:
+                    if verdict not in {
+                        RecommendationVerdict.AVOID,
+                        RecommendationVerdict.CAUTION,
+                    }:
                         verdict = RecommendationVerdict.OK
                     _append_unique(risk_reasons, [f"Có điểm bạn không thích: {label}"])
 
@@ -679,7 +693,10 @@ class DiningSessionService:
         if score >= 75.0:
             verdict = RecommendationVerdict.RECOMMENDED
         elif score >= 40.0:
-            if verdict not in {RecommendationVerdict.AVOID, RecommendationVerdict.CAUTION}:
+            if verdict not in {
+                RecommendationVerdict.AVOID,
+                RecommendationVerdict.CAUTION,
+            }:
                 verdict = RecommendationVerdict.OK
         else:
             if verdict != RecommendationVerdict.AVOID:

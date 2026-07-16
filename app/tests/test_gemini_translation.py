@@ -22,9 +22,7 @@ class FakeResponse:
 
 
 class FakeClient:
-    def __init__(
-        self, response: FakeResponse | list[FakeResponse] | Exception
-    ) -> None:
+    def __init__(self, response: FakeResponse | list[FakeResponse] | Exception) -> None:
         self.calls: list[dict[str, Any]] = []
         self._responses = response if isinstance(response, list) else [response]
 

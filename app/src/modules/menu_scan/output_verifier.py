@@ -20,7 +20,11 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from src.modules.menu_scan.ocr_contract import ParsedMenuDraft, ParsedMenuItemDraft, OcrDocument
+from src.modules.menu_scan.ocr_contract import (
+    ParsedMenuDraft,
+    ParsedMenuItemDraft,
+    OcrDocument,
+)
 
 # Fraction of a dish name's words that must appear in the OCR text for the name
 # to count as "grounded".
@@ -52,8 +56,7 @@ def verify_draft(
         return draft, 0
 
     reindexed = [
-        item.model_copy(update={"sort_order": index})
-        for index, item in enumerate(kept)
+        item.model_copy(update={"sort_order": index}) for index, item in enumerate(kept)
     ]
     return draft.model_copy(update={"items": reindexed}), dropped
 

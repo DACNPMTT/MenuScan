@@ -28,7 +28,9 @@ def _ok_body(base: str = "VND") -> dict[str, Any]:
 
 
 class FakeResponse:
-    def __init__(self, status_code: int = 200, body: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, status_code: int = 200, body: dict[str, Any] | None = None
+    ) -> None:
         self.status_code = status_code
         self._body = body if body is not None else _ok_body()
 
@@ -48,9 +50,9 @@ class FakeClient:
         return self._action
 
 
-def _service(action: FakeResponse | Exception, ttl: int = 3600) -> tuple[
-    ExchangeRateService, FakeClient
-]:
+def _service(
+    action: FakeResponse | Exception, ttl: int = 3600
+) -> tuple[ExchangeRateService, FakeClient]:
     client = FakeClient(action)
     service = ExchangeRateService(
         api_base_url="https://rates.example.test/v6",

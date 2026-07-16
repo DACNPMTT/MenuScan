@@ -917,7 +917,9 @@ def test_menu_service_lists_owned_menus_with_metadata() -> None:
     assert items[0].source.file_name == "menu.png"
 
 
-def test_menu_service_lists_menu_items_with_combined_filters_and_vietnamese_search() -> None:
+def test_menu_service_lists_menu_items_with_combined_filters_and_vietnamese_search() -> (
+    None
+):
     owner_id = uuid.uuid4()
     menu = _menu_for_owner(owner_id)
     repository = FakeMenuRepository(menu)

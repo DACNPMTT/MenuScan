@@ -19,8 +19,13 @@ def _doc(text: str) -> OcrDocument:
     )
 
 
-def _item(name: str, *, price: str | None = None, price_text: str | None = None,
-          sort_order: int = 0) -> ParsedMenuItemDraft:
+def _item(
+    name: str,
+    *,
+    price: str | None = None,
+    price_text: str | None = None,
+    sort_order: int = 0,
+) -> ParsedMenuItemDraft:
     return ParsedMenuItemDraft(
         original_name=name, price=price, price_text=price_text, sort_order=sort_order
     )

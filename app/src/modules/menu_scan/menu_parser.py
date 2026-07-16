@@ -366,9 +366,7 @@ def _append_description(
     if not text:
         return item
     description = (
-        f"{item.original_description} {text}"
-        if item.original_description
-        else text
+        f"{item.original_description} {text}" if item.original_description else text
     )
     return item.model_copy(update={"original_description": description})
 
@@ -475,7 +473,7 @@ def _ascii_fold(text: str) -> str:
     }
     return " ".join(
         "".join(
-        replacements.get(character.lower(), character.lower()) for character in text
+            replacements.get(character.lower(), character.lower()) for character in text
         ).split()
     )
 

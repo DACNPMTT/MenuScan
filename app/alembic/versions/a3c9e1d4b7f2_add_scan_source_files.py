@@ -40,9 +40,7 @@ def upgrade() -> None:
         sa.Column("file_name", sa.String(length=255), nullable=False),
         sa.Column("mime_type", sa.String(length=100), nullable=False),
         sa.Column("file_size", sa.BigInteger(), nullable=False),
-        sa.Column(
-            "page_count", sa.SmallInteger(), nullable=False, server_default="1"
-        ),
+        sa.Column("page_count", sa.SmallInteger(), nullable=False, server_default="1"),
         sa.Column("sort_order", sa.SmallInteger(), nullable=False),
         sa.Column(
             "created_at",
@@ -51,13 +49,10 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
         sa.CheckConstraint(
-            "mime_type IN "
-            "('image/jpeg', 'image/png', 'image/webp', 'application/pdf')",
+            "mime_type IN ('image/jpeg', 'image/png', 'image/webp', 'application/pdf')",
             name="source_file_mime_type",
         ),
-        sa.CheckConstraint(
-            "file_size BETWEEN 1 AND 10485760", name="source_file_size"
-        ),
+        sa.CheckConstraint("file_size BETWEEN 1 AND 10485760", name="source_file_size"),
         sa.CheckConstraint("sort_order >= 0", name="source_file_sort_order"),
     )
     op.create_index(

@@ -25,7 +25,9 @@ from src.modules.identity.service import MagicLinkService
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _user_response_data(user: User, *, include_profile_details: bool = False) -> dict[str, object]:
+def _user_response_data(
+    user: User, *, include_profile_details: bool = False
+) -> dict[str, object]:
     data: dict[str, object] = {
         "id": str(user.id),
         "email": user.email,
@@ -189,7 +191,9 @@ def update_me(
     """Update editable profile fields for the currently authenticated user."""
     updates = payload.model_dump(exclude_unset=True)
     user = service.update_user_profile(current_user, **updates)
-    return success_response(data=_user_response_data(user, include_profile_details=True))
+    return success_response(
+        data=_user_response_data(user, include_profile_details=True)
+    )
 
 
 @router.post("/me/profile", status_code=status.HTTP_200_OK)
@@ -201,7 +205,9 @@ def update_me_profile(
     """POST-compatible profile update for clients/proxies that block PATCH."""
     updates = payload.model_dump(exclude_unset=True)
     user = service.update_user_profile(current_user, **updates)
-    return success_response(data=_user_response_data(user, include_profile_details=True))
+    return success_response(
+        data=_user_response_data(user, include_profile_details=True)
+    )
 
 
 @router.get("/me/food-profiles", status_code=status.HTTP_200_OK)
@@ -304,6 +310,4 @@ def confirm_account_deletion(
 ) -> dict[str, object]:
     """Verify the delete token and soft-delete the user account."""
     service.confirm_account_deletion(payload.token)
-    return success_response(
-        data={"message": "Tài khoản đã được xoá thành công."}
-    )
+    return success_response(data={"message": "Tài khoản đã được xoá thành công."})

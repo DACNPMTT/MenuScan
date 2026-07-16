@@ -55,7 +55,13 @@ class InvalidTargetLanguageError(ApplicationError):
             status_code=400,
             code="VALIDATION_ERROR",
             message="The request data is invalid.",
-            details={"fields": {"target_language": ["Choose 'vi', 'en', 'zh', 'ja', 'ko', 'fr', or 'th'."]}},
+            details={
+                "fields": {
+                    "target_language": [
+                        "Choose 'vi', 'en', 'zh', 'ja', 'ko', 'fr', or 'th'."
+                    ]
+                }
+            },
         )
 
 

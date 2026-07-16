@@ -388,7 +388,9 @@ def _create_dining_session_tables() -> None:
             ondelete="SET NULL",
         ),
         sa.PrimaryKeyConstraint("id", name="pk_dining_sessions"),
-        sa.UniqueConstraint("scan_session_id", name="uq_dining_sessions_scan_session_id"),
+        sa.UniqueConstraint(
+            "scan_session_id", name="uq_dining_sessions_scan_session_id"
+        ),
         sa.UniqueConstraint("menu_id", name="uq_dining_sessions_menu_id"),
     )
     op.create_index(

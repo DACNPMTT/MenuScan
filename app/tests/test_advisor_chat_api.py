@@ -68,6 +68,7 @@ def _make_client(*, authenticated: bool = True, throttled: bool = False) -> Test
     if authenticated:
         app.dependency_overrides[get_current_user] = _stub_user
     if throttled:
+
         def _raise_throttled() -> None:
             raise RateLimitError(retry_after=5)
 
