@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -16,15 +16,13 @@ export function ConfirmDeletePage() {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
 
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
-  const [errorMessage, setErrorMessage] = useState('')
-
-  useEffect(() => {
-    if (!token) {
-      setStatus('error')
-      setErrorMessage(t('deleteAccount.errors.missingToken'))
-    }
-  }, [token, t])
+  const hasToken = Boolean(token)
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
+    hasToken ? 'idle' : 'error'
+  )
+  const [errorMessage, setErrorMessage] = useState(
+    hasToken ? '' : t('deleteAccount.errors.missingToken')
+  )
 
   const handleConfirm = () => {
     if (!token) return
