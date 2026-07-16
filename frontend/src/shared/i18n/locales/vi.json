@@ -678,6 +678,7 @@
   "warning": "Hành động này không thể hoàn tác. Tất cả dữ liệu cá nhân, hồ sơ ăn uống và phiên đăng nhập sẽ bị vô hiệu hoá vĩnh viễn.",
   "typeEmailToConfirm": "Gõ lại email để xác nhận:",
   "confirmDelete": "Gửi email xác nhận xoá",
+  "confirmDeleteButton": "Xác nhận Xoá Tài khoản",
   "emailSent": "Đã gửi email xác nhận",
   "processing": "Đang xoá tài khoản...",
   "processingDesc": "Vui lòng đợi trong giây lát.",

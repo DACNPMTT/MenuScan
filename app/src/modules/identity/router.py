@@ -297,14 +297,13 @@ def request_account_deletion(
     )
 
 
-@router.post("/me/confirm-delete", status_code=status.HTTP_200_OK)
+@router.post("/confirm-delete", status_code=status.HTTP_200_OK)
 def confirm_account_deletion(
     payload: ConfirmDeleteRequest,
-    current_user: User = Depends(get_current_user),
     service: MagicLinkService = Depends(get_magic_link_service),
 ) -> dict[str, object]:
     """Verify the delete token and soft-delete the user account."""
-    service.confirm_account_deletion(current_user, payload.token)
+    service.confirm_account_deletion(payload.token)
     return success_response(
         data={"message": "Tài khoản đã được xoá thành công."}
     )

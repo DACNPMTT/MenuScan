@@ -274,11 +274,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const confirmDeleteAccount = useCallback(async (deleteToken: string) => {
-    const token = getAccessToken()
-    if (!token) throw new Error('Not authenticated')
-    await apiRequest('/api/v1/auth/me/confirm-delete', {
+    await apiRequest('/api/v1/auth/confirm-delete', {
       method: 'POST',
-      token,
       body: JSON.stringify({ token: deleteToken }),
     })
     logoutState()

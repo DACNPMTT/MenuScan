@@ -85,6 +85,13 @@ class UserRepository:
         statement = select(User).where(User.id == user_id)
         return session.scalars(statement).first()
 
+    def get_by_delete_token_hash(
+        self, session: Session, token_hash: str
+    ) -> User | None:
+        """Retrieve a user by their delete token hash."""
+        statement = select(User).where(User.delete_token_hash == token_hash)
+        return session.scalars(statement).first()
+
     def create(self, session: Session, user: User) -> User:
         """Stage a new user record and flush so UUID and server defaults populate."""
         session.add(user)

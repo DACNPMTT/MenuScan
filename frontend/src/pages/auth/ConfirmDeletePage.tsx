@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -16,14 +16,18 @@ export function ConfirmDeletePage() {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
 
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
-  const calledRef = useRef(false)
 
   useEffect(() => {
-    if (!token || calledRef.current) return
-    calledRef.current = true
+    if (!token) {
+      setStatus('error')
+      setErrorMessage(t('deleteAccount.errors.missingToken'))
+    }
+  }, [token, t])
 
+  const handleConfirm = () => {
+    if (!token) return
     setStatus('loading')
     confirmDeleteAccount(token)
       .then(() => {
@@ -35,7 +39,7 @@ export function ConfirmDeletePage() {
           error instanceof Error ? error.message : t('deleteAccount.errors.unknown')
         )
       })
-  }, [token, confirmDeleteAccount, t])
+  }
 
   return (
     <PageTransition>
@@ -91,6 +95,26 @@ export function ConfirmDeletePage() {
           </motion.div>
         ) : (
           <div className="w-full max-w-[440px] rounded-2xl border border-border bg-canvas p-8 text-center shadow-2">
+            {status === 'idle' && (
+              <>
+                <AlertCircle className="mx-auto size-12 text-destructive" />
+                <h1 className="mt-4 text-[20px] font-bold text-ink">
+                  {t('deleteAccount.confirmTitle')}
+                </h1>
+                <p className="mt-2 mb-6 text-[14px] text-ink-variant">
+                  {t('deleteAccount.warning')}
+                </p>
+                <Button
+                  size="lg"
+                  variant="destructive"
+                  className="w-full h-12 text-[15px]"
+                  onClick={handleConfirm}
+                >
+                  {t('deleteAccount.confirmDeleteButton')}
+                </Button>
+              </>
+            )}
+
             {status === 'loading' && (
               <>
                 <Loader2 className="mx-auto size-12 animate-spin text-primary" />

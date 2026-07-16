@@ -658,18 +658,20 @@ class MagicLinkService:
             logger.warning("delete_confirmation_email_send_failed")
             raise EmailServiceUnavailableError() from None
 
-    def confirm_account_deletion(self, user: User, token: str) -> None:
+    def confirm_account_deletion(self, token: str) -> None:
         """Verify the delete token and soft-delete the user account.
 
         Revokes all sessions, soft-deletes food profiles, and marks the user as
         DISABLED with ``deleted_at`` set.
         """
         now = self._clock()
+        token_hash = hash_token(token)
 
-        if (
-            user.delete_token_hash is None
-            or user.delete_token_expires_at is None
-        ):
+        user = self._user_repository.get_by_delete_token_hash(
+            self._session, token_hash
+        )
+
+        if user is None or user.delete_token_expires_at is None:
             raise InvalidMagicLinkError()
 
         if now > user.delete_token_expires_at:
@@ -677,9 +679,6 @@ class MagicLinkService:
             user.delete_token_expires_at = None
             self._session.commit()
             raise MagicLinkExpiredError()
-
-        if not hmac.compare_digest(hash_token(token), user.delete_token_hash):
-            raise InvalidMagicLinkError()
 
         # 1. Soft-delete all food profiles
         for profile in self._food_profile_repository.list_by_user(
