@@ -23,9 +23,9 @@ export function AuthShell({ children, maxWidth = 'max-w-[420px]' }: AuthShellPro
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className={cn('w-full my-auto', maxWidth)}
+          className={cn('w-full min-w-0 my-auto', maxWidth)}
         >
-          <SectionCard className="shadow-pop" bodyClassName="flex flex-col items-center gap-7 px-5 py-9 sm:px-8 sm:py-10">
+          <SectionCard className="shadow-pop w-full min-w-0" bodyClassName="flex flex-col items-center gap-7 px-5 py-9 sm:px-8 sm:py-10">
             <header className="flex flex-col items-center gap-2">
               <a
                 href="/"

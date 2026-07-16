@@ -202,7 +202,7 @@ export function OnboardingPage() {
       )}
 
       <div className="flex w-full flex-col gap-3">
-        <div className="flex gap-3">
+        <div className="grid w-full grid-cols-2 gap-3">
           <Button
             type="button"
             onClick={goBack}
