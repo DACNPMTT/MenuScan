@@ -10,8 +10,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = 'b1fe7f837a7c'
-down_revision: str | None = 'd7e9f3b1a8c4'
+revision: str = "b1fe7f837a7c"
+down_revision: str | None = "d7e9f3b1a8c4"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -22,31 +22,38 @@ def upgrade() -> None:
         "CREATE TYPE bill_adjustment_calculation_type AS ENUM ('FIXED', 'PERCENTAGE')"
     )
     op.add_column(
-        'bill_adjustments',
+        "bill_adjustments",
         sa.Column(
-            'calculation_type',
-            sa.Enum('FIXED', 'PERCENTAGE', name='bill_adjustment_calculation_type'),
-            server_default='FIXED',
+            "calculation_type",
+            sa.Enum("FIXED", "PERCENTAGE", name="bill_adjustment_calculation_type"),
+            server_default="FIXED",
             nullable=False,
         ),
     )
     op.add_column(
-        'bill_adjustments',
-        sa.Column('value', sa.Numeric(precision=14, scale=2), nullable=False),
+        "bill_adjustments",
+        sa.Column("value", sa.Numeric(precision=14, scale=2), nullable=False),
     )
     op.add_column(
-        'bill_adjustments',
-        sa.Column('calculated_amount', sa.Numeric(precision=14, scale=2), nullable=False),
+        "bill_adjustments",
+        sa.Column(
+            "calculated_amount", sa.Numeric(precision=14, scale=2), nullable=False
+        ),
     )
-    op.drop_column('bill_adjustments', 'amount')
+    op.drop_column("bill_adjustments", "amount")
 
 
 def downgrade() -> None:
     op.add_column(
-        'bill_adjustments',
-        sa.Column('amount', sa.NUMERIC(precision=14, scale=2), autoincrement=False, nullable=False),
+        "bill_adjustments",
+        sa.Column(
+            "amount",
+            sa.NUMERIC(precision=14, scale=2),
+            autoincrement=False,
+            nullable=False,
+        ),
     )
-    op.drop_column('bill_adjustments', 'calculated_amount')
-    op.drop_column('bill_adjustments', 'value')
-    op.drop_column('bill_adjustments', 'calculation_type')
+    op.drop_column("bill_adjustments", "calculated_amount")
+    op.drop_column("bill_adjustments", "value")
+    op.drop_column("bill_adjustments", "calculation_type")
     op.execute("DROP TYPE IF EXISTS bill_adjustment_calculation_type")

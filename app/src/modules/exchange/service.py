@@ -97,7 +97,9 @@ class ExchangeRateService:
             if isinstance(value, (int, float))
         }
         if not rates:
-            raise ExchangeRateUnavailableError("exchange rate provider returned no rates")
+            raise ExchangeRateUnavailableError(
+                "exchange rate provider returned no rates"
+            )
 
         return ExchangeRates(
             base=str(body.get("base_code") or base),

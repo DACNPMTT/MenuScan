@@ -45,7 +45,9 @@ PostFn = Callable[..., httpx.Response]
 class EmailSender(Protocol):
     """Synchronous port for sending transactional email."""
 
-    def send_magic_link(self, *, to_email: str, magic_link_url: str, lang: str = "vi") -> None:
+    def send_magic_link(
+        self, *, to_email: str, magic_link_url: str, lang: str = "vi"
+    ) -> None:
         """Send a magic-login link. Raise ``EmailDeliveryError`` on failure."""
         ...
 
@@ -57,31 +59,11 @@ class EmailSender(Protocol):
 
 
 def _magic_link_html(magic_link_url: str, lang: str = "vi") -> str:
-    # URL-encoded SVG for the Nón Lá mascot (MenuScan logo)
-    logo_svg = (
-        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 250'%3E"
-        "%3Cg transform='translate(100, 140)'%3E"
-        "%3Cpath d='M 0 -85 L 15 -95 L 35 -80 L 50 -90 L 65 -70 L 85 -65 L 75 -45 L 95 -30 L 80 -10 L 100 10 L 85 30 L 95 50 L 75 65 L 85 85 L 50 85 L 40 100 L 20 90 L 0 105 L -20 90 L -40 100 L -50 85 L -85 85 L -75 65 L -95 50 L -85 30 L -100 10 L -80 -10 L -95 -30 L -75 -45 L -85 -65 L -65 -70 L -50 -90 L -35 -80 L -15 -95 Z' fill='%2389b653' stroke='%234d6f21' stroke-width='3' stroke-linejoin='round' /%3E"
-        "%3Cellipse cx='0' cy='10' rx='65' ry='75' fill='%23fde368' stroke='%23d5b035' stroke-width='2' /%3E"
-        "%3C/g%3E"
-        "%3Cg transform='translate(100, 135)'%3E"
-        "%3Ccircle cx='-35' cy='15' r='9' fill='%23f4a6c0' opacity='0.8' /%3E"
-        "%3Ccircle cx='35' cy='15' r='9' fill='%23f4a6c0' opacity='0.8' /%3E"
-        "%3Cpath d='M -22 -5 Q -15 -13 -8 -5' stroke='%23222' stroke-width='4' fill='none' stroke-linecap='round' /%3E"
-        "%3Cpath d='M 8 -5 Q 15 -13 22 -5' stroke='%23222' stroke-width='4' fill='none' stroke-linecap='round' /%3E"
-        "%3Cpath d='M -15 5 Q 0 35 15 5 Z' fill='%23c1432e' stroke='%23222' stroke-width='2.5' stroke-linejoin='round' /%3E"
-        "%3Cpath d='M -8 15 Q 0 25 8 15 Z' fill='%23ffb6c1' /%3E"
-        "%3C/g%3E"
-        "%3Cg transform='translate(100, 55)'%3E"
-        "%3Cellipse cx='0' cy='35' rx='90' ry='15' fill='%23c8a156' /%3E"
-        "%3Cpath d='M 0 -55 L -95 35 Q 0 55 95 35 Z' fill='%23eed9a1' stroke='%23a57f36' stroke-width='2' stroke-linejoin='round' /%3E"
-        "%3Cpath d='M -18 -38 Q 0 -35 18 -38' stroke='%23a57f36' stroke-width='1.5' fill='none' opacity='0.4' /%3E"
-        "%3Cpath d='M -36 -15 Q 0 -10 36 -15' stroke='%23a57f36' stroke-width='1.5' fill='none' opacity='0.4' /%3E"
-        "%3Cpath d='M -54 8 Q 0 15 54 8' stroke='%23a57f36' stroke-width='1.5' fill='none' opacity='0.4' /%3E"
-        "%3Cpath d='M -72 25 Q 0 35 72 25' stroke='%23a57f36' stroke-width='1.5' fill='none' opacity='0.4' /%3E"
-        "%3C/g%3E"
-        "%3C/svg%3E"
-    )
+    import urllib.parse
+
+    parsed = urllib.parse.urlparse(magic_link_url)
+    base_url = f"{parsed.scheme}://{parsed.netloc}"
+    logo_svg = f"{base_url}/logo-happy.png"
 
     if lang == "en":
         title = "Log in to MenuScan"
@@ -89,7 +71,9 @@ def _magic_link_html(magic_link_url: str, lang: str = "vi") -> str:
         h2 = "Lightning Fast Login! 🚀"
         p_desc = "Click the magic button below to enter MenuScan instantly.<br/>No passwords required!"
         btn_text = "✨ Enter App Now"
-        warning = "⏱️ Remember, this magic button only works for <strong>15 minutes</strong>!"
+        warning = (
+            "⏱️ Remember, this magic button only works for <strong>15 minutes</strong>!"
+        )
         thanks = "Thank you for choosing MenuScan! ❤️"
         fallback_pre = "Button not working? Copy this link:<br/>"
         footer_auto = "This email was sent automatically by <strong>MenuScan</strong>. Please do not reply."
@@ -239,34 +223,11 @@ def _magic_link_text(magic_link_url: str, lang: str = "vi") -> str:
 
 
 def _delete_confirm_html(confirm_url: str, lang: str = "vi") -> str:
-    # URL-encoded SVG for the Crying Nón Lá mascot
-    logo_svg = (
-        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 250'%3E"
-        "%3Cg transform='translate(100, 140)'%3E"
-        "%3Cpath d='M 0 -85 L 15 -95 L 35 -80 L 50 -90 L 65 -70 L 85 -65 L 75 -45 L 95 -30 L 80 -10 L 100 10 L 85 30 L 95 50 L 75 65 L 85 85 L 50 85 L 40 100 L 20 90 L 0 105 L -20 90 L -40 100 L -50 85 L -85 85 L -75 65 L -95 50 L -85 30 L -100 10 L -80 -10 L -95 -30 L -75 -45 L -85 -65 L -65 -70 L -50 -90 L -35 -80 L -15 -95 Z' fill='%2389b653' stroke='%234d6f21' stroke-width='3' stroke-linejoin='round' /%3E"
-        "%3Cellipse cx='0' cy='10' rx='65' ry='75' fill='%23fde368' stroke='%23d5b035' stroke-width='2' /%3E"
-        "%3C/g%3E"
-        "%3Cg transform='translate(100, 135)'%3E"
-        "%3Ccircle cx='-35' cy='15' r='9' fill='%23f4a6c0' opacity='0.8' /%3E"
-        "%3Ccircle cx='35' cy='15' r='9' fill='%23f4a6c0' opacity='0.8' /%3E"
-        "%3Cpath d='M -22 -2 Q -15 -9 -8 -2' stroke='%23222' stroke-width='4' fill='none' stroke-linecap='round' /%3E"
-        "%3Cpath d='M 8 -2 Q 15 -9 22 -2' stroke='%23222' stroke-width='4' fill='none' stroke-linecap='round' /%3E"
-        "%3Cpath d='M -15 2 Q -18 10 -15 15 Q -12 10 -15 2' fill='%2360a5fa' /%3E"
-        "%3Ccircle cx='-15' cy='15' r='3' fill='%2360a5fa' /%3E"
-        "%3Cpath d='M 15 2 Q 12 10 15 15 Q 18 10 15 2' fill='%2360a5fa' /%3E"
-        "%3Ccircle cx='15' cy='15' r='3' fill='%2360a5fa' /%3E"
-        "%3Cpath d='M -12 15 Q 0 5 12 15' stroke='%23222' stroke-width='3.5' fill='none' stroke-linecap='round' /%3E"
-        "%3C/g%3E"
-        "%3Cg transform='translate(100, 55)'%3E"
-        "%3Cellipse cx='0' cy='35' rx='90' ry='15' fill='%23c8a156' /%3E"
-        "%3Cpath d='M 0 -55 L -95 35 Q 0 55 95 35 Z' fill='%23eed9a1' stroke='%23a57f36' stroke-width='2' stroke-linejoin='round' /%3E"
-        "%3Cpath d='M -18 -38 Q 0 -35 18 -38' stroke='%23a57f36' stroke-width='1.5' fill='none' opacity='0.4' /%3E"
-        "%3Cpath d='M -36 -15 Q 0 -10 36 -15' stroke='%23a57f36' stroke-width='1.5' fill='none' opacity='0.4' /%3E"
-        "%3Cpath d='M -54 8 Q 0 15 54 8' stroke='%23a57f36' stroke-width='1.5' fill='none' opacity='0.4' /%3E"
-        "%3Cpath d='M -72 25 Q 0 35 72 25' stroke='%23a57f36' stroke-width='1.5' fill='none' opacity='0.4' /%3E"
-        "%3C/g%3E"
-        "%3C/svg%3E"
-    )
+    import urllib.parse
+
+    parsed = urllib.parse.urlparse(confirm_url)
+    base_url = f"{parsed.scheme}://{parsed.netloc}"
+    logo_svg = f"{base_url}/logo-crying.png"
 
     if lang == "en":
         title = "Confirm Account Deletion - MenuScan"
@@ -274,7 +235,7 @@ def _delete_confirm_html(confirm_url: str, lang: str = "vi") -> str:
         h2 = "I'm so sad... 🥺"
         p_desc = "Do you really want to leave? If you have decided, please click the confirm button below."
         warning_strong = "⚠️ RED ALERT!<br/>"
-        warning_sub = "<span style=\"font-weight:700;color:#e11d48;\">All your data will vanish forever and cannot be recovered.</span>"
+        warning_sub = '<span style="font-weight:700;color:#e11d48;">All your data will vanish forever and cannot be recovered.</span>'
         btn_text = "🗑️ Still Delete Account"
         fallback = "⏱️ The confirmation link is only valid for <strong>15 minutes</strong>. If you change your mind, just ignore this email!"
         copy_pre = "Button not working? Just copy this link:<br/>"
@@ -286,7 +247,7 @@ def _delete_confirm_html(confirm_url: str, lang: str = "vi") -> str:
         h2 = "Tớ buồn lắm... 🥺"
         p_desc = "Bạn thực sự muốn rời đi sao? Nếu đã quyết định, hãy ấn nút xác nhận bên dưới nhé."
         warning_strong = "⚠️ BÁO ĐỘNG ĐỎ!<br/>"
-        warning_sub = "<span style=\"font-weight:700;color:#e11d48;\">Mọi dữ liệu của bạn sẽ bốc hơi vĩnh viễn và không thể lấy lại được.</span>"
+        warning_sub = '<span style="font-weight:700;color:#e11d48;">Mọi dữ liệu của bạn sẽ bốc hơi vĩnh viễn và không thể lấy lại được.</span>'
         btn_text = "🗑️ Vẫn Xoá Tài Khoản"
         fallback = "⏱️ Link xác nhận chỉ sống được <strong>15 phút</strong>. Nếu đổi ý, cứ việc bơ email này đi nha!"
         copy_pre = "Nút không bấm được? Cứ copy link này:<br/>"
@@ -431,7 +392,9 @@ class ConsoleEmailSender:
     Never raises. The logged URL contains the raw token, so this is dev-only.
     """
 
-    def send_magic_link(self, *, to_email: str, magic_link_url: str, lang: str = "vi") -> None:
+    def send_magic_link(
+        self, *, to_email: str, magic_link_url: str, lang: str = "vi"
+    ) -> None:
         logger.info(
             "magic_link_email_queued to_email=%s url=%s lang=%s",
             to_email,
@@ -474,24 +437,38 @@ class GmailSmtpEmailSender:
         self._from_address = from_address
         self._timeout = timeout_seconds
 
-    def send_magic_link(self, *, to_email: str, magic_link_url: str, lang: str = "vi") -> None:
+    def send_magic_link(
+        self, *, to_email: str, magic_link_url: str, lang: str = "vi"
+    ) -> None:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = MAGIC_LINK_SUBJECT if lang == "vi" else "MenuScan Login Link"
         msg["From"] = self._from_address
         msg["To"] = to_email
-        msg.attach(MIMEText(_magic_link_text(magic_link_url, lang=lang), "plain", "utf-8"))
-        msg.attach(MIMEText(_magic_link_html(magic_link_url, lang=lang), "html", "utf-8"))
+        msg.attach(
+            MIMEText(_magic_link_text(magic_link_url, lang=lang), "plain", "utf-8")
+        )
+        msg.attach(
+            MIMEText(_magic_link_html(magic_link_url, lang=lang), "html", "utf-8")
+        )
         self._send_smtp(msg, to_email)
 
     def send_delete_confirmation(
         self, *, to_email: str, confirm_url: str, lang: str = "vi"
     ) -> None:
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = DELETE_ACCOUNT_SUBJECT if lang == "vi" else "Confirm MenuScan Account Deletion"
+        msg["Subject"] = (
+            DELETE_ACCOUNT_SUBJECT
+            if lang == "vi"
+            else "Confirm MenuScan Account Deletion"
+        )
         msg["From"] = self._from_address
         msg["To"] = to_email
-        msg.attach(MIMEText(_delete_confirm_text(confirm_url, lang=lang), "plain", "utf-8"))
-        msg.attach(MIMEText(_delete_confirm_html(confirm_url, lang=lang), "html", "utf-8"))
+        msg.attach(
+            MIMEText(_delete_confirm_text(confirm_url, lang=lang), "plain", "utf-8")
+        )
+        msg.attach(
+            MIMEText(_delete_confirm_html(confirm_url, lang=lang), "html", "utf-8")
+        )
         self._send_smtp(msg, to_email)
 
     def _send_smtp(self, msg: MIMEMultipart, to_email: str) -> None:
@@ -534,7 +511,9 @@ class ResendEmailSender:
         self._timeout = timeout_seconds
         self._post = post or httpx.post
 
-    def send_magic_link(self, *, to_email: str, magic_link_url: str, lang: str = "vi") -> None:
+    def send_magic_link(
+        self, *, to_email: str, magic_link_url: str, lang: str = "vi"
+    ) -> None:
         self._send_resend(
             to_email=to_email,
             subject=MAGIC_LINK_SUBJECT if lang == "vi" else "MenuScan Login Link",
@@ -547,7 +526,9 @@ class ResendEmailSender:
     ) -> None:
         self._send_resend(
             to_email=to_email,
-            subject=DELETE_ACCOUNT_SUBJECT if lang == "vi" else "Confirm MenuScan Account Deletion",
+            subject=DELETE_ACCOUNT_SUBJECT
+            if lang == "vi"
+            else "Confirm MenuScan Account Deletion",
             html=_delete_confirm_html(confirm_url, lang=lang),
             text=_delete_confirm_text(confirm_url, lang=lang),
         )

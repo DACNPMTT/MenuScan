@@ -352,7 +352,8 @@ class TestVerifyMagicLink:
         set_cookie = res.headers.get("set-cookie", "")
         assert "refresh_token" in set_cookie
         assert "HttpOnly" in set_cookie or "httponly" in set_cookie.lower()
-        assert "samesite=lax" in set_cookie.lower()
+        assert "samesite=none" in set_cookie.lower()
+        assert "secure" in set_cookie.lower()
 
     def test_cookie_value_contains_session_id_dot_secret(
         self, client, db_session, clock

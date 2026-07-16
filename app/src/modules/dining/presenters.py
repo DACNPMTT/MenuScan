@@ -95,9 +95,9 @@ def load_recommendation_view(
             select(FoodItemRecommendation)
             .where(FoodItemRecommendation.dining_session_id == dining_session.id)
             .options(
-                selectinload(FoodItemRecommendation.participant_breakdowns).selectinload(
-                    FoodItemRecommendationParticipantBreakdown.participant
-                )
+                selectinload(
+                    FoodItemRecommendation.participant_breakdowns
+                ).selectinload(FoodItemRecommendationParticipantBreakdown.participant)
             )
         ).all()
         return RecommendationView(
@@ -123,7 +123,9 @@ def load_recommendation_view(
     return RecommendationView(_persisted={}, _profile=profile)
 
 
-def _persisted_response(recommendation: FoodItemRecommendation) -> RecommendationResponse:
+def _persisted_response(
+    recommendation: FoodItemRecommendation,
+) -> RecommendationResponse:
     return RecommendationResponse(
         verdict=recommendation.verdict.value,
         score=float(recommendation.score) if recommendation.score is not None else None,
@@ -137,7 +139,9 @@ def _persisted_response(recommendation: FoodItemRecommendation) -> Recommendatio
         warning_reasons=recommendation.warning_reasons or [],
         participant_breakdowns=[
             ParticipantBreakdownResponse(
-                display_name=getattr(breakdown.participant, "display_name", "Thành viên"),
+                display_name=getattr(
+                    breakdown.participant, "display_name", "Thành viên"
+                ),
                 verdict=breakdown.verdict.value,
                 score=float(breakdown.score) if breakdown.score is not None else None,
                 explanation=breakdown.explanation,

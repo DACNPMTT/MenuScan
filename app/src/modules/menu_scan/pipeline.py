@@ -69,14 +69,26 @@ STAGE_FINALIZING = "FINALIZING"
 # the stored tags stay matchable against a diner's declared allergies / diet.
 _KNOWN_ALLERGENS = frozenset(
     {
-        "seafood", "shellfish", "fish", "peanut", "tree_nut",
-        "egg", "dairy", "gluten", "soy", "sesame",
+        "seafood",
+        "shellfish",
+        "fish",
+        "peanut",
+        "tree_nut",
+        "egg",
+        "dairy",
+        "gluten",
+        "soy",
+        "sesame",
     }
 )
 _KNOWN_DIETARY_TAGS = frozenset(
     {
-        "contains_pork", "contains_beef", "contains_seafood",
-        "contains_alcohol", "vegetarian", "vegan",
+        "contains_pork",
+        "contains_beef",
+        "contains_seafood",
+        "contains_alcohol",
+        "vegetarian",
+        "vegan",
     }
 )
 
@@ -163,8 +175,7 @@ class ScanPipeline:
             # Read them all in upload order; fall back to the single primary key
             # for legacy scans created before scan_source_files existed.
             source_refs = [
-                (sf.object_key, sf.mime_type)
-                for sf in scan.source_files
+                (sf.object_key, sf.mime_type) for sf in scan.source_files
             ] or [(scan.source_object_key, scan.source_mime_type)]
 
             sources: list[OcrSource] = []
@@ -544,7 +555,9 @@ def _merge_ocr_documents(documents: list[OcrDocument]) -> OcrDocument:
             "text": text,
             "pages": pages,
             "detected_language": detected,
-            "confidence": (sum(confidences) / len(confidences)) if confidences else None,
+            "confidence": (sum(confidences) / len(confidences))
+            if confidences
+            else None,
             "processing_time_ms": sum(d.processing_time_ms for d in documents),
             "metadata": metadata,
         }

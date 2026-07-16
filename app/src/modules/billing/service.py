@@ -204,7 +204,9 @@ class BillingService:
         # Whole-cent units left over after every person gets ``base``. Always
         # non-negative because ``base`` floors, and always an exact multiple
         # of one cent because both ``total`` and ``base`` are 2-decimal.
-        remainder_units = int(((total - base * people_count) / _CENTS).to_integral_value())
+        remainder_units = int(
+            ((total - base * people_count) / _CENTS).to_integral_value()
+        )
 
         shares = [
             SplitShare(

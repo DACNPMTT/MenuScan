@@ -691,6 +691,7 @@
   "warning": "This action cannot be undone. All your personal data, food profiles, and active sessions will be permanently disabled.",
   "typeEmailToConfirm": "Type your email to confirm:",
   "confirmDelete": "Send confirmation email",
+  "confirmDeleteButton": "Confirm Delete Account",
   "emailSent": "Confirmation email sent",
   "processing": "Deleting account...",
   "processingDesc": "Please wait a moment.",

@@ -114,7 +114,9 @@ class MenuService:
             offset=offset,
         )
         total = self._repository.count_for_user(self._session, user_id=user_id)
-        return [_menu_summary_data(menu, item_count) for menu, item_count in rows], total
+        return [
+            _menu_summary_data(menu, item_count) for menu, item_count in rows
+        ], total
 
     def enrich_menu(
         self,

@@ -11,7 +11,10 @@ from fastapi.testclient import TestClient
 
 from src.core.application import create_app
 from src.core.config import EmailConfig, Settings, StorageConfig
-from src.modules.identity.dependencies import get_current_user, get_optional_current_user
+from src.modules.identity.dependencies import (
+    get_current_user,
+    get_optional_current_user,
+)
 from src.modules.identity.exceptions import UnauthorizedError
 from src.modules.identity.models import User
 from src.modules.menu.models import FoodItem, Menu, MenuStatus
@@ -201,7 +204,9 @@ class StubScanService:
         self.calls.append({"method": "get_scan", "user": user, "scan_id": scan_id})
         return _raise_or_return(self._scan or _scan_status())  # type: ignore[return-value]
 
-    def get_source_access(self, *, user: User | None, scan_id: uuid.UUID) -> SourceAccess:
+    def get_source_access(
+        self, *, user: User | None, scan_id: uuid.UUID
+    ) -> SourceAccess:
         self.calls.append(
             {"method": "get_source_access", "user": user, "scan_id": scan_id}
         )
@@ -359,9 +364,7 @@ def test_list_scans_requires_authentication() -> None:
 
 
 def test_get_scan_pending_returns_200() -> None:
-    stub = StubScanService(
-        scan=_scan_status(status=ScanStatus.PENDING, progress=0)
-    )
+    stub = StubScanService(scan=_scan_status(status=ScanStatus.PENDING, progress=0))
     client = _make_client(stub)
 
     response = client.get(f"/api/v1/scans/{_SCAN_ID}")

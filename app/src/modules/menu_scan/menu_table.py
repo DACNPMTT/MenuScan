@@ -34,8 +34,24 @@ from src.modules.menu_scan.price_normalizer import parse_price
 # these is tagged variant_group="size".
 _SIZE_TOKENS = frozenset(
     {
-        "to", "size", "nho", "vua", "lon", "phan", "suat", "dia", "ly", "chai",
-        "small", "medium", "large", "reg", "regular", "s", "m", "l",
+        "to",
+        "size",
+        "nho",
+        "vua",
+        "lon",
+        "phan",
+        "suat",
+        "dia",
+        "ly",
+        "chai",
+        "small",
+        "medium",
+        "large",
+        "reg",
+        "regular",
+        "s",
+        "m",
+        "l",
     }
 )
 # A line whose leading word is one of these is an add-on / topping ("Thêm ..."),

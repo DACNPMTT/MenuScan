@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { motion } from 'motion/react'
+import { Link } from 'react-router-dom'
 import { MenuScanLogo } from '@/shared/components/mascot/NonLaMark'
 import { SectionCard } from '@/shared/components/SectionCard'
 import { PageTransition } from '@/shared/components/motion/PageTransition'
@@ -18,22 +19,22 @@ interface AuthShellProps {
 export function AuthShell({ children, maxWidth = 'max-w-[420px]' }: AuthShellProps) {
   return (
     <PageTransition>
-      <div className="grid min-h-dvh place-items-center bg-app-bg px-4 py-8 sm:px-5 sm:py-[75px]">
+      <div className="flex min-h-dvh flex-col items-center bg-app-bg px-4 py-8 sm:px-5 sm:py-[75px]">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className={cn('w-full', maxWidth)}
+          className={cn('w-full min-w-0 my-auto', maxWidth)}
         >
-          <SectionCard className="shadow-pop" bodyClassName="flex flex-col items-center gap-7 px-5 py-9 sm:px-8 sm:py-10">
+          <SectionCard className="shadow-pop w-full min-w-0" bodyClassName="flex flex-col items-center gap-7 px-5 py-9 sm:px-8 sm:py-10">
             <header className="flex flex-col items-center gap-2">
-              <a
-                href="/"
+              <Link
+                to="/"
                 aria-label="MenuScan home"
                 className="flex size-11 items-center justify-center rounded-2xl bg-[#f59e0b] shadow-2 shadow-[#f59e0b]/40"
               >
                 <MenuScanLogo size={30} />
-              </a>
+              </Link>
               <span className="text-[24px] font-extrabold tracking-tight text-ink">
                 MenuScan
               </span>

@@ -8,6 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+
 class ParticipantBreakdownResponse(BaseModel):
     display_name: str
     verdict: str

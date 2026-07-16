@@ -133,9 +133,13 @@ class ScanSessionRepository:
         ]
 
     def count_for_user(self, session: Session, *, user_id: uuid.UUID) -> int:
-        statement = select(func.count()).select_from(ScanSession).where(
-            ScanSession.user_id == user_id,
-            ScanSession.deleted_at.is_(None),
+        statement = (
+            select(func.count())
+            .select_from(ScanSession)
+            .where(
+                ScanSession.user_id == user_id,
+                ScanSession.deleted_at.is_(None),
+            )
         )
         return session.scalar(statement) or 0
 

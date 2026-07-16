@@ -107,7 +107,10 @@ class GoogleVisionOcrProvider:
                         continue
                     raise ProviderUnavailableError() from error
 
-                if response.status_code in _RETRYABLE_STATUS_CODES and attempt < attempts:
+                if (
+                    response.status_code in _RETRYABLE_STATUS_CODES
+                    and attempt < attempts
+                ):
                     _sleep_before_retry(self.retry_backoff_seconds)
                     continue
                 break

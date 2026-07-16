@@ -22,9 +22,7 @@ def _ok_body() -> dict[str, Any]:
                     "text": "Phở bò 60.000đ",
                     "pages": [
                         {
-                            "property": {
-                                "detectedLanguages": [{"languageCode": "vi"}]
-                            },
+                            "property": {"detectedLanguages": [{"languageCode": "vi"}]},
                             "blocks": [
                                 {
                                     "confidence": 0.96,
@@ -65,7 +63,9 @@ def _ok_body() -> dict[str, Any]:
 
 
 class FakeResponse:
-    def __init__(self, status_code: int = 200, body: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, status_code: int = 200, body: dict[str, Any] | None = None
+    ) -> None:
         self.status_code = status_code
         self._body = body if body is not None else _ok_body()
 
@@ -177,7 +177,9 @@ def test_google_vision_adapter_retries_429_then_succeeds() -> None:
     assert document.text == "Phở bò 60.000đ"
 
 
-def test_google_vision_adapter_raises_unavailable_after_exhausting_429_retries() -> None:
+def test_google_vision_adapter_raises_unavailable_after_exhausting_429_retries() -> (
+    None
+):
     client = FakeClient([FakeResponse(429), FakeResponse(429)])
     provider = _provider(client, max_attempts=2)
 
@@ -196,7 +198,9 @@ def test_google_vision_adapter_retries_5xx_then_succeeds() -> None:
     assert document.text == "Phở bò 60.000đ"
 
 
-def test_google_vision_adapter_raises_unavailable_after_exhausting_5xx_retries() -> None:
+def test_google_vision_adapter_raises_unavailable_after_exhausting_5xx_retries() -> (
+    None
+):
     client = FakeClient([FakeResponse(503), FakeResponse(503)])
     provider = _provider(client, max_attempts=2)
 
@@ -214,7 +218,9 @@ def test_google_vision_adapter_maps_non_retryable_4xx_without_retry() -> None:
     assert len(client.calls) == 1
 
 
-def test_google_vision_adapter_handles_missing_full_text_annotation_gracefully() -> None:
+def test_google_vision_adapter_handles_missing_full_text_annotation_gracefully() -> (
+    None
+):
     client = FakeClient(FakeResponse(200, {"responses": [{}]}))
     provider = _provider(client)
 
@@ -226,7 +232,9 @@ def test_google_vision_adapter_handles_missing_full_text_annotation_gracefully()
 
 def test_google_vision_adapter_maps_api_level_error_field_to_processing_error() -> None:
     client = FakeClient(
-        FakeResponse(200, {"responses": [{"error": {"code": 3, "message": "Bad image"}}]})
+        FakeResponse(
+            200, {"responses": [{"error": {"code": 3, "message": "Bad image"}}]}
+        )
     )
     provider = _provider(client, max_attempts=3)
 

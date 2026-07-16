@@ -316,7 +316,9 @@ class TestVerticalSliceHappyPath:
 
 
 class TestUploadFailurePaths:
-    def test_unauthenticated_upload_returns_202_as_guest(self, db_session, local_storage):
+    def test_unauthenticated_upload_returns_202_as_guest(
+        self, db_session, local_storage
+    ):
         """Upload không có token → 202 ACCEPTED (guest mode)."""
         app = create_app()
         scan_svc = _make_scan_service(db_session, local_storage)
@@ -334,7 +336,9 @@ class TestUploadFailurePaths:
         """File type không nằm trong allowlist → 415 UNSUPPORTED_MEDIA_TYPE."""
         r = auth_client.post(
             "/api/v1/scans",
-            files={"file": ("malware.exe", b"MZ\x90\x00\x03", "application/x-msdownload")},
+            files={
+                "file": ("malware.exe", b"MZ\x90\x00\x03", "application/x-msdownload")
+            },
         )
         assert r.status_code == 415
         assert r.json()["error"]["code"] == "UNSUPPORTED_FILE_TYPE"
@@ -410,6 +414,7 @@ class TestUploadFailurePaths:
         # Upload với user_a
         app.dependency_overrides[get_db] = lambda: db_session
         from src.modules.identity.dependencies import get_optional_current_user
+
         app.dependency_overrides[get_optional_current_user] = lambda: user_a
         app.dependency_overrides[get_scan_service] = lambda: scan_svc
         app.dependency_overrides[get_object_storage] = lambda: local_storage

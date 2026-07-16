@@ -31,7 +31,9 @@ from src.modules.menu_scan.price_normalizer import find_price_at_end, parse_pric
         ("45000", ("45000.00", None)),
     ],
 )
-def test_parse_price_grouped_thousands(text: str, expected: tuple[str, str | None]) -> None:
+def test_parse_price_grouped_thousands(
+    text: str, expected: tuple[str, str | None]
+) -> None:
     assert parse_price(text) == expected
 
 

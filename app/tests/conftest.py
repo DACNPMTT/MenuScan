@@ -27,7 +27,6 @@ from src.modules.dining import models as _dining_models  # noqa: F401
 from src.core import rate_limit as _rate_limit_models  # noqa: F401
 
 
-
 # --- Database fixtures --------------------------------------------------------
 
 
@@ -77,7 +76,9 @@ def db_session_factory(db_engine: Engine) -> Iterator[sessionmaker[Session]]:
     # reference menus (fk_bills_menu_id_menus), so clear children first to avoid
     # a FK violation on DELETE FROM menus when bill rows exist.
     with factory() as session:
-        session.execute(text("DELETE FROM food_item_recommendation_participant_breakdowns"))
+        session.execute(
+            text("DELETE FROM food_item_recommendation_participant_breakdowns")
+        )
         session.execute(text("DELETE FROM food_item_recommendations"))
         session.execute(text("DELETE FROM dining_session_participant_preferences"))
         session.execute(text("DELETE FROM dining_session_participants"))
@@ -119,12 +120,20 @@ class FakeEmailSender:
         self.sent: list[dict[str, str]] = []
         self.should_fail = should_fail
 
-    def send_magic_link(self, *, to_email: str, magic_link_url: str, lang: str = "vi") -> None:
+    def send_magic_link(
+        self, *, to_email: str, magic_link_url: str, lang: str = "vi"
+    ) -> None:
         if self.should_fail:
             raise EmailDeliveryError("fake delivery failure")
-        self.sent.append({"to_email": to_email, "magic_link_url": magic_link_url, "lang": lang})
+        self.sent.append(
+            {"to_email": to_email, "magic_link_url": magic_link_url, "lang": lang}
+        )
 
-    def send_delete_confirmation(self, *, to_email: str, confirm_url: str, lang: str = "vi") -> None:
+    def send_delete_confirmation(
+        self, *, to_email: str, confirm_url: str, lang: str = "vi"
+    ) -> None:
         if self.should_fail:
             raise EmailDeliveryError("fake delivery failure")
-        self.sent.append({"to_email": to_email, "confirm_url": confirm_url, "lang": lang})
+        self.sent.append(
+            {"to_email": to_email, "confirm_url": confirm_url, "lang": lang}
+        )

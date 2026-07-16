@@ -117,7 +117,9 @@ class ScanService:
 
         # Validate each file and compute the combined page/byte budget.
         sources = [
-            _validate_source_file(file_name=candidate.file_name, content=candidate.content)
+            _validate_source_file(
+                file_name=candidate.file_name, content=candidate.content
+            )
             for candidate in files
         ]
         if sum(source.file_size for source in sources) > MAX_TOTAL_UPLOAD_BYTES:

@@ -128,10 +128,10 @@ export function OnboardingPage() {
       {/* Stepper carousel */}
       <div className="w-full overflow-hidden rounded-2xl border border-border bg-panel p-1">
         <div
-          className="flex transition-transform duration-300 ease-out"
+          className="flex items-start transition-transform duration-300 ease-out"
           style={{ transform: `translateX(-${step * 100}%)` }}
         >
-          <section className="w-full shrink-0 p-4">
+          <section className={`w-full shrink-0 p-4 transition-all duration-300 ${step === 0 ? 'opacity-100' : 'h-0 opacity-0 overflow-hidden'}`}>
             <h2 className="text-[16px] font-bold text-primary">
               {t('onboarding.steps.profile')}
             </h2>
@@ -148,7 +148,7 @@ export function OnboardingPage() {
               />
             </label>
           </section>
-          <section className="w-full shrink-0 p-4">
+          <section className={`w-full shrink-0 p-4 transition-all duration-300 ${step === 1 ? 'opacity-100' : 'h-0 opacity-0 overflow-hidden'}`}>
             <h2 className="mb-3 text-[16px] font-bold text-primary">
               {t('onboarding.steps.allergies')}
             </h2>
@@ -159,7 +159,7 @@ export function OnboardingPage() {
               sections={['allergies']}
             />
           </section>
-          <section className="w-full shrink-0 p-4">
+          <section className={`w-full shrink-0 p-4 transition-all duration-300 ${step === 2 ? 'opacity-100' : 'h-0 opacity-0 overflow-hidden'}`}>
             <h2 className="mb-3 text-[16px] font-bold text-primary">
               {t('onboarding.steps.diet')}
             </h2>
@@ -170,7 +170,7 @@ export function OnboardingPage() {
               sections={['dietary_preferences']}
             />
           </section>
-          <section className="w-full shrink-0 p-4">
+          <section className={`w-full shrink-0 p-4 transition-all duration-300 ${step === 3 ? 'opacity-100' : 'h-0 opacity-0 overflow-hidden'}`}>
             <h2 className="mb-3 text-[16px] font-bold text-primary">
               {t('onboarding.steps.likes')}
             </h2>
@@ -181,7 +181,7 @@ export function OnboardingPage() {
               sections={['likes']}
             />
           </section>
-          <section className="w-full shrink-0 p-4">
+          <section className={`w-full shrink-0 p-4 transition-all duration-300 ${step === 4 ? 'opacity-100' : 'h-0 opacity-0 overflow-hidden'}`}>
             <h2 className="mb-3 text-[16px] font-bold text-primary">
               {t('onboarding.steps.avoids')}
             </h2>
@@ -202,7 +202,7 @@ export function OnboardingPage() {
       )}
 
       <div className="flex w-full flex-col gap-3">
-        <div className="flex gap-3">
+        <div className="grid w-full grid-cols-2 gap-3">
           <Button
             type="button"
             onClick={goBack}

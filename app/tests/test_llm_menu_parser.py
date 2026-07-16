@@ -200,15 +200,7 @@ def test_gemini_parser_attaches_images_in_multimodal_request() -> None:
 
 def test_gemini_parser_stays_text_only_without_images() -> None:
     provider_body = {
-        "candidates": [
-            {
-                "content": {
-                    "parts": [
-                        {"text": json.dumps({"items": []})}
-                    ]
-                }
-            }
-        ]
+        "candidates": [{"content": {"parts": [{"text": json.dumps({"items": []})}]}}]
     }
     client = FakeClient(FakeResponse(200, provider_body))
     parser = GeminiMenuParser(
@@ -219,7 +211,9 @@ def test_gemini_parser_stays_text_only_without_images() -> None:
         client=client,  # type: ignore[arg-type]
     )
 
-    parser.parse(make_single_column_document(["Pho bo", "60.000 VND"]), target_language="en")
+    parser.parse(
+        make_single_column_document(["Pho bo", "60.000 VND"]), target_language="en"
+    )
 
     parts = client.calls[0]["json"]["contents"][0]["parts"]
     assert len(parts) == 1
@@ -393,9 +387,7 @@ def test_gemini_parser_prompt_includes_prealigned_csv_and_disables_thinking() ->
 
 def test_gemini_parser_prealign_csv_off_omits_csv() -> None:
     provider_body = {
-        "candidates": [
-            {"content": {"parts": [{"text": json.dumps({"items": []})}]}}
-        ]
+        "candidates": [{"content": {"parts": [{"text": json.dumps({"items": []})}]}}]
     }
     client = FakeClient(FakeResponse(200, provider_body))
     parser = GeminiMenuParser(
@@ -423,7 +415,11 @@ def test_extraction_schema_excludes_food_intelligence_fields() -> None:
     them on names and prices, and on a long menu they push the response past the
     output ceiling. They belong to the enrichment call.
     """
-    client = FakeClient(FakeResponse(200, {"candidates": [{"content": {"parts": [{"text": '{"items": []}'}]}}]}))
+    client = FakeClient(
+        FakeResponse(
+            200, {"candidates": [{"content": {"parts": [{"text": '{"items": []}'}]}}]}
+        )
+    )
     parser = GeminiMenuParser(
         api_key="test-key",
         api_base_url="https://gemini.example.test/v1beta",

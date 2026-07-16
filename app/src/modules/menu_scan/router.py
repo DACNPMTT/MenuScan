@@ -17,7 +17,10 @@ from fastapi.responses import RedirectResponse, Response
 
 from src.core.rate_limit import enforce_scan_throttle
 from src.core.responses import success_response
-from src.modules.identity.dependencies import get_current_user, get_optional_current_user
+from src.modules.identity.dependencies import (
+    get_current_user,
+    get_optional_current_user,
+)
 from src.modules.identity.models import User
 from src.modules.menu_scan.dependencies import get_scan_pipeline, get_scan_service
 from src.modules.menu_scan.pipeline import ScanPipeline

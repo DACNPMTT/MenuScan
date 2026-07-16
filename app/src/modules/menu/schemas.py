@@ -82,6 +82,7 @@ class MenuSavedResponse(BaseModel):
     is_saved: bool
     updated_at: datetime
 
+
 class MenuItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

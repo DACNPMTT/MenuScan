@@ -79,7 +79,10 @@ def delete_session(
     service.delete_session(current_user, session_id=session_id)
 
 
-@router.delete("/sessions/{session_id}/participants/{participant_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/sessions/{session_id}/participants/{participant_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
 def remove_participant(
     session_id: uuid.UUID,
     participant_id: uuid.UUID,
@@ -123,7 +126,5 @@ def join_session(
         display_name=payload.display_name,
         preferences=payload.preferences,
     )
-    data = DiningParticipantResponse.model_validate(participant).model_dump(
-        mode="json"
-    )
+    data = DiningParticipantResponse.model_validate(participant).model_dump(mode="json")
     return success_response(data=data)

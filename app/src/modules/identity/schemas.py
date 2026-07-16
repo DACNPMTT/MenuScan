@@ -20,8 +20,16 @@ from pydantic import (
 # against each dish's dietary_tags.
 ALLERGEN_CODES = frozenset(
     {
-        "seafood", "shellfish", "fish", "peanut", "tree_nut",
-        "egg", "dairy", "gluten", "soy", "sesame",
+        "seafood",
+        "shellfish",
+        "fish",
+        "peanut",
+        "tree_nut",
+        "egg",
+        "dairy",
+        "gluten",
+        "soy",
+        "sesame",
     }
 )
 DIETARY_PREFERENCE_CODES = frozenset(

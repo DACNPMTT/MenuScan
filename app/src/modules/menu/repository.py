@@ -43,9 +43,13 @@ class MenuRepository:
         return [(row[0], row[1]) for row in session.execute(statement).all()]
 
     def count_for_user(self, session: Session, *, user_id: uuid.UUID) -> int:
-        statement = select(func.count()).select_from(Menu).where(
-            Menu.deleted_at.is_(None),
-            Menu.scan_session.has(user_id=user_id),
+        statement = (
+            select(func.count())
+            .select_from(Menu)
+            .where(
+                Menu.deleted_at.is_(None),
+                Menu.scan_session.has(user_id=user_id),
+            )
         )
         return session.scalar(statement) or 0
 
@@ -60,12 +64,17 @@ class MenuRepository:
         limit: int,
         offset: int,
     ) -> list[FoodItem]:
-        statement = self._items_for_menu_statement(
-            menu_id=menu_id,
-            search=search,
-            min_price=min_price,
-            max_price=max_price,
-        ).order_by(FoodItem.sort_order, FoodItem.id).limit(limit).offset(offset)
+        statement = (
+            self._items_for_menu_statement(
+                menu_id=menu_id,
+                search=search,
+                min_price=min_price,
+                max_price=max_price,
+            )
+            .order_by(FoodItem.sort_order, FoodItem.id)
+            .limit(limit)
+            .offset(offset)
+        )
         return list(session.scalars(statement).all())
 
     def count_items_for_menu(
