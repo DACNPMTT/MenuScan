@@ -6,10 +6,12 @@ import {
   ArrowLeft,
   Camera,
   CheckCircle2,
+X,
   RefreshCw,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { apiRequest, ApiError } from '@/shared/lib/api'
+import { useAuth } from '@/app/providers/AuthProvider'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import type { ScanData } from '@/features/menu-scan/types'
 import {
@@ -22,7 +24,14 @@ import { Reveal } from '@/shared/components/motion/Reveal'
 import { Button } from '@/shared/components/ui/button'
 import { Spinner } from '@/shared/components/Spinner'
 
-type CameraState = 'starting' | 'live' | 'captured' | 'submitting' | 'error'
+type CameraState = 'starting' | 'live' | 'submitting' | 'error'
+
+interface CapturedImage {
+  id: string
+  url: string
+  blob: Blob
+  quality?: QualityResult | null
+}
 
 export function CameraScanPage() {
   const { t } = useTranslation()
@@ -31,11 +40,10 @@ export function CameraScanPage() {
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const { user } = useAuth()
   const [state, setState] = useState<CameraState>('starting')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [capturedUrl, setCapturedUrl] = useState<string | null>(null)
-  const [quality, setQuality] = useState<QualityResult | null>(null)
-  const capturedBlob = useRef<Blob | null>(null)
+  const [capturedImages, setCapturedImages] = useState<CapturedImage[]>([])
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop())
@@ -81,12 +89,18 @@ export function CameraScanPage() {
     return () => {
       active = false
       stopStream()
-      if (capturedUrl) URL.revokeObjectURL(capturedUrl)
+      setCapturedImages(prev => {
+        prev.forEach(img => URL.revokeObjectURL(img.url))
+        return prev
+      })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleCapture = () => {
+    const maxFiles = user ? 8 : 2
+    if (capturedImages.length >= maxFiles) return
+
     const video = videoRef.current
     if (!video || !video.videoWidth) return
     const canvas = document.createElement('canvas')
@@ -95,36 +109,44 @@ export function CameraScanPage() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-    // Assess the captured frame (sharpness + brightness) before we commit to it.
-    setQuality(assessFrame(canvas))
+    
+    const qualityResult = assessFrame(canvas)
+    
     canvas.toBlob((blob) => {
       if (!blob) return
-      if (capturedUrl) URL.revokeObjectURL(capturedUrl)
-      capturedBlob.current = blob
-      setCapturedUrl(URL.createObjectURL(blob))
-      setState('captured')
-      // Freeze the live feed once a frame is chosen.
-      stopStream()
-    }, 'image/jpeg', 0.9)
+      const url = URL.createObjectURL(blob)
+      const newImage: CapturedImage = {
+        id: Math.random().toString(36).substring(7),
+        url,
+        blob,
+        quality: qualityResult
+      }
+      setCapturedImages(prev => [...prev, newImage])
+      // Thêm hiệu ứng chớp tắt nho nhỏ ở video view (tuỳ chọn) bằng css. Không stop stream.
+    }, 'image/jpeg', 0.92)
   }
 
-  const handleRetake = () => {
-    if (capturedUrl) URL.revokeObjectURL(capturedUrl)
-    setCapturedUrl(null)
-    setQuality(null)
-    capturedBlob.current = null
-    void startCamera()
+  const handleRemoveImage = (id: string) => {
+    setCapturedImages(prev => {
+      const img = prev.find(p => p.id === id)
+      if (img) URL.revokeObjectURL(img.url)
+      return prev.filter(p => p.id !== id)
+    })
   }
+
+
 
   const handleSubmit = async () => {
-    const blob = capturedBlob.current
-    if (!blob) return
+    if (capturedImages.length === 0) return
     setState('submitting')
-    const file = new File([blob], `camera-scan-${Date.now()}.jpg`, {
-      type: 'image/jpeg',
-    })
+    
     const formData = new FormData()
-    formData.append('file', file)
+    capturedImages.forEach((img, index) => {
+      const file = new File([img.blob], `camera-scan-${Date.now()}-${index}.jpg`, {
+        type: 'image/jpeg',
+      })
+      formData.append('files', file)
+    })
     try {
       const scan = await apiRequest<ScanData>('/api/v1/scans', {
         method: 'POST',
@@ -132,7 +154,7 @@ export function CameraScanPage() {
       })
       navigate(`/app/scans/${scan.id}`)
     } catch (error) {
-      setState('captured')
+      setState('live')
       setErrorMessage(
         error instanceof ApiError
           ? error.message
@@ -167,20 +189,12 @@ export function CameraScanPage() {
       {/* Viewfinder */}
       <Reveal>
         <div className="relative aspect-[3/4] w-full overflow-hidden rounded-3xl border border-border bg-ink shadow-3 sm:aspect-video">
-          {capturedUrl ? (
-            <img
-              src={capturedUrl}
-              alt={t('camera.capturedAlt')}
-              className="h-full w-full object-contain"
-            />
-          ) : (
-            <video
-              ref={videoRef}
-              playsInline
-              muted
-              className="h-full w-full object-cover"
-            />
-          )}
+          <video
+            ref={videoRef}
+            playsInline
+            muted
+            className="h-full w-full object-cover"
+          />
 
           {/* Overlay framing corners (matches the camera viewfinder intent). */}
           {state === 'live' && (
@@ -215,56 +229,50 @@ export function CameraScanPage() {
         </div>
       </Reveal>
 
-      {/* Quality gate feedback (soft block — user may still use the photo). */}
-      {state === 'captured' && quality && (
-        quality.ok ? (
-          <div className="mt-4 flex items-center gap-2 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-2.5 text-[14px] text-primary">
-            <CheckCircle2 className="size-4 shrink-0" aria-hidden />
-            <span>{t('camera.quality.ok')}</span>
+      {/* Captured Thumbnails */}
+      {capturedImages.length > 0 && (
+        <div className="mt-4 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[14px] font-medium uppercase tracking-[0.7px] text-ink-variant">
+              Ảnh đã chụp ({capturedImages.length}/{user ? 8 : 2})
+            </span>
           </div>
-        ) : (
-          <div
-            role="status"
-            className="mt-4 flex items-start gap-3 rounded-2xl border border-amber/40 bg-amber/10 px-4 py-3 text-[14px] text-amber"
-          >
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <div className="flex flex-col gap-1">
-              <span className="font-bold">{t('camera.quality.warnTitle')}</span>
-              <ul className="flex flex-col gap-0.5">
-                {quality.reasons.map((reason) => (
-                  <li key={reason}>
-                    • {t(`camera.quality.${QUALITY_REASON_I18N_KEY[reason]}`)}
-                  </li>
-                ))}
-              </ul>
-            </div>
+          <div className="flex w-full gap-3 overflow-x-auto pb-2 scrollbar-thin">
+            {capturedImages.map((img) => (
+              <div key={img.id} className="relative aspect-[3/4] h-[120px] shrink-0 overflow-hidden rounded-xl border border-border shadow-1">
+                <img src={img.url} alt="Captured" className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveImage(img.id)}
+                  className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-ink/70 text-white transition hover:bg-destructive"
+                >
+                  <X className="size-4" aria-hidden />
+                </button>
+                {img.quality && !img.quality.ok && (
+                  <div className="absolute bottom-1 left-1 flex size-6 items-center justify-center rounded-full bg-amber text-white shadow-1" title={img.quality.reasons.join(', ')}>
+                    <AlertTriangle className="size-3.5" aria-hidden />
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-        )
+        </div>
       )}
 
       {/* Controls */}
       <Reveal delay={0.08}>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           {state === 'live' && (
-            <Button type="button" size="lg" onClick={handleCapture}>
-              <Camera className="size-5" aria-hidden />
-              {t('camera.capture')}
-            </Button>
-          )}
-          {state === 'captured' && (
             <>
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                onClick={handleRetake}
-              >
-                <RefreshCw className="size-5" aria-hidden />
-                {t('camera.retake')}
+              <Button type="button" size="lg" onClick={handleCapture} disabled={capturedImages.length >= (user ? 8 : 2)}>
+                <Camera className="size-5" aria-hidden />
+                {t('camera.capture')}
               </Button>
-              <Button type="button" size="lg" onClick={handleSubmit}>
-                {t('camera.useThis')}
-              </Button>
+              {capturedImages.length > 0 && (
+                <Button type="button" size="lg" onClick={handleSubmit} variant="default" className="bg-green-600 hover:bg-green-700">
+                  {t('camera.useThis')} ({capturedImages.length})
+                </Button>
+              )}
             </>
           )}
         </div>
