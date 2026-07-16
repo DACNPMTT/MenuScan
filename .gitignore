@@ -88,3 +88,10 @@ pnpm-debug.log*
 app/uploads/
 uploads/
 storage/
+
+# ========================
+# Test & CI/CD artifacts
+# ========================
+*_log.txt
+pytest-temp/
+run_logs/
