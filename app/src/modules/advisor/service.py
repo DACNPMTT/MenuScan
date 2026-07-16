@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from src.modules.advisor.adapters.gemini_chat import ChatProvider
 from src.modules.advisor.schemas import ChatMessage
+from src.modules.dining.models import DiningSession, DiningSessionParticipant
 from src.modules.identity.models import FoodProfile, FoodProfilePreference, User
 from src.modules.menu.models import FoodItem, Menu
 from src.modules.menu.service import MenuService
@@ -99,7 +100,9 @@ def _item_line(item: FoodItem, currency: str | None) -> str:
     return " ".join(parts)
 
 
-def _build_context(menu: Menu, preferences: list[FoodProfilePreference]) -> str:
+def _build_context(
+    menu: Menu, participants_info: list[tuple[str, list[str]]]
+) -> str:
     dishes = (
         "\n".join(
             _item_line(item, menu.default_currency)
@@ -108,18 +111,20 @@ def _build_context(menu: Menu, preferences: list[FoodProfilePreference]) -> str:
         or "(no dishes)"
     )
 
-    # Read the SAME food profile the dish cards score their verdicts from. The chat
-    # used to read user.allergies / user.dietary_preferences instead, so it could
-    # cheerfully recommend a dish while the card beside it showed a red AVOID.
-    if preferences:
-        declared = "; ".join(
-            f"{preference.preference_type.value.lower()}: {preference.code}"
-            for preference in preferences
-        )
+    if not participants_info:
+        profile_text = "DINER PROFILE — none declared"
+    elif len(participants_info) == 1:
+        name, prefs = participants_info[0]
+        declared = "; ".join(prefs) if prefs else "none declared"
+        profile_text = f"DINER PROFILE — {declared}"
     else:
-        declared = "none declared"
+        lines = []
+        for name, prefs in participants_info:
+            declared = "; ".join(prefs) if prefs else "none declared"
+            lines.append(f"- {name}: {declared}")
+        profile_text = "DINERS' PROFILES:\n" + "\n".join(lines)
 
-    return f"MENU: {menu.title}\nDISHES:\n{dishes}\n\nDINER PROFILE — {declared}"
+    return f"MENU: {menu.title}\nDISHES:\n{dishes}\n\n{profile_text}"
 
 
 def _to_provider_role(role: str) -> str:
@@ -165,7 +170,36 @@ class AdvisorService:
             menu_id=menu_id,
             user_id=user.id,
         )
-        context = _build_context(menu, self._diner_preferences(user))
+
+        dining_session = self._session.scalars(
+            select(DiningSession)
+            .where(
+                DiningSession.menu_id == menu.id,
+                DiningSession.deleted_at.is_(None),
+            )
+            .options(
+                selectinload(DiningSession.participants).selectinload(
+                    DiningSessionParticipant.preferences
+                )
+            )
+        ).first()
+
+        participants_info = []
+        if dining_session and dining_session.participants:
+            for participant in dining_session.participants:
+                prefs = [
+                    f"{p.preference_type.value.lower()}: {p.code}"
+                    for p in participant.preferences
+                ]
+                participants_info.append((participant.display_name, prefs))
+        else:
+            prefs = [
+                f"{p.preference_type.value.lower()}: {p.code}"
+                for p in self._diner_preferences(user)
+            ]
+            participants_info.append(("Diner", prefs))
+
+        context = _build_context(menu, participants_info)
         system = f"{_SYSTEM_RULES}\n\n{context}"
         if focus_dishes:
             names = ", ".join(dish.strip() for dish in focus_dishes if dish.strip())
