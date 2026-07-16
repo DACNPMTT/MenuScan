@@ -57,31 +57,10 @@ class EmailSender(Protocol):
 
 
 def _magic_link_html(magic_link_url: str, lang: str = "vi") -> str:
-    # URL-encoded SVG for the Nón Lá mascot (MenuScan logo)
-    logo_svg = (
-        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 250'%3E"
-        "%3Cg transform='translate(100, 140)'%3E"
-        "%3Cpath d='M 0 -85 L 15 -95 L 35 -80 L 50 -90 L 65 -70 L 85 -65 L 75 -45 L 95 -30 L 80 -10 L 100 10 L 85 30 L 95 50 L 75 65 L 85 85 L 50 85 L 40 100 L 20 90 L 0 105 L -20 90 L -40 100 L -50 85 L -85 85 L -75 65 L -95 50 L -85 30 L -100 10 L -80 -10 L -95 -30 L -75 -45 L -85 -65 L -65 -70 L -50 -90 L -35 -80 L -15 -95 Z' fill='%2389b653' stroke='%234d6f21' stroke-width='3' stroke-linejoin='round' /%3E"
-        "%3Cellipse cx='0' cy='10' rx='65' ry='75' fill='%23fde368' stroke='%23d5b035' stroke-width='2' /%3E"
-        "%3C/g%3E"
-        "%3Cg transform='translate(100, 135)'%3E"
-        "%3Ccircle cx='-35' cy='15' r='9' fill='%23f4a6c0' opacity='0.8' /%3E"
-        "%3Ccircle cx='35' cy='15' r='9' fill='%23f4a6c0' opacity='0.8' /%3E"
-        "%3Cpath d='M -22 -5 Q -15 -13 -8 -5' stroke='%23222' stroke-width='4' fill='none' stroke-linecap='round' /%3E"
-        "%3Cpath d='M 8 -5 Q 15 -13 22 -5' stroke='%23222' stroke-width='4' fill='none' stroke-linecap='round' /%3E"
-        "%3Cpath d='M -15 5 Q 0 35 15 5 Z' fill='%23c1432e' stroke='%23222' stroke-width='2.5' stroke-linejoin='round' /%3E"
-        "%3Cpath d='M -8 15 Q 0 25 8 15 Z' fill='%23ffb6c1' /%3E"
-        "%3C/g%3E"
-        "%3Cg transform='translate(100, 55)'%3E"
-        "%3Cellipse cx='0' cy='35' rx='90' ry='15' fill='%23c8a156' /%3E"
-        "%3Cpath d='M 0 -55 L -95 35 Q 0 55 95 35 Z' fill='%23eed9a1' stroke='%23a57f36' stroke-width='2' stroke-linejoin='round' /%3E"
-        "%3Cpath d='M -18 -38 Q 0 -35 18 -38' stroke='%23a57f36' stroke-width='1.5' fill='none' opacity='0.4' /%3E"
-        "%3Cpath d='M -36 -15 Q 0 -10 36 -15' stroke='%23a57f36' stroke-width='1.5' fill='none' opacity='0.4' /%3E"
-        "%3Cpath d='M -54 8 Q 0 15 54 8' stroke='%23a57f36' stroke-width='1.5' fill='none' opacity='0.4' /%3E"
-        "%3Cpath d='M -72 25 Q 0 35 72 25' stroke='%23a57f36' stroke-width='1.5' fill='none' opacity='0.4' /%3E"
-        "%3C/g%3E"
-        "%3C/svg%3E"
-    )
+    import urllib.parse
+    parsed = urllib.parse.urlparse(magic_link_url)
+    base_url = f"{parsed.scheme}://{parsed.netloc}"
+    logo_svg = f"{base_url}/logo-happy.png"
 
     if lang == "en":
         title = "Log in to MenuScan"
@@ -239,34 +218,10 @@ def _magic_link_text(magic_link_url: str, lang: str = "vi") -> str:
 
 
 def _delete_confirm_html(confirm_url: str, lang: str = "vi") -> str:
-    # URL-encoded SVG for the Crying Nón Lá mascot
-    logo_svg = (
-        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 250'%3E"
-        "%3Cg transform='translate(100, 140)'%3E"
-        "%3Cpath d='M 0 -85 L 15 -95 L 35 -80 L 50 -90 L 65 -70 L 85 -65 L 75 -45 L 95 -30 L 80 -10 L 100 10 L 85 30 L 95 50 L 75 65 L 85 85 L 50 85 L 40 100 L 20 90 L 0 105 L -20 90 L -40 100 L -50 85 L -85 85 L -75 65 L -95 50 L -85 30 L -100 10 L -80 -10 L -95 -30 L -75 -45 L -85 -65 L -65 -70 L -50 -90 L -35 -80 L -15 -95 Z' fill='%2389b653' stroke='%234d6f21' stroke-width='3' stroke-linejoin='round' /%3E"
-        "%3Cellipse cx='0' cy='10' rx='65' ry='75' fill='%23fde368' stroke='%23d5b035' stroke-width='2' /%3E"
-        "%3C/g%3E"
-        "%3Cg transform='translate(100, 135)'%3E"
-        "%3Ccircle cx='-35' cy='15' r='9' fill='%23f4a6c0' opacity='0.8' /%3E"
-        "%3Ccircle cx='35' cy='15' r='9' fill='%23f4a6c0' opacity='0.8' /%3E"
-        "%3Cpath d='M -22 -2 Q -15 -9 -8 -2' stroke='%23222' stroke-width='4' fill='none' stroke-linecap='round' /%3E"
-        "%3Cpath d='M 8 -2 Q 15 -9 22 -2' stroke='%23222' stroke-width='4' fill='none' stroke-linecap='round' /%3E"
-        "%3Cpath d='M -15 2 Q -18 10 -15 15 Q -12 10 -15 2' fill='%2360a5fa' /%3E"
-        "%3Ccircle cx='-15' cy='15' r='3' fill='%2360a5fa' /%3E"
-        "%3Cpath d='M 15 2 Q 12 10 15 15 Q 18 10 15 2' fill='%2360a5fa' /%3E"
-        "%3Ccircle cx='15' cy='15' r='3' fill='%2360a5fa' /%3E"
-        "%3Cpath d='M -12 15 Q 0 5 12 15' stroke='%23222' stroke-width='3.5' fill='none' stroke-linecap='round' /%3E"
-        "%3C/g%3E"
-        "%3Cg transform='translate(100, 55)'%3E"
-        "%3Cellipse cx='0' cy='35' rx='90' ry='15' fill='%23c8a156' /%3E"
-        "%3Cpath d='M 0 -55 L -95 35 Q 0 55 95 35 Z' fill='%23eed9a1' stroke='%23a57f36' stroke-width='2' stroke-linejoin='round' /%3E"
-        "%3Cpath d='M -18 -38 Q 0 -35 18 -38' stroke='%23a57f36' stroke-width='1.5' fill='none' opacity='0.4' /%3E"
-        "%3Cpath d='M -36 -15 Q 0 -10 36 -15' stroke='%23a57f36' stroke-width='1.5' fill='none' opacity='0.4' /%3E"
-        "%3Cpath d='M -54 8 Q 0 15 54 8' stroke='%23a57f36' stroke-width='1.5' fill='none' opacity='0.4' /%3E"
-        "%3Cpath d='M -72 25 Q 0 35 72 25' stroke='%23a57f36' stroke-width='1.5' fill='none' opacity='0.4' /%3E"
-        "%3C/g%3E"
-        "%3C/svg%3E"
-    )
+    import urllib.parse
+    parsed = urllib.parse.urlparse(confirm_url)
+    base_url = f"{parsed.scheme}://{parsed.netloc}"
+    logo_svg = f"{base_url}/logo-crying.png"
 
     if lang == "en":
         title = "Confirm Account Deletion - MenuScan"
