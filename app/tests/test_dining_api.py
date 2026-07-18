@@ -27,6 +27,9 @@ from src.modules.dining.models import (
     DiningSessionStatus,
 )
 from src.modules.menu.models import FoodItem, Menu, MenuHostSelection, MenuStatus
+from src.modules.billing.dependencies import get_billing_service
+from src.modules.billing.models import Bill, BillAdjustment, BillItem, BillStatus
+from src.modules.billing.service import BillSplit, SplitShare
 from src.modules.dining.schemas import DiningPreferenceRequest
 from src.modules.dining.service import DiningSessionInviteBundle
 from src.modules.identity.dependencies import get_current_user
@@ -352,6 +355,30 @@ class StubDiningSessionService:
         ]
         return session, menu, items
 
+    def get_public_session_meals(
+        self,
+        *,
+        session_id: uuid.UUID,
+        invite_token: str,
+    ) -> tuple[DiningSession, list[Menu]]:
+        if self.effect:
+            raise self.effect
+        if invite_token != "faketoken":
+            raise DiningInviteInvalidError()
+        if session_id != _SESSION_ID:
+            raise DiningInviteInvalidError()
+        session = DiningSession(
+            id=_SESSION_ID,
+            created_by_user_id=_USER_ID,
+            mode=DiningSessionMode.GROUP,
+            status=DiningSessionStatus.COMPLETED,
+            menu_id=_MENU_ID,
+            created_at=_NOW,
+            updated_at=_NOW,
+        )
+        menu = Menu(id=_MENU_ID, title="Bún & Phở", default_currency="VND")
+        return session, [menu]
+
     def set_participant_selections(
         self,
         *,
@@ -410,15 +437,77 @@ class StubDiningSessionService:
         )
 
 
+_BILL_ID = uuid.UUID("77777777-7777-7777-7777-777777777777")
+
+
+class StubBillingService:
+    """Minimal billing stub for the guest-facing shared-receipt endpoint."""
+
+    def __init__(self, bills: list[Bill] | None = None) -> None:
+        self._bills = bills if bills is not None else [_finalized_bill()]
+        self.menu_ids_seen: list[uuid.UUID] | None = None
+
+    def list_finalized_bills_for_menus(
+        self,
+        *,
+        menu_ids: list[uuid.UUID],
+    ) -> list[Bill]:
+        self.menu_ids_seen = menu_ids
+        return [bill for bill in self._bills if bill.menu_id in set(menu_ids)]
+
+    def split_for_display(self, *, bill: Bill, people_count: int) -> BillSplit:
+        base = (bill.total_amount / people_count).quantize(Decimal("0.01"))
+        return BillSplit(
+            bill_id=bill.id,
+            currency=bill.currency,
+            total_amount=bill.total_amount,
+            people_count=people_count,
+            base_share=base,
+            remainder_units=0,
+            shares=[SplitShare(person=i + 1, amount=base) for i in range(people_count)],
+        )
+
+
+def _finalized_bill(*, split_people_count: int | None = 2) -> Bill:
+    return Bill(
+        id=_BILL_ID,
+        user_id=_USER_ID,
+        menu_id=_MENU_ID,
+        status=BillStatus.FINALIZED,
+        currency="VND",
+        subtotal_amount=Decimal("130000.00"),
+        adjustment_total=Decimal("0.00"),
+        total_amount=Decimal("130000.00"),
+        finalized_at=_NOW,
+        split_people_count=split_people_count,
+        items=[
+            BillItem(
+                id=uuid.uuid4(),
+                bill_id=_BILL_ID,
+                food_item_id=_ITEM_ID,
+                name_snapshot="Beef Pho",
+                unit_price_snapshot=Decimal("65000.00"),
+                currency="VND",
+                quantity=2,
+                line_total=Decimal("130000.00"),
+                sort_order=0,
+            )
+        ],
+        adjustments=[],
+    )
+
+
 def _make_client(
     stub: StubDiningSessionService,
     user: User | None = None,
+    billing: StubBillingService | None = None,
 ) -> TestClient:
     app = create_app(
         application_settings=_settings(),
         database_engine=Mock(),
     )
     app.dependency_overrides[get_dining_session_service] = lambda: stub
+    app.dependency_overrides[get_billing_service] = lambda: billing or StubBillingService()
     if user:
         app.dependency_overrides[get_current_user] = lambda: user
     return TestClient(app, raise_server_exceptions=False)
@@ -830,6 +919,74 @@ def test_get_session_selections_summary_success():
     assert items[0]["selected_by"][0]["display_name"] == "Guest A"
     assert items[0]["selected_by"][0]["quantity"] == 2
     assert items[0]["selected_by"][0]["note"] == "ít cay"
+
+
+def test_get_public_session_bills_success():
+    stub = StubDiningSessionService()
+    billing = StubBillingService()
+    client = _make_client(stub, billing=billing)
+
+    response = client.get(
+        f"/api/v1/dining/public/sessions/{_SESSION_ID}/bills?invite_token=faketoken"
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    data = body["data"]
+    assert data["session_id"] == str(_SESSION_ID)
+    assert len(data["items"]) == 1
+    bill = data["items"][0]
+    assert bill["bill_id"] == str(_BILL_ID)
+    assert bill["menu_title"] == "Bún & Phở"
+    assert bill["total_amount"] == "130000.00"
+    assert bill["people_count"] == 2
+    # 130000 / 2 = 65000 per person.
+    assert bill["per_person"] == "65000.00"
+    assert bill["items"][0]["name"] == "Beef Pho"
+    assert bill["items"][0]["quantity"] == 2
+    # The endpoint only asks billing for this session's meal menus.
+    assert billing.menu_ids_seen == [_MENU_ID]
+
+
+def test_get_public_session_bills_invalid_token():
+    stub = StubDiningSessionService()
+    client = _make_client(stub)
+
+    response = client.get(
+        f"/api/v1/dining/public/sessions/{_SESSION_ID}/bills?invite_token=wrong"
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "DINING_INVITE_INVALID"
+
+
+def test_get_public_session_bills_unsplit_bill_has_no_per_person():
+    stub = StubDiningSessionService()
+    billing = StubBillingService(bills=[_finalized_bill(split_people_count=None)])
+    client = _make_client(stub, billing=billing)
+
+    response = client.get(
+        f"/api/v1/dining/public/sessions/{_SESSION_ID}/bills?invite_token=faketoken"
+    )
+
+    assert response.status_code == 200
+    bill = response.json()["data"]["items"][0]
+    assert bill["people_count"] is None
+    assert bill["per_person"] is None
+
+
+def test_get_public_session_bills_empty_when_none_finalized():
+    stub = StubDiningSessionService()
+    billing = StubBillingService(bills=[])
+    client = _make_client(stub, billing=billing)
+
+    response = client.get(
+        f"/api/v1/dining/public/sessions/{_SESSION_ID}/bills?invite_token=faketoken"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["items"] == []
 
 
 def test_score_item_for_diner_rules():

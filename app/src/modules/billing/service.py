@@ -86,6 +86,49 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _compute_split(
+    *,
+    bill_id: uuid.UUID,
+    currency: str,
+    total_amount: Decimal,
+    people_count: int,
+) -> "BillSplit":
+    """Split ``total_amount`` evenly among ``people_count`` people.
+
+    The one place the even-split algorithm lives, so the owner-scoped
+    ``split_bill`` and the guest-facing shared receipt produce identical
+    numbers. The per-person base is floored to the cent and the non-negative
+    remainder handed out one cent at a time to the first people, so
+    ``sum(shares) == total_amount`` exactly and deterministically.
+    """
+    if people_count < 1:
+        raise InvalidPeopleCountError()
+
+    total = _round_money(total_amount)
+    base = (total / people_count).quantize(_CENTS, rounding=ROUND_DOWN)
+    # Whole-cent units left over after every person gets ``base``. Always
+    # non-negative because ``base`` floors, and always an exact multiple of
+    # one cent because both ``total`` and ``base`` are 2-decimal.
+    remainder_units = int(((total - base * people_count) / _CENTS).to_integral_value())
+
+    shares = [
+        SplitShare(
+            person=index + 1,
+            amount=base + _CENTS if index < remainder_units else base,
+        )
+        for index in range(people_count)
+    ]
+    return BillSplit(
+        bill_id=bill_id,
+        currency=currency,
+        total_amount=total,
+        people_count=people_count,
+        base_share=base,
+        remainder_units=remainder_units,
+        shares=shares,
+    )
+
+
 @dataclass(frozen=True)
 class SplitShare:
     """One person's share of a split bill (service-level DTO)."""
@@ -198,31 +241,42 @@ class BillingService:
             raise InvalidPeopleCountError()
 
         bill = self.get_bill_for_user(bill_id=bill_id, user_id=user_id)
-
-        total = _round_money(bill.total_amount)
-        base = (total / people_count).quantize(_CENTS, rounding=ROUND_DOWN)
-        # Whole-cent units left over after every person gets ``base``. Always
-        # non-negative because ``base`` floors, and always an exact multiple
-        # of one cent because both ``total`` and ``base`` are 2-decimal.
-        remainder_units = int(
-            ((total - base * people_count) / _CENTS).to_integral_value()
-        )
-
-        shares = [
-            SplitShare(
-                person=index + 1,
-                amount=base + _CENTS if index < remainder_units else base,
-            )
-            for index in range(people_count)
-        ]
-        return BillSplit(
+        return _compute_split(
             bill_id=bill.id,
             currency=bill.currency,
-            total_amount=total,
+            total_amount=bill.total_amount,
             people_count=people_count,
-            base_share=base,
-            remainder_units=remainder_units,
-            shares=shares,
+        )
+
+    # --- Shared (guest-facing) reads --------------------------------------
+
+    def list_finalized_bills_for_menus(
+        self,
+        *,
+        menu_ids: list[uuid.UUID],
+    ) -> list[Bill]:
+        """Every FINALIZED bill for the given menus, newest-finalized first.
+
+        Deliberately not user-scoped: this backs the guest-facing shared
+        receipt, where access is gated upstream by the dining invite token,
+        not by bill ownership. Only FINALIZED bills are ever returned, so a
+        host's in-progress DRAFT is never exposed to guests.
+        """
+        if not menu_ids:
+            return []
+        return self._repository.list_finalized_for_menus(self._session, menu_ids)
+
+    def split_for_display(self, *, bill: Bill, people_count: int) -> BillSplit:
+        """Even split of a bill's total, for a read-only shared receipt.
+
+        Takes a bill object the caller already loaded (no ownership check
+        here) rather than a bill id -- ownership/access is the caller's job.
+        """
+        return _compute_split(
+            bill_id=bill.id,
+            currency=bill.currency,
+            total_amount=bill.total_amount,
+            people_count=people_count,
         )
 
     # --- Line items ---------------------------------------------------------
@@ -485,8 +539,17 @@ class BillingService:
 
     # --- Finalization -----------------------------------------------------
 
-    def finalize_bill(self, *, bill_id: uuid.UUID) -> Bill:
+    def finalize_bill(
+        self,
+        *,
+        bill_id: uuid.UUID,
+        people_count: int | None = None,
+    ) -> Bill:
         """Transition a DRAFT bill with at least one item to FINALIZED.
+
+        ``people_count`` records the even-split headcount the host chose, so a
+        guest opening the shared receipt sees the same per-person share. It is
+        only persisted when provided and >= 1; None leaves the bill unsplit.
 
         Finalization only locks the bill for the guest's payment record --
         it never triggers any "send to restaurant" workflow.
@@ -494,6 +557,11 @@ class BillingService:
         bill = self._get_mutable_bill(bill_id)
         if not bill.items:
             raise EmptyBillError()
+
+        if people_count is not None:
+            if people_count < 1:
+                raise InvalidPeopleCountError()
+            bill.split_people_count = people_count
 
         self._recompute_totals(bill)
         bill.status = BillStatus.FINALIZED

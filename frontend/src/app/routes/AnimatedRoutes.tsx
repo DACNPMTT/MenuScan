@@ -27,6 +27,7 @@ import { HostDiningSessionPage } from '@/pages/dining/HostDiningSessionPage'
 import { MealDetailPage } from '@/pages/dining/MealDetailPage'
 import { JoinDiningSessionPage } from '@/pages/dining/JoinDiningSessionPage'
 import { GuestMenuSelectionPage } from '@/pages/dining/GuestMenuSelectionPage'
+import { GuestBillPage } from '@/pages/dining/GuestBillPage'
 
 /**
  * Route tree wrapped in an AnimatePresence keyed by the FIRST path segment
@@ -73,6 +74,7 @@ export function AnimatedRoutes() {
         </Route>
         <Route path="dining/join" element={<JoinDiningSessionPage />} />
         <Route path="dining/select" element={<GuestMenuSelectionPage />} />
+        <Route path="dining/bill" element={<GuestBillPage />} />
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

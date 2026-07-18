@@ -6,6 +6,8 @@ import uuid
 from fastapi import APIRouter, Depends, Query, status
 
 from src.core.responses import success_response
+from src.modules.billing.dependencies import get_billing_service
+from src.modules.billing.service import BillingService
 from src.modules.dining.dependencies import get_dining_session_service
 from src.modules.dining.exceptions import DiningSessionNotFoundError
 from src.modules.dining.schemas import (
@@ -16,8 +18,12 @@ from src.modules.dining.schemas import (
     DiningParticipantResponse,
     HostSelectionResponse,
     HostSelectionsResponse,
+    PublicBillAdjustmentResponse,
+    PublicBillItemResponse,
+    PublicBillResponse,
     PublicDiningSessionResponse,
     PublicMenuItemResponse,
+    PublicSessionBillsResponse,
     PublicSessionMenuResponse,
     SelectionByParticipantResponse,
     SelectionSummaryItemResponse,
@@ -306,6 +312,74 @@ def get_public_session_menu(
             )
             for item in items
         ],
+    )
+    return success_response(data=response_data.model_dump(mode="json"))
+
+
+@router.get("/public/sessions/{session_id}/bills")
+def get_public_session_bills(
+    session_id: uuid.UUID,
+    invite_token: str = Query(..., min_length=1),
+    dining_service: DiningSessionService = Depends(get_dining_session_service),
+    billing_service: BillingService = Depends(get_billing_service),
+) -> dict[str, object]:
+    """The session's FINALIZED bills for a guest to view (auth-free, token-gated).
+
+    Only bills the host has finalized are returned -- an in-progress DRAFT is
+    never exposed. When the host recorded a split headcount, each bill carries
+    the even-split per-person share so the guest sees what they owe.
+    """
+    session, menus = dining_service.get_public_session_meals(
+        session_id=session_id,
+        invite_token=invite_token,
+    )
+    menu_title_by_id = {menu.id: menu.title for menu in menus}
+    bills = billing_service.list_finalized_bills_for_menus(
+        menu_ids=list(menu_title_by_id),
+    )
+
+    items: list[PublicBillResponse] = []
+    for bill in bills:
+        per_person: str | None = None
+        if bill.split_people_count:
+            split = billing_service.split_for_display(
+                bill=bill,
+                people_count=bill.split_people_count,
+            )
+            per_person = str(split.base_share)
+        items.append(
+            PublicBillResponse(
+                bill_id=bill.id,
+                menu_id=bill.menu_id,
+                menu_title=menu_title_by_id.get(bill.menu_id),
+                currency=bill.currency,
+                subtotal_amount=str(bill.subtotal_amount),
+                total_amount=str(bill.total_amount),
+                finalized_at=bill.finalized_at,
+                items=[
+                    PublicBillItemResponse(
+                        name=item.name_snapshot,
+                        quantity=item.quantity,
+                        line_total=str(item.line_total),
+                    )
+                    for item in bill.items
+                ],
+                adjustments=[
+                    PublicBillAdjustmentResponse(
+                        label=adj.label,
+                        amount=str(adj.calculated_amount),
+                    )
+                    for adj in bill.adjustments
+                ],
+                people_count=bill.split_people_count,
+                per_person=per_person,
+            )
+        )
+
+    response_data = PublicSessionBillsResponse(
+        session_id=session.id,
+        status=session.status.value,
+        items=items,
     )
     return success_response(data=response_data.model_dump(mode="json"))
 
