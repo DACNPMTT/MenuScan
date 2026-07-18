@@ -89,7 +89,10 @@
     "errorBody": "The verification link is invalid, has expired, or has already been used. Please request a new login link.",
     "successTitle": "Email verified successfully!",
     "successBody": "Your account is now fully set up. You can start exploring menus.",
-    "continue": "Continue"
+    "continue": "Continue",
+    "confirmTitle": "Confirm sign-in",
+    "confirmBody": "Press the button below to finish signing in to MenuScan.",
+    "confirmButton": "Confirm sign-in"
   },
   "checkEmail": {
     "bodyWithEmail": "We've sent a verification link to {{email}}. Please click the link to activate your account.",

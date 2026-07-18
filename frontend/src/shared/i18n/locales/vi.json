@@ -89,7 +89,10 @@
     "errorBody": "Liên kết xác thực không hợp lệ, đã hết hạn, hoặc đã được sử dụng. Vui lòng yêu cầu liên kết đăng nhập mới.",
     "successTitle": "Xác thực email thành công!",
     "successBody": "Tài khoản của bạn đã được thiết lập đầy đủ. Bạn có thể bắt đầu khám phá thực đơn.",
-    "continue": "Tiếp tục"
+    "continue": "Tiếp tục",
+    "confirmTitle": "Xác nhận đăng nhập",
+    "confirmBody": "Nhấn nút bên dưới để hoàn tất đăng nhập vào MenuScan.",
+    "confirmButton": "Xác nhận đăng nhập"
   },
   "checkEmail": {
     "bodyWithEmail": "Chúng tôi đã gửi liên kết xác thực đến {{email}}. Vui lòng nhấn vào liên kết để kích hoạt tài khoản.",
