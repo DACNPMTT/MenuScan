@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
-import { apiRequest } from '@/shared/lib/api'
+import { api, apiRequest } from '@/shared/lib/api'
 import {
   getAccessToken,
   setAccessToken as setStoredAccessToken,
@@ -144,18 +144,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false)
   }, [fetchCurrentUser])
 
-  // 1. Login with Password
+  // 1. Login with Password — use the unauthenticated `api()` helper so that any
+  // stale token sitting in memory is NOT forwarded to the login endpoint, which
+  // would cause the backend to reject the request with 401 before it even checks
+  // the credentials.
   const login = useCallback(async (email: string, password: string) => {
-    const data = await apiRequest<{ access_token: string; user: User }>('/api/v1/auth/login', {
+    const data = await api<{ access_token: string; user: User }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
     await loginState(data.access_token, data.user)
   }, [loginState])
 
-  // 2. Request Magic Link
+  // 2. Request Magic Link — also unauthenticated
   const requestMagicLink = useCallback(async (email: string) => {
-    return await apiRequest<{ message: string; resend_after_seconds: number }>('/api/v1/auth/magic-links', {
+    return await api<{ message: string; resend_after_seconds: number }>('/auth/magic-links', {
       method: 'POST',
       body: JSON.stringify({ email }),
     })
