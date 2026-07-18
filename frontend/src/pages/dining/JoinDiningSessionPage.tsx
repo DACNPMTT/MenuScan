@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   ChevronLeft,
@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   User,
 } from 'lucide-react'
+import { saveGuestSession, saveGuestPrefsDraft } from '@/features/dining/guestSession'
 import { Spinner } from '@/shared/components/Spinner'
 import { apiRequest, ApiError } from '@/shared/lib/api'
 import { Button } from '@/shared/components/ui/button'
@@ -32,10 +33,12 @@ interface PublicSessionDetail {
   status: string
   participant_count: number
   created_at: string
+  menu_id: string | null
 }
 
 export function JoinDiningSessionPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   useDocumentTitle(`${t('dining.joinTitle')} | MenuScan`)
   const [searchParams] = useSearchParams()
   const inviteToken = searchParams.get('token')
@@ -137,13 +140,29 @@ export function JoinDiningSessionPage() {
     setError(null)
 
     try {
-      await apiRequest(`/api/v1/dining/public/sessions/join?invite_token=${inviteToken}`, {
-        method: 'POST',
-        body: JSON.stringify({
-          display_name: normalizedName,
-          preferences: foodProfileDraftToPreferences(value),
-        }),
-      })
+      const participant = await apiRequest<{ id: string }>(
+        `/api/v1/dining/public/sessions/join?invite_token=${inviteToken}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            display_name: normalizedName,
+            preferences: foodProfileDraftToPreferences(value),
+          }),
+        },
+      )
+      // Remember who this guest is so the dish picker can act on their behalf
+      // without a second join (it survives a reload; keyed by the invite token).
+      if (session && inviteToken) {
+        saveGuestSession({
+          token: inviteToken,
+          sessionId: session.session_id,
+          participantId: participant.id,
+          displayName: normalizedName,
+        })
+        // Keep their declared preferences so the picker can prefill when they
+        // want to edit/add later.
+        saveGuestPrefsDraft(inviteToken, value)
+      }
       setJoined(true)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('onboarding.saveError'))
@@ -183,10 +202,10 @@ export function JoinDiningSessionPage() {
   if (joined) {
     return (
       <PageTransition className="flex min-h-dvh flex-col items-center justify-center bg-app-bg px-6 text-center">
-        <Card className="w-full max-w-[460px] items-center gap-5 rounded-3xl p-8 shadow-pop">
+        <Card className="w-full max-w-[460px] items-center gap-5 rounded-3xl p-6 shadow-pop sm:p-8">
           <IconBadge icon={CheckCircle2} tone="success" size="lg" />
           <div className="flex flex-col gap-2">
-            <h1 className="text-[24px] font-bold text-ink">{t('dining.joinSuccess')}</h1>
+            <h1 className="text-[20px] font-bold text-ink sm:text-[24px]">{t('dining.joinSuccess')}</h1>
             <p className="text-[15px] leading-relaxed text-ink-variant">
               {t('dining.joinSuccessDesc')}
             </p>
@@ -203,18 +222,33 @@ export function JoinDiningSessionPage() {
               </span>
             </div>
           </div>
+
+          {/* Pick dishes now. The menu is only there once the host has scanned
+              it; until then the picker greets them with "chờ host quét", so it is
+              safe to always offer this. */}
+          <Button
+            type="button"
+            size="lg"
+            className="w-full"
+            onClick={() =>
+              navigate(`/dining/select?token=${encodeURIComponent(inviteToken ?? '')}`)
+            }
+          >
+            <UtensilsCrossed className="size-5" aria-hidden />
+            Chọn món ăn của bạn
+          </Button>
         </Card>
       </PageTransition>
     )
   }
 
   return (
-    <PageTransition className="flex min-h-dvh flex-col items-center justify-center bg-app-bg px-5 py-[60px]">
-      <Card className="w-full max-w-[460px] gap-0 rounded-3xl px-8 py-10 shadow-pop">
+    <PageTransition className="flex min-h-dvh flex-col items-center justify-center bg-app-bg px-4 py-10 sm:px-5 sm:py-[60px]">
+      <Card className="w-full max-w-[460px] gap-0 rounded-3xl px-5 py-8 shadow-pop sm:px-8 sm:py-10">
         <header className="mb-8 flex flex-col items-center gap-4 text-center">
           <IconBadge icon={UtensilsCrossed} tone="primary" size="md" solid />
           <div className="flex flex-col gap-1.5">
-            <h1 className="text-[24px] font-bold leading-[30px] text-ink">
+            <h1 className="text-[20px] font-bold leading-tight text-ink sm:text-[24px] sm:leading-[30px]">
               {t('dining.joinTitle')}
             </h1>
             <p className="text-[15px] leading-[22px] text-ink-variant">
@@ -236,9 +270,8 @@ export function JoinDiningSessionPage() {
               }}
               disabled={saving}
               aria-label={label}
-              className={`h-2.5 rounded-full transition-all disabled:cursor-not-allowed ${
-                index === step ? 'w-9 bg-primary' : 'w-2.5 bg-border'
-              }`}
+              className={`h-2.5 rounded-full transition-all disabled:cursor-not-allowed ${index === step ? 'w-9 bg-primary' : 'w-2.5 bg-border'
+                }`}
             />
           ))}
         </div>

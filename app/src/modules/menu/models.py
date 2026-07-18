@@ -53,6 +53,18 @@ class Menu(Base):
         nullable=False,
         unique=True,
     )
+    # The group meal this menu belongs to, if it was scanned inside a dining
+    # session. A session has many menus (one per meal/round); this is the
+    # many-to-one that lets us list a group's meals. NULL for ordinary personal
+    # scans. Not unique — that is the whole point of multi-meal.
+    dining_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "dining_sessions.id",
+            name="fk_menus_dining_session_id_dining_sessions",
+            ondelete="SET NULL",
+        ),
+    )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     source_language: Mapped[str | None] = mapped_column(String(10))
     target_language: Mapped[str] = mapped_column(String(10), nullable=False)
@@ -98,6 +110,7 @@ class Menu(Base):
         ),
         Index("ix_menus_deleted_at", deleted_at),
         Index("ix_menus_updated_at", updated_at),
+        Index("ix_menus_dining_session_id", dining_session_id),
     )
 
 
@@ -229,4 +242,63 @@ class FoodItem(Base):
         ),
         CheckConstraint("sort_order >= 0", name="sort_order"),
         Index("ix_food_items_menu_id", menu_id),
+    )
+
+
+class MenuHostSelection(Base):
+    """The menu owner's own dish picks for a menu — the host's order draft.
+
+    Guest picks live in dining_session_participant_selections; the host is not a
+    participant, so their clicks had nowhere to persist and vanished on reload.
+    This is that missing store: one row per (menu, dish), replaced whenever the
+    host re-saves. Kept per menu (not per session) so it also survives multi-meal
+    and ordinary personal menus.
+    """
+
+    __tablename__ = "menu_host_selections"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    menu_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "menus.id",
+            name="fk_menu_host_selections_menu_id_menus",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+    food_item_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "food_items.id",
+            name="fk_menu_host_selections_food_item_id_food_items",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "menu_id",
+            "food_item_id",
+            name="uq_menu_host_selections_menu_item",
+        ),
+        CheckConstraint("quantity > 0", name="quantity_positive"),
+        Index("ix_menu_host_selections_menu_id", menu_id),
     )

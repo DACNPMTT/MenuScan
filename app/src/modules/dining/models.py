@@ -113,7 +113,12 @@ class DiningSession(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     scan_session: Mapped["ScanSession | None"] = relationship()
-    menu: Mapped["Menu | None"] = relationship()
+    # Disambiguate: there are two FK paths between dining_sessions and menus now
+    # (this pointer to the latest meal, and menus.dining_session_id for the whole
+    # meal history). This relationship follows the latest-meal pointer.
+    menu: Mapped["Menu | None"] = relationship(
+        foreign_keys="DiningSession.menu_id"
+    )
     invites: Mapped[list["DiningSessionInvite"]] = relationship(
         back_populates="dining_session",
         cascade="all, delete-orphan",
@@ -230,6 +235,11 @@ class DiningSessionParticipant(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    selections: Mapped[list["DiningSessionParticipantSelection"]] = relationship(
+        back_populates="participant",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     recommendation_breakdowns: Mapped[
         list["FoodItemRecommendationParticipantBreakdown"]
     ] = relationship(
@@ -296,6 +306,80 @@ class DiningSessionParticipantPreference(Base):
         Index(
             "ix_dining_session_participant_preferences_participant_id",
             participant_id,
+        ),
+    )
+
+
+class DiningSessionParticipantSelection(Base):
+    """A dish a guest picked in a group session, with how many and any note.
+
+    One row per (participant, dish): the guest's picker replaces the whole set on
+    every "chốt", so quantity is stored on the row rather than as duplicate rows.
+    This is what lets the host see who ordered what, and what the per-person bill
+    split is computed from.
+    """
+
+    __tablename__ = "dining_session_participant_selections"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    participant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "dining_session_participants.id",
+            name="fk_dining_participant_selections_participant_id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+    food_item_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "food_items.id",
+            name="fk_dining_participant_selections_food_item_id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+    quantity: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default="1",
+    )
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    participant: Mapped[DiningSessionParticipant] = relationship(
+        back_populates="selections"
+    )
+    food_item: Mapped["FoodItem"] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint(
+            "participant_id",
+            "food_item_id",
+            name="uq_dining_participant_selections_participant_item",
+        ),
+        CheckConstraint("quantity > 0", name="quantity_positive"),
+        Index(
+            "ix_dining_session_participant_selections_participant_id",
+            participant_id,
+        ),
+        Index(
+            "ix_dining_session_participant_selections_food_item_id",
+            food_item_id,
         ),
     )
 

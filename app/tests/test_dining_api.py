@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 from unittest.mock import Mock
 
 from fastapi.testclient import TestClient
@@ -22,8 +23,10 @@ from src.modules.dining.models import (
     DiningSessionInvite,
     DiningSessionMode,
     DiningSessionParticipant,
+    DiningSessionParticipantSelection,
     DiningSessionStatus,
 )
+from src.modules.menu.models import FoodItem, Menu, MenuHostSelection, MenuStatus
 from src.modules.dining.schemas import DiningPreferenceRequest
 from src.modules.dining.service import DiningSessionInviteBundle
 from src.modules.identity.dependencies import get_current_user
@@ -32,6 +35,9 @@ from src.modules.identity.models import User
 _USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 _SESSION_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
 _INVITE_ID = uuid.UUID("33333333-3333-3333-3333-333333333333")
+_MENU_ID = uuid.UUID("44444444-4444-4444-4444-444444444444")
+_ITEM_ID = uuid.UUID("55555555-5555-5555-5555-555555555555")
+_PARTICIPANT_ID = uuid.UUID("66666666-6666-6666-6666-666666666666")
 _NOW = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
 
 
@@ -70,6 +76,8 @@ class StubDiningSessionService:
         self.join_calls: list[dict[str, object]] = []
         self.delete_calls: list[dict[str, object]] = []
         self.remove_calls: list[dict[str, object]] = []
+        self.selection_calls: list[dict[str, object]] = []
+        self.host_selection_calls: list[dict[str, object]] = []
         self.effect: Exception | None = None
 
     def create_session(
@@ -211,6 +219,195 @@ class StubDiningSessionService:
             raise DiningSessionNotFoundError()
         if participant_id == uuid.UUID("00000000-0000-0000-0000-000000000000"):
             raise DiningParticipantNotFoundError()
+
+    def get_host_selections(
+        self,
+        user: User,
+        *,
+        menu_id: uuid.UUID,
+    ) -> list[MenuHostSelection]:
+        if self.effect:
+            raise self.effect
+        return [
+            MenuHostSelection(
+                menu_id=menu_id,
+                food_item_id=_ITEM_ID,
+                quantity=2,
+                note="ít cay",
+            )
+        ]
+
+    def set_host_selections(
+        self,
+        user: User,
+        *,
+        menu_id: uuid.UUID,
+        selections: list[object],
+    ) -> list[object]:
+        self.host_selection_calls.append(
+            {"menu_id": menu_id, "selections": selections}
+        )
+        if self.effect:
+            raise self.effect
+        return list(selections)
+
+    def set_participant_preferences(
+        self,
+        *,
+        session_id: uuid.UUID,
+        invite_token: str,
+        participant_id: uuid.UUID,
+        preferences: list[DiningPreferenceRequest],
+    ) -> DiningSessionParticipant:
+        if self.effect:
+            raise self.effect
+        if invite_token != "faketoken":
+            raise DiningInviteInvalidError()
+        return DiningSessionParticipant(
+            id=participant_id,
+            dining_session_id=_SESSION_ID,
+            display_name="Guest A",
+            joined_at=_NOW,
+            preferences=[],
+        )
+
+    def set_session_closed(
+        self,
+        user: User,
+        *,
+        session_id: uuid.UUID,
+        closed: bool,
+    ) -> DiningSession:
+        if self.effect:
+            raise self.effect
+        if session_id != _SESSION_ID:
+            raise DiningSessionNotFoundError()
+        return DiningSession(
+            id=_SESSION_ID,
+            created_by_user_id=user.id,
+            mode=DiningSessionMode.GROUP,
+            status=(
+                DiningSessionStatus.CLOSED
+                if closed
+                else DiningSessionStatus.COLLECTING
+            ),
+            created_at=_NOW,
+            updated_at=_NOW,
+            participants=[],
+        )
+
+    def list_session_meals(
+        self,
+        user: User,
+        *,
+        session_id: uuid.UUID,
+    ) -> list[tuple[Menu, int]]:
+        if self.effect:
+            raise self.effect
+        if session_id != _SESSION_ID:
+            raise DiningSessionNotFoundError()
+        return [
+            (
+                Menu(
+                    id=_MENU_ID,
+                    title="Bún & Phở",
+                    default_currency="VND",
+                    status=MenuStatus.CONFIRMED,
+                    created_at=_NOW,
+                ),
+                3,
+            )
+        ]
+
+    def get_public_menu(
+        self,
+        *,
+        session_id: uuid.UUID,
+        invite_token: str,
+    ) -> tuple[DiningSession, Menu | None, list[FoodItem]]:
+        if self.effect:
+            raise self.effect
+        if invite_token != "faketoken":
+            raise DiningInviteInvalidError()
+        session = DiningSession(
+            id=_SESSION_ID,
+            created_by_user_id=_USER_ID,
+            mode=DiningSessionMode.GROUP,
+            status=DiningSessionStatus.COMPLETED,
+            menu_id=_MENU_ID,
+            created_at=_NOW,
+            updated_at=_NOW,
+        )
+        menu = Menu(id=_MENU_ID, title="Bún & Phở", default_currency="VND")
+        items = [
+            FoodItem(
+                id=_ITEM_ID,
+                menu_id=_MENU_ID,
+                original_name="Phở bò",
+                translated_name="Beef Pho",
+                price=Decimal("65000.00"),
+                currency="VND",
+                allergens=["gluten"],
+            )
+        ]
+        return session, menu, items
+
+    def set_participant_selections(
+        self,
+        *,
+        session_id: uuid.UUID,
+        invite_token: str,
+        participant_id: uuid.UUID,
+        selections: list[object],
+    ) -> list[object]:
+        self.selection_calls.append(
+            {
+                "session_id": session_id,
+                "invite_token": invite_token,
+                "participant_id": participant_id,
+                "selections": selections,
+            }
+        )
+        if self.effect:
+            raise self.effect
+        if invite_token != "faketoken":
+            raise DiningInviteInvalidError()
+        return list(selections)
+
+    def get_selections_summary(
+        self,
+        user: User,
+        *,
+        session_id: uuid.UUID,
+    ) -> DiningSession:
+        if self.effect:
+            raise self.effect
+        if session_id != _SESSION_ID:
+            raise DiningSessionNotFoundError()
+        participant = DiningSessionParticipant(
+            id=_PARTICIPANT_ID,
+            dining_session_id=_SESSION_ID,
+            display_name="Guest A",
+            joined_at=_NOW,
+            selections=[
+                DiningSessionParticipantSelection(
+                    food_item_id=_ITEM_ID,
+                    quantity=2,
+                    note="ít cay",
+                    created_at=_NOW,
+                    updated_at=_NOW,
+                )
+            ],
+        )
+        return DiningSession(
+            id=_SESSION_ID,
+            created_by_user_id=user.id,
+            mode=DiningSessionMode.GROUP,
+            status=DiningSessionStatus.COMPLETED,
+            created_at=_NOW,
+            updated_at=_NOW,
+            participants=[participant],
+        )
 
 
 def _make_client(
@@ -428,6 +625,211 @@ def test_remove_participant_not_found():
     body = response.json()
     assert body["success"] is False
     assert body["error"]["code"] == "DINING_PARTICIPANT_NOT_FOUND"
+
+
+def test_set_participant_preferences_success():
+    stub = StubDiningSessionService()
+    client = _make_client(stub)
+
+    payload = {
+        "participant_id": str(_PARTICIPANT_ID),
+        "preferences": [
+            {
+                "code": "peanut",
+                "category": "allergen",
+                "preference_type": "ALLERGY",
+                "importance": 5,
+            }
+        ],
+    }
+    response = client.put(
+        f"/api/v1/dining/public/sessions/{_SESSION_ID}/preferences?invite_token=faketoken",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+
+
+def test_get_host_selections_success():
+    stub = StubDiningSessionService()
+    user = User(id=_USER_ID, email="host@example.com")
+    client = _make_client(stub, user)
+
+    response = client.get(f"/api/v1/dining/menus/{_MENU_ID}/host-selections")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["data"]["menu_id"] == str(_MENU_ID)
+    assert body["data"]["items"][0]["food_item_id"] == str(_ITEM_ID)
+    assert body["data"]["items"][0]["quantity"] == 2
+
+
+def test_set_host_selections_success():
+    stub = StubDiningSessionService()
+    user = User(id=_USER_ID, email="host@example.com")
+    client = _make_client(stub, user)
+
+    payload = {
+        "selections": [{"food_item_id": str(_ITEM_ID), "quantity": 3, "note": None}],
+    }
+    response = client.put(
+        f"/api/v1/dining/menus/{_MENU_ID}/host-selections", json=payload
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["updated"] == 1
+    assert len(stub.host_selection_calls) == 1
+    assert stub.host_selection_calls[0]["selections"][0].food_item_id == _ITEM_ID
+
+
+def test_list_session_meals_success():
+    stub = StubDiningSessionService()
+    user = User(id=_USER_ID, email="host@example.com")
+    client = _make_client(stub, user)
+
+    response = client.get(f"/api/v1/dining/sessions/{_SESSION_ID}/meals")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    items = body["data"]["items"]
+    assert len(items) == 1
+    assert items[0]["menu_id"] == str(_MENU_ID)
+    assert items[0]["item_count"] == 3
+    assert items[0]["title"] == "Bún & Phở"
+
+
+def test_close_session_success():
+    stub = StubDiningSessionService()
+    user = User(id=_USER_ID, email="host@example.com")
+    client = _make_client(stub, user)
+
+    response = client.post(f"/api/v1/dining/sessions/{_SESSION_ID}/close")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["data"]["status"] == "CLOSED"
+
+
+def test_open_session_success():
+    stub = StubDiningSessionService()
+    user = User(id=_USER_ID, email="host@example.com")
+    client = _make_client(stub, user)
+
+    response = client.post(f"/api/v1/dining/sessions/{_SESSION_ID}/open")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["data"]["status"] == "COLLECTING"
+
+
+def test_close_session_not_found():
+    stub = StubDiningSessionService()
+    user = User(id=_USER_ID, email="host@example.com")
+    client = _make_client(stub, user)
+
+    response = client.post(f"/api/v1/dining/sessions/{uuid.uuid4()}/close")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "DINING_SESSION_NOT_FOUND"
+
+
+def test_get_public_session_menu_success():
+    stub = StubDiningSessionService()
+    client = _make_client(stub)  # auth-free, gated by invite token
+
+    response = client.get(
+        f"/api/v1/dining/public/sessions/{_SESSION_ID}/menu?invite_token=faketoken"
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["data"]["menu_id"] == str(_MENU_ID)
+    assert body["data"]["title"] == "Bún & Phở"
+    items = body["data"]["items"]
+    assert len(items) == 1
+    assert items[0]["id"] == str(_ITEM_ID)
+    assert items[0]["price"] == "65000.00"
+    assert items[0]["allergens"] == ["gluten"]
+
+
+def test_get_public_session_menu_invalid_token():
+    stub = StubDiningSessionService()
+    client = _make_client(stub)
+
+    response = client.get(
+        f"/api/v1/dining/public/sessions/{_SESSION_ID}/menu?invite_token=badtoken"
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "DINING_INVITE_INVALID"
+
+
+def test_set_participant_selections_success():
+    stub = StubDiningSessionService()
+    client = _make_client(stub)
+
+    payload = {
+        "participant_id": str(_PARTICIPANT_ID),
+        "selections": [
+            {"food_item_id": str(_ITEM_ID), "quantity": 2, "note": "ít cay"},
+        ],
+    }
+    response = client.put(
+        f"/api/v1/dining/public/sessions/{_SESSION_ID}/selections?invite_token=faketoken",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["data"]["updated"] == 1
+    assert len(stub.selection_calls) == 1
+    call = stub.selection_calls[0]
+    assert call["participant_id"] == _PARTICIPANT_ID
+    assert call["selections"][0].food_item_id == _ITEM_ID
+    assert call["selections"][0].quantity == 2
+    assert call["selections"][0].note == "ít cay"
+
+
+def test_set_participant_selections_rejects_zero_quantity():
+    stub = StubDiningSessionService()
+    client = _make_client(stub)
+
+    payload = {
+        "participant_id": str(_PARTICIPANT_ID),
+        "selections": [{"food_item_id": str(_ITEM_ID), "quantity": 0}],
+    }
+    response = client.put(
+        f"/api/v1/dining/public/sessions/{_SESSION_ID}/selections?invite_token=faketoken",
+        json=payload,
+    )
+
+    assert response.status_code == 400  # validation: quantity >= 1
+
+
+def test_get_session_selections_summary_success():
+    stub = StubDiningSessionService()
+    user = User(id=_USER_ID, email="host@example.com")
+    client = _make_client(stub, user)
+
+    response = client.get(f"/api/v1/dining/sessions/{_SESSION_ID}/selections")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    items = body["data"]["items"]
+    assert len(items) == 1
+    assert items[0]["food_item_id"] == str(_ITEM_ID)
+    assert items[0]["total_quantity"] == 2
+    assert items[0]["selected_by"][0]["display_name"] == "Guest A"
+    assert items[0]["selected_by"][0]["quantity"] == 2
+    assert items[0]["selected_by"][0]["note"] == "ít cay"
 
 
 def test_score_item_for_diner_rules():

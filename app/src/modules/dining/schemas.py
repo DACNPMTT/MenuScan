@@ -123,6 +123,8 @@ class DiningSessionResponse(BaseModel):
     id: uuid.UUID
     name: str | None
     created_by_user_id: uuid.UUID | None
+    menu_id: uuid.UUID | None = None
+    scan_session_id: uuid.UUID | None = None
     mode: str
     status: str
     participant_count: int = 0
@@ -161,3 +163,118 @@ class PublicDiningSessionResponse(BaseModel):
     status: str
     participant_count: int
     created_at: datetime
+    # Present once the host has scanned a menu into this session; until then the
+    # guest can only declare preferences, there are no dishes to pick yet.
+    menu_id: uuid.UUID | None = None
+
+
+# --- Guest dish selection -------------------------------------------------
+
+
+class SelectionRequest(BaseModel):
+    food_item_id: uuid.UUID
+    quantity: int = Field(ge=1, le=99)
+    note: str | None = Field(default=None, max_length=500)
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def _normalize_note(cls, value: object) -> object:
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
+class SetParticipantSelectionsRequest(BaseModel):
+    """Replaces a participant's whole selection set (idempotent 'chốt')."""
+
+    participant_id: uuid.UUID
+    selections: list[SelectionRequest] = Field(default_factory=list)
+
+
+class SetParticipantPreferencesRequest(BaseModel):
+    """Replaces a participant's whole preference set, so a guest can edit or add
+    allergies/tastes after joining."""
+
+    participant_id: uuid.UUID
+    preferences: list[DiningPreferenceRequest] = Field(default_factory=list)
+
+
+class SetHostSelectionsRequest(BaseModel):
+    """Replaces the host's own picks for a menu (their order draft)."""
+
+    selections: list[SelectionRequest] = Field(default_factory=list)
+
+
+class HostSelectionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    food_item_id: uuid.UUID
+    quantity: int
+    note: str | None = None
+
+
+class HostSelectionsResponse(BaseModel):
+    menu_id: uuid.UUID
+    items: list[HostSelectionResponse] = Field(default_factory=list)
+
+
+class PublicMenuItemResponse(BaseModel):
+    """A dish as a guest sees it — enough to choose from, no host-only fields."""
+
+    id: uuid.UUID
+    original_name: str
+    translated_name: str | None = None
+    translated_description: str | None = None
+    assistant_summary: str | None = None
+    category: str | None = None
+    price: str | None = None
+    currency: str | None = None
+    allergens: list[str] = Field(default_factory=list)
+
+
+class PublicSessionMenuResponse(BaseModel):
+    session_id: uuid.UUID
+    menu_id: uuid.UUID | None = None
+    title: str | None = None
+    default_currency: str | None = None
+    status: str
+    items: list[PublicMenuItemResponse] = Field(default_factory=list)
+
+
+# --- Host visibility of what guests picked --------------------------------
+
+
+class SelectionByParticipantResponse(BaseModel):
+    participant_id: uuid.UUID
+    display_name: str
+    quantity: int
+    note: str | None = None
+
+
+class SelectionSummaryItemResponse(BaseModel):
+    food_item_id: uuid.UUID
+    total_quantity: int
+    selected_by: list[SelectionByParticipantResponse] = Field(default_factory=list)
+
+
+class SessionSelectionsSummaryResponse(BaseModel):
+    session_id: uuid.UUID
+    items: list[SelectionSummaryItemResponse] = Field(default_factory=list)
+
+
+# --- Meals (a session spans several scanned menus) ------------------------
+
+
+class SessionMealResponse(BaseModel):
+    menu_id: uuid.UUID
+    title: str | None = None
+    default_currency: str | None = None
+    status: str
+    item_count: int
+    created_at: datetime
+
+
+class SessionMealsResponse(BaseModel):
+    session_id: uuid.UUID
+    items: list[SessionMealResponse] = Field(default_factory=list)

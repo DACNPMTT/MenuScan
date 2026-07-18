@@ -10,6 +10,7 @@ import {
   Save,
   ShieldCheck,
   Trash2,
+  Users,
 } from 'lucide-react'
 
 import { useTranslation } from 'react-i18next'
@@ -31,6 +32,13 @@ import type {
   ItemValidationErrors,
 } from '@/features/menu-scan/types'
 
+/** One guest's pick of this dish, for the host's "who ordered what" line. */
+export interface GuestSelection {
+  display_name: string
+  quantity: number
+  note: string | null
+}
+
 export interface BillItemCardProps {
   item: BillItem
   dietProfile: DietProfile
@@ -45,6 +53,8 @@ export interface BillItemCardProps {
   saveError: string | null
   saving: boolean
   deleting: boolean
+  /** Guests who picked this dish (group sessions only). Host-facing. */
+  guestSelections?: GuestSelection[]
   onDraftChange: (patch: Partial<ItemDraft>) => void
   onEdit: () => void
   onSave: () => void
@@ -74,6 +84,7 @@ export function BillItemCard({
   saveError,
   saving,
   deleting,
+  guestSelections,
   onDraftChange,
   onEdit,
   onSave,
@@ -366,25 +377,25 @@ export function BillItemCard({
 
               {(recommendationFitTags.length > 0 ||
                 recommendationRiskTags.length > 0) && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {recommendationFitTags.map((tag) => (
-                    <span
-                      key={`fit-${tag}`}
-                      className="rounded-full border border-primary/20 bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary-dark"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  {recommendationRiskTags.map((tag) => (
-                    <span
-                      key={`risk-${tag}`}
-                      className="rounded-full border border-destructive/20 bg-destructive/10 px-2 py-1 text-[10px] font-semibold text-destructive"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {recommendationFitTags.map((tag) => (
+                      <span
+                        key={`fit-${tag}`}
+                        className="rounded-full border border-primary/20 bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary-dark"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {recommendationRiskTags.map((tag) => (
+                      <span
+                        key={`risk-${tag}`}
+                        className="rounded-full border border-destructive/20 bg-destructive/10 px-2 py-1 text-[10px] font-semibold text-destructive"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
             </div>
           )}
 
@@ -408,6 +419,27 @@ export function BillItemCard({
             </p>
           )}
         </>
+      )}
+
+      {!editing && guestSelections && guestSelections.length > 0 && (
+        <div className="rounded-xl border border-primary/20 bg-primary/[0.06] px-3 py-2">
+          <p className="mb-1 flex items-center gap-1.5 text-[11px] font-bold text-primary-dark">
+            <Users className="size-3.5" aria-hidden />
+            {t('billItem.guestPicked')}
+          </p>
+          <p className="mb-0 text-[12px] leading-5 text-ink-variant">
+            {guestSelections.map((guest, index) => (
+              <span key={`${guest.display_name}-${index}`}>
+                {index > 0 && ', '}
+                <span className="font-semibold text-ink">{guest.display_name}</span>{' '}
+                (x{guest.quantity})
+                {guest.note ? (
+                  <em className="not-italic text-ink-variant"> – {guest.note}</em>
+                ) : null}
+              </span>
+            ))}
+          </p>
+        </div>
       )}
 
       <div className="mt-auto flex items-center gap-2 border-t border-hairline pt-3">

@@ -25,6 +25,7 @@ from src.modules.dining.models import (
     DiningSessionMode,
     DiningSessionParticipant,
     DiningSessionParticipantPreference,
+    DiningSessionParticipantSelection,
     DiningSessionStatus,
     RecommendationVerdict,
     FoodItemRecommendation,
@@ -33,6 +34,8 @@ from src.modules.dining.models import (
 from src.modules.dining.repository import DiningSessionRepository
 from src.modules.dining.schemas import DiningPreferenceRequest
 from src.modules.identity.models import PreferenceType, User
+
+from src.modules.menu.models import MenuHostSelection
 
 if TYPE_CHECKING:
     from src.modules.menu.models import FoodItem, Menu
@@ -47,6 +50,15 @@ class DiningSessionInviteBundle:
     dining_session: DiningSession
     invite: DiningSessionInvite
     invite_token: str
+
+
+@dataclass(frozen=True, slots=True)
+class SelectionItem:
+    """One dish a guest wants, as it arrives from the request."""
+
+    food_item_id: uuid.UUID
+    quantity: int
+    note: str | None = None
 
 
 def _append_unique(target: list[str], values: list[str]) -> None:
@@ -347,6 +359,261 @@ class DiningSessionService:
         invite = self._get_valid_invite(invite_token)
         return invite.dining_session
 
+    def get_public_menu(
+        self,
+        *,
+        session_id: uuid.UUID,
+        invite_token: str,
+    ) -> tuple[DiningSession, Menu | None, list[FoodItem]]:
+        """The dishes a guest can pick from, gated by a valid invite.
+
+        Returns (session, menu, items). menu/items are empty until the host has
+        scanned a menu into the session.
+        """
+        session = self._session_for_invite(session_id, invite_token)
+        if session.menu_id is None:
+            return session, None, []
+        menu = self._repository.get_menu(self._session, menu_id=session.menu_id)
+        if menu is None:
+            return session, None, []
+        items = self._repository.list_menu_items(
+            self._session, menu_id=session.menu_id
+        )
+        return session, menu, items
+
+    def set_participant_selections(
+        self,
+        *,
+        session_id: uuid.UUID,
+        invite_token: str,
+        participant_id: uuid.UUID,
+        selections: list[SelectionItem],
+    ) -> list[DiningSessionParticipantSelection]:
+        """Replace a participant's whole dish-pick set for this session.
+
+        Idempotent: the guest's picker sends its full current basket on every
+        "chốt", so we clear what was there and write the new set. Picks are kept
+        only for dishes that actually belong to the session's menu, and deduped by
+        dish (the last quantity/note for a dish wins).
+        """
+        session = self._session_for_invite(session_id, invite_token)
+        if session.status is DiningSessionStatus.CLOSED:
+            raise DiningSessionClosedError()
+
+        participant = next(
+            (p for p in session.participants if p.id == participant_id),
+            None,
+        )
+        if participant is None:
+            raise DiningParticipantNotFoundError()
+
+        valid_item_ids: set[uuid.UUID] = set()
+        if session.menu_id is not None:
+            valid_item_ids = {
+                item.id
+                for item in self._repository.list_menu_items(
+                    self._session, menu_id=session.menu_id
+                )
+            }
+
+        # Last write wins per dish, and only dishes on this menu survive.
+        deduped: dict[uuid.UUID, SelectionItem] = {}
+        for sel in selections:
+            if sel.food_item_id not in valid_item_ids:
+                continue
+            deduped[sel.food_item_id] = sel
+
+        now = self._clock()
+        # Clear then flush BEFORE inserting the new set: delete-orphan alone lets
+        # the unit of work order a new INSERT before the old DELETE, which trips
+        # the (participant, dish) unique key whenever a re-chốt keeps a dish. The
+        # flush forces the DELETEs out first (same fix as generate_recommendations).
+        participant.selections.clear()
+        self._session.flush()
+        participant.selections = [
+            DiningSessionParticipantSelection(
+                food_item_id=sel.food_item_id,
+                quantity=sel.quantity,
+                note=sel.note,
+                created_at=now,
+                updated_at=now,
+            )
+            for sel in deduped.values()
+        ]
+        session.updated_at = now
+        self._session.commit()
+        return list(participant.selections)
+
+    def set_participant_preferences(
+        self,
+        *,
+        session_id: uuid.UUID,
+        invite_token: str,
+        participant_id: uuid.UUID,
+        preferences: list[DiningPreferenceRequest],
+    ) -> DiningSessionParticipant:
+        """Replace a participant's preferences so a guest can edit/add them after
+        joining. Same clear-then-flush dance as selections to keep the unit of
+        work from tripping the (participant, code, type) unique key on a re-save."""
+        session = self._session_for_invite(session_id, invite_token)
+        if session.status is DiningSessionStatus.CLOSED:
+            raise DiningSessionClosedError()
+
+        participant = next(
+            (p for p in session.participants if p.id == participant_id),
+            None,
+        )
+        if participant is None:
+            raise DiningParticipantNotFoundError()
+
+        now = self._clock()
+        participant.preferences.clear()
+        self._session.flush()
+        participant.preferences = self._build_preferences(preferences, created_at=now)
+        session.updated_at = now
+        self._session.commit()
+        return participant
+
+    def get_selections_summary(
+        self,
+        user: User,
+        *,
+        session_id: uuid.UUID,
+    ) -> DiningSession:
+        """Owned session with participants' dish picks loaded, for the host view."""
+        session = self._repository.get_owned_with_selections(
+            self._session,
+            session_id=session_id,
+            user_id=user.id,
+        )
+        if session is None:
+            raise DiningSessionNotFoundError()
+        return session
+
+    def set_session_closed(
+        self,
+        user: User,
+        *,
+        session_id: uuid.UUID,
+        closed: bool,
+    ) -> DiningSession:
+        """Host toggles the session open/closed.
+
+        Closed freezes it: no new joins, no changing dish picks. Reopening drops
+        it back to an active state — COMPLETED once a menu has been scanned (so
+        guests can keep ordering), otherwise COLLECTING.
+        """
+        session = self.get_session(user, session_id=session_id)
+        now = self._clock()
+        if closed:
+            session.status = DiningSessionStatus.CLOSED
+            session.closed_at = now
+        else:
+            if session.scan_session_id is not None and session.menu_id is not None:
+                session.status = DiningSessionStatus.COMPLETED
+            else:
+                session.status = DiningSessionStatus.COLLECTING
+            session.closed_at = None
+        session.updated_at = now
+        self._session.commit()
+        return session
+
+    def list_session_meals(
+        self,
+        user: User,
+        *,
+        session_id: uuid.UUID,
+    ) -> list[tuple[Menu, int]]:
+        """The session's meals (scanned menus), newest first, for the host."""
+        self.get_session(user, session_id=session_id)  # ownership guard (404s)
+        return self._repository.list_session_meals(
+            self._session, session_id=session_id
+        )
+
+    def get_session_by_menu(
+        self,
+        user: User,
+        *,
+        menu_id: uuid.UUID,
+    ) -> DiningSession | None:
+        return self._repository.get_owned_by_menu(
+            self._session,
+            menu_id=menu_id,
+            user_id=user.id,
+        )
+
+    def get_host_selections(
+        self,
+        user: User,
+        *,
+        menu_id: uuid.UUID,
+    ) -> list[MenuHostSelection]:
+        """The host's own saved picks for a menu (a meal of a session they own)."""
+        self._require_owned_menu(user, menu_id)
+        return self._repository.list_host_selections(self._session, menu_id=menu_id)
+
+    def set_host_selections(
+        self,
+        user: User,
+        *,
+        menu_id: uuid.UUID,
+        selections: list[SelectionItem],
+    ) -> list[MenuHostSelection]:
+        """Replace the host's picks for a menu. Same replace semantics as guests:
+        last quantity/note per dish wins, only dishes on this menu survive."""
+        self._require_owned_menu(user, menu_id)
+
+        valid_item_ids = {
+            item.id
+            for item in self._repository.list_menu_items(self._session, menu_id=menu_id)
+        }
+        deduped: dict[uuid.UUID, SelectionItem] = {}
+        for sel in selections:
+            if sel.food_item_id not in valid_item_ids:
+                continue
+            deduped[sel.food_item_id] = sel
+
+        existing = self._repository.list_host_selections(self._session, menu_id=menu_id)
+        for row in existing:
+            self._session.delete(row)
+        self._session.flush()
+
+        now = self._clock()
+        for sel in deduped.values():
+            self._session.add(
+                MenuHostSelection(
+                    menu_id=menu_id,
+                    food_item_id=sel.food_item_id,
+                    quantity=sel.quantity,
+                    note=sel.note,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+        self._session.commit()
+        return self._repository.list_host_selections(self._session, menu_id=menu_id)
+
+    def _require_owned_menu(self, user: User, menu_id: uuid.UUID) -> None:
+        session = self._repository.get_owned_session_for_menu(
+            self._session,
+            menu_id=menu_id,
+            user_id=user.id,
+        )
+        if session is None:
+            raise DiningSessionNotFoundError()
+
+    def _session_for_invite(
+        self,
+        session_id: uuid.UUID,
+        invite_token: str,
+    ) -> DiningSession:
+        """Resolve the session an invite belongs to, refusing token/id mismatches."""
+        invite = self._get_valid_invite(invite_token)
+        session = invite.dining_session
+        if session.id != session_id:
+            raise DiningInviteInvalidError()
+        return session
+
     def join_with_invite(
         self,
         *,
@@ -356,10 +623,10 @@ class DiningSessionService:
     ) -> DiningSessionParticipant:
         invite = self._get_valid_invite(invite_token)
         dining_session = invite.dining_session
-        if dining_session.status in {
-            DiningSessionStatus.COMPLETED,
-            DiningSessionStatus.CLOSED,
-        }:
+        # Only a host-closed session refuses new diners. COMPLETED just means the
+        # menu has been scanned — which is exactly when a latecomer at the table
+        # wants to join and order, so it must stay joinable.
+        if dining_session.status is DiningSessionStatus.CLOSED:
             raise DiningSessionClosedError()
 
         now = self._clock()
@@ -439,6 +706,10 @@ class DiningSessionService:
             return None
 
         now = self._clock()
+        # Record this menu as a meal of the session (many menus -> one session)…
+        menu.dining_session_id = dining_session.id
+        # …and keep the session's own pointer at the latest meal, which is what
+        # guests order against and what the COMPLETED check constraint needs.
         dining_session.menu_id = menu.id
         dining_session.status = DiningSessionStatus.COMPLETED
         dining_session.updated_at = now

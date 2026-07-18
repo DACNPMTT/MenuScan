@@ -15,6 +15,13 @@ import {
   HelpCircle,
   ScanLine,
   Trash2,
+  Lock,
+  Unlock,
+  Loader2,
+  ReceiptText,
+  ChevronRight,
+  Copy,
+  Check,
 } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { apiRequest, ApiError } from '@/shared/lib/api'
@@ -47,12 +54,23 @@ interface DiningParticipant {
 interface DiningSessionDetail {
   id: string
   created_by_user_id: string | null
+  menu_id: string | null
+  scan_session_id: string | null
   mode: 'GROUP' | 'PERSONAL'
   status: 'COLLECTING' | 'SCANNING' | 'COMPLETED' | 'CLOSED'
   participant_count: number
   participants: DiningParticipant[]
   created_at: string
   updated_at: string
+}
+
+interface Meal {
+  menu_id: string
+  title: string | null
+  default_currency: string | null
+  status: string
+  item_count: number
+  created_at: string
 }
 
 export function HostDiningSessionPage() {
@@ -66,6 +84,9 @@ export function HostDiningSessionPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [pollingActive] = useState(true)
+  const [togglingStatus, setTogglingStatus] = useState(false)
+  const [meals, setMeals] = useState<Meal[]>([])
+  const [copied, setCopied] = useState(false)
 
   // QR Code state
   const [inviteToken, setInviteToken] = useState<string | null>(null)
@@ -85,10 +106,54 @@ export function HostDiningSessionPage() {
         token: accessToken ?? undefined,
       })
       setSession(data)
+
+      // The group's meals (scanned menus), newest first.
+      try {
+        const mealsResp = await apiRequest<{ items: Meal[] }>(
+          `/api/v1/dining/sessions/${sessionId}/meals`,
+          { method: 'GET', token: accessToken ?? undefined },
+        )
+        setMeals(mealsResp.items ?? [])
+      } catch {
+        // ignore — meals list is supplementary
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không thể tải chi tiết phiên ăn.')
     } finally {
       if (showLoading) setLoading(false)
+    }
+  }
+
+  const copyJoinLink = async () => {
+    if (!joinUrl) return
+    try {
+      await navigator.clipboard.writeText(joinUrl)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard blocked (insecure context / permission) — the link is still
+      // visible for a manual copy.
+    }
+  }
+
+  const handleToggleSessionStatus = async () => {
+    if (!sessionId || togglingStatus || !session) return
+    const closing = session.status !== 'CLOSED'
+    setTogglingStatus(true)
+    try {
+      await apiRequest(
+        `/api/v1/dining/sessions/${sessionId}/${closing ? 'close' : 'open'}`,
+        { method: 'POST', token: accessToken ?? undefined },
+      )
+      await fetchSession(false)
+    } catch (err) {
+      alert(
+        err instanceof ApiError
+          ? err.message
+          : 'Không đổi được trạng thái phiên ăn.',
+      )
+    } finally {
+      setTogglingStatus(false)
     }
   }
 
@@ -252,7 +317,7 @@ export function HostDiningSessionPage() {
         {/* Left column: QR code sharing */}
         <Card className="w-full shrink-0 items-center gap-4 rounded-3xl p-6 text-center shadow-3 lg:max-w-[420px]">
           <div className="flex w-full flex-col gap-1">
-            <h2 className="text-[22px] font-bold text-ink">{t('dining.scanQrPrompt')}</h2>
+            <h2 className="text-[19px] font-bold text-ink sm:text-[22px]">{t('dining.scanQrPrompt')}</h2>
             <p className="px-2 text-[14px] text-ink-variant">{t('dining.scanQrDesc')}</p>
           </div>
 
@@ -280,17 +345,39 @@ export function HostDiningSessionPage() {
 
               <div className="mt-4 flex w-full max-w-[320px] sm:max-w-[360px] flex-col items-center gap-1.5">
                 <span className="text-[12px] font-medium text-ink-variant">
-                  Hoặc nhấp vào liên kết trực tiếp:
+                  Hoặc chia sẻ liên kết trực tiếp:
                 </span>
-                <a
-                  href={joinUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full truncate rounded-xl border border-primary/20 bg-panel px-3 py-2 text-center text-[12px] font-semibold text-primary-dark transition-colors hover:bg-border"
-                  title={joinUrl}
-                >
-                  {joinUrl}
-                </a>
+                <div className="flex w-full items-center gap-2">
+                  <a
+                    href={joinUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="min-w-0 flex-1 truncate rounded-xl border border-primary/20 bg-panel px-3 py-2 text-center text-[12px] font-semibold text-primary-dark transition-colors hover:bg-border"
+                    title={joinUrl}
+                  >
+                    {joinUrl}
+                  </a>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    onClick={() => void copyJoinLink()}
+                    aria-label="Sao chép liên kết"
+                    title="Sao chép liên kết"
+                    className="shrink-0"
+                  >
+                    {copied ? (
+                      <Check className="size-4 text-success" aria-hidden />
+                    ) : (
+                      <Copy className="size-4" aria-hidden />
+                    )}
+                  </Button>
+                </div>
+                {copied && (
+                  <span className="text-[11px] font-semibold text-success">
+                    Đã sao chép liên kết!
+                  </span>
+                )}
               </div>
             </div>
           ) : (
@@ -332,12 +419,82 @@ export function HostDiningSessionPage() {
               Quét thực đơn phiên này
             </Link>
           </Button>
+
+          {/* Host closes the session to freeze it — no more joins or dish-pick
+              changes. Reopen to let everyone order again. */}
+          <Button
+            type="button"
+            size="lg"
+            variant={session.status === 'CLOSED' ? 'default' : 'outline'}
+            onClick={() => void handleToggleSessionStatus()}
+            disabled={togglingStatus}
+            className={
+              session.status === 'CLOSED'
+                ? 'w-full'
+                : 'w-full border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive'
+            }
+          >
+            {togglingStatus ? (
+              <Loader2 className="size-5 animate-spin" aria-hidden />
+            ) : session.status === 'CLOSED' ? (
+              <Unlock className="size-5" aria-hidden />
+            ) : (
+              <Lock className="size-5" aria-hidden />
+            )}
+            {session.status === 'CLOSED' ? 'Mở lại phiên' : 'Đóng phiên'}
+          </Button>
         </Card>
 
-        {/* Right column: Participants and their preferences */}
+        {/* Right column: the group's meals, then participants and preferences */}
         <div className="flex flex-1 flex-col gap-4">
-          <div className="flex items-center justify-between border-b border-hairline pb-3">
-            <h2 className="flex items-center gap-2 text-[22px] font-bold text-ink">
+          {/* Each scanned menu is a meal; tapping one opens its own page with the
+              menu (ordering + split) and that meal's bills. */}
+          <Card className="gap-3 rounded-2xl p-5 shadow-1">
+            <h2 className="flex items-center gap-2 text-[18px] font-bold text-ink">
+              <ReceiptText className="size-5 text-primary" aria-hidden />
+              Các bữa trong phiên ({meals.length})
+            </h2>
+            {meals.length === 0 ? (
+              <p className="mb-0 text-[13px] italic text-ink-variant">
+                Chưa có bữa nào. Bấm "Quét thực đơn phiên này" để thêm bữa đầu tiên — quét
+                thêm menu = thêm bữa.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {meals.map((meal) => {
+                  const isCurrent = meal.menu_id === session.menu_id
+                  return (
+                    <Link
+                      key={meal.menu_id}
+                      to={`/app/dining/sessions/${session.id}/meals/${meal.menu_id}`}
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-panel/50 p-3 transition-colors hover:border-primary/40 hover:bg-primary/5"
+                    >
+                      <div className="min-w-0">
+                        <p className="mb-0 flex flex-wrap items-center gap-2 font-bold text-ink">
+                          <span className="truncate">{meal.title || 'Bữa ăn'}</span>
+                          {isCurrent && (
+                            <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary-dark">
+                              Đang order
+                            </span>
+                          )}
+                        </p>
+                        <p className="mb-0 text-[12px] text-ink-variant">
+                          {formatDate(meal.created_at)} · {meal.item_count} món
+                        </p>
+                      </div>
+                      <ChevronRight
+                        className="size-5 shrink-0 text-ink-variant"
+                        aria-hidden
+                      />
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </Card>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hairline pb-3">
+            <h2 className="flex items-center gap-2 text-[18px] font-bold text-ink sm:text-[22px]">
               <Users className="size-5 text-primary" aria-hidden />
               {t('dining.participants', { count: session.participants.length })}
             </h2>
@@ -370,10 +527,10 @@ export function HostDiningSessionPage() {
               description={t('dining.noParticipants')}
             />
           ) : (
-            <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               {session.participants.map((participant, index) => (
                 <Reveal key={participant.id} delay={index * 0.05}>
-                  <Card className="gap-3 rounded-2xl p-5 shadow-1 transition-all duration-200 ease-[var(--ease-out-quint)] hover:-translate-y-1 hover:shadow-3">
+                  <Card className="h-full gap-3 rounded-2xl p-5 shadow-1 transition-all duration-200 ease-[var(--ease-out-quint)] hover:-translate-y-1 hover:shadow-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="flex size-9 items-center justify-center rounded-full bg-primary text-[14px] font-bold text-white shadow-2 shadow-primary/30">
