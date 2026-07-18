@@ -917,9 +917,14 @@ def test_billing_service_has_no_send_order_to_restaurant_capability():
         "get_bill_for_user",
         # Read-only bill history listing; still no restaurant-order operation.
         "list_bills_for_user",
+        # Read-only reads backing the guest-facing shared receipt (finalized
+        # bills only, gated upstream by the dining invite token) -- still no
+        # restaurant-order operation.
+        "list_finalized_bills_for_menus",
         "remove_adjustment",
         "replace_items",
         "split_bill",
+        "split_for_display",
         "update_adjustment",
     }
 
@@ -1120,3 +1125,79 @@ def test_finalized_bill_can_still_be_split(db_session):
 
     assert sum(_amounts(split), Decimal("0.00")) == Decimal("100.00")
     assert len(split.shares) == 4
+
+
+# ---------------------------------------------------------------------------
+# Shared receipt: finalize headcount + guest-facing finalized-bill reads
+# ---------------------------------------------------------------------------
+
+
+def test_finalize_persists_split_people_count(db_session):
+    """The headcount the host chose at finalize is stored on the bill."""
+    user = _make_user(db_session)
+    bill = _bill_with_total(db_session, user, currency="VND", total=Decimal("540000.00"))
+    service = BillingService(session=db_session)
+
+    finalized = service.finalize_bill(bill_id=bill.id, people_count=4)
+
+    assert finalized.split_people_count == 4
+
+
+def test_finalize_without_people_count_leaves_bill_unsplit(db_session):
+    """Finalizing with no headcount keeps split_people_count null (solo bill)."""
+    user = _make_user(db_session)
+    bill = _bill_with_total(db_session, user, currency="VND", total=Decimal("100000.00"))
+    service = BillingService(session=db_session)
+
+    finalized = service.finalize_bill(bill_id=bill.id)
+
+    assert finalized.split_people_count is None
+
+
+def test_finalize_rejects_non_positive_people_count(db_session):
+    user = _make_user(db_session)
+    bill = _bill_with_total(db_session, user, currency="VND", total=Decimal("100000.00"))
+    service = BillingService(session=db_session)
+
+    with pytest.raises(InvalidPeopleCountError):
+        service.finalize_bill(bill_id=bill.id, people_count=0)
+
+
+def test_list_finalized_bills_for_menus_returns_only_finalized(db_session):
+    """Guest-facing read exposes finalized bills only, never a DRAFT."""
+    user = _make_user(db_session)
+    finalized_bill = _bill_with_total(
+        db_session, user, currency="VND", total=Decimal("540000.00")
+    )
+    draft_bill = _bill_with_total(
+        db_session, user, currency="VND", total=Decimal("120000.00")
+    )
+    service = BillingService(session=db_session)
+    service.finalize_bill(bill_id=finalized_bill.id, people_count=3)
+
+    menu_ids = [finalized_bill.menu_id, draft_bill.menu_id]
+    found = service.list_finalized_bills_for_menus(menu_ids=menu_ids)
+
+    assert [bill.id for bill in found] == [finalized_bill.id]
+    assert found[0].split_people_count == 3
+
+
+def test_list_finalized_bills_for_menus_empty_when_no_menu_ids(db_session):
+    service = BillingService(session=db_session)
+    assert service.list_finalized_bills_for_menus(menu_ids=[]) == []
+
+
+def test_split_for_display_matches_persisted_headcount(db_session):
+    """The guest's per-person share uses the host's finalized headcount."""
+    user = _make_user(db_session)
+    bill = _bill_with_total(db_session, user, currency="VND", total=Decimal("540000.00"))
+    service = BillingService(session=db_session)
+    finalized = service.finalize_bill(bill_id=bill.id, people_count=4)
+
+    split = service.split_for_display(
+        bill=finalized, people_count=finalized.split_people_count
+    )
+
+    assert split.people_count == 4
+    assert split.base_share == Decimal("135000.00")
+    assert sum(_amounts(split), Decimal("0.00")) == Decimal("540000.00")

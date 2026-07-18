@@ -278,3 +278,48 @@ class SessionMealResponse(BaseModel):
 class SessionMealsResponse(BaseModel):
     session_id: uuid.UUID
     items: list[SessionMealResponse] = Field(default_factory=list)
+
+
+# --- Guest-facing shared receipt (finalized bills of a session) -----------
+
+
+class PublicBillItemResponse(BaseModel):
+    """One line on a shared receipt, as a guest sees it."""
+
+    name: str
+    quantity: int
+    line_total: str
+
+
+class PublicBillAdjustmentResponse(BaseModel):
+    """A fee/tax/discount line on a shared receipt. ``amount`` is signed."""
+
+    label: str
+    amount: str
+
+
+class PublicBillResponse(BaseModel):
+    """A FINALIZED bill of the session, with its even-split per-person share.
+
+    Read-only: money fields are decimal strings computed server-side. When the
+    host recorded a split headcount, ``people_count``/``per_person`` are set so
+    the guest sees exactly what they owe; otherwise both are null.
+    """
+
+    bill_id: uuid.UUID
+    menu_id: uuid.UUID
+    menu_title: str | None = None
+    currency: str
+    subtotal_amount: str
+    total_amount: str
+    finalized_at: datetime | None = None
+    items: list[PublicBillItemResponse] = Field(default_factory=list)
+    adjustments: list[PublicBillAdjustmentResponse] = Field(default_factory=list)
+    people_count: int | None = None
+    per_person: str | None = None
+
+
+class PublicSessionBillsResponse(BaseModel):
+    session_id: uuid.UUID
+    status: str
+    items: list[PublicBillResponse] = Field(default_factory=list)

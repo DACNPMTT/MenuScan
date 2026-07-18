@@ -129,6 +129,11 @@ class Bill(Base):
         server_default=func.now(),
     )
     finalized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # How many people the host chose to split this bill across, recorded when
+    # they finalize a group bill. It is what a guest opening the shared receipt
+    # sees, so their per-person share matches the host's chosen headcount.
+    # Null for solo/legacy bills that were never split.
+    split_people_count: Mapped[int | None] = mapped_column(Integer)
 
     user: Mapped["User"] = relationship()
     menu: Mapped["Menu"] = relationship()
@@ -155,6 +160,10 @@ class Bill(Base):
         ),
         CheckConstraint("subtotal_amount >= 0", name="subtotal_amount_non_negative"),
         CheckConstraint("total_amount >= 0", name="total_amount_non_negative"),
+        CheckConstraint(
+            "split_people_count IS NULL OR split_people_count > 0",
+            name="split_people_count_positive",
+        ),
         Index("ix_bills_user_id", user_id),
         Index("ix_bills_menu_id", menu_id),
     )

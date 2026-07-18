@@ -11,7 +11,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from src.modules.billing.models import Bill, BillAdjustment, BillItem
+from src.modules.billing.models import Bill, BillAdjustment, BillItem, BillStatus
 
 
 class BillRepository:
@@ -55,6 +55,31 @@ class BillRepository:
             .where(Bill.user_id == user_id)
             .options(selectinload(Bill.items))
             .order_by(Bill.created_at.desc())
+        )
+        return list(session.scalars(statement).all())
+
+    def list_finalized_for_menus(
+        self,
+        session: Session,
+        menu_ids: list[uuid.UUID],
+    ) -> list[Bill]:
+        """Every FINALIZED bill for ``menu_ids``, newest-finalized first.
+
+        Not user-scoped -- backs the guest-facing shared receipt, gated
+        upstream by the dining invite token. Items and adjustments are
+        eager-loaded so the receipt renders without a query per bill.
+        """
+        statement = (
+            select(Bill)
+            .where(
+                Bill.menu_id.in_(menu_ids),
+                Bill.status == BillStatus.FINALIZED,
+            )
+            .options(
+                selectinload(Bill.items),
+                selectinload(Bill.adjustments),
+            )
+            .order_by(Bill.finalized_at.desc())
         )
         return list(session.scalars(statement).all())
 

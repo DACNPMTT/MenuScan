@@ -381,6 +381,24 @@ class DiningSessionService:
         )
         return session, menu, items
 
+    def get_public_session_meals(
+        self,
+        *,
+        session_id: uuid.UUID,
+        invite_token: str,
+    ) -> tuple[DiningSession, list[Menu]]:
+        """The session's scanned menus (meals), gated by a valid invite.
+
+        Backs the guest-facing shared receipt: the caller pairs these menus
+        with their FINALIZED bills. Returns (session, menus) with menus newest
+        first; the list is empty until the host has scanned a menu.
+        """
+        session = self._session_for_invite(session_id, invite_token)
+        meals = self._repository.list_session_meals(
+            self._session, session_id=session.id
+        )
+        return session, [menu for menu, _count in meals]
+
     def set_participant_selections(
         self,
         *,

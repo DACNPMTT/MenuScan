@@ -84,6 +84,9 @@ export function BillReceiptPage() {
       await apiRequest<Bill>(`/api/v1/bills/${billId}/finalize`, {
         method: 'POST',
         token: accessToken ?? undefined,
+        // Persist the chosen split headcount so a guest opening the shared
+        // receipt sees the same per-person share the host finalized with.
+        body: JSON.stringify({ people_count: peopleCount }),
       })
       toast.show({ variant: 'success', title: t('billReceipt.toast.finalized') })
       await loadBill()

@@ -153,6 +153,7 @@ class BillResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     finalized_at: datetime | None
+    split_people_count: int | None = None
 
     @field_serializer("subtotal_amount", "adjustment_total", "total_amount")
     def _serialize_money(self, value: Decimal) -> str:
@@ -169,6 +170,21 @@ class SplitBillRequest(BaseModel):
     people_count: int = Field(
         ge=1,
         description="Số người chia hóa đơn, tối thiểu 1.",
+    )
+
+
+class FinalizeBillRequest(BaseModel):
+    """Optional body for ``POST /bills/{bill_id}/finalize``.
+
+    ``people_count`` records the even-split headcount the host chose so a guest
+    opening the shared receipt sees the same per-person share. Omitted (None)
+    leaves the bill unsplit -- finalize stays callable with no body at all.
+    """
+
+    people_count: int | None = Field(
+        default=None,
+        ge=1,
+        description="Số người chia đều hóa đơn, để trống nếu không chia.",
     )
 
 

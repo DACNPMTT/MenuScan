@@ -76,6 +76,9 @@ export interface Bill {
   created_at: string
   updated_at: string
   finalized_at: string | null
+  /** Even-split headcount the host recorded at finalize, or null if unsplit.
+   * Drives the per-person share a guest sees on the shared receipt. */
+  split_people_count: number | null
 }
 
 export type BillResponse = Bill

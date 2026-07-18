@@ -9,6 +9,7 @@ import {
   Lock,
   Minus,
   Plus,
+  ReceiptText,
   RefreshCw,
   Search,
   SlidersHorizontal,
@@ -323,6 +324,12 @@ export function GuestMenuSelectionPage() {
             >
               <SlidersHorizontal className="size-4" aria-hidden />
               Sửa sở thích & dị ứng
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link to={`/dining/bill?token=${encodeURIComponent(token)}`}>
+                <ReceiptText className="size-4" aria-hidden />
+                Xem hóa đơn
+              </Link>
             </Button>
             {prefsSaved && (
               <span className="flex items-center gap-1 text-[12px] font-semibold text-success">

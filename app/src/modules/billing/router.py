@@ -19,6 +19,7 @@ from src.modules.billing.schemas import (
     BillSplitResponse,
     BillSummaryResponse,
     CreateBillRequest,
+    FinalizeBillRequest,
     SplitBillRequest,
     SplitShareResponse,
     UpdateBillItemsRequest,
@@ -196,16 +197,22 @@ def update_adjustment(
 @router.post("/{bill_id}/finalize", status_code=status.HTTP_200_OK)
 def finalize_bill(
     bill_id: uuid.UUID,
+    payload: FinalizeBillRequest | None = None,
     current_user: User = Depends(get_current_user),
     service: BillingService = Depends(get_billing_service),
 ) -> dict[str, object]:
     """Lock a DRAFT bill (must have at least one item). Returns the FINALIZED bill.
 
     After this call the bill is immutable -- no further items or adjustments
-    may be added. The ``finalized_at`` timestamp is set server-side.
+    may be added. The ``finalized_at`` timestamp is set server-side. An
+    optional ``people_count`` records the even-split headcount so a guest
+    opening the shared receipt sees the same per-person share.
     """
     service.get_bill_for_user(bill_id=bill_id, user_id=current_user.id)
-    bill = service.finalize_bill(bill_id=bill_id)
+    bill = service.finalize_bill(
+        bill_id=bill_id,
+        people_count=payload.people_count if payload else None,
+    )
     data = BillResponse.model_validate(bill)
     return success_response(data=data.model_dump(mode="json"))
 
