@@ -28,7 +28,7 @@ from src.modules.dining.models import (
 )
 from src.modules.menu.models import FoodItem, Menu, MenuHostSelection, MenuStatus
 from src.modules.billing.dependencies import get_billing_service
-from src.modules.billing.models import Bill, BillAdjustment, BillItem, BillStatus
+from src.modules.billing.models import Bill, BillItem, BillStatus
 from src.modules.billing.service import BillSplit, SplitShare
 from src.modules.dining.schemas import DiningPreferenceRequest
 from src.modules.dining.service import DiningSessionInviteBundle
