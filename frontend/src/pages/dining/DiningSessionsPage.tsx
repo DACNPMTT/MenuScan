@@ -250,9 +250,9 @@ export function DiningSessionsPage() {
           description="Thiết lập thông tin bàn ăn để bắt đầu chia sẻ."
           className="h-fit"
         >
-          <Button 
-            type="button" 
-            size="lg" 
+          <Button
+            type="button"
+            size="lg"
             className="mt-2 w-full"
             onClick={() => {
               setSessionNameInput('')
@@ -288,7 +288,7 @@ export function DiningSessionsPage() {
               <p className="mb-5 text-[14px] text-ink-variant">
                 Nhập tên gợi nhớ cho phiên ăn này (ví dụ: "Ăn trưa với team"). Bỏ trống để dùng mã mặc định.
               </p>
-              
+
               <form onSubmit={handleCreateSession} className="flex flex-col gap-4">
                 <input
                   type="text"
@@ -299,7 +299,7 @@ export function DiningSessionsPage() {
                   autoFocus
                   disabled={creating}
                 />
-                
+
                 {createError && (
                   <p className="flex items-center gap-1.5 text-[13px] font-medium text-destructive">
                     <AlertCircle className="size-4 shrink-0" aria-hidden />

@@ -55,6 +55,7 @@ import {
   rankDishes,
 } from '@/features/menu-scan/ranking'
 import { BillItemCard } from '@/features/menu-scan/components/menu-detail/BillItemCard'
+import { GroupSplitPanel } from '@/features/menu-scan/components/menu-detail/GroupSplitPanel'
 import { AssistantChat } from '@/features/menu-scan/components/menu-detail/AssistantChat'
 import { ItemDisplayName } from '@/features/menu-scan/components/menu-detail/ItemDisplayName'
 import { ManualItemCard } from '@/features/menu-scan/components/menu-detail/ManualItemCard'
@@ -107,6 +108,25 @@ const VERDICT_LEGEND_COLOR = {
 function roundMoney(value: number): number {
   return Math.round(value * 100) / 100
 }
+
+/** One guest's pick of a dish, as the host's selections summary reports it. */
+interface GuestPick {
+  participant_id: string
+  display_name: string
+  quantity: number
+  note: string | null
+}
+
+interface SelectionSummaryItem {
+  food_item_id: string
+  total_quantity: number
+  selected_by: GuestPick[]
+}
+
+/** How a host's own (manually ticked) dish is charged when splitting per person. */
+type HostItemAssignment = 'SPLIT' | 'HOST' | string // 'SPLIT' | 'HOST' | participant_id
+
+const HOST_PAYER_KEY = 'HOST'
 
 /** A non-negative money amount plus the currency it is typed in. The currency
  * picker is disabled while exchange rates are unavailable, so an amount can
@@ -233,6 +253,14 @@ export function MenuDetailPage() {
   const [savingItemId, setSavingItemId] = useState<string | null>(null)
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null)
   const [editingItemIds, setEditingItemIds] = useState<Set<string>>(() => new Set())
+  // Group-session extras: which dining session (if any) produced this menu, what
+  // each guest picked, and how the host wants the bill divided.
+  const [diningSessionId, setDiningSessionId] = useState<string | null>(null)
+  const [selectionsSummary, setSelectionsSummary] = useState<SelectionSummaryItem[]>([])
+  const [splitMode, setSplitMode] = useState<'EVENLY' | 'BY_PERSON'>('EVENLY')
+  const [hostItemAssignments, setHostItemAssignments] = useState<
+    Record<string, HostItemAssignment>
+  >({})
 
   useDocumentTitle(menu ? `${menu.title} | MenuScan` : 'Menu | MenuScan')
 
@@ -318,6 +346,118 @@ export function MenuDetailPage() {
   }, [accessToken, menu, menuId, needsEnrichment])
 
   const allItems = useMemo<BillItem[]>(() => menu?.items ?? [], [menu?.items])
+
+  // Does this menu belong to a group dining session the host created? If so we
+  // can show who ordered what and offer a per-person split. A 404 just means an
+  // ordinary personal menu — no guest features, and that is fine.
+  useEffect(() => {
+    if (!menuId) return
+    let active = true
+    void apiRequest<{ session_id: string }>(
+      `/api/v1/dining/sessions/by-menu/${menuId}`,
+      { method: 'GET', token: accessToken ?? undefined },
+    )
+      .then((data) => {
+        if (active) setDiningSessionId(data.session_id)
+      })
+      .catch(() => {
+        if (active) setDiningSessionId(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [menuId, accessToken])
+
+  // Poll what guests have picked — same 5s cadence as the host session page, so
+  // the host sees picks land without a manual refresh.
+  useEffect(() => {
+    if (!diningSessionId) {
+      setSelectionsSummary([])
+      return
+    }
+    let active = true
+    const fetchSummary = () => {
+      void apiRequest<{ items: SelectionSummaryItem[] }>(
+        `/api/v1/dining/sessions/${diningSessionId}/selections`,
+        { method: 'GET', token: accessToken ?? undefined },
+      )
+        .then((data) => {
+          if (active) setSelectionsSummary(data.items ?? [])
+        })
+        .catch(() => {
+          // A transient poll failure is not worth interrupting the host over.
+        })
+    }
+    fetchSummary()
+    const timer = window.setInterval(fetchSummary, 5000)
+    return () => {
+      active = false
+      clearInterval(timer)
+    }
+  }, [diningSessionId, accessToken])
+
+  // Persist the host's own picks. Guests are saved server-side already; the
+  // host's clicks used to live only in this component and vanished on reload.
+  // We seed billLines from the saved picks once, then debounce-save changes.
+  const hostSeededRef = useRef(false)
+  useEffect(() => {
+    hostSeededRef.current = false
+  }, [menuId])
+
+  useEffect(() => {
+    if (!diningSessionId || !menuId || hostSeededRef.current) return
+    let active = true
+    void apiRequest<{
+      items: { food_item_id: string; quantity: number; note: string | null }[]
+    }>(`/api/v1/dining/menus/${menuId}/host-selections`, {
+      method: 'GET',
+      token: accessToken ?? undefined,
+    })
+      .then((data) => {
+        if (!active) return
+        hostSeededRef.current = true
+        if ((data.items ?? []).length === 0) return
+        setBillLines((current) => {
+          const next = { ...current }
+          for (const item of data.items) {
+            // Do not clobber a pick the host already made this session.
+            if (!next[item.food_item_id]) {
+              next[item.food_item_id] = {
+                quantity: item.quantity,
+                note: item.note ?? '',
+              }
+            }
+          }
+          return next
+        })
+      })
+      .catch(() => {
+        // Leave the seed guard false on failure so a later save cannot wipe the
+        // host's saved picks with an empty set.
+      })
+    return () => {
+      active = false
+    }
+  }, [diningSessionId, menuId, accessToken])
+
+  const debouncedBillLines = useDebouncedValue(billLines, 800)
+  useEffect(() => {
+    if (!diningSessionId || !menuId || !hostSeededRef.current) return
+    const selections = Object.entries(debouncedBillLines)
+      .filter(([, line]) => line.quantity > 0)
+      .map(([food_item_id, line]) => ({
+        food_item_id,
+        quantity: line.quantity,
+        note: line.note.trim() || null,
+      }))
+    void apiRequest(`/api/v1/dining/menus/${menuId}/host-selections`, {
+      method: 'PUT',
+      token: accessToken ?? undefined,
+      body: JSON.stringify({ selections }),
+    }).catch(() => {
+      // A dropped save is recoverable on the next edit; nothing to surface.
+    })
+  }, [debouncedBillLines, diningSessionId, menuId, accessToken])
 
   const currency = useMemo(
     () => menu?.default_currency ?? allItems.find((item) => item.currency)?.currency ?? 'VND',
@@ -424,9 +564,9 @@ export function MenuDetailPage() {
       hasActiveFilter
         ? rankedItems
         : rankedItems.slice(
-            (itemsPage - 1) * MENU_PAGE_SIZE,
-            itemsPage * MENU_PAGE_SIZE,
-          ),
+          (itemsPage - 1) * MENU_PAGE_SIZE,
+          itemsPage * MENU_PAGE_SIZE,
+        ),
     [hasActiveFilter, itemsPage, rankedItems],
   )
   const pageStart = totalItems === 0 ? 0 : (itemsPage - 1) * MENU_PAGE_SIZE + 1
@@ -559,14 +699,75 @@ export function MenuDetailPage() {
     [selectedLines],
   )
 
+  // Guests who picked each dish, keyed by dish id — feeds each card's
+  // "Khách đã chọn" line and the per-person split.
+  const selectionsByItem = useMemo(() => {
+    const map = new Map<string, GuestPick[]>()
+    for (const summaryItem of selectionsSummary) {
+      map.set(summaryItem.food_item_id, summaryItem.selected_by)
+    }
+    return map
+  }, [selectionsSummary])
+
+  // Everyone at the table who has picked at least one dish. The host is added as
+  // a payer separately (they are not a participant row).
+  const guestParticipants = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const summaryItem of selectionsSummary) {
+      for (const pick of summaryItem.selected_by) {
+        seen.set(pick.participant_id, pick.display_name)
+      }
+    }
+    return Array.from(seen, ([id, name]) => ({ id, name }))
+  }, [selectionsSummary])
+
+  const isGroupSession = diningSessionId !== null
+
+  // One line per dish, quantity = what the host ticked + everything guests picked.
+  // This is the single source of truth for the subtotal, the printed receipt and
+  // the split, so guest picks always land in the total (the whole point of this).
+  const combinedLines = useMemo(() => {
+    const byId = new Map<
+      string,
+      { item: BillItem; quantity: number; hostQuantity: number; guestQuantity: number }
+    >()
+    for (const { item, state } of selectedLines) {
+      byId.set(item.id, {
+        item,
+        quantity: state.quantity,
+        hostQuantity: state.quantity,
+        guestQuantity: 0,
+      })
+    }
+    for (const summaryItem of selectionsSummary) {
+      const item = allItems.find((candidate) => candidate.id === summaryItem.food_item_id)
+      if (!item) continue
+      const existing = byId.get(item.id)
+      if (existing) {
+        existing.quantity += summaryItem.total_quantity
+        existing.guestQuantity += summaryItem.total_quantity
+      } else {
+        byId.set(item.id, {
+          item,
+          quantity: summaryItem.total_quantity,
+          hostQuantity: 0,
+          guestQuantity: summaryItem.total_quantity,
+        })
+      }
+    }
+    return Array.from(byId.values())
+  }, [selectedLines, selectionsSummary, allItems])
+
   const subtotal = useMemo(
     () =>
-      selectedLines.reduce(
-        (sum, line) => sum + itemPrice(line.item) * line.state.quantity,
+      combinedLines.reduce(
+        (sum, line) => sum + itemPrice(line.item) * line.quantity,
         0,
       ),
-    [selectedLines],
+    [combinedLines],
   )
+
+  const hasSelections = combinedLines.length > 0
 
   // Mirrors BillingService: percentage adjustments are computed on the subtotal
   // (never compounded), then summed into the total.
@@ -607,6 +808,103 @@ export function MenuDetailPage() {
   // negative (the server rejects a negative total).
   const total = subtotal + vatAmount + tipAmount + surchargeAmount - discountAmount
   const perPerson = peopleCount > 0 ? total / peopleCount : total
+
+  // Extra charges to spread. Per the host's choice these are split EQUALLY across
+  // heads, not by how much each person ate.
+  const totalFees = vatAmount + tipAmount + surchargeAmount - discountAmount
+
+  // The host's own ticked dishes (not what guests picked). Each of these is
+  // charged per the host's per-item assignment when splitting by person.
+  const hostOwnItems = useMemo(
+    () =>
+      selectedLines.map(({ item, state }) => ({
+        id: item.id,
+        name: item.translated_name || item.original_name,
+        quantity: state.quantity,
+        amount: itemPrice(item) * state.quantity,
+      })),
+    [selectedLines],
+  )
+
+  // Per-person breakdown: each guest owns what they picked; the host's own dishes
+  // go where the host assigned them (shared / to a person / host pays); the extra
+  // fees are divided equally across everyone at the table.
+  const payers = useMemo(() => {
+    const payerKeys = [...guestParticipants.map((p) => p.id), HOST_PAYER_KEY]
+    const food: Record<string, number> = {}
+    const lineItems: Record<
+      string,
+      { name: string; quantity: number; amount: number }[]
+    > = {}
+    for (const key of payerKeys) {
+      food[key] = 0
+      lineItems[key] = []
+    }
+
+    for (const summaryItem of selectionsSummary) {
+      const item = allItems.find((candidate) => candidate.id === summaryItem.food_item_id)
+      if (!item) continue
+      const price = itemPrice(item)
+      const name = item.translated_name || item.original_name
+      for (const pick of summaryItem.selected_by) {
+        if (food[pick.participant_id] === undefined) continue
+        const amount = price * pick.quantity
+        food[pick.participant_id] += amount
+        lineItems[pick.participant_id].push({ name, quantity: pick.quantity, amount })
+      }
+    }
+
+    for (const hostItem of hostOwnItems) {
+      const assignment = hostItemAssignments[hostItem.id] ?? 'SPLIT'
+      if (assignment === 'HOST') {
+        food[HOST_PAYER_KEY] += hostItem.amount
+        lineItems[HOST_PAYER_KEY].push({
+          name: hostItem.name,
+          quantity: hostItem.quantity,
+          amount: hostItem.amount,
+        })
+      } else if (assignment === 'SPLIT') {
+        const share = payerKeys.length ? hostItem.amount / payerKeys.length : hostItem.amount
+        for (const key of payerKeys) {
+          food[key] += share
+          lineItems[key].push({
+            name: `${hostItem.name} · ${t('menuDetail.split.shared')}`,
+            quantity: hostItem.quantity,
+            amount: share,
+          })
+        }
+      } else {
+        const key = food[assignment] !== undefined ? assignment : HOST_PAYER_KEY
+        food[key] += hostItem.amount
+        lineItems[key].push({
+          name: hostItem.name,
+          quantity: hostItem.quantity,
+          amount: hostItem.amount,
+        })
+      }
+    }
+
+    const feePerHead = payerKeys.length ? totalFees / payerKeys.length : 0
+    return payerKeys.map((key) => ({
+      key,
+      name:
+        key === HOST_PAYER_KEY
+          ? t('menuDetail.split.hostPayer')
+          : guestParticipants.find((p) => p.id === key)?.name ?? key,
+      lineItems: lineItems[key],
+      foodSubtotal: food[key],
+      feeShare: feePerHead,
+      total: food[key] + feePerHead,
+    }))
+  }, [
+    guestParticipants,
+    selectionsSummary,
+    allItems,
+    hostOwnItems,
+    hostItemAssignments,
+    totalFees,
+    t,
+  ])
 
   const updateLine = (itemId: string, updater: (line: BillLineState) => BillLineState) => {
     setBillLines((current) => {
@@ -697,12 +995,12 @@ export function MenuDetailPage() {
       setMenu((current) =>
         current
           ? {
-              ...current,
-              items: current.items.map((existing) =>
-                existing.id === updated.id ? updated : existing,
-              ),
-              updated_at: new Date().toISOString(),
-            }
+            ...current,
+            items: current.items.map((existing) =>
+              existing.id === updated.id ? updated : existing,
+            ),
+            updated_at: new Date().toISOString(),
+          }
           : current,
       )
       setServerItems((current) =>
@@ -740,10 +1038,10 @@ export function MenuDetailPage() {
       setMenu((current) =>
         current
           ? {
-              ...current,
-              items: current.items.filter((existing) => existing.id !== item.id),
-              updated_at: new Date().toISOString(),
-            }
+            ...current,
+            items: current.items.filter((existing) => existing.id !== item.id),
+            updated_at: new Date().toISOString(),
+          }
           : current,
       )
       setBillLines((current) => {
@@ -811,10 +1109,10 @@ export function MenuDetailPage() {
       setMenu((current) =>
         current
           ? {
-              ...current,
-              items: [...current.items, item],
-              updated_at: new Date().toISOString(),
-            }
+            ...current,
+            items: [...current.items, item],
+            updated_at: new Date().toISOString(),
+          }
           : current,
       )
       setBillLines((current) => ({
@@ -836,7 +1134,7 @@ export function MenuDetailPage() {
   }
 
   const handleConfirmMenu = async () => {
-    if (!menuId || confirming || selectedLines.length === 0) return
+    if (!menuId || confirming || !hasSelections) return
     if (!confirmLeaveWithUnsavedChanges()) return
     setConfirming(true)
     setError(null)
@@ -851,9 +1149,9 @@ export function MenuDetailPage() {
       setMenu((current) =>
         current
           ? {
-              ...confirmed,
-              items: current.items,
-            }
+            ...confirmed,
+            items: current.items,
+          }
           : confirmed,
       )
       toast.show({ variant: 'success', title: t('menuDetail.toast.menuConfirmed') })
@@ -867,7 +1165,7 @@ export function MenuDetailPage() {
   }
 
   const handleCreateReceipt = async () => {
-    if (!menuId || creatingBill || ratesPending || selectedLines.length === 0) return
+    if (!menuId || creatingBill || ratesPending || !hasSelections) return
     setCreatingBill(true)
     try {
       const bill = await apiRequest<Bill>(`/api/v1/bills`, {
@@ -879,9 +1177,11 @@ export function MenuDetailPage() {
         method: 'PATCH',
         token: accessToken ?? undefined,
         body: JSON.stringify({
-          items: selectedLines.map((line) => ({
+          // Combined host + guest quantities, so the receipt matches the total
+          // the calculator showed (guest picks included).
+          items: combinedLines.map((line) => ({
             food_item_id: line.item.id,
-            quantity: line.state.quantity,
+            quantity: line.quantity,
           })),
         }),
       })
@@ -1095,10 +1395,10 @@ export function MenuDetailPage() {
                 {itemsLoading && hasActiveFilter
                   ? t('menuDetail.searching')
                   : t('menuDetail.pageStatus', {
-                      from: pageStart,
-                      to: pageEnd,
-                      total: totalItems,
-                    })}
+                    from: pageStart,
+                    to: pageEnd,
+                    total: totalItems,
+                  })}
               </p>
               {sortLabel && (
                 <p className="flex items-center gap-1.5 text-[12px] font-medium text-primary-dark">
@@ -1126,82 +1426,83 @@ export function MenuDetailPage() {
             )}
 
             <Reveal>
-            <main className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-              {pagedItems.map((item) => (
-                <BillItemCard
-                  key={item.id}
-                  item={item}
-                  dietProfile={dietProfile}
-                  draft={itemDrafts[item.id] ?? draftFromItem(item, currency)}
-                  editing={editingItemIds.has(item.id)}
-                  dirty={
-                    itemDrafts[item.id]
-                      ? !draftMatchesItem(itemDrafts[item.id], item, currency)
-                      : false
-                  }
-                  line={billLines[item.id] ?? { quantity: 0, note: '' }}
-                  currency={currency}
-                  displayCurrency={displayCurrency}
-                  rates={exchangeRates}
-                  validationErrors={itemValidationErrors[item.id] ?? {}}
-                  saveError={itemSaveErrors[item.id] ?? null}
-                  saving={savingItemId === item.id}
-                  deleting={deletingItemId === item.id}
-                  onDraftChange={(patch) => updateItemDraft(item, patch)}
-                  onEdit={() => beginItemEdit(item)}
-                  onSave={() => void handleSaveItem(item)}
-                  onCancel={() => cancelItemDraft(item.id)}
-                  onDelete={() => void handleDeleteItem(item)}
-                  onQuantityChange={(nextQuantity) => {
-                    if (nextQuantity >= 1) setLastSelectedItemId(item.id)
-                    updateLine(item.id, (line) => ({
-                      ...line,
-                      quantity: Math.max(0, nextQuantity),
-                    }))
-                  }}
-                  onNoteChange={(note) =>
-                    updateLine(item.id, (line) => ({ ...line, note }))
-                  }
+              <main className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                {pagedItems.map((item) => (
+                  <BillItemCard
+                    key={item.id}
+                    item={item}
+                    dietProfile={dietProfile}
+                    draft={itemDrafts[item.id] ?? draftFromItem(item, currency)}
+                    editing={editingItemIds.has(item.id)}
+                    dirty={
+                      itemDrafts[item.id]
+                        ? !draftMatchesItem(itemDrafts[item.id], item, currency)
+                        : false
+                    }
+                    line={billLines[item.id] ?? { quantity: 0, note: '' }}
+                    currency={currency}
+                    displayCurrency={displayCurrency}
+                    rates={exchangeRates}
+                    validationErrors={itemValidationErrors[item.id] ?? {}}
+                    saveError={itemSaveErrors[item.id] ?? null}
+                    saving={savingItemId === item.id}
+                    deleting={deletingItemId === item.id}
+                    guestSelections={selectionsByItem.get(item.id)}
+                    onDraftChange={(patch) => updateItemDraft(item, patch)}
+                    onEdit={() => beginItemEdit(item)}
+                    onSave={() => void handleSaveItem(item)}
+                    onCancel={() => cancelItemDraft(item.id)}
+                    onDelete={() => void handleDeleteItem(item)}
+                    onQuantityChange={(nextQuantity) => {
+                      if (nextQuantity >= 1) setLastSelectedItemId(item.id)
+                      updateLine(item.id, (line) => ({
+                        ...line,
+                        quantity: Math.max(0, nextQuantity),
+                      }))
+                    }}
+                    onNoteChange={(note) =>
+                      updateLine(item.id, (line) => ({ ...line, note }))
+                    }
+                  />
+                ))}
+                <ManualItemCard
+                  name={manualName}
+                  price={manualPrice}
+                  note={manualNote}
+                  saving={addingManual}
+                  onNameChange={setManualName}
+                  onPriceChange={setManualPrice}
+                  onNoteChange={setManualNote}
+                  onSave={() => void handleAddManualItem()}
                 />
-              ))}
-              <ManualItemCard
-                name={manualName}
-                price={manualPrice}
-                note={manualNote}
-                saving={addingManual}
-                onNameChange={setManualName}
-                onPriceChange={setManualPrice}
-                onNoteChange={setManualNote}
-                onSave={() => void handleAddManualItem()}
-              />
-              {!itemsLoading && filteredItems.length === 0 && (
-                <div className="col-span-full flex min-h-[170px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-surface/70 p-6 text-center text-ink-variant">
-                  <XCircle className="size-7" aria-hidden />
-                  {hasActiveFilter ? (
-                    <>
-                      <span>{t('menuDetail.noFilterMatch')}</span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleClearFilters}
-                        className="border-primary text-primary hover:bg-primary/10 hover:text-primary"
-                      >
-                        {t('menuDetail.clearFilters')}
-                      </Button>
-                    </>
-                  ) : (
-                    <span>{t('menuDetail.noItems')}</span>
-                  )}
-                </div>
-              )}
-              {itemsLoading && hasActiveFilter && filteredItems.length === 0 && (
-                <div className="col-span-full flex min-h-[170px] items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-surface/70 p-6 text-[14px] text-ink-variant">
-                  <Loader2 className="size-6 animate-spin text-primary-dark" aria-hidden />
-                  {t('menuDetail.loadingShort')}
-                </div>
-              )}
-            </main>
+                {!itemsLoading && filteredItems.length === 0 && (
+                  <div className="col-span-full flex min-h-[170px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-surface/70 p-6 text-center text-ink-variant">
+                    <XCircle className="size-7" aria-hidden />
+                    {hasActiveFilter ? (
+                      <>
+                        <span>{t('menuDetail.noFilterMatch')}</span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleClearFilters}
+                          className="border-primary text-primary hover:bg-primary/10 hover:text-primary"
+                        >
+                          {t('menuDetail.clearFilters')}
+                        </Button>
+                      </>
+                    ) : (
+                      <span>{t('menuDetail.noItems')}</span>
+                    )}
+                  </div>
+                )}
+                {itemsLoading && hasActiveFilter && filteredItems.length === 0 && (
+                  <div className="col-span-full flex min-h-[170px] items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-surface/70 p-6 text-[14px] text-ink-variant">
+                    <Loader2 className="size-6 animate-spin text-primary-dark" aria-hidden />
+                    {t('menuDetail.loadingShort')}
+                  </div>
+                )}
+              </main>
             </Reveal>
 
             {totalPages > 1 && (
@@ -1246,252 +1547,319 @@ export function MenuDetailPage() {
             )}
 
             <Reveal className="mt-8">
-            <section
-              aria-labelledby="bill-calculator-title"
-              className="rounded-3xl border border-border bg-surface px-5 py-5 shadow-2"
-            >
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2
-                    id="bill-calculator-title"
-                    className="mb-1 text-[16px] font-bold text-primary-dark"
-                  >
-                    {t('menuDetail.calcTitle')}
-                  </h2>
-                  <p className="mb-0 text-[13px] text-ink-variant">
-                    {selectedLines.length > 0
-                      ? t('menuDetail.selectedCount', { count: selectedLines.length })
-                      : t('menuDetail.selectPrompt')}
-                  </p>
-                </div>
-                <CurrencySelect
-                  value={displayCurrency}
-                  onChange={setPickedCurrency}
-                />
-                <label className="flex items-center gap-3 text-[14px] font-medium text-ink">
-                  <Users className="size-4 text-primary-dark" aria-hidden />
-                  {t('menuDetail.peopleCount')}
-                  <input
-                    type="number"
-                    min={1}
-                    value={peopleCount}
-                    onChange={(event) =>
-                      setPeopleCount(Math.max(1, Number(event.target.value) || 1))
-                    }
-                    className="h-9 w-20 rounded-xl border border-border bg-surface px-3 text-center text-[14px] text-ink outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+              <section
+                aria-labelledby="bill-calculator-title"
+                className="rounded-3xl border border-border bg-surface px-5 py-5 shadow-2"
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2
+                      id="bill-calculator-title"
+                      className="mb-1 text-[16px] font-bold text-primary-dark"
+                    >
+                      {t('menuDetail.calcTitle')}
+                    </h2>
+                    <p className="mb-0 text-[13px] text-ink-variant">
+                      {hasSelections
+                        ? t('menuDetail.selectedCount', { count: combinedLines.length })
+                        : t('menuDetail.selectPrompt')}
+                    </p>
+                  </div>
+                  <CurrencySelect
+                    value={displayCurrency}
+                    onChange={setPickedCurrency}
                   />
-                </label>
-                <div className="flex items-center gap-2 text-[14px] text-ink-variant">
-                  <span>{t('menuDetail.perPerson')}</span>
-                  <strong className="text-[20px] text-primary-dark">
-                    {formatConvertedAmount(perPerson, currency, displayCurrency, exchangeRates)}
-                  </strong>
+                  <label className="flex items-center gap-3 text-[14px] font-medium text-ink">
+                    <Users className="size-4 text-primary-dark" aria-hidden />
+                    {t('menuDetail.peopleCount')}
+                    <input
+                      type="number"
+                      min={1}
+                      value={peopleCount}
+                      onChange={(event) =>
+                        setPeopleCount(Math.max(1, Number(event.target.value) || 1))
+                      }
+                      className="h-9 w-20 rounded-xl border border-border bg-surface px-3 text-center text-[14px] text-ink outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+                    />
+                  </label>
+                  <div className="flex items-center gap-2 text-[14px] text-ink-variant">
+                    <span>{t('menuDetail.perPerson')}</span>
+                    <strong className="text-[20px] text-primary-dark">
+                      {formatConvertedAmount(perPerson, currency, displayCurrency, exchangeRates)}
+                    </strong>
+                  </div>
                 </div>
-              </div>
 
-              {/* VAT / tip / surcharge / discount — percentages apply to the subtotal.
+                {/* VAT / tip / surcharge / discount — percentages apply to the subtotal.
                   Label sits above a full-width input so every field lines up, no
                   matter how long its label is. */}
-              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4 sm:grid-cols-4">
-                <label className={ADJUSTMENT_FIELD}>
-                  <span className={ADJUSTMENT_LABEL}>
-                    <Percent className="size-4 shrink-0 text-primary-dark" aria-hidden />
-                    <span className="truncate">{t('menuDetail.vat')}</span>
-                    <span className="shrink-0 text-[12px] font-normal text-ink-variant">
-                      (%)
+                <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4 sm:grid-cols-4">
+                  <label className={ADJUSTMENT_FIELD}>
+                    <span className={ADJUSTMENT_LABEL}>
+                      <Percent className="size-4 shrink-0 text-primary-dark" aria-hidden />
+                      <span className="truncate">{t('menuDetail.vat')}</span>
+                      <span className="shrink-0 text-[12px] font-normal text-ink-variant">
+                        (%)
+                      </span>
                     </span>
-                  </span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    max={100}
-                    step={0.5}
-                    value={vatPercent}
-                    onChange={(event) => setVatPercent(clampPercent(event.target.value))}
-                    className={ADJUSTMENT_INPUT}
-                  />
-                </label>
-                <div className={ADJUSTMENT_FIELD}>
-                  <span className={ADJUSTMENT_LABEL}>
-                    <HandCoins className="size-4 shrink-0 text-primary-dark" aria-hidden />
-                    <span className="truncate">{t('menuDetail.tip')}</span>
-                    <span className="ml-auto flex shrink-0 overflow-hidden rounded-lg border border-border">
-                      {(['PERCENT', 'AMOUNT'] as const).map((mode) => (
-                        <button
-                          key={mode}
-                          type="button"
-                          onClick={() => setTipMode(mode)}
-                          aria-pressed={tipMode === mode}
-                          title={t(
-                            mode === 'PERCENT'
-                              ? 'menuDetail.tipModePercent'
-                              : 'menuDetail.tipModeAmount',
-                          )}
-                          className={cn(
-                            'flex h-6 w-7 items-center justify-center text-[11px] font-bold transition-colors',
-                            tipMode === mode
-                              ? 'bg-primary text-white'
-                              : 'bg-canvas text-ink-variant hover:bg-surface-muted',
-                          )}
-                        >
-                          {mode === 'PERCENT' ? '%' : <Coins className="size-3" aria-hidden />}
-                        </button>
-                      ))}
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={vatPercent}
+                      onChange={(event) => setVatPercent(clampPercent(event.target.value))}
+                      className={ADJUSTMENT_INPUT}
+                    />
+                  </label>
+                  <div className={ADJUSTMENT_FIELD}>
+                    <span className={ADJUSTMENT_LABEL}>
+                      <HandCoins className="size-4 shrink-0 text-primary-dark" aria-hidden />
+                      <span className="truncate">{t('menuDetail.tip')}</span>
+                      <span className="ml-auto flex shrink-0 overflow-hidden rounded-lg border border-border">
+                        {(['PERCENT', 'AMOUNT'] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => setTipMode(mode)}
+                            aria-pressed={tipMode === mode}
+                            title={t(
+                              mode === 'PERCENT'
+                                ? 'menuDetail.tipModePercent'
+                                : 'menuDetail.tipModeAmount',
+                            )}
+                            className={cn(
+                              'flex h-6 w-7 items-center justify-center text-[11px] font-bold transition-colors',
+                              tipMode === mode
+                                ? 'bg-primary text-white'
+                                : 'bg-canvas text-ink-variant hover:bg-surface-muted',
+                            )}
+                          >
+                            {mode === 'PERCENT' ? '%' : <Coins className="size-3" aria-hidden />}
+                          </button>
+                        ))}
+                      </span>
                     </span>
-                  </span>
-                  {tipMode === 'PERCENT' ? (
+                    {tipMode === 'PERCENT' ? (
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={tipPercent}
+                        onChange={(event) => setTipPercent(clampPercent(event.target.value))}
+                        className={ADJUSTMENT_INPUT}
+                      />
+                    ) : (
+                      <MoneyField
+                        value={tipInput}
+                        onValueChange={setTipInput}
+                        currency={tipMoneyCurrency}
+                        onCurrencyChange={setTipCurrency}
+                        currencyLabel={t('menuDetail.tipCurrencyAria')}
+                        currencyDisabled={ratesError}
+                      />
+                    )}
+                  </div>
+                  <div className={ADJUSTMENT_FIELD}>
+                    <span className={ADJUSTMENT_LABEL}>
+                      <Receipt className="size-4 shrink-0 text-primary-dark" aria-hidden />
+                      <span className="truncate">{t('menuDetail.surcharge')}</span>
+                    </span>
+                    <MoneyField
+                      value={surchargeInput}
+                      onValueChange={setSurchargeInput}
+                      currency={surchargeMoneyCurrency}
+                      onCurrencyChange={setSurchargeCurrency}
+                      currencyLabel={t('menuDetail.surchargeCurrencyAria')}
+                      currencyDisabled={ratesError}
+                    />
+                  </div>
+                  <label className={ADJUSTMENT_FIELD}>
+                    <span className={ADJUSTMENT_LABEL}>
+                      <Tag className="size-4 shrink-0 text-primary-dark" aria-hidden />
+                      <span className="truncate">{t('menuDetail.discount')}</span>
+                      <span className="shrink-0 text-[12px] font-normal text-ink-variant">
+                        (%)
+                      </span>
+                    </span>
                     <input
                       type="number"
                       inputMode="decimal"
                       min={0}
                       max={100}
                       step={1}
-                      value={tipPercent}
-                      onChange={(event) => setTipPercent(clampPercent(event.target.value))}
+                      value={discountPercent}
+                      onChange={(event) => setDiscountPercent(clampPercent(event.target.value))}
                       className={ADJUSTMENT_INPUT}
                     />
-                  ) : (
-                    <MoneyField
-                      value={tipInput}
-                      onValueChange={setTipInput}
-                      currency={tipMoneyCurrency}
-                      onCurrencyChange={setTipCurrency}
-                      currencyLabel={t('menuDetail.tipCurrencyAria')}
-                      currencyDisabled={ratesError}
-                    />
-                  )}
+                  </label>
                 </div>
-                <div className={ADJUSTMENT_FIELD}>
-                  <span className={ADJUSTMENT_LABEL}>
-                    <Receipt className="size-4 shrink-0 text-primary-dark" aria-hidden />
-                    <span className="truncate">{t('menuDetail.surcharge')}</span>
-                  </span>
-                  <MoneyField
-                    value={surchargeInput}
-                    onValueChange={setSurchargeInput}
-                    currency={surchargeMoneyCurrency}
-                    onCurrencyChange={setSurchargeCurrency}
-                    currencyLabel={t('menuDetail.surchargeCurrencyAria')}
-                    currencyDisabled={ratesError}
-                  />
-                </div>
-                <label className={ADJUSTMENT_FIELD}>
-                  <span className={ADJUSTMENT_LABEL}>
-                    <Tag className="size-4 shrink-0 text-primary-dark" aria-hidden />
-                    <span className="truncate">{t('menuDetail.discount')}</span>
-                    <span className="shrink-0 text-[12px] font-normal text-ink-variant">
-                      (%)
-                    </span>
-                  </span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={discountPercent}
-                    onChange={(event) => setDiscountPercent(clampPercent(event.target.value))}
-                    className={ADJUSTMENT_INPUT}
-                  />
-                </label>
-              </div>
 
-              {selectedLines.length > 0 && (
-                <div className="mt-4 border-t border-border pt-4">
-                  <div className="flex flex-col gap-2">
-                    {selectedLines.map(({ item, state }) => (
-                      <div
-                        key={item.id}
-                        className="flex items-start justify-between gap-3 rounded-xl bg-panel px-3 py-2 text-[14px]"
-                      >
-                        <div className="min-w-0">
-                          <p className="mb-0 truncate font-semibold text-ink">
-                            {state.quantity} x{' '}
-                            <ItemDisplayName
-                              item={item}
-                              originalClassName="text-[12px] text-ink-variant/50"
-                            />
-                          </p>
-                          {state.note && (
-                            <p className="mb-0 mt-1 text-[12px] text-ink-variant">
-                              {state.note}
+                {hasSelections && (
+                  <div className="mt-4 border-t border-border pt-4">
+                    <div className="flex flex-col gap-2">
+                      {combinedLines.map(({ item, quantity, hostQuantity }) => {
+                        const guestPicks = selectionsByItem.get(item.id) ?? []
+                        return (
+                        <div
+                          key={item.id}
+                          className="flex items-start justify-between gap-3 rounded-xl bg-panel px-3 py-2 text-[14px]"
+                        >
+                          <div className="min-w-0">
+                            <p className="mb-0 truncate font-semibold text-ink">
+                              {quantity} x{' '}
+                              <ItemDisplayName
+                                item={item}
+                                originalClassName="text-[12px] text-ink-variant/50"
+                              />
                             </p>
-                          )}
+                            {guestPicks.length > 0 && (
+                              <p className="mb-0 mt-1 text-[12px] text-primary-dark">
+                                {guestPicks
+                                  .map(
+                                    (pick) =>
+                                      `${pick.display_name} (x${pick.quantity})${
+                                        pick.note ? ` – ${pick.note}` : ''
+                                      }`,
+                                  )
+                                  .join(', ')}
+                              </p>
+                            )}
+                            {hostQuantity > 0 && guestPicks.length > 0 && (
+                              <p className="mb-0 mt-0.5 text-[12px] text-ink-variant">
+                                {t('menuDetail.split.hostPayer')} (x{hostQuantity})
+                              </p>
+                            )}
+                          </div>
+                          <span className="shrink-0 font-bold text-primary-dark">
+                            {formatConvertedAmount(
+                              itemPrice(item) * quantity,
+                              item.currency ?? currency,
+                              displayCurrency,
+                              exchangeRates,
+                            )}
+                          </span>
                         </div>
-                        <span className="shrink-0 font-bold text-primary-dark">
-                          {formatConvertedAmount(
-                            itemPrice(item) * state.quantity,
-                            item.currency ?? currency,
-                            displayCurrency,
-                            exchangeRates,
-                          )}
-                        </span>
+                        )
+                      })}
+                    </div>
+                    <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4 text-[14px] sm:items-end">
+                      <div className="flex w-full justify-between gap-3 sm:w-[280px]">
+                        <span className="text-ink-variant">{t('menuDetail.subtotal')}</span>
+                        <strong className="text-ink">
+                          {formatConvertedAmount(subtotal, currency, displayCurrency, exchangeRates)}
+                        </strong>
                       </div>
-                    ))}
+                      {vatAmount > 0 && (
+                        <div className="flex w-full justify-between gap-3 sm:w-[280px]">
+                          <span className="text-ink-variant">
+                            {t('menuDetail.vat')} · {vatPercent}%
+                          </span>
+                          <span className="text-ink">
+                            {formatConvertedAmount(vatAmount, currency, displayCurrency, exchangeRates)}
+                          </span>
+                        </div>
+                      )}
+                      {tipAmount > 0 && (
+                        <div className="flex w-full justify-between gap-3 sm:w-[280px]">
+                          <span className="text-ink-variant">
+                            {t('menuDetail.tip')}
+                            {tipMode === 'PERCENT' ? ` · ${tipPercent}%` : ''}
+                          </span>
+                          <span className="text-ink">
+                            {formatConvertedAmount(tipAmount, currency, displayCurrency, exchangeRates)}
+                          </span>
+                        </div>
+                      )}
+                      {surchargeAmount > 0 && (
+                        <div className="flex w-full justify-between gap-3 sm:w-[280px]">
+                          <span className="text-ink-variant">{t('menuDetail.surcharge')}</span>
+                          <span className="text-ink">
+                            {formatConvertedAmount(surchargeAmount, currency, displayCurrency, exchangeRates)}
+                          </span>
+                        </div>
+                      )}
+                      {discountAmount > 0 && (
+                        <div className="flex w-full justify-between gap-3 sm:w-[280px]">
+                          <span className="text-ink-variant">
+                            {t('menuDetail.discount')} · {discountPercent}%
+                          </span>
+                          <span className="text-primary-dark">
+                            −{formatConvertedAmount(discountAmount, currency, displayCurrency, exchangeRates)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex w-full justify-between gap-3 border-t border-border pt-2 sm:w-[280px]">
+                        <span className="font-bold text-ink">{t('menuDetail.total')}</span>
+                        <strong className="text-[16px] text-ink">
+                          {formatConvertedAmount(total, currency, displayCurrency, exchangeRates)}
+                        </strong>
+                      </div>
+                      {(!isGroupSession || splitMode === 'EVENLY') && (
+                        <div className="flex w-full justify-between gap-3 sm:w-[280px]">
+                          <span className="text-ink-variant">{t('menuDetail.splitAmong', { count: peopleCount })}</span>
+                          <strong className="text-primary-dark">
+                            {formatConvertedAmount(perPerson, currency, displayCurrency, exchangeRates)}
+                          </strong>
+                        </div>
+                      )}
+                    </div>
+
+                    {isGroupSession && (
+                      <div className="mt-5 border-t border-border pt-4">
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                          <h3 className="mb-0 text-[14px] font-bold text-primary-dark">
+                            {t('menuDetail.split.title')}
+                          </h3>
+                          <div className="flex overflow-hidden rounded-xl border border-border">
+                            {(['EVENLY', 'BY_PERSON'] as const).map((mode) => (
+                              <button
+                                key={mode}
+                                type="button"
+                                onClick={() => setSplitMode(mode)}
+                                aria-pressed={splitMode === mode}
+                                className={cn(
+                                  'px-3 py-1.5 text-[13px] font-semibold transition-colors',
+                                  splitMode === mode
+                                    ? 'bg-primary text-white'
+                                    : 'bg-canvas text-ink-variant hover:bg-surface-muted',
+                                )}
+                              >
+                                {t(
+                                  mode === 'EVENLY'
+                                    ? 'menuDetail.split.evenly'
+                                    : 'menuDetail.split.byPerson',
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {splitMode === 'BY_PERSON' && (
+                          <GroupSplitPanel
+                            payers={payers}
+                            hostOwnItems={hostOwnItems}
+                            guestParticipants={guestParticipants}
+                            assignments={hostItemAssignments}
+                            onAssign={(itemId, value) =>
+                              setHostItemAssignments((current) => ({
+                                ...current,
+                                [itemId]: value,
+                              }))
+                            }
+                            currency={currency}
+                            displayCurrency={displayCurrency}
+                            rates={exchangeRates}
+                          />
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4 text-[14px] sm:items-end">
-                    <div className="flex w-full justify-between gap-3 sm:w-[280px]">
-                      <span className="text-ink-variant">{t('menuDetail.subtotal')}</span>
-                      <strong className="text-ink">
-                        {formatConvertedAmount(subtotal, currency, displayCurrency, exchangeRates)}
-                      </strong>
-                    </div>
-                    {vatAmount > 0 && (
-                      <div className="flex w-full justify-between gap-3 sm:w-[280px]">
-                        <span className="text-ink-variant">
-                          {t('menuDetail.vat')} · {vatPercent}%
-                        </span>
-                        <span className="text-ink">
-                          {formatConvertedAmount(vatAmount, currency, displayCurrency, exchangeRates)}
-                        </span>
-                      </div>
-                    )}
-                    {tipAmount > 0 && (
-                      <div className="flex w-full justify-between gap-3 sm:w-[280px]">
-                        <span className="text-ink-variant">
-                          {t('menuDetail.tip')}
-                          {tipMode === 'PERCENT' ? ` · ${tipPercent}%` : ''}
-                        </span>
-                        <span className="text-ink">
-                          {formatConvertedAmount(tipAmount, currency, displayCurrency, exchangeRates)}
-                        </span>
-                      </div>
-                    )}
-                    {surchargeAmount > 0 && (
-                      <div className="flex w-full justify-between gap-3 sm:w-[280px]">
-                        <span className="text-ink-variant">{t('menuDetail.surcharge')}</span>
-                        <span className="text-ink">
-                          {formatConvertedAmount(surchargeAmount, currency, displayCurrency, exchangeRates)}
-                        </span>
-                      </div>
-                    )}
-                    {discountAmount > 0 && (
-                      <div className="flex w-full justify-between gap-3 sm:w-[280px]">
-                        <span className="text-ink-variant">
-                          {t('menuDetail.discount')} · {discountPercent}%
-                        </span>
-                        <span className="text-primary-dark">
-                          −{formatConvertedAmount(discountAmount, currency, displayCurrency, exchangeRates)}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex w-full justify-between gap-3 border-t border-border pt-2 sm:w-[280px]">
-                      <span className="font-bold text-ink">{t('menuDetail.total')}</span>
-                      <strong className="text-[16px] text-ink">
-                        {formatConvertedAmount(total, currency, displayCurrency, exchangeRates)}
-                      </strong>
-                    </div>
-                    <div className="flex w-full justify-between gap-3 sm:w-[280px]">
-                      <span className="text-ink-variant">{t('menuDetail.splitAmong', { count: peopleCount })}</span>
-                      <strong className="text-primary-dark">
-                        {formatConvertedAmount(perPerson, currency, displayCurrency, exchangeRates)}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </section>
+                )}
+              </section>
             </Reveal>
             <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-panel px-4 py-[20px] shadow-3 sm:px-[50px] sm:py-[30px]">
               <div className="mx-auto flex max-w-[1240px] flex-col justify-center gap-3 sm:min-h-11 sm:flex-row sm:items-center sm:justify-end">
@@ -1512,7 +1880,7 @@ export function MenuDetailPage() {
                   onClick={() => void handleCreateReceipt()}
                   // Blocked while a needed rate is still in flight: the tip would be
                   // converted to 0 and silently disappear from the bill.
-                  disabled={creatingBill || ratesPending || selectedLines.length === 0}
+                  disabled={creatingBill || ratesPending || !hasSelections}
                   className="border-primary bg-surface text-primary hover:bg-primary/10 hover:text-primary"
                 >
                   {creatingBill ? (
@@ -1526,7 +1894,7 @@ export function MenuDetailPage() {
                   type="button"
                   size="lg"
                   onClick={() => void handleConfirmMenu()}
-                  disabled={confirming || selectedLines.length === 0}
+                  disabled={confirming || !hasSelections}
                 >
                   {confirming ? (
                     <Loader2 className="animate-spin" aria-hidden />

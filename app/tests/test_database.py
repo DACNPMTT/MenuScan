@@ -13,7 +13,7 @@ from src.modules.identity.models import (  # noqa: F401
     User,
     UserSession,
 )
-from src.modules.menu.models import FoodItem, Menu  # noqa: F401
+from src.modules.menu.models import FoodItem, Menu, MenuHostSelection  # noqa: F401
 from src.modules.menu_scan.models import OcrResult, ScanSession  # noqa: F401
 from src.modules.billing.models import (  # noqa: F401
     Bill,
@@ -25,6 +25,7 @@ from src.modules.dining.models import (  # noqa: F401
     DiningSessionInvite,
     DiningSessionParticipant,
     DiningSessionParticipantPreference,
+    DiningSessionParticipantSelection,
     FoodItemRecommendation,
     FoodItemRecommendationParticipantBreakdown,
 )
@@ -38,12 +39,14 @@ EXPECTED_TABLES = {
     "ocr_results",
     "menus",
     "food_items",
+    "menu_host_selections",
     "food_profiles",
     "food_profile_preferences",
     "dining_sessions",
     "dining_session_invites",
     "dining_session_participants",
     "dining_session_participant_preferences",
+    "dining_session_participant_selections",
     "food_item_recommendations",
     "food_item_recommendation_participant_breakdowns",
     "bills",
