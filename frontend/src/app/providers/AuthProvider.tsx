@@ -164,9 +164,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  // 3. Verify Magic Link
+  // 3. Verify Magic Link — also unauthenticated; magic link token is in the
+  // request body, not in an Authorization header. Sending a stale Bearer token
+  // causes the backend to reject the request before it reads the body.
   const verifyMagicLink = useCallback(async (token: string) => {
-    const data = await apiRequest<{ access_token: string; user: User }>('/api/v1/auth/magic-links/verify', {
+    const data = await api<{ access_token: string; user: User }>('/auth/magic-links/verify', {
       method: 'POST',
       body: JSON.stringify({ token }),
     })
