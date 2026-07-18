@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Check } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -10,9 +10,7 @@ import { AuthShell } from '@/features/auth/components/AuthShell'
 import { IconBadge } from '@/shared/components/IconBadge'
 import { motion } from 'motion/react'
 
-type VerifyStatus = 'verifying' | 'success' | 'error'
-
-const verificationRequests = new Map<string, Promise<void>>()
+type VerifyStatus = 'ready' | 'verifying' | 'success' | 'error'
 
 export function VerifyPage() {
   const { t } = useTranslation()
@@ -21,52 +19,52 @@ export function VerifyPage() {
   const navigate = useNavigate()
   const { verifyMagicLink } = useAuth()
   const token = params.get('token')
-  const [status, setStatus] = useState<VerifyStatus>('verifying')
+  // Magic-link tokens are one-time-use. We do NOT verify on load: email security
+  // scanners prefetch the URL and would burn the token before the human clicks.
+  // Consuming it only on an explicit button press keeps the token alive for the
+  // real user. A missing token is a broken link — show the error straight away.
+  const [status, setStatus] = useState<VerifyStatus>(token ? 'ready' : 'error')
 
-  useEffect(() => {
-    let active = true
-    async function run() {
-      if (!token) {
-        if (active) setStatus('error')
-        return
-      }
-
-      const existingRequest = verificationRequests.get(token)
-      const request =
-        existingRequest ??
-        verifyMagicLink(token).then(() => {
-          // Verify tokens are one-time-use. Keep this request shared long enough
-          // for React StrictMode remounts to reuse the successful result.
-          window.setTimeout(() => {
-            verificationRequests.delete(token)
-          }, 5000)
-        })
-
-      if (!existingRequest) {
-        verificationRequests.set(token, request)
-      }
-
-      try {
-        await request
-        if (active) {
-          setStatus('success')
-          navigate('/auth/set-password', { replace: true })
-        }
-      } catch {
-        if (active) setStatus('error')
-      }
+  async function handleConfirm() {
+    if (!token || status === 'verifying') return
+    setStatus('verifying')
+    try {
+      await verifyMagicLink(token)
+      setStatus('success')
+      navigate('/auth/set-password', { replace: true })
+    } catch {
+      setStatus('error')
     }
-    void run()
-    return () => {
-      active = false
-    }
-  }, [navigate, token, verifyMagicLink])
+  }
 
   if (status === 'verifying') {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-app-bg">
         <Spinner label={t('verify.verifyingAria')} />
       </div>
+    )
+  }
+
+  if (status === 'ready') {
+    return (
+      <AuthShell>
+        <div className="flex w-full flex-col items-center gap-6 text-center">
+          <div className="flex flex-col items-center gap-5">
+            <IconBadge icon={Check} tone="primary" size="lg" />
+            <div className="flex flex-col items-center gap-2">
+              <h1 className="text-[24px] font-bold leading-tight text-ink">
+                {t('verify.confirmTitle')}
+              </h1>
+              <p className="max-w-[300px] text-[15px] leading-relaxed text-ink-variant">
+                {t('verify.confirmBody')}
+              </p>
+            </div>
+          </div>
+          <Button type="button" size="lg" onClick={handleConfirm}>
+            {t('verify.confirmButton')}
+          </Button>
+        </div>
+      </AuthShell>
     )
   }
 
