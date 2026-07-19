@@ -923,6 +923,9 @@ def test_billing_service_has_no_send_order_to_restaurant_capability():
         "list_finalized_bills_for_menus",
         "remove_adjustment",
         "replace_items",
+        # Records the host's per-person split plan (display metadata) so a guest
+        # sees their real share -- still no restaurant-order operation.
+        "set_split_breakdown",
         "split_bill",
         "split_for_display",
         "update_adjustment",
@@ -1201,3 +1204,67 @@ def test_split_for_display_matches_persisted_headcount(db_session):
     assert split.people_count == 4
     assert split.base_share == Decimal("135000.00")
     assert sum(_amounts(split), Decimal("0.00")) == Decimal("540000.00")
+
+
+# ---------------------------------------------------------------------------
+# Split breakdown: the host's per-person plan persisted for the guest receipt
+# ---------------------------------------------------------------------------
+
+
+def test_set_split_breakdown_persists_plan(db_session):
+    """The host's per-person plan is stored and reflected on split_people_count."""
+    user = _make_user(db_session)
+    bill = _bill_with_total(db_session, user, currency="VND", total=Decimal("105000.00"))
+    service = BillingService(session=db_session)
+
+    breakdown = {
+        "mode": "BY_PERSON",
+        "people_count": 2,
+        "shares": [
+            {
+                "participant_id": "11111111-1111-1111-1111-111111111111",
+                "name": "ha",
+                "is_host": False,
+                "food_subtotal": "60000.00",
+                "fee_share": "0.00",
+                "total": "60000.00",
+                "line_items": [
+                    {"name": "Bún Chả", "quantity": 1, "amount": "50000.00"},
+                ],
+            },
+            {
+                "participant_id": None,
+                "name": "Host",
+                "is_host": True,
+                "food_subtotal": "45000.00",
+                "fee_share": "0.00",
+                "total": "45000.00",
+                "line_items": [],
+            },
+        ],
+    }
+
+    updated = service.set_split_breakdown(
+        bill_id=bill.id, user_id=user.id, breakdown=breakdown
+    )
+
+    assert updated.split_breakdown == breakdown
+    # people_count is mirrored so the even-split fallback stays consistent.
+    assert updated.split_people_count == 2
+    # Persisted: a fresh read sees it.
+    reread = service.get_bill_for_user(bill_id=bill.id, user_id=user.id)
+    assert reread.split_breakdown["shares"][0]["name"] == "ha"
+
+
+def test_set_split_breakdown_is_owner_scoped(db_session):
+    user = _make_user(db_session)
+    other = _make_user(db_session)
+    bill = _bill_with_total(db_session, user, currency="VND", total=Decimal("105000.00"))
+    service = BillingService(session=db_session)
+
+    with pytest.raises(BillNotFoundError):
+        service.set_split_breakdown(
+            bill_id=bill.id,
+            user_id=other.id,
+            breakdown={"mode": "EVENLY", "people_count": 1, "shares": []},
+        )

@@ -116,7 +116,28 @@ export function DigitalReceipt({
           <span>{formatLine(bill.total_amount, bill.currency)}</span>
         </div>
 
-        {split && split.people_count > 1 && (
+        {bill.split_breakdown &&
+        bill.split_breakdown.mode === 'BY_PERSON' &&
+        bill.split_breakdown.shares.length > 0 ? (
+          <div className="mt-3 border-t border-border pt-3">
+            <div className="mb-2 text-[12px] font-bold uppercase tracking-wide text-ink-variant">
+              {t('receipt.splitByPerson')}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {bill.split_breakdown.shares.map((share, index) => (
+                <div
+                  key={`${bill.id}-share-${index}`}
+                  className="flex items-center justify-between text-[14px]"
+                >
+                  <span className="text-ink-variant">{share.name}</span>
+                  <span className="font-bold text-ink">
+                    {formatLine(share.total, bill.currency)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : split && split.people_count > 1 ? (
           <div className="mt-3 border-t border-border pt-3">
             <div className="flex items-center justify-between text-[13px] text-ink-variant">
               <span>{t('receipt.splitAmong')}</span>
@@ -131,7 +152,7 @@ export function DigitalReceipt({
               </span>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Actions */}

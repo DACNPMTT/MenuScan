@@ -481,7 +481,11 @@ class StubBillingService:
         )
 
 
-def _finalized_bill(*, split_people_count: int | None = 2) -> Bill:
+def _finalized_bill(
+    *,
+    split_people_count: int | None = 2,
+    split_breakdown: dict | None = None,
+) -> Bill:
     return Bill(
         id=_BILL_ID,
         user_id=_USER_ID,
@@ -493,6 +497,7 @@ def _finalized_bill(*, split_people_count: int | None = 2) -> Bill:
         total_amount=Decimal("130000.00"),
         finalized_at=_NOW,
         split_people_count=split_people_count,
+        split_breakdown=split_breakdown,
         items=[
             BillItem(
                 id=uuid.uuid4(),
@@ -964,6 +969,50 @@ def test_get_public_session_bills_success():
     assert bill["items"][0]["quantity"] == 2
     # The endpoint only asks billing for this session's meal menus.
     assert billing.menu_ids_seen == [_MENU_ID]
+
+
+def test_get_public_session_bills_includes_split_breakdown():
+    breakdown = {
+        "mode": "BY_PERSON",
+        "people_count": 2,
+        "shares": [
+            {
+                "participant_id": str(_PARTICIPANT_ID),
+                "name": "ha",
+                "is_host": False,
+                "food_subtotal": "60000.00",
+                "fee_share": "0.00",
+                "total": "60000.00",
+                "line_items": [{"name": "Bún Chả", "quantity": 1, "amount": "50000.00"}],
+            },
+            {
+                "participant_id": None,
+                "name": "Host",
+                "is_host": True,
+                "food_subtotal": "70000.00",
+                "fee_share": "0.00",
+                "total": "70000.00",
+                "line_items": [],
+            },
+        ],
+    }
+    stub = StubDiningSessionService()
+    billing = StubBillingService(
+        bills=[_finalized_bill(split_breakdown=breakdown)]
+    )
+    client = _make_client(stub, billing=billing)
+
+    response = client.get(
+        f"/api/v1/dining/public/sessions/{_SESSION_ID}/bills?invite_token=faketoken"
+    )
+
+    assert response.status_code == 200
+    bill = response.json()["data"]["items"][0]
+    assert bill["split_breakdown"]["mode"] == "BY_PERSON"
+    shares = bill["split_breakdown"]["shares"]
+    assert shares[0]["participant_id"] == str(_PARTICIPANT_ID)
+    assert shares[0]["total"] == "60000.00"
+    assert shares[1]["is_host"] is True
 
 
 def test_get_public_session_bills_invalid_token():

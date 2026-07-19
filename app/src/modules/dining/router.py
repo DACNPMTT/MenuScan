@@ -374,6 +374,7 @@ def get_public_session_bills(
                 ],
                 people_count=bill.split_people_count,
                 per_person=per_person,
+                split_breakdown=bill.split_breakdown,
             )
         )
 

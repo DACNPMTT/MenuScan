@@ -321,6 +321,10 @@ class PublicBillResponse(BaseModel):
     adjustments: list[PublicBillAdjustmentResponse] = Field(default_factory=list)
     people_count: int | None = None
     per_person: str | None = None
+    # The host's per-person split plan (who pays what). When present the guest
+    # sees their own real share (matched by participant_id) instead of the even
+    # split. Null for bills split evenly / not split.
+    split_breakdown: dict | None = None
 
 
 class PublicSessionBillsResponse(BaseModel):

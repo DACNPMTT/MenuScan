@@ -79,6 +79,34 @@ export interface Bill {
   /** Even-split headcount the host recorded at finalize, or null if unsplit.
    * Drives the per-person share a guest sees on the shared receipt. */
   split_people_count: number | null
+  /** The host's per-person split plan (who pays what), or null if unsplit /
+   * split evenly. Same data the guest sees on the shared receipt. */
+  split_breakdown: BillSplitBreakdown | null
+}
+
+/** One dish line attributed to a person in the split plan. */
+export interface BillSplitLineItem {
+  name: string
+  quantity: number
+  amount: string
+}
+
+/** One person's share in the host's split plan. `participant_id` is null for
+ * the host's own share. */
+export interface BillSplitShare {
+  participant_id: string | null
+  name: string
+  is_host: boolean
+  food_subtotal: string
+  fee_share: string
+  total: string
+  line_items: BillSplitLineItem[]
+}
+
+export interface BillSplitBreakdown {
+  mode: 'EVENLY' | 'BY_PERSON'
+  people_count: number
+  shares: BillSplitShare[]
 }
 
 export type BillResponse = Bill

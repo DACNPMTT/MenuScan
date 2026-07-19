@@ -123,8 +123,10 @@ interface SelectionSummaryItem {
   selected_by: GuestPick[]
 }
 
-/** How a host's own (manually ticked) dish is charged when splitting per person. */
-type HostItemAssignment = 'SPLIT' | 'HOST' | string // 'SPLIT' | 'HOST' | participant_id
+/** Who splits a host's own (manually ticked) dish: a list of payer keys
+ * (participant ids and/or HOST_PAYER_KEY). The dish is split evenly among them.
+ * Undefined/empty means "everyone at the table" (shared). */
+type HostItemAssignment = string[]
 
 const HOST_PAYER_KEY = 'HOST'
 
@@ -855,31 +857,22 @@ export function MenuDetailPage() {
     }
 
     for (const hostItem of hostOwnItems) {
-      const assignment = hostItemAssignments[hostItem.id] ?? 'SPLIT'
-      if (assignment === 'HOST') {
-        food[HOST_PAYER_KEY] += hostItem.amount
-        lineItems[HOST_PAYER_KEY].push({
-          name: hostItem.name,
-          quantity: hostItem.quantity,
-          amount: hostItem.amount,
-        })
-      } else if (assignment === 'SPLIT') {
-        const share = payerKeys.length ? hostItem.amount / payerKeys.length : hostItem.amount
-        for (const key of payerKeys) {
-          food[key] += share
-          lineItems[key].push({
-            name: `${hostItem.name} · ${t('menuDetail.split.shared')}`,
-            quantity: hostItem.quantity,
-            amount: share,
-          })
-        }
-      } else {
-        const key = food[assignment] !== undefined ? assignment : HOST_PAYER_KEY
-        food[key] += hostItem.amount
+      // The people sharing this dish: the host's picked set, dropping any key
+      // that is no longer a payer; an empty/absent set means everyone.
+      const assigned = (hostItemAssignments[hostItem.id] ?? []).filter(
+        (key) => food[key] !== undefined,
+      )
+      const sharers = assigned.length > 0 ? assigned : payerKeys
+      const isShared = sharers.length > 1
+      const share = sharers.length ? hostItem.amount / sharers.length : hostItem.amount
+      for (const key of sharers) {
+        food[key] += share
         lineItems[key].push({
-          name: hostItem.name,
+          name: isShared
+            ? `${hostItem.name} · ${t('menuDetail.split.shared')}`
+            : hostItem.name,
           quantity: hostItem.quantity,
-          amount: hostItem.amount,
+          amount: share,
         })
       }
     }
@@ -1241,6 +1234,37 @@ export function MenuDetailPage() {
           body: JSON.stringify(adjustment),
         })
       }
+
+      // Persist the "who pays what" plan so a guest opening the shared receipt
+      // sees their own real share. BY_PERSON carries the per-person breakdown;
+      // EVENLY carries only the headcount (guest falls back to total / N).
+      const splitShares =
+        splitMode === 'BY_PERSON'
+          ? payers.map((p) => ({
+              participant_id: p.key === HOST_PAYER_KEY ? null : p.key,
+              name: p.name,
+              is_host: p.key === HOST_PAYER_KEY,
+              food_subtotal: roundMoney(p.foodSubtotal).toFixed(2),
+              fee_share: roundMoney(p.feeShare).toFixed(2),
+              total: roundMoney(p.total).toFixed(2),
+              line_items: p.lineItems.map((li) => ({
+                name: li.name,
+                quantity: li.quantity,
+                amount: roundMoney(li.amount).toFixed(2),
+              })),
+            }))
+          : []
+      const splitPeople =
+        splitMode === 'BY_PERSON' ? Math.max(1, payers.length) : peopleCount
+      await apiRequest<unknown>(`/api/v1/bills/${bill.id}/split-breakdown`, {
+        method: 'PUT',
+        token: accessToken ?? undefined,
+        body: JSON.stringify({
+          mode: splitMode,
+          people_count: splitPeople,
+          shares: splitShares,
+        }),
+      })
 
       navigate(`/app/bills/${bill.id}?people=${peopleCount}`)
     } catch (err) {
@@ -1844,10 +1868,11 @@ export function MenuDetailPage() {
                             hostOwnItems={hostOwnItems}
                             guestParticipants={guestParticipants}
                             assignments={hostItemAssignments}
-                            onAssign={(itemId, value) =>
+                            hostPayerKey={HOST_PAYER_KEY}
+                            onAssign={(itemId, keys) =>
                               setHostItemAssignments((current) => ({
                                 ...current,
-                                [itemId]: value,
+                                [itemId]: keys,
                               }))
                             }
                             currency={currency}
