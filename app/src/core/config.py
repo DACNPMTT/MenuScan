@@ -67,11 +67,18 @@ DEFAULT_ENRICH_LLM_TIMEOUT_SECONDS = "60"
 DEFAULT_EXCHANGE_RATE_API_BASE_URL = "https://open.er-api.com/v6"
 DEFAULT_EXCHANGE_RATE_TIMEOUT_SECONDS = "10"
 DEFAULT_EXCHANGE_RATE_CACHE_TTL_SECONDS = "3600"
+# Refresh-token cookie SameSite attribute. "lax" (default) is safe for
+# same-origin deployments and protects /auth/refresh + /auth/logout from CSRF
+# without needing a token. Set "none" ONLY for cross-origin production (FE and
+# BE on different domains) — and then CSRF defense shifts to Origin checks
+# baked into those endpoints.
+DEFAULT_SESSION_COOKIE_SAMESITE = "lax"
 
 SUPPORTED_EMAIL_PROVIDERS = ("console", "resend", "gmail_smtp")
 SUPPORTED_STORAGE_PROVIDERS = ("local", "s3")
 SUPPORTED_OCR_PROVIDERS = ("fake", "google_vision")
 SUPPORTED_LLM_PROVIDERS = ("rule_based", "gemini")
+SUPPORTED_COOKIE_SAMESITE = ("lax", "none", "strict")
 
 
 def _load_local_env_file() -> None:
@@ -269,6 +276,7 @@ class Settings:
     exchange_rate_cache_ttl_seconds: int = int(DEFAULT_EXCHANGE_RATE_CACHE_TTL_SECONDS)
     scan_min_gap_seconds: int = int(DEFAULT_SCAN_MIN_GAP_SECONDS)
     chat_min_gap_seconds: int = int(DEFAULT_CHAT_MIN_GAP_SECONDS)
+    session_cookie_samesite: str = DEFAULT_SESSION_COOKIE_SAMESITE
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -388,6 +396,15 @@ class Settings:
                 "(ENRICH_GEMINI_API_KEYS / ENRICH_LLM_API_KEY, or the base LLM key)"
             )
 
+        session_cookie_samesite = os.getenv(
+            "SESSION_COOKIE_SAMESITE", DEFAULT_SESSION_COOKIE_SAMESITE
+        ).strip().lower()
+        if session_cookie_samesite not in SUPPORTED_COOKIE_SAMESITE:
+            raise ValueError(
+                f"SESSION_COOKIE_SAMESITE={session_cookie_samesite!r} is not "
+                f"supported; choose one of {SUPPORTED_COOKIE_SAMESITE}"
+            )
+
         return cls(
             database_url=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
             magic_link_base_url=os.getenv(
@@ -428,6 +445,7 @@ class Settings:
             chat_min_gap_seconds=int(
                 os.getenv("CHAT_MIN_GAP_SECONDS", DEFAULT_CHAT_MIN_GAP_SECONDS)
             ),
+            session_cookie_samesite=session_cookie_samesite,
         )
 
 
