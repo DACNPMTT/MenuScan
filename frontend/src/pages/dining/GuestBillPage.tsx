@@ -29,6 +29,28 @@ interface PublicBillAdjustment {
   amount: string
 }
 
+interface SplitLineItem {
+  name: string
+  quantity: number
+  amount: string
+}
+
+interface SplitShare {
+  participant_id: string | null
+  name: string
+  is_host: boolean
+  food_subtotal: string
+  fee_share: string
+  total: string
+  line_items: SplitLineItem[]
+}
+
+interface SplitBreakdown {
+  mode: 'EVENLY' | 'BY_PERSON'
+  people_count: number
+  shares: SplitShare[]
+}
+
 interface PublicBill {
   bill_id: string
   menu_id: string
@@ -41,6 +63,7 @@ interface PublicBill {
   adjustments: PublicBillAdjustment[]
   people_count: number | null
   per_person: string | null
+  split_breakdown: SplitBreakdown | null
 }
 
 interface PublicSessionBills {
@@ -245,21 +268,110 @@ export function GuestBillPage() {
                     <span>{money(bill.total_amount, bill.currency)}</span>
                   </div>
 
-                  {bill.per_person && bill.people_count ? (
-                    <div className="mt-3 flex items-center justify-between rounded-2xl bg-primary/15 px-4 py-3">
-                      <span className="flex items-center gap-2 text-[15px] text-primary-dark">
-                        <Wallet className="size-4" aria-hidden />
-                        Bạn trả (chia {bill.people_count} người)
-                      </span>
-                      <span className="text-[18px] font-bold text-primary-dark">
-                        {money(bill.per_person, bill.currency)}
-                      </span>
-                    </div>
-                  ) : (
-                    <p className="mb-0 mt-2 text-[12px] italic text-ink-variant">
-                      Host chưa chia đều hóa đơn này theo số người.
-                    </p>
-                  )}
+                  {(() => {
+                    const breakdown = bill.split_breakdown
+                    const myShare =
+                      breakdown && breakdown.mode === 'BY_PERSON'
+                        ? breakdown.shares.find(
+                            (s) =>
+                              s.participant_id != null &&
+                              s.participant_id === guest.participantId,
+                          )
+                        : undefined
+
+                    // Per-person plan the host set — show the guest's own real
+                    // share and the whole group's breakdown.
+                    if (breakdown && breakdown.mode === 'BY_PERSON' && breakdown.shares.length > 0) {
+                      return (
+                        <div className="mt-3 flex flex-col gap-3">
+                          {myShare && (
+                            <div className="rounded-2xl bg-primary/15 px-4 py-3">
+                              <div className="flex items-center justify-between">
+                                <span className="flex items-center gap-2 text-[15px] text-primary-dark">
+                                  <Wallet className="size-4" aria-hidden />
+                                  Bạn trả
+                                </span>
+                                <span className="text-[18px] font-bold text-primary-dark">
+                                  {money(myShare.total, bill.currency)}
+                                </span>
+                              </div>
+                              {(myShare.line_items.length > 0 ||
+                                Number(myShare.fee_share) > 0) && (
+                                <ul className="mt-2 flex flex-col gap-0.5">
+                                  {myShare.line_items.map((li, i) => (
+                                    <li
+                                      key={`${bill.bill_id}-mine-${i}`}
+                                      className="flex justify-between text-[12px] text-primary-dark/80"
+                                    >
+                                      <span>
+                                        {li.quantity}× {li.name}
+                                      </span>
+                                      <span>{money(li.amount, bill.currency)}</span>
+                                    </li>
+                                  ))}
+                                  {Number(myShare.fee_share) > 0 && (
+                                    <li className="flex justify-between text-[12px] text-primary-dark/80">
+                                      <span>Phí (chia đều)</span>
+                                      <span>{money(myShare.fee_share, bill.currency)}</span>
+                                    </li>
+                                  )}
+                                </ul>
+                              )}
+                            </div>
+                          )}
+                          <div className="rounded-2xl border border-hairline px-4 py-3">
+                            <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-variant">
+                              Cả nhóm chia
+                            </p>
+                            <div className="flex flex-col gap-1.5">
+                              {breakdown.shares.map((s, i) => {
+                                const isMe =
+                                  s.participant_id != null &&
+                                  s.participant_id === guest.participantId
+                                return (
+                                  <div
+                                    key={`${bill.bill_id}-share-${i}`}
+                                    className={`flex items-center justify-between text-[13px] ${
+                                      isMe
+                                        ? 'font-bold text-primary-dark'
+                                        : 'text-ink-variant'
+                                    }`}
+                                  >
+                                    <span>
+                                      {s.name}
+                                      {isMe ? ' (bạn)' : ''}
+                                    </span>
+                                    <span>{money(s.total, bill.currency)}</span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    }
+
+                    // Even split — everyone pays total / N.
+                    if (bill.per_person && bill.people_count) {
+                      return (
+                        <div className="mt-3 flex items-center justify-between rounded-2xl bg-primary/15 px-4 py-3">
+                          <span className="flex items-center gap-2 text-[15px] text-primary-dark">
+                            <Wallet className="size-4" aria-hidden />
+                            Bạn trả (chia {bill.people_count} người)
+                          </span>
+                          <span className="text-[18px] font-bold text-primary-dark">
+                            {money(bill.per_person, bill.currency)}
+                          </span>
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <p className="mb-0 mt-2 text-[12px] italic text-ink-variant">
+                        Host chưa chia hóa đơn này theo người.
+                      </p>
+                    )
+                  })()}
                 </div>
               </Card>
             ))}

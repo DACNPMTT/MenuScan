@@ -9,6 +9,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
@@ -154,6 +155,7 @@ class BillResponse(BaseModel):
     updated_at: datetime
     finalized_at: datetime | None
     split_people_count: int | None = None
+    split_breakdown: dict | None = None
 
     @field_serializer("subtotal_amount", "adjustment_total", "total_amount")
     def _serialize_money(self, value: Decimal) -> str:
@@ -171,6 +173,49 @@ class SplitBillRequest(BaseModel):
         ge=1,
         description="Số người chia hóa đơn, tối thiểu 1.",
     )
+
+
+class SplitLineItemInput(BaseModel):
+    """One dish line attributed to a person in the split plan."""
+
+    name: str = Field(min_length=1, max_length=255)
+    quantity: int = Field(ge=0)
+    amount: Decimal = Field(ge=0)
+
+    @field_serializer("amount")
+    def _serialize_money(self, value: Decimal) -> str:
+        return str(value)
+
+
+class SplitShareInput(BaseModel):
+    """One person's share in the host's split plan.
+
+    ``participant_id`` is the dining participant this share belongs to (so a
+    guest can find their own), or null for the host's own share.
+    """
+
+    participant_id: uuid.UUID | None = None
+    name: str = Field(min_length=1, max_length=255)
+    is_host: bool = False
+    food_subtotal: Decimal = Field(ge=0)
+    fee_share: Decimal = Field(ge=0)
+    total: Decimal = Field(ge=0)
+    line_items: list[SplitLineItemInput] = Field(default_factory=list)
+
+    @field_serializer("food_subtotal", "fee_share", "total")
+    def _serialize_money(self, value: Decimal) -> str:
+        return str(value)
+
+
+class SetSplitBreakdownRequest(BaseModel):
+    """Request body for ``PUT /bills/{bill_id}/split-breakdown``.
+
+    The host's "who pays what" plan, recorded so a guest sees their real share.
+    """
+
+    mode: Literal["EVENLY", "BY_PERSON"]
+    people_count: int = Field(ge=1)
+    shares: list[SplitShareInput] = Field(default_factory=list)
 
 
 class FinalizeBillRequest(BaseModel):

@@ -17,6 +17,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { apiRequest, ApiError } from '@/shared/lib/api'
+import { rankByVerdict, type VerdictLevel } from '@/features/menu-scan/ranking'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card'
 import { EmptyState } from '@/shared/components/EmptyState'
@@ -35,6 +36,13 @@ import {
   saveGuestPrefsDraft,
 } from '@/features/dining/guestSession'
 
+interface GuestRecommendation {
+  verdict: VerdictLevel
+  score: number | null
+  why_suitable: string | null
+  why_not_suitable: string | null
+}
+
 interface PublicMenuItem {
   id: string
   original_name: string
@@ -45,6 +53,47 @@ interface PublicMenuItem {
   price: string | null
   currency: string | null
   allergens: string[]
+  // The verdict the host's recommend run scored for this dish (group-level).
+  // Null until that run has happened, or when nobody declared preferences.
+  recommendation: GuestRecommendation | null
+}
+
+const VERDICT_LABEL: Record<VerdictLevel, string> = {
+  RECOMMENDED: 'Nên thử',
+  OK: 'Phù hợp',
+  CAUTION: 'Cân nhắc',
+  AVOID: 'Nên tránh',
+}
+
+function verdictBadgeClass(verdict: VerdictLevel): string {
+  switch (verdict) {
+    case 'RECOMMENDED':
+      return 'border-success/30 bg-success/15 text-success'
+    case 'OK':
+      return 'border-primary/20 bg-primary/10 text-primary-dark'
+    case 'CAUTION':
+      return 'border-amber/40 bg-amber/15 text-amber'
+    case 'AVOID':
+      return 'border-destructive/30 bg-destructive/10 text-destructive'
+  }
+}
+
+/** Card skin so the verdict reads at a glance across the whole card — a tinted
+ * left edge + faint wash, kept quiet so a long menu stays readable and the red
+ * "Nên tránh" never blends in. No verdict → no tint. */
+function verdictCardClass(verdict: VerdictLevel | null): string {
+  switch (verdict) {
+    case 'RECOMMENDED':
+      return 'border-l-4 border-l-success bg-success/5'
+    case 'OK':
+      return 'border-l-4 border-l-primary/50'
+    case 'CAUTION':
+      return 'border-l-4 border-l-amber bg-amber/10'
+    case 'AVOID':
+      return 'border-l-4 border-l-destructive bg-destructive/[0.05]'
+    default:
+      return ''
+  }
 }
 
 interface PublicSessionMenu {
@@ -208,13 +257,18 @@ export function GuestMenuSelectionPage() {
     })
   }, [menu, searchInput, activeCategory])
 
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE))
+  // Same as the host: order by the advice — recommended first, avoid last,
+  // dishes with no verdict sink below. Stable within a tier, so the menu's own
+  // order survives before any recommend run has scored the dishes.
+  const rankedItems = useMemo(() => rankByVerdict(filteredItems), [filteredItems])
+
+  const totalPages = Math.max(1, Math.ceil(rankedItems.length / PAGE_SIZE))
   // Clamp rather than reset-in-effect: if the list shrinks (filter or a poll),
   // the page index can point past the end.
   const currentPage = Math.min(page, totalPages)
   const pagedItems = useMemo(
-    () => filteredItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [filteredItems, currentPage],
+    () => rankedItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [rankedItems, currentPage],
   )
 
   const updateLine = (
@@ -484,12 +538,16 @@ export function GuestMenuSelectionPage() {
               const line = lines[item.id] ?? { quantity: 0, note: '' }
               const name = item.translated_name || item.original_name
               const summary = item.assistant_summary || item.translated_description
+              // A selected dish keeps the selection highlight; otherwise the card
+              // is tinted by its recommend verdict so it reads at a glance.
+              const cardTint =
+                line.quantity > 0
+                  ? 'border-primary/40 bg-primary/[0.03]'
+                  : verdictCardClass(item.recommendation?.verdict ?? null)
               return (
                 <Card
                   key={item.id}
-                  className={`gap-3 rounded-2xl p-4 shadow-1 transition-colors ${
-                    line.quantity > 0 ? 'border-primary/40 bg-primary/[0.03]' : ''
-                  }`}
+                  className={`gap-3 rounded-2xl p-4 shadow-1 transition-colors ${cardTint}`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -506,6 +564,31 @@ export function GuestMenuSelectionPage() {
                       {formatPrice(item.price, item.currency ?? menu.default_currency)}
                     </strong>
                   </div>
+
+                  {item.recommendation && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${verdictBadgeClass(
+                          item.recommendation.verdict,
+                        )}`}
+                      >
+                        {item.recommendation.verdict === 'AVOID' ||
+                        item.recommendation.verdict === 'CAUTION' ? (
+                          <AlertCircle className="size-3" aria-hidden />
+                        ) : (
+                          <CheckCircle2 className="size-3" aria-hidden />
+                        )}
+                        {VERDICT_LABEL[item.recommendation.verdict]}
+                      </span>
+                      {(item.recommendation.why_not_suitable ||
+                        item.recommendation.why_suitable) && (
+                        <span className="min-w-0 flex-1 truncate text-[11px] text-ink-variant">
+                          {item.recommendation.why_not_suitable ||
+                            item.recommendation.why_suitable}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {summary && (
                     <p className="mb-0 line-clamp-2 text-[13px] leading-5 text-ink-variant">
