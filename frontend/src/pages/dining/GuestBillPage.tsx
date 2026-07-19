@@ -8,7 +8,9 @@ import {
   UtensilsCrossed,
   Wallet,
 } from 'lucide-react'
-import { apiRequest, ApiError } from '@/shared/lib/api'
+import { useTranslation } from 'react-i18next'
+import { apiRequest } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { formatMoney } from '@/features/menu-scan/lib'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card'
@@ -54,6 +56,7 @@ function money(amount: string, currency: string): string {
 }
 
 export function GuestBillPage() {
+  const { t } = useTranslation()
   useDocumentTitle('Hóa đơn | MenuScan')
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token') ?? ''
@@ -77,14 +80,12 @@ export function GuestBillPage() {
         )
         setBills(data.items ?? [])
       } catch (err) {
-        setError(
-          err instanceof ApiError ? err.message : 'Không tải được hóa đơn của phiên ăn.',
-        )
+        setError(describeError(err, t, 'errors.generic'))
       } finally {
         if (showLoading) setLoading(false)
       }
     },
-    [guest, token],
+    [guest, token, t],
   )
 
   useEffect(() => {

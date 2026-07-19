@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
 import { ApiError, apiRequest } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { DigitalReceipt } from '@/features/billing/components/DigitalReceipt'
 import { PageTransition } from '@/shared/components/motion/PageTransition'
@@ -42,7 +43,7 @@ export function BillReceiptPage() {
       })
       setBill(data)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('billReceipt.errors.loadFailed'))
+      setError(describeError(err, t, 'billReceipt.errors.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -99,7 +100,7 @@ export function BillReceiptPage() {
         toast.show({
           variant: 'error',
           title: t('billReceipt.toast.finalizeFailed'),
-          description: err instanceof ApiError ? err.message : undefined,
+          description: describeError(err, t, 'errors.generic'),
         })
       }
     } finally {

@@ -80,7 +80,19 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const json = (await response.json().catch(() => null)) as Envelope<T> | null
 
   if (!response.ok || !json?.success) {
-    throw new ApiError(response.status, json)
+    const env = json as ApiResponseEnvelope<unknown> | null
+    const err = env?.error
+    if (!err) {
+      // No backend envelope parsed — keep code='API_ERROR' so describeError
+      // ignores any synthetic message and routes by HTTP status instead.
+      throw new ApiError(response.status, json)
+    }
+    throw new ApiError(
+      response.status,
+      err.code || 'UNKNOWN_ERROR',
+      err.message || 'Something went wrong. Please try again.',
+      err.details,
+    )
   }
 
   return json.data as T

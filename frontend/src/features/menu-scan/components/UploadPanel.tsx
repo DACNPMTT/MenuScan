@@ -12,7 +12,8 @@ import {
   X,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { apiRequest, ApiError } from '@/shared/lib/api'
+import { apiRequest } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { useAuth } from '@/app/providers/AuthProvider'
 import {
@@ -235,16 +236,11 @@ export function UploadPanel() {
       // the extracted menu once the pipeline completes.
       navigate(`/app/scans/${scan.id}`)
     } catch (error) {
-      let message: string
-      if (error instanceof ApiError && error.status === 429) {
-        // Throttled: called AI again too soon. Friendly, localized message.
-        message = t('scan.errors.rateLimited')
-      } else if (error instanceof ApiError) {
-        message = error.message
-      } else {
-        message = `${t('scan.errors.genericPrefix')}${error instanceof Error ? error.message : String(error)}`
-      }
-      setSubmitError(message)
+      setSubmitError(
+        describeError(error, t, 'scanResult.errors.scanFailed', {
+          statusOverrides: { 429: 'scan.errors.rateLimited' },
+        }),
+      )
     } finally {
       setIsSubmitting(false)
     }

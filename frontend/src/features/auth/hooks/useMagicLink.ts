@@ -1,17 +1,16 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { TFunction } from 'i18next'
-import { ApiError, api } from '@/shared/lib/api'
+import { api } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import type { MagicLinkResponse } from '@/features/auth/types'
 
 export type MagicLinkState = 'idle' | 'loading' | 'success' | 'error'
 
-function describeError(error: ApiError, t: TFunction): string {
-  if (error.status === 429) return t('magicLink.rateLimited')
-  if (error.status === 503) return t('magicLink.emailUnavailable')
-  if (error.status === 400) return t('magicLink.invalidEmail')
-  return t('magicLink.generic')
-}
+const STATUS_OVERRIDES = {
+  400: 'magicLink.invalidEmail',
+  429: 'magicLink.rateLimited',
+  503: 'magicLink.emailUnavailable',
+} as const
 
 /**
  * Drives a magic-link request against `POST /auth/magic-links`. Owns only the
@@ -37,11 +36,7 @@ export function useMagicLink() {
       setState('success')
       return true
     } catch (error) {
-      setErrorMessage(
-        error instanceof ApiError
-          ? describeError(error, t)
-          : t('magicLink.generic'),
-      )
+      setErrorMessage(describeError(error, t, 'magicLink.generic', { statusOverrides: STATUS_OVERRIDES }))
       setState('error')
       return false
     }

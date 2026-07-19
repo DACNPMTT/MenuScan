@@ -12,7 +12,8 @@ import {
 } from 'lucide-react'
 import { saveGuestSession, saveGuestPrefsDraft } from '@/features/dining/guestSession'
 import { Spinner } from '@/shared/components/Spinner'
-import { apiRequest, ApiError } from '@/shared/lib/api'
+import { apiRequest } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Card } from '@/shared/components/ui/card'
@@ -81,11 +82,7 @@ export function JoinDiningSessionPage() {
         }
       } catch (err) {
         if (active) {
-          setSessionError(
-            err instanceof ApiError
-              ? err.message
-              : t('dining.sessionNotFound') || 'Invite session is not active.',
-          )
+          setSessionError(describeError(err, t, 'dining.sessionNotFound'))
         }
       } finally {
         if (active) {
@@ -165,7 +162,7 @@ export function JoinDiningSessionPage() {
       }
       setJoined(true)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('onboarding.saveError'))
+      setError(describeError(err, t, 'onboarding.saveError'))
     } finally {
       setSaving(false)
     }

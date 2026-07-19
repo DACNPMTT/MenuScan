@@ -23,7 +23,8 @@ import { Spinner } from '@/shared/components/Spinner'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
-import { ApiError, apiRequest, apiRequestWithMeta } from '@/shared/lib/api'
+import { apiRequest, apiRequestWithMeta } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue'
 import { useExchangeRates } from '@/shared/hooks/useExchangeRates'
@@ -287,7 +288,7 @@ export function MenuDetailPage() {
       setEditingItemIds(new Set())
     } catch (err) {
       if (requestId !== menuRequestRef.current) return
-      setError(err instanceof ApiError ? err.message : t('menuDetail.errors.loadFailed'))
+      setError(describeError(err, t, 'menuDetail.errors.loadFailed'))
     } finally {
       if (requestId === menuRequestRef.current) setLoading(false)
     }
@@ -605,9 +606,7 @@ export function MenuDetailPage() {
         setItemsPage(page)
       } catch (err) {
         if (requestId !== requestIdRef.current || controller.signal.aborted) return
-        setItemsError(
-          err instanceof ApiError ? err.message : t('menuDetail.errors.loadItemsFailed'),
-        )
+        setItemsError(describeError(err, t, 'menuDetail.errors.loadItemsFailed'))
       } finally {
         if (requestId === requestIdRef.current) setItemsLoading(false)
       }
@@ -1012,7 +1011,7 @@ export function MenuDetailPage() {
     } catch (err) {
       setItemSaveErrors((current) => ({
         ...current,
-        [item.id]: err instanceof ApiError ? err.message : t('menuDetail.errors.saveItemFailed'),
+        [item.id]: describeError(err, t, 'menuDetail.errors.saveItemFailed'),
       }))
     } finally {
       setSavingItemId(null)
@@ -1059,7 +1058,7 @@ export function MenuDetailPage() {
     } catch (err) {
       setItemSaveErrors((current) => ({
         ...current,
-        [item.id]: err instanceof ApiError ? err.message : t('menuDetail.errors.deleteItemFailed'),
+        [item.id]: describeError(err, t, 'menuDetail.errors.deleteItemFailed'),
       }))
     } finally {
       setDeletingItemId(null)
@@ -1078,7 +1077,7 @@ export function MenuDetailPage() {
       })
       navigate('/app/menus', { replace: true })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('menuDetail.errors.deleteMenuFailed'))
+      setError(describeError(err, t, 'menuDetail.errors.deleteMenuFailed'))
       setDeleting(false)
     }
   }
@@ -1125,9 +1124,7 @@ export function MenuDetailPage() {
       setActiveCategory('All')
       toast.show({ variant: 'success', title: t('menuDetail.toast.itemAdded') })
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : t('menuDetail.errors.addManualFailed'),
-      )
+      setError(describeError(err, t, 'menuDetail.errors.addManualFailed'))
     } finally {
       setAddingManual(false)
     }
@@ -1156,9 +1153,7 @@ export function MenuDetailPage() {
       )
       toast.show({ variant: 'success', title: t('menuDetail.toast.menuConfirmed') })
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : t('menuDetail.errors.confirmMenuFailed'),
-      )
+      setError(describeError(err, t, 'menuDetail.errors.confirmMenuFailed'))
     } finally {
       setConfirming(false)
     }
@@ -1244,11 +1239,10 @@ export function MenuDetailPage() {
 
       navigate(`/app/bills/${bill.id}?people=${peopleCount}`)
     } catch (err) {
-      const description = err instanceof ApiError ? err.message : undefined
       toast.show({
         variant: 'error',
         title: t('menuDetail.toast.createReceiptFailed'),
-        description: description ?? t('menuDetail.errors.tryAgain'),
+        description: describeError(err, t, 'menuDetail.errors.tryAgain'),
       })
     } finally {
       setCreatingBill(false)

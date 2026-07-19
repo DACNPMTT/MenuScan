@@ -4,7 +4,8 @@ import { AlertCircle, Loader2, ReceiptText, RefreshCw, Trash2, X } from 'lucide-
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
-import { ApiError, apiRequest } from '@/shared/lib/api'
+import { apiRequest } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { Spinner } from '@/shared/components/Spinner'
 import { formatMoney } from '@/features/menu-scan/lib'
@@ -62,7 +63,7 @@ export function BillsPage() {
       })
       setBills(data)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('bills.errors.loadFailed'))
+      setError(describeError(err, t, 'bills.errors.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -84,7 +85,7 @@ export function BillsPage() {
       setBills((current) => current.filter((bill) => bill.id !== billId))
       toast.show({ variant: 'success', title: t('bills.toast.deleted') })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('bills.errors.deleteFailed'))
+      setError(describeError(err, t, 'bills.errors.deleteFailed'))
     } finally {
       setDeletingId(null)
     }

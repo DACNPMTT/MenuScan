@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Loader2, UtensilsCrossed } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
-import { ApiError } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
@@ -74,7 +74,7 @@ export function OnboardingPage() {
       })
       finish()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('onboarding.saveError'))
+      setError(describeError(err, t, 'onboarding.saveError'))
       setSaving(false)
     }
   }

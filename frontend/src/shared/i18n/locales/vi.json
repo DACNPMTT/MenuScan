@@ -20,6 +20,20 @@
     "backToDashboard": "Về Dashboard",
     "backToHome": "Về trang chủ"
   },
+  "errors": {
+    "network": "Không thể kết nối tới máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại.",
+    "badRequest": "Thông tin bạn nhập không hợp lệ. Vui lòng kiểm tra và thử lại.",
+    "sessionExpired": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    "forbidden": "Bạn không có quyền thực hiện thao tác này.",
+    "notFound": "Không tìm thấy nội dung bạn yêu cầu.",
+    "timeout": "Yêu cầu mất quá nhiều thời gian. Vui lòng thử lại.",
+    "fileTooLarge": "Tệp quá lớn. Kích thước tối đa là 10 MB.",
+    "unsupportedType": "Định dạng không được hỗ trợ. Chỉ chấp nhận JPG, PNG, WEBP, PDF.",
+    "unprocessable": "Không thể xử lý tệp này. Vui lòng thử tệp khác.",
+    "rateLimited": "Bạn đang thao tác quá nhanh. Vui lòng đợi vài giây rồi thử lại.",
+    "serverError": "Hệ thống đang gặp sự cố. Vui lòng thử lại sau.",
+    "generic": "Đã có lỗi xảy ra. Vui lòng thử lại."
+  },
   "scan": {
     "title": "Thêm menu",
     "uploadCard": { "title": "Tải ảnh / PDF lên", "desc": "Kéo thả hoặc chọn file" },
@@ -45,8 +59,7 @@
     "errors": {
       "fileTooLarge": "File quá lớn. Dung lượng tối đa là 10 MB.",
       "unsupportedType": "Định dạng không được hỗ trợ. Chỉ chấp nhận JPG, PNG, WEBP, PDF.",
-      "rateLimited": "Thao tác quá nhanh. Vui lòng đợi vài giây rồi thử lại.",
-      "genericPrefix": "Lỗi: "
+      "rateLimited": "Thao tác quá nhanh. Vui lòng đợi vài giây rồi thử lại."
     }
   },
   "nav": {

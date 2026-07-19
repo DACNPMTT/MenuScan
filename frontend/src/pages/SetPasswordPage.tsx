@@ -8,6 +8,7 @@ import { Input } from '@/shared/components/ui/input'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { AuthShell } from '@/features/auth/components/AuthShell'
 import { IconBadge } from '@/shared/components/IconBadge'
+import { describeError } from '@/shared/lib/errors'
 
 export function SetPasswordPage() {
   const { t } = useTranslation()
@@ -51,8 +52,7 @@ export function SetPasswordPage() {
       // Offer the optional dietary-preferences onboarding step next.
       navigate('/auth/onboarding', { replace: true })
     } catch (err) {
-      const message = err instanceof Error ? err.message : t('setPassword.errors.saveFailed')
-      setPasswordError(message)
+      setPasswordError(describeError(err, t, 'setPassword.errors.saveFailed'))
     } finally {
       setSavingPassword(false)
     }
