@@ -17,6 +17,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { apiRequest, ApiError } from '@/shared/lib/api'
+import { rankByVerdict, type VerdictLevel } from '@/features/menu-scan/ranking'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card'
 import { EmptyState } from '@/shared/components/EmptyState'
@@ -34,8 +35,6 @@ import {
   loadGuestPrefsDraft,
   saveGuestPrefsDraft,
 } from '@/features/dining/guestSession'
-
-type VerdictLevel = 'RECOMMENDED' | 'OK' | 'CAUTION' | 'AVOID'
 
 interface GuestRecommendation {
   verdict: VerdictLevel
@@ -76,6 +75,24 @@ function verdictBadgeClass(verdict: VerdictLevel): string {
       return 'border-amber/40 bg-amber/15 text-amber'
     case 'AVOID':
       return 'border-destructive/30 bg-destructive/10 text-destructive'
+  }
+}
+
+/** Card skin so the verdict reads at a glance across the whole card — a tinted
+ * left edge + faint wash, kept quiet so a long menu stays readable and the red
+ * "Nên tránh" never blends in. No verdict → no tint. */
+function verdictCardClass(verdict: VerdictLevel | null): string {
+  switch (verdict) {
+    case 'RECOMMENDED':
+      return 'border-l-4 border-l-success bg-success/5'
+    case 'OK':
+      return 'border-l-4 border-l-primary/50'
+    case 'CAUTION':
+      return 'border-l-4 border-l-amber bg-amber/10'
+    case 'AVOID':
+      return 'border-l-4 border-l-destructive bg-destructive/[0.05]'
+    default:
+      return ''
   }
 }
 
@@ -240,13 +257,18 @@ export function GuestMenuSelectionPage() {
     })
   }, [menu, searchInput, activeCategory])
 
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE))
+  // Same as the host: order by the advice — recommended first, avoid last,
+  // dishes with no verdict sink below. Stable within a tier, so the menu's own
+  // order survives before any recommend run has scored the dishes.
+  const rankedItems = useMemo(() => rankByVerdict(filteredItems), [filteredItems])
+
+  const totalPages = Math.max(1, Math.ceil(rankedItems.length / PAGE_SIZE))
   // Clamp rather than reset-in-effect: if the list shrinks (filter or a poll),
   // the page index can point past the end.
   const currentPage = Math.min(page, totalPages)
   const pagedItems = useMemo(
-    () => filteredItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [filteredItems, currentPage],
+    () => rankedItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [rankedItems, currentPage],
   )
 
   const updateLine = (
@@ -516,12 +538,16 @@ export function GuestMenuSelectionPage() {
               const line = lines[item.id] ?? { quantity: 0, note: '' }
               const name = item.translated_name || item.original_name
               const summary = item.assistant_summary || item.translated_description
+              // A selected dish keeps the selection highlight; otherwise the card
+              // is tinted by its recommend verdict so it reads at a glance.
+              const cardTint =
+                line.quantity > 0
+                  ? 'border-primary/40 bg-primary/[0.03]'
+                  : verdictCardClass(item.recommendation?.verdict ?? null)
               return (
                 <Card
                   key={item.id}
-                  className={`gap-3 rounded-2xl p-4 shadow-1 transition-colors ${
-                    line.quantity > 0 ? 'border-primary/40 bg-primary/[0.03]' : ''
-                  }`}
+                  className={`gap-3 rounded-2xl p-4 shadow-1 transition-colors ${cardTint}`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
