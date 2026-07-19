@@ -231,6 +231,10 @@ class PublicMenuItemResponse(BaseModel):
     price: str | None = None
     currency: str | None = None
     allergens: list[str] = Field(default_factory=list)
+    # The verdict the host's recommend run scored for this dish (group-level,
+    # plus per-participant breakdowns). None until that run has happened, or
+    # when nobody declared anything to score against.
+    recommendation: RecommendationResponse | None = None
 
 
 class PublicSessionMenuResponse(BaseModel):

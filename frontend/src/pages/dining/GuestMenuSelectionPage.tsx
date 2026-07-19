@@ -35,6 +35,15 @@ import {
   saveGuestPrefsDraft,
 } from '@/features/dining/guestSession'
 
+type VerdictLevel = 'RECOMMENDED' | 'OK' | 'CAUTION' | 'AVOID'
+
+interface GuestRecommendation {
+  verdict: VerdictLevel
+  score: number | null
+  why_suitable: string | null
+  why_not_suitable: string | null
+}
+
 interface PublicMenuItem {
   id: string
   original_name: string
@@ -45,6 +54,29 @@ interface PublicMenuItem {
   price: string | null
   currency: string | null
   allergens: string[]
+  // The verdict the host's recommend run scored for this dish (group-level).
+  // Null until that run has happened, or when nobody declared preferences.
+  recommendation: GuestRecommendation | null
+}
+
+const VERDICT_LABEL: Record<VerdictLevel, string> = {
+  RECOMMENDED: 'Nên thử',
+  OK: 'Phù hợp',
+  CAUTION: 'Cân nhắc',
+  AVOID: 'Nên tránh',
+}
+
+function verdictBadgeClass(verdict: VerdictLevel): string {
+  switch (verdict) {
+    case 'RECOMMENDED':
+      return 'border-success/30 bg-success/15 text-success'
+    case 'OK':
+      return 'border-primary/20 bg-primary/10 text-primary-dark'
+    case 'CAUTION':
+      return 'border-amber/40 bg-amber/15 text-amber'
+    case 'AVOID':
+      return 'border-destructive/30 bg-destructive/10 text-destructive'
+  }
 }
 
 interface PublicSessionMenu {
@@ -506,6 +538,31 @@ export function GuestMenuSelectionPage() {
                       {formatPrice(item.price, item.currency ?? menu.default_currency)}
                     </strong>
                   </div>
+
+                  {item.recommendation && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${verdictBadgeClass(
+                          item.recommendation.verdict,
+                        )}`}
+                      >
+                        {item.recommendation.verdict === 'AVOID' ||
+                        item.recommendation.verdict === 'CAUTION' ? (
+                          <AlertCircle className="size-3" aria-hidden />
+                        ) : (
+                          <CheckCircle2 className="size-3" aria-hidden />
+                        )}
+                        {VERDICT_LABEL[item.recommendation.verdict]}
+                      </span>
+                      {(item.recommendation.why_not_suitable ||
+                        item.recommendation.why_suitable) && (
+                        <span className="min-w-0 flex-1 truncate text-[11px] text-ink-variant">
+                          {item.recommendation.why_not_suitable ||
+                            item.recommendation.why_suitable}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {summary && (
                     <p className="mb-0 line-clamp-2 text-[13px] leading-5 text-ink-variant">

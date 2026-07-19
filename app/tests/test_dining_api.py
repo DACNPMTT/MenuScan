@@ -30,7 +30,7 @@ from src.modules.menu.models import FoodItem, Menu, MenuHostSelection, MenuStatu
 from src.modules.billing.dependencies import get_billing_service
 from src.modules.billing.models import Bill, BillItem, BillStatus
 from src.modules.billing.service import BillSplit, SplitShare
-from src.modules.dining.schemas import DiningPreferenceRequest
+from src.modules.dining.schemas import DiningPreferenceRequest, RecommendationResponse
 from src.modules.dining.service import DiningSessionInviteBundle
 from src.modules.identity.dependencies import get_current_user
 from src.modules.identity.models import User
@@ -327,7 +327,12 @@ class StubDiningSessionService:
         *,
         session_id: uuid.UUID,
         invite_token: str,
-    ) -> tuple[DiningSession, Menu | None, list[FoodItem]]:
+    ) -> tuple[
+        DiningSession,
+        Menu | None,
+        list[FoodItem],
+        dict[uuid.UUID, RecommendationResponse | None],
+    ]:
         if self.effect:
             raise self.effect
         if invite_token != "faketoken":
@@ -353,7 +358,15 @@ class StubDiningSessionService:
                 allergens=["gluten"],
             )
         ]
-        return session, menu, items
+        recommendations: dict[uuid.UUID, RecommendationResponse | None] = {
+            _ITEM_ID: RecommendationResponse(
+                verdict="AVOID",
+                score=0.0,
+                why_not_suitable="Dị ứng với hải sản",
+                warning_for=["Guest A"],
+            )
+        }
+        return session, menu, items, recommendations
 
     def get_public_session_meals(
         self,
@@ -845,6 +858,10 @@ def test_get_public_session_menu_success():
     assert items[0]["id"] == str(_ITEM_ID)
     assert items[0]["price"] == "65000.00"
     assert items[0]["allergens"] == ["gluten"]
+    # The guest sees the same verdict the host's recommend run scored.
+    assert items[0]["recommendation"]["verdict"] == "AVOID"
+    assert items[0]["recommendation"]["why_not_suitable"] == "Dị ứng với hải sản"
+    assert items[0]["recommendation"]["warning_for"] == ["Guest A"]
 
 
 def test_get_public_session_menu_invalid_token():
