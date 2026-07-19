@@ -13,6 +13,7 @@ import { formatMoney } from '@/features/menu-scan/lib'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card'
 import { EmptyState } from '@/shared/components/EmptyState'
+import { IconBadge } from '@/shared/components/IconBadge'
 import { Spinner } from '@/shared/components/Spinner'
 import { PageTransition } from '@/shared/components/motion/PageTransition'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
@@ -168,7 +169,7 @@ export function GuestBillPage() {
 
   return (
     <PageTransition className="min-h-dvh bg-app-bg">
-      <div className="mx-auto w-full max-w-[720px] px-4 py-8 sm:px-6">
+      <div className="mx-auto w-full max-w-[960px] px-4 py-8 sm:px-6">
         <Button variant="ghost" size="sm" asChild className="mb-6 -ml-2">
           <Link to={backToMenu}>
             <ArrowLeft className="size-4" aria-hidden />
@@ -213,35 +214,71 @@ export function GuestBillPage() {
             }
           />
         ) : (
-          <div className="flex flex-col gap-6">
+          <div
+            className={`grid grid-cols-1 items-start gap-8 ${
+              bills.length > 1 ? 'lg:grid-cols-2' : ''
+            }`}
+          >
             {bills.map((bill) => (
               <Card
                 key={bill.bill_id}
-                className="gap-0 overflow-hidden rounded-3xl p-0 shadow-2"
+                className="mx-auto w-full max-w-[420px] gap-0 overflow-hidden rounded-3xl border border-border bg-canvas p-0 shadow-pop"
               >
-                <div className="flex items-center gap-2 border-b border-dashed border-border px-5 py-4">
-                  <UtensilsCrossed className="size-5 text-primary" aria-hidden />
-                  <h2 className="mb-0 text-[17px] font-bold text-ink">
-                    {bill.menu_title || 'Bữa ăn'}
+                <header className="border-b border-dashed border-border px-[30px] pb-[26px] pt-[34px] text-center">
+                  <div className="mb-2 flex justify-center">
+                    <IconBadge icon={ReceiptText} size="sm" solid />
+                  </div>
+                  <h2 className="mb-0 text-[24px] font-bold uppercase tracking-[-0.5px] text-primary-dark">
+                    MenuScan
                   </h2>
-                </div>
+                  <p className="mb-0 text-[14px] font-semibold text-ink-variant">
+                    Hóa đơn thanh toán
+                  </p>
+                  <p className="mb-0 mt-3 flex items-center justify-center gap-2 text-[15px] font-bold text-ink">
+                    <UtensilsCrossed className="size-4 text-primary" aria-hidden />
+                    {bill.menu_title || 'Bữa ăn'}
+                  </p>
+                  <div className="mt-3 flex items-center justify-center gap-3 text-[13px] text-ink-variant">
+                    {bill.finalized_at && (
+                      <>
+                        <span>
+                          {new Date(bill.finalized_at).toLocaleDateString('vi-VN', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </span>
+                        <span aria-hidden>·</span>
+                        <span>
+                          {new Date(bill.finalized_at).toLocaleTimeString('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <p className="mb-0 mt-1 text-[13px] text-ink-variant">
+                    Mã hóa đơn #{bill.bill_id.slice(0, 8)}
+                  </p>
+                </header>
 
                 {/* Line items */}
-                <div className="flex flex-col gap-3 border-b border-dashed border-border px-5 py-4">
+                <div className="flex flex-col gap-[18px] border-b border-dashed border-border px-[30px] py-[24px]">
                   {bill.items.map((item, index) => (
                     <div
                       key={`${bill.bill_id}-${index}`}
                       className="flex items-start justify-between gap-3"
                     >
                       <div className="flex min-w-0 items-baseline gap-2">
-                        <span className="shrink-0 text-[14px] font-bold text-primary-dark">
+                        <span className="shrink-0 text-[15px] font-bold text-primary-dark">
                           {item.quantity}×
                         </span>
-                        <span className="truncate text-[14px] font-semibold text-ink">
+                        <span className="truncate text-[15px] font-bold text-ink">
                           {item.name}
                         </span>
                       </div>
-                      <span className="shrink-0 text-[14px] font-bold text-ink">
+                      <span className="shrink-0 text-[15px] font-bold text-ink">
                         {money(item.line_total, bill.currency)}
                       </span>
                     </div>
@@ -249,21 +286,26 @@ export function GuestBillPage() {
                 </div>
 
                 {/* Totals + adjustments */}
-                <div className="flex flex-col gap-2 bg-surface-muted px-5 py-4">
-                  <div className="flex items-center justify-between text-[13px] text-ink-variant">
+                <div className="flex flex-col gap-2 bg-surface-muted px-[30px] py-[24px]">
+                  {bill.adjustments.length > 0 && (
+                    <div className="mb-2 flex flex-col gap-1">
+                      {bill.adjustments.map((adj, index) => (
+                        <div
+                          key={`${bill.bill_id}-adj-${index}`}
+                          className="flex items-center justify-between text-[14px] text-ink-variant"
+                        >
+                          <span>{adj.label}</span>
+                          <span>{money(adj.amount, bill.currency)}</span>
+                        </div>
+                      ))}
+                      <div className="my-1 border-t border-dashed border-border" />
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between text-[14px] text-ink-variant">
                     <span>Tạm tính</span>
                     <span>{money(bill.subtotal_amount, bill.currency)}</span>
                   </div>
-                  {bill.adjustments.map((adj, index) => (
-                    <div
-                      key={`${bill.bill_id}-adj-${index}`}
-                      className="flex items-center justify-between text-[13px] text-ink-variant"
-                    >
-                      <span>{adj.label}</span>
-                      <span>{money(adj.amount, bill.currency)}</span>
-                    </div>
-                  ))}
-                  <div className="mt-1 flex items-center justify-between text-[18px] font-bold text-ink">
+                  <div className="flex items-center justify-between text-[20px] font-bold text-ink">
                     <span>Tổng cộng</span>
                     <span>{money(bill.total_amount, bill.currency)}</span>
                   </div>
@@ -285,13 +327,13 @@ export function GuestBillPage() {
                       return (
                         <div className="mt-3 flex flex-col gap-3">
                           {myShare && (
-                            <div className="rounded-2xl bg-primary/15 px-4 py-3">
+                            <div className="rounded-2xl bg-primary/15 px-3 py-3">
                               <div className="flex items-center justify-between">
                                 <span className="flex items-center gap-2 text-[15px] text-primary-dark">
                                   <Wallet className="size-4" aria-hidden />
                                   Bạn trả
                                 </span>
-                                <span className="text-[18px] font-bold text-primary-dark">
+                                <span className="text-[17px] font-bold text-primary-dark">
                                   {money(myShare.total, bill.currency)}
                                 </span>
                               </div>
@@ -354,12 +396,12 @@ export function GuestBillPage() {
                     // Even split — everyone pays total / N.
                     if (bill.per_person && bill.people_count) {
                       return (
-                        <div className="mt-3 flex items-center justify-between rounded-2xl bg-primary/15 px-4 py-3">
+                        <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-primary/15 px-3 py-3">
                           <span className="flex items-center gap-2 text-[15px] text-primary-dark">
                             <Wallet className="size-4" aria-hidden />
                             Bạn trả (chia {bill.people_count} người)
                           </span>
-                          <span className="text-[18px] font-bold text-primary-dark">
+                          <span className="shrink-0 text-[17px] font-bold text-primary-dark">
                             {money(bill.per_person, bill.currency)}
                           </span>
                         </div>
