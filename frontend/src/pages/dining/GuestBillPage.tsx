@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import {
   AlertCircle,
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   ReceiptText,
   RefreshCw,
   UtensilsCrossed,
@@ -87,8 +89,12 @@ export function GuestBillPage() {
   const guest = useMemo(() => (token ? loadGuestSession(token) : null), [token])
 
   const [bills, setBills] = useState<PublicBill[]>([])
+  const [selectedBillIndex, setSelectedBillIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const activeBillIndex = Math.min(selectedBillIndex, Math.max(bills.length - 1, 0))
+  const bill = bills[activeBillIndex]
 
   const load = useCallback(
     async (showLoading = false) => {
@@ -215,14 +221,43 @@ export function GuestBillPage() {
             }
           />
         ) : (
-          <div
-            className={`grid grid-cols-1 items-start gap-8 ${
-              bills.length > 1 ? 'lg:grid-cols-2' : ''
-            }`}
-          >
-            {bills.map((bill) => (
+          <>
+            {bills.length > 1 && (
+              <nav
+                aria-label="Duyệt hóa đơn"
+                className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-3 py-2 sm:px-4"
+              >
+                <p className="mb-0 text-[14px] font-semibold text-ink" aria-live="polite">
+                  Hóa đơn {activeBillIndex + 1} / {bills.length}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedBillIndex(activeBillIndex - 1)}
+                    disabled={activeBillIndex === 0}
+                    aria-label="Xem hóa đơn trước"
+                  >
+                    <ChevronLeft className="size-4" aria-hidden />
+                    Trước
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedBillIndex(activeBillIndex + 1)}
+                    disabled={activeBillIndex === bills.length - 1}
+                    aria-label="Xem hóa đơn tiếp theo"
+                  >
+                    Tiếp
+                    <ChevronRight className="size-4" aria-hidden />
+                  </Button>
+                </div>
+              </nav>
+            )}
+
+            <div className="flex justify-center">
+              {bill && (
               <Card
-                key={bill.bill_id}
                 className="mx-auto w-full max-w-[420px] gap-0 overflow-hidden rounded-3xl border border-border bg-canvas p-0 shadow-pop"
               >
                 <header className="border-b border-dashed border-border px-[30px] pb-[26px] pt-[34px] text-center">
@@ -417,8 +452,9 @@ export function GuestBillPage() {
                   })()}
                 </div>
               </Card>
-            ))}
-          </div>
+              )}
+            </div>
+          </>
         )}
       </div>
     </PageTransition>
