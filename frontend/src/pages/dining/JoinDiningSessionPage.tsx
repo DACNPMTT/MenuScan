@@ -10,7 +10,11 @@ import {
   CheckCircle2,
   User,
 } from 'lucide-react'
-import { saveGuestSession, saveGuestPrefsDraft } from '@/features/dining/guestSession'
+import {
+  loadGuestSession,
+  saveGuestSession,
+  saveGuestPrefsDraft,
+} from '@/features/dining/guestSession'
 import { Spinner } from '@/shared/components/Spinner'
 import { apiRequest } from '@/shared/lib/api'
 import { describeError } from '@/shared/lib/errors'
@@ -97,6 +101,17 @@ export function JoinDiningSessionPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inviteToken])
+
+  // The same QR should reopen this guest's existing seat, not create another
+  // anonymous participant. Validate the cached session id against the public
+  // invite response before continuing so stale browser data is never reused.
+  useEffect(() => {
+    if (!inviteToken || !session) return
+    const cachedGuest = loadGuestSession(inviteToken)
+    if (cachedGuest?.sessionId !== session.session_id) return
+
+    navigate(`/dining/select?token=${encodeURIComponent(inviteToken)}`, { replace: true })
+  }, [inviteToken, navigate, session])
 
   const steps = useMemo(
     () => [
