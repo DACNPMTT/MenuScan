@@ -143,7 +143,7 @@ export async function refreshAccessToken(): Promise<string | null> {
       broadcast({ type: 'refreshing' })
       try {
         return await doRefreshOnce()
-      } catch (firstError) {
+      } catch {
         await new Promise((r) => setTimeout(r, CONCURRENT_REFRESH_BACKOFF_MS))
         return await doRefreshOnce()
       }
