@@ -19,6 +19,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { apiRequest } from '@/shared/lib/api'
 import { describeError } from '@/shared/lib/errors'
+import { rankByVerdict, type VerdictLevel } from '@/features/menu-scan/ranking'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card'
 import { CurrencySelect } from '@/shared/components/CurrencySelect'
