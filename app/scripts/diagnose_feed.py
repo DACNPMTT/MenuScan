@@ -75,7 +75,7 @@ def main() -> None:
         print(f"    body: {exc.read().decode()[:300]}")
         sys.exit(1)
 
-    print(f"[2] /feed?radius_km=100 → HTTP 200")
+    print("[2] /feed?radius_km=100 → HTTP 200")
     data = body["data"]
     print(f"    items: {len(data['items'])}")
     print(f"    total_available: {data['total_available']}")

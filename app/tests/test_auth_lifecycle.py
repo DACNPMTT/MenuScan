@@ -283,8 +283,6 @@ def test_concurrent_refresh_within_grace_does_not_revoke(client, db_session, clo
     not a replay attack. The session is NOT revoked — the caller gets 401
     SESSION_EXPIRED so it retries with the rotated cookie the browser has
     already stored."""
-    from datetime import timedelta
-
     user = User(email="grace@example.com", status=UserStatus.ACTIVE)
     db_session.add(user)
     db_session.flush()

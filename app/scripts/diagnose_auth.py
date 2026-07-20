@@ -12,12 +12,10 @@ Prints each step's HTTP status and a one-line summary. Run from app/ folder.
 from __future__ import annotations
 
 import hashlib
-import http.client
 import json
 import sys
 from datetime import datetime, timedelta, timezone
 from http.cookies import SimpleCookie
-from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
