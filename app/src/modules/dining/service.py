@@ -39,6 +39,7 @@ from src.modules.menu.models import MenuHostSelection
 
 if TYPE_CHECKING:
     from src.modules.menu.models import FoodItem, Menu
+    from src.modules.dining.schemas import RecommendationResponse
 
 
 def _utcnow() -> datetime:
@@ -381,22 +382,48 @@ class DiningSessionService:
         *,
         session_id: uuid.UUID,
         invite_token: str,
-    ) -> tuple[DiningSession, Menu | None, list[FoodItem]]:
+    ) -> tuple[
+        DiningSession,
+        "Menu | None",
+        list["FoodItem"],
+        dict[uuid.UUID, "RecommendationResponse | None"],
+    ]:
         """The dishes a guest can pick from, gated by a valid invite.
 
-        Returns (session, menu, items). menu/items are empty until the host has
-        scanned a menu into the session.
+        Returns (session, menu, items, recommendations). menu/items are empty
+        until the host has scanned a menu into the session. ``recommendations``
+        maps each item id to the verdict scored for this session (the same list
+        the host's recommend run produced), or an empty map before that runs.
         """
         session = self._session_for_invite(session_id, invite_token)
         if session.menu_id is None:
-            return session, None, []
+            return session, None, [], {}
         menu = self._repository.get_menu(self._session, menu_id=session.menu_id)
         if menu is None:
-            return session, None, []
+            return session, None, [], {}
         items = self._repository.list_menu_items(
             self._session, menu_id=session.menu_id
         )
-        return session, menu, items
+        recommendations = self._load_public_recommendations(
+            menu_id=session.menu_id, items=items
+        )
+        return session, menu, items, recommendations
+
+    def _load_public_recommendations(
+        self,
+        *,
+        menu_id: uuid.UUID,
+        items: list["FoodItem"],
+    ) -> dict[uuid.UUID, "RecommendationResponse | None"]:
+        """Per-item verdict for a guest, read from the session's persisted
+        recommendations (what the host's recommend run wrote). Function-local
+        import breaks the presenter<->service import cycle."""
+        from src.modules.dining.presenters import load_recommendation_view
+
+        view = load_recommendation_view(
+            self._session, menu_id=menu_id, user_id=None
+        )
+        return {item.id: view.for_item(item) for item in items}
 
     def get_public_session_meals(
         self,

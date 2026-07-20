@@ -266,6 +266,30 @@ class BillingService:
             return []
         return self._repository.list_finalized_for_menus(self._session, menu_ids)
 
+    def set_split_breakdown(
+        self,
+        *,
+        bill_id: uuid.UUID,
+        user_id: uuid.UUID,
+        breakdown: dict,
+    ) -> Bill:
+        """Persist the host's per-person split plan on their own bill.
+
+        ``breakdown`` is the already-normalized JSON dict (money as strings,
+        ``people_count`` and ``shares``). It is display metadata -- the bill's
+        authoritative total stays server-computed from items/adjustments -- so
+        it is stored as given for whoever opens the shared receipt. Also mirrors
+        ``people_count`` onto ``split_people_count`` so the even-split fallback
+        stays consistent. Owner-scoped; a non-owner gets ``BillNotFoundError``.
+        """
+        bill = self.get_bill_for_user(bill_id=bill_id, user_id=user_id)
+        bill.split_breakdown = breakdown
+        people_count = breakdown.get("people_count")
+        if isinstance(people_count, int) and people_count >= 1:
+            bill.split_people_count = people_count
+        self._session.commit()
+        return bill
+
     def split_for_display(self, *, bill: Bill, people_count: int) -> BillSplit:
         """Even split of a bill's total, for a read-only shared receipt.
 

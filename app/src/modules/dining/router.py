@@ -318,7 +318,7 @@ def get_public_session_menu(
     service: DiningSessionService = Depends(get_dining_session_service),
 ) -> dict[str, object]:
     """The dishes a guest can pick from (auth-free, gated by the invite token)."""
-    session, menu, items = service.get_public_menu(
+    session, menu, items, recommendations = service.get_public_menu(
         session_id=session_id,
         invite_token=invite_token,
     )
@@ -339,6 +339,7 @@ def get_public_session_menu(
                 price=str(item.price) if item.price is not None else None,
                 currency=item.currency,
                 allergens=list(item.allergens or []),
+                recommendation=recommendations.get(item.id),
             )
             for item in items
         ],
@@ -403,6 +404,7 @@ def get_public_session_bills(
                 ],
                 people_count=bill.split_people_count,
                 per_person=per_person,
+                split_breakdown=bill.split_breakdown,
             )
         )
 

@@ -30,7 +30,7 @@ from src.modules.menu.models import FoodItem, Menu, MenuHostSelection, MenuStatu
 from src.modules.billing.dependencies import get_billing_service
 from src.modules.billing.models import Bill, BillItem, BillStatus
 from src.modules.billing.service import BillSplit, SplitShare
-from src.modules.dining.schemas import DiningPreferenceRequest
+from src.modules.dining.schemas import DiningPreferenceRequest, RecommendationResponse
 from src.modules.dining.service import DiningSessionInviteBundle
 from src.modules.identity.dependencies import get_current_user
 from src.modules.identity.models import User
@@ -329,7 +329,12 @@ class StubDiningSessionService:
         *,
         session_id: uuid.UUID,
         invite_token: str,
-    ) -> tuple[DiningSession, Menu | None, list[FoodItem]]:
+    ) -> tuple[
+        DiningSession,
+        Menu | None,
+        list[FoodItem],
+        dict[uuid.UUID, RecommendationResponse | None],
+    ]:
         if self.effect:
             raise self.effect
         if invite_token != "faketoken":
@@ -355,7 +360,15 @@ class StubDiningSessionService:
                 allergens=["gluten"],
             )
         ]
-        return session, menu, items
+        recommendations: dict[uuid.UUID, RecommendationResponse | None] = {
+            _ITEM_ID: RecommendationResponse(
+                verdict="AVOID",
+                score=0.0,
+                why_not_suitable="Dị ứng với hải sản",
+                warning_for=["Guest A"],
+            )
+        }
+        return session, menu, items, recommendations
 
     def get_public_session_meals(
         self,
@@ -470,7 +483,11 @@ class StubBillingService:
         )
 
 
-def _finalized_bill(*, split_people_count: int | None = 2) -> Bill:
+def _finalized_bill(
+    *,
+    split_people_count: int | None = 2,
+    split_breakdown: dict | None = None,
+) -> Bill:
     return Bill(
         id=_BILL_ID,
         user_id=_USER_ID,
@@ -482,6 +499,7 @@ def _finalized_bill(*, split_people_count: int | None = 2) -> Bill:
         total_amount=Decimal("130000.00"),
         finalized_at=_NOW,
         split_people_count=split_people_count,
+        split_breakdown=split_breakdown,
         items=[
             BillItem(
                 id=uuid.uuid4(),
@@ -848,6 +866,10 @@ def test_get_public_session_menu_success():
     assert items[0]["id"] == str(_ITEM_ID)
     assert items[0]["price"] == "65000.00"
     assert items[0]["allergens"] == ["gluten"]
+    # The guest sees the same verdict the host's recommend run scored.
+    assert items[0]["recommendation"]["verdict"] == "AVOID"
+    assert items[0]["recommendation"]["why_not_suitable"] == "Dị ứng với hải sản"
+    assert items[0]["recommendation"]["warning_for"] == ["Guest A"]
 
 
 def test_get_public_session_menu_invalid_token():
@@ -950,6 +972,50 @@ def test_get_public_session_bills_success():
     assert bill["items"][0]["quantity"] == 2
     # The endpoint only asks billing for this session's meal menus.
     assert billing.menu_ids_seen == [_MENU_ID]
+
+
+def test_get_public_session_bills_includes_split_breakdown():
+    breakdown = {
+        "mode": "BY_PERSON",
+        "people_count": 2,
+        "shares": [
+            {
+                "participant_id": str(_PARTICIPANT_ID),
+                "name": "ha",
+                "is_host": False,
+                "food_subtotal": "60000.00",
+                "fee_share": "0.00",
+                "total": "60000.00",
+                "line_items": [{"name": "Bún Chả", "quantity": 1, "amount": "50000.00"}],
+            },
+            {
+                "participant_id": None,
+                "name": "Host",
+                "is_host": True,
+                "food_subtotal": "70000.00",
+                "fee_share": "0.00",
+                "total": "70000.00",
+                "line_items": [],
+            },
+        ],
+    }
+    stub = StubDiningSessionService()
+    billing = StubBillingService(
+        bills=[_finalized_bill(split_breakdown=breakdown)]
+    )
+    client = _make_client(stub, billing=billing)
+
+    response = client.get(
+        f"/api/v1/dining/public/sessions/{_SESSION_ID}/bills?invite_token=faketoken"
+    )
+
+    assert response.status_code == 200
+    bill = response.json()["data"]["items"][0]
+    assert bill["split_breakdown"]["mode"] == "BY_PERSON"
+    shares = bill["split_breakdown"]["shares"]
+    assert shares[0]["participant_id"] == str(_PARTICIPANT_ID)
+    assert shares[0]["total"] == "60000.00"
+    assert shares[1]["is_host"] is True
 
 
 def test_get_public_session_bills_invalid_token():

@@ -35,7 +35,7 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.database import Base
@@ -134,6 +134,18 @@ class Bill(Base):
     # sees, so their per-person share matches the host's chosen headcount.
     # Null for solo/legacy bills that were never split.
     split_people_count: Mapped[int | None] = mapped_column(Integer)
+    # The host's per-person split plan, recorded at bill creation: the same
+    # "who pays what" breakdown the host sees (even split or per-person
+    # assignment), so a guest opening the shared receipt sees their own real
+    # share, not a naive even split. Display metadata (the authoritative total
+    # is still recomputed from items+adjustments); null for un-split bills.
+    # Shape: {"mode": "EVENLY"|"BY_PERSON", "people_count": int,
+    #         "shares": [{"participant_id": str|None, "name": str,
+    #                     "is_host": bool, "food_subtotal": str,
+    #                     "fee_share": str, "total": str,
+    #                     "line_items": [{"name": str, "quantity": int,
+    #                                     "amount": str}]}]}
+    split_breakdown: Mapped[dict | None] = mapped_column(JSONB)
 
     user: Mapped["User"] = relationship()
     menu: Mapped["Menu"] = relationship()

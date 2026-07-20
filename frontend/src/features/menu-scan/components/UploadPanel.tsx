@@ -112,9 +112,13 @@ export function UploadPanel() {
   const [selectedFiles, setSelectedFiles] = useState<LocalSelectedFile[]>([])
   
   const [diningSessions, setDiningSessions] = useState<SimpleDiningSession[]>([])
+  const [queryParamSession, setQueryParamSession] = useState<SimpleDiningSession | null>(null)
   const [selectedDiningSessionId, setSelectedDiningSessionId] = useState<string>('')
 
-  // Load dining sessions of the host
+  // Load dining sessions of the host. Any not-yet-closed session is linkable —
+  // including a COMPLETED one you already scanned a menu into, so scanning
+  // again just adds another meal to it. (Filtering to COLLECTING-only hid a
+  // session the moment its first menu was scanned.)
   useEffect(() => {
     if (!user) return
     const loadDiningSessions = async () => {
@@ -123,13 +127,33 @@ export function UploadPanel() {
           method: 'GET',
           token: accessToken ?? undefined,
         })
-        setDiningSessions(data.filter((s: SimpleDiningSession) => s.status === 'COLLECTING'))
+        setDiningSessions(data.filter((s: SimpleDiningSession) => s.status !== 'CLOSED'))
       } catch (err) {
         console.error('Failed to load dining sessions:', err)
       }
     }
     void loadDiningSessions()
   }, [accessToken, user])
+
+  // Fetch the linked session (from the URL) on its own so the dropdown can show
+  // its real name even when it is filtered out of the list above (e.g. closed).
+  useEffect(() => {
+    if (!diningSessionQueryParam || !user) return
+    let active = true
+    apiRequest<SimpleDiningSession>(`/api/v1/dining/sessions/${diningSessionQueryParam}`, {
+      method: 'GET',
+      token: accessToken ?? undefined,
+    })
+      .then((data) => {
+        if (active) setQueryParamSession(data)
+      })
+      .catch(() => {
+        // Non-fatal: the fallback item falls back to the short id.
+      })
+    return () => {
+      active = false
+    }
+  }, [diningSessionQueryParam, user, accessToken])
 
   // Pre-select if passed in query param
   useEffect(() => {
@@ -552,7 +576,9 @@ export function UploadPanel() {
                   <SelectItem value="none">-- Không liên kết --</SelectItem>
                   {diningSessionQueryParam && !diningSessions.some(s => s.id === diningSessionQueryParam) && (
                     <SelectItem value={diningSessionQueryParam}>
-                      Phiên ăn {diningSessionQueryParam.slice(0, 8)} (Đang liên kết)
+                      {queryParamSession?.name ||
+                        `Phiên ăn ${diningSessionQueryParam.slice(0, 8)}`}{' '}
+                      (Đang liên kết)
                     </SelectItem>
                   )}
                   {diningSessions.map((session: SimpleDiningSession) => (
