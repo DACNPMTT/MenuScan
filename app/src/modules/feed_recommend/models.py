@@ -18,6 +18,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -44,7 +45,6 @@ class UserLocation(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", name="fk_user_locations_user_id_users", ondelete="CASCADE"),
-        unique=True,
         nullable=False,
     )
     lat: Mapped[float] = mapped_column(Float, nullable=False)
@@ -63,6 +63,7 @@ class UserLocation(Base):
             "source IN ('geolocation', 'manual')",
             name="source_values",
         ),
+        UniqueConstraint("user_id", name="uq_user_locations_user"),
     )
 
 
@@ -97,9 +98,11 @@ class UserRestaurantSave(Base):
         # composite unique keeps saves idempotent; the NAMING_CONVENTION in
         # core.database would also derive this name — kept explicit so the
         # constraint survives even if the convention changes.
-        # The UNIQUE below is also created by the migration as a separate
-        # ``uq_user_restaurant_saves_user_restaurant``; the inline declaration
-        # would conflict on rerun, so it is intentionally omitted here.
+        UniqueConstraint(
+            "user_id",
+            "restaurant_source_id",
+            name="uq_user_restaurant_saves_user_restaurant",
+        ),
         Index("ix_user_restaurant_saves_user_id", user_id),
     )
 
@@ -140,6 +143,11 @@ class UserRestaurantSeen(Base):
         CheckConstraint(
             "action IN ('skip', 'view')",
             name="action_values",
+        ),
+        UniqueConstraint(
+            "user_id",
+            "restaurant_source_id",
+            name="uq_user_restaurant_seen_user_restaurant",
         ),
         Index("ix_user_restaurant_seen_user_id", user_id),
     )

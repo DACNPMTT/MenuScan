@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   AlertCircle,
@@ -41,7 +41,9 @@ import {
 import {
   loadGuestSession,
   loadGuestPrefsDraft,
+  loadGuestSelectionDraft,
   saveGuestPrefsDraft,
+  saveGuestSelectionDraft,
 } from '@/features/dining/guestSession'
 
 interface GuestRecommendation {
@@ -144,6 +146,7 @@ export function GuestMenuSelectionPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lines, setLines] = useState<Record<string, LineState>>({})
+  const restoredMenuIdRef = useRef<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [pickedCurrency, setPickedCurrency] = useState<string | null>(null)
@@ -210,6 +213,10 @@ export function GuestMenuSelectionPage() {
           { method: 'GET' },
         )
         setMenu(data)
+        if (data.menu_id && restoredMenuIdRef.current !== data.menu_id) {
+          restoredMenuIdRef.current = data.menu_id
+          setLines(loadGuestSelectionDraft(token, data.menu_id) ?? {})
+        }
       } catch (err) {
         setError(describeError(err, t, 'errors.generic'))
       } finally {
@@ -235,6 +242,11 @@ export function GuestMenuSelectionPage() {
       active = false
     }
   }, [guest, loadMenu])
+
+  useEffect(() => {
+    if (!menu?.menu_id) return
+    saveGuestSelectionDraft(token, menu.menu_id, lines)
+  }, [lines, menu?.menu_id, token])
 
   // Auto-poll while the menu is not ready yet, so a guest who joined before the
   // host scanned never has to hit "Làm mới" — it just appears.
