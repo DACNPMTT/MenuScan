@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { AnimatePresence } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { Compass } from 'lucide-react'
 import { EmptyState } from '@/shared/components/EmptyState'
@@ -131,26 +130,24 @@ export function FeedStack({ items, onStackExhausted, onWidenRadius }: FeedStackP
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-4">
-      <div className="relative">
-        <AnimatePresence>
-          {[...visibleStack].reverse().map((restaurant, domIndex) => {
-            // After reverse: domIndex 0 = back-most child, last = front child.
-            // visibleStack[0] is always the front of the stack.
-            const positionFromFront = visibleStack.length - 1 - domIndex
-            const isFront = positionFromFront === 0
-            return (
-              <RestaurantCardView
-                key={restaurant.source_id}
-                restaurant={restaurant}
-                saved={restaurant.saved}
-                onSaveToggle={isFront ? handleSaveToggle : undefined}
-                onSkip={isFront ? handleSkip : undefined}
-                peek={!isFront}
-                peekIndex={positionFromFront}
-              />
-            )
-          })}
-        </AnimatePresence>
+      <div className="relative overflow-hidden">
+        {[...visibleStack].reverse().map((restaurant, domIndex) => {
+          // After reverse: domIndex 0 = back-most child, last = front child.
+          // visibleStack[0] is always the front of the stack.
+          const positionFromFront = visibleStack.length - 1 - domIndex
+          const isFront = positionFromFront === 0
+          return (
+            <RestaurantCardView
+              key={restaurant.source_id}
+              restaurant={restaurant}
+              saved={restaurant.saved}
+              onSaveToggle={isFront ? handleSaveToggle : undefined}
+              onSkip={isFront ? handleSkip : undefined}
+              peek={!isFront}
+              peekIndex={positionFromFront}
+            />
+          )
+        })}
       </div>
       <p className="text-center text-[12px] text-ink-variant">
         {Math.min(safeIndex + 1, items.length)} / {items.length}

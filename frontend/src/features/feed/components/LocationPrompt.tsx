@@ -3,6 +3,13 @@ import { LocateFixed, MapPin } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'motion/react'
 import { useToast } from '@/app/providers/ToastProvider'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select'
 import { setLocation } from '../api'
 import { CITY_CENTERS } from '../city-centers'
 import type { UserLocation } from '../types'
@@ -20,14 +27,14 @@ interface LocationPromptProps {
  * Two paths:
  * - "Use my location": `navigator.geolocation` (only after the user taps the
  *   button — never on page load).
- * - "Pick a city": a `<select>` of static city centers, so diners at a desktop
+ * - "Pick a city": a shadcn `Select` of static city centers, so diners at a desktop
  *   planning a trip can still get a feed without a geocode service.
  */
 export function LocationPrompt({ open, onSettled, onClose }: LocationPromptProps) {
   const { t } = useTranslation()
   const toast = useToast()
   const [pending, setPending] = useState(false)
-  const [cityId, setCityId] = useState<string>('danang')
+  const [cityId, setCityId] = useState<string>('')
 
   const persist = async (lat: number, lng: number, source: 'geolocation' | 'manual', address_text: string | null) => {
     setPending(true)
@@ -74,8 +81,8 @@ export function LocationPrompt({ open, onSettled, onClose }: LocationPromptProps
     )
   }
 
-  const handleCity = () => {
-    const city = CITY_CENTERS.find((c) => c.id === cityId)
+  const handleCity = (id: string) => {
+    const city = CITY_CENTERS.find((c) => c.id === id)
     if (!city) return
     void persist(city.lat, city.lng, 'manual', city.name)
   }
@@ -129,27 +136,28 @@ export function LocationPrompt({ open, onSettled, onClose }: LocationPromptProps
                 <span className="h-px flex-1 bg-border" />
               </div>
 
-              <select
+              <Select
                 value={cityId}
-                onChange={(e) => setCityId(e.target.value)}
+                onValueChange={(v) => {
+                  setCityId(v)
+                  handleCity(v)
+                }}
                 disabled={pending}
-                className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-[14px] text-ink focus:border-primary focus:outline-none"
               >
-                {CITY_CENTERS.map((city) => (
-                  <option key={city.id} value={city.id}>
-                    {city.name}
-                  </option>
-                ))}
-              </select>
-
-              <button
-                type="button"
-                onClick={handleCity}
-                disabled={pending}
-                className="rounded-2xl border border-border bg-surface px-4 py-3 text-[14px] font-bold text-ink transition-all hover:bg-panel disabled:opacity-60"
-              >
-                {t('feed.locationPrompt.pickCity')}
-              </button>
+                <SelectTrigger
+                  className="w-full rounded-2xl border-border bg-surface px-4 py-3 text-[14px] font-semibold text-ink data-[placeholder]:text-ink-variant/70"
+                  aria-label={t('feed.locationPrompt.pickCity')}
+                >
+                  <SelectValue placeholder={t('feed.locationPrompt.pickCity')} />
+                </SelectTrigger>
+                <SelectContent position="popper" className="max-h-72">
+                  {CITY_CENTERS.map((city) => (
+                    <SelectItem key={city.id} value={city.id}>
+                      {city.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </motion.div>
         </motion.div>

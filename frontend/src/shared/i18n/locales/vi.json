@@ -748,7 +748,9 @@
     "save": "Lưu",
     "unsave": "Bỏ lưu",
     "skip": "Bỏ qua",
-    "viewMenu": "Xem món"
+    "viewMenu": "Xem món",
+    "like": "Thích",
+    "nope": "Bỏ"
   },
   "detail": {
     "address": "Địa chỉ",
