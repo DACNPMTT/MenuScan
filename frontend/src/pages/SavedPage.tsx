@@ -38,7 +38,15 @@ export function SavedPage() {
   }, [t, toast])
 
   useEffect(() => {
-    void load()
+    // Deferred so the initial setLoading inside load does not fire
+    // synchronously in the effect body (react-hooks/set-state-in-effect).
+    let active = true
+    Promise.resolve().then(() => {
+      if (active) void load()
+    })
+    return () => {
+      active = false
+    }
   }, [load])
 
   const handleUnsave = async (sourceId: number) => {

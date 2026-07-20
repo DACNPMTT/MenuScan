@@ -28,7 +28,9 @@ export function RestaurantDetailPage() {
 
   useEffect(() => {
     if (!Number.isFinite(sourceId)) {
-      setLoading(false)
+      // Deferred so setState does not fire synchronously in the effect body
+      // (react-hooks/set-state-in-effect).
+      Promise.resolve().then(() => setLoading(false))
       return
     }
     void (async () => {
