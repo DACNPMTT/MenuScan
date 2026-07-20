@@ -74,6 +74,10 @@ Luồng chính:
 - Tìm kiếm và lọc món theo tên/giá/nhóm trên trang menu.
 - Chọn món, thêm phí/thuế/giảm giá, chia bill theo số người và xuất hóa đơn điện tử.
 - Trạng thái loading, empty và lỗi của luồng chính.
+- Discovery feed (Dashboard hero entry) — feed rule-based dựa trên `food_profile`
+  + distance; save/skip; Saved tab; "invite friends here" tạo dining session có
+  `restaurant_source_id`. Dataset nhà hàng đọc từ `data/restaurants.json`
+  (in-memory cache), không lưu database.
 
 ## 4. Out of scope
 

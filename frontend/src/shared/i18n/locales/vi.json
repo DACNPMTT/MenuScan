@@ -725,5 +725,61 @@
     "missingToken": "Liên kết không hợp lệ. Vui lòng kiểm tra lại email.",
     "title": "Lỗi xác nhận"
   }
+},
+"feed": {
+  "heroTitle": "Khám phá",
+  "heroSubtitle": "Tìm quán hợp khẩu vị bạn quanh đây",
+  "pageTitle": "Khám phá quán ăn",
+  "savedTitle": "Quán đã lưu",
+  "detailTitle": "Chi tiết quán",
+  "radiusLabel": "Bán kính {{km}} km",
+  "changeLocation": "Đổi vị trí",
+  "expandRadius": "Tăng bán kính",
+  "locationPrompt": {
+    "title": "Bạn đang ở đâu?",
+    "subtitle": "Feed cần vị trí để tìm quán gần bạn.",
+    "useLocation": "Dùng vị trí của tôi",
+    "pickCity": "Chọn thành phố",
+    "locationDenied": "Không lấy được vị trí. Hãy chọn thành phố hoặc thử lại."
+  },
+  "card": {
+    "distance": "{{km}} km",
+    "noPrice": "Chưa có giá",
+    "matchLabel": "Hợp khẩu vị",
+    "cautionLabel": "Lưu ý",
+    "save": "Lưu",
+    "unsave": "Bỏ lưu",
+    "skip": "Bỏ qua",
+    "viewMenu": "Xem món",
+    "like": "Thích",
+    "nope": "Bỏ"
+  },
+  "detail": {
+    "address": "Địa chỉ",
+    "phone": "Điện thoại",
+    "openMaps": "Mở trong Google Maps",
+    "inviteFriends": "Mời bạn bè ăn cùng",
+    "meals": "Món ăn",
+    "about": "Giới thiệu"
+  },
+  "emptyFeed": {
+    "title": "Bạn đã xem hết quán trong bán kính",
+    "subtitle": "Mở rộng bán kính để xem thêm, hoặc đổi vị trí."
+  },
+  "maxRadiusReached": "Đã đạt bán kính tối đa 100 km — hãy đổi vị trí để tìm quán gần hơn.",
+  "errors": {
+    "radiusTooLarge": "Bán kính quá lớn. Hãy chọn vị trí gần các quán hơn."
+  },
+  "noSaved": {
+    "title": "Chưa có quán nào được lưu",
+    "subtitle": "Lưu quán yêu thích từ feed để xem lại ở đây."
+  },
+  "toast": {
+    "saved": "Đã lưu vào danh sách của bạn",
+    "unsaved": "Đã bỏ lưu",
+    "seen": "Đã bỏ qua",
+    "sessionCreated": "Đã tạo phiên ăn — mời bạn bè vào",
+    "batchFailed": "{{count}} thao tác chưa đồng bộ — vui lòng thử lại sau."
+  }
 }
-}
+ }

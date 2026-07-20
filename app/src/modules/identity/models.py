@@ -10,6 +10,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Index,
+    Integer,
     SmallInteger,
     String,
     Text,
@@ -72,6 +73,10 @@ class User(Base):
         default=list,
         server_default=text("'{}'::text[]"),
     )
+    # Comfortable average price (VND, cents-free raw integer) used by the
+    # Discovery feed's price-fit scoring term. NULL disables the term and
+    # its weight redistributes to the distance term.
+    price_band_cents: Mapped[int | None] = mapped_column(Integer)
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role"),
         nullable=False,

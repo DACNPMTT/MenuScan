@@ -63,6 +63,7 @@ def _user_response_data(
         "preferred_language": user.preferred_language,
         "allergies": list(user.allergies or []),
         "dietary_preferences": list(user.dietary_preferences or []),
+        "price_band_cents": user.price_band_cents,
         "role": user.role.value if hasattr(user.role, "value") else str(user.role),
     }
     if include_profile_details:

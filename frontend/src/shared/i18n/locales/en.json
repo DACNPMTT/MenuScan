@@ -739,5 +739,61 @@
     "missingToken": "Invalid link. Please check your email again.",
     "title": "Confirmation Error"
   }
+},
+"feed": {
+  "heroTitle": "Discover",
+  "heroSubtitle": "Find restaurants that match your taste nearby",
+  "pageTitle": "Discover restaurants",
+  "savedTitle": "Saved restaurants",
+  "detailTitle": "Restaurant detail",
+  "radiusLabel": "Radius {{km}} km",
+  "changeLocation": "Change location",
+  "expandRadius": "Widen radius",
+  "locationPrompt": {
+    "title": "Where are you?",
+    "subtitle": "The feed needs your location to find nearby restaurants.",
+    "useLocation": "Use my location",
+    "pickCity": "Pick a city",
+    "locationDenied": "Couldn't get your location. Pick a city or try again."
+  },
+  "card": {
+    "distance": "{{km}} km",
+    "noPrice": "No price info",
+    "matchLabel": "Matches your taste",
+    "cautionLabel": "Heads up",
+    "save": "Save",
+    "unsave": "Unsave",
+    "skip": "Skip",
+    "viewMenu": "View menu",
+    "like": "Like",
+    "nope": "Nope"
+  },
+  "detail": {
+    "address": "Address",
+    "phone": "Phone",
+    "openMaps": "Open in Google Maps",
+    "inviteFriends": "Invite friends to join",
+    "meals": "Menu",
+    "about": "About"
+  },
+  "emptyFeed": {
+    "title": "You've seen every restaurant in this radius",
+    "subtitle": "Widen the radius or change your location to see more."
+  },
+  "maxRadiusReached": "You're at the max radius of 100 km — try changing your location to find nearby restaurants.",
+  "errors": {
+    "radiusTooLarge": "Radius is too large. Pick a location closer to the restaurants."
+  },
+  "noSaved": {
+    "title": "No saved restaurants yet",
+    "subtitle": "Save favorites from the feed to revisit them here."
+  },
+  "toast": {
+    "saved": "Saved to your list",
+    "unsaved": "Unsaved",
+    "seen": "Skipped",
+    "sessionCreated": "Dining session created — invite your friends",
+    "batchFailed": "{{count}} actions didn't sync — please retry later."
+  }
 }
-}
+ }
