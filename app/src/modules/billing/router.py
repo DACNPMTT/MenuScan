@@ -20,6 +20,7 @@ from src.modules.billing.schemas import (
     BillSummaryResponse,
     CreateBillRequest,
     FinalizeBillRequest,
+    SetSplitBreakdownRequest,
     SplitBillRequest,
     SplitShareResponse,
     UpdateBillItemsRequest,
@@ -119,6 +120,28 @@ def split_bill(
             for share in split.shares
         ],
     )
+    return success_response(data=data.model_dump(mode="json"))
+
+
+@router.put("/{bill_id}/split-breakdown", status_code=status.HTTP_200_OK)
+def set_split_breakdown(
+    bill_id: uuid.UUID,
+    payload: SetSplitBreakdownRequest,
+    current_user: User = Depends(get_current_user),
+    service: BillingService = Depends(get_billing_service),
+) -> dict[str, object]:
+    """Record the host's per-person split plan on their bill.
+
+    Stored as display metadata so a guest opening the shared receipt sees their
+    own real share (even split or per-person assignment), not a naive split.
+    """
+    breakdown = payload.model_dump(mode="json")
+    bill = service.set_split_breakdown(
+        bill_id=bill_id,
+        user_id=current_user.id,
+        breakdown=breakdown,
+    )
+    data = BillResponse.model_validate(bill)
     return success_response(data=data.model_dump(mode="json"))
 
 

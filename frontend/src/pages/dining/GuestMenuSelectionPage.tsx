@@ -21,10 +21,16 @@ import { apiRequest } from '@/shared/lib/api'
 import { describeError } from '@/shared/lib/errors'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card'
+import { CurrencySelect } from '@/shared/components/CurrencySelect'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { Spinner } from '@/shared/components/Spinner'
 import { PageTransition } from '@/shared/components/motion/PageTransition'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
+import { useExchangeRates } from '@/shared/hooks/useExchangeRates'
+import {
+  formatConvertedAmount,
+  type ExchangeRates,
+} from '@/shared/lib/currency'
 import { FoodProfilePreferencePicker } from '@/features/food-profile/components/FoodProfilePreferencePicker'
 import {
   createEmptyFoodProfileDraft,
@@ -37,6 +43,13 @@ import {
   saveGuestPrefsDraft,
 } from '@/features/dining/guestSession'
 
+interface GuestRecommendation {
+  verdict: VerdictLevel
+  score: number | null
+  why_suitable: string | null
+  why_not_suitable: string | null
+}
+
 interface PublicMenuItem {
   id: string
   original_name: string
@@ -47,6 +60,47 @@ interface PublicMenuItem {
   price: string | null
   currency: string | null
   allergens: string[]
+  // The verdict the host's recommend run scored for this dish (group-level).
+  // Null until that run has happened, or when nobody declared preferences.
+  recommendation: GuestRecommendation | null
+}
+
+const VERDICT_LABEL: Record<VerdictLevel, string> = {
+  RECOMMENDED: 'Nên thử',
+  OK: 'Phù hợp',
+  CAUTION: 'Cân nhắc',
+  AVOID: 'Nên tránh',
+}
+
+function verdictBadgeClass(verdict: VerdictLevel): string {
+  switch (verdict) {
+    case 'RECOMMENDED':
+      return 'border-success/30 bg-success/15 text-success'
+    case 'OK':
+      return 'border-primary/20 bg-primary/10 text-primary-dark'
+    case 'CAUTION':
+      return 'border-amber/40 bg-amber/15 text-amber'
+    case 'AVOID':
+      return 'border-destructive/30 bg-destructive/10 text-destructive'
+  }
+}
+
+/** Card skin so the verdict reads at a glance across the whole card — a tinted
+ * left edge + faint wash, kept quiet so a long menu stays readable and the red
+ * "Nên tránh" never blends in. No verdict → no tint. */
+function verdictCardClass(verdict: VerdictLevel | null): string {
+  switch (verdict) {
+    case 'RECOMMENDED':
+      return 'border-l-4 border-l-success bg-success/5'
+    case 'OK':
+      return 'border-l-4 border-l-primary/50'
+    case 'CAUTION':
+      return 'border-l-4 border-l-amber bg-amber/10'
+    case 'AVOID':
+      return 'border-l-4 border-l-destructive bg-destructive/[0.05]'
+    default:
+      return ''
+  }
 }
 
 interface PublicSessionMenu {
@@ -66,11 +120,16 @@ interface LineState {
 const ALL_CATEGORY = 'Tất cả'
 const PAGE_SIZE = 8
 
-function formatPrice(price: string | null, currency: string | null): string {
+function formatPrice(
+  price: string | null,
+  sourceCurrency: string | null,
+  displayCurrency: string,
+  rates: ExchangeRates | null,
+): string {
   if (!price) return ''
   const amount = Number(price)
-  if (!Number.isFinite(amount)) return `${price} ${currency ?? ''}`.trim()
-  return `${amount.toLocaleString('vi-VN')} ${currency ?? ''}`.trim()
+  if (!Number.isFinite(amount)) return `${price} ${sourceCurrency ?? ''}`.trim()
+  return formatConvertedAmount(amount, sourceCurrency, displayCurrency, rates)
 }
 
 export function GuestMenuSelectionPage() {
@@ -86,6 +145,7 @@ export function GuestMenuSelectionPage() {
   const [lines, setLines] = useState<Record<string, LineState>>({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [pickedCurrency, setPickedCurrency] = useState<string | null>(null)
   // Enables "Chốt" even at zero items, so a guest can clear a previous basket.
   const [touched, setTouched] = useState(false)
 
@@ -96,6 +156,17 @@ export function GuestMenuSelectionPage() {
   )
   const [savingPrefs, setSavingPrefs] = useState(false)
   const [prefsSaved, setPrefsSaved] = useState(false)
+
+  const currency =
+    menu?.default_currency ?? menu?.items.find((item) => item.currency)?.currency ?? 'VND'
+  const displayCurrency = pickedCurrency ?? currency
+  const needsConversion = Boolean(
+    menu?.items.some((item) => (item.currency ?? currency) !== displayCurrency),
+  )
+  const { rates: exchangeRates, error: ratesError } = useExchangeRates(
+    currency,
+    needsConversion,
+  )
 
   const handleSavePreferences = async () => {
     if (!guest || savingPrefs) return
@@ -203,13 +274,18 @@ export function GuestMenuSelectionPage() {
     })
   }, [menu, searchInput, activeCategory])
 
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE))
+  // Same as the host: order by the advice — recommended first, avoid last,
+  // dishes with no verdict sink below. Stable within a tier, so the menu's own
+  // order survives before any recommend run has scored the dishes.
+  const rankedItems = useMemo(() => rankByVerdict(filteredItems), [filteredItems])
+
+  const totalPages = Math.max(1, Math.ceil(rankedItems.length / PAGE_SIZE))
   // Clamp rather than reset-in-effect: if the list shrinks (filter or a poll),
   // the page index can point past the end.
   const currentPage = Math.min(page, totalPages)
   const pagedItems = useMemo(
-    () => filteredItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [filteredItems, currentPage],
+    () => rankedItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [rankedItems, currentPage],
   )
 
   const updateLine = (
@@ -292,7 +368,7 @@ export function GuestMenuSelectionPage() {
 
   return (
     <PageTransition className="min-h-dvh bg-app-bg">
-      <div className="mx-auto w-full max-w-[720px] px-4 py-8 pb-[130px] sm:px-6">
+      <div className="mx-auto w-full max-w-[1200px] px-4 py-8 pb-[130px] sm:px-6">
         <header className="mb-6 flex flex-col gap-1">
           <span className="flex items-center gap-2 text-[13px] font-semibold text-primary">
             <UtensilsCrossed className="size-4" aria-hidden />
@@ -305,7 +381,7 @@ export function GuestMenuSelectionPage() {
             Chọn số lượng và ghi chú cho từng món. Host sẽ thấy lựa chọn của bạn để gộp
             hóa đơn.
           </p>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="outline"
@@ -322,6 +398,12 @@ export function GuestMenuSelectionPage() {
                 Xem hóa đơn
               </Link>
             </Button>
+            {menuReady && (
+              <CurrencySelect
+                value={displayCurrency}
+                onChange={setPickedCurrency}
+              />
+            )}
             {prefsSaved && (
               <span className="flex items-center gap-1 text-[12px] font-semibold text-success">
                 <CheckCircle2 className="size-3.5" aria-hidden />
@@ -329,6 +411,20 @@ export function GuestMenuSelectionPage() {
               </span>
             )}
           </div>
+          {needsConversion && !exchangeRates && !ratesError && (
+            <p
+              className="mt-1 flex items-center gap-1.5 text-[12px] text-ink-variant"
+              role="status"
+            >
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              Đang cập nhật tỷ giá…
+            </p>
+          )}
+          {ratesError && (
+            <p className="mt-1 text-[12px] text-amber" role="status">
+              Chưa tải được tỷ giá. Giá đang hiển thị theo đơn vị gốc.
+            </p>
+          )}
         </header>
 
         {showPrefs && (
@@ -470,17 +566,21 @@ export function GuestMenuSelectionPage() {
                 description="Thử từ khóa khác hoặc bỏ bộ lọc."
               />
             ) : (
-          <div className="flex flex-col gap-3">
+          <main className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             {pagedItems.map((item) => {
               const line = lines[item.id] ?? { quantity: 0, note: '' }
               const name = item.translated_name || item.original_name
               const summary = item.assistant_summary || item.translated_description
+              // A selected dish keeps the selection highlight; otherwise the card
+              // is tinted by its recommend verdict so it reads at a glance.
+              const cardTint =
+                line.quantity > 0
+                  ? 'border-primary/40 bg-primary/[0.03]'
+                  : verdictCardClass(item.recommendation?.verdict ?? null)
               return (
                 <Card
                   key={item.id}
-                  className={`gap-3 rounded-2xl p-4 shadow-1 transition-colors ${
-                    line.quantity > 0 ? 'border-primary/40 bg-primary/[0.03]' : ''
-                  }`}
+                  className={`gap-3 rounded-2xl p-4 shadow-1 transition-colors ${cardTint}`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -492,11 +592,46 @@ export function GuestMenuSelectionPage() {
                           {item.original_name}
                         </p>
                       )}
+                      {item.category && (
+                        <span className="mt-2 inline-flex rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary-dark">
+                          {item.category}
+                        </span>
+                      )}
                     </div>
                     <strong className="shrink-0 text-[15px] text-primary-dark">
-                      {formatPrice(item.price, item.currency ?? menu.default_currency)}
+                      {formatPrice(
+                        item.price,
+                        item.currency ?? currency,
+                        displayCurrency,
+                        exchangeRates,
+                      )}
                     </strong>
                   </div>
+
+                  {item.recommendation && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${verdictBadgeClass(
+                          item.recommendation.verdict,
+                        )}`}
+                      >
+                        {item.recommendation.verdict === 'AVOID' ||
+                        item.recommendation.verdict === 'CAUTION' ? (
+                          <AlertCircle className="size-3" aria-hidden />
+                        ) : (
+                          <CheckCircle2 className="size-3" aria-hidden />
+                        )}
+                        {VERDICT_LABEL[item.recommendation.verdict]}
+                      </span>
+                      {(item.recommendation.why_not_suitable ||
+                        item.recommendation.why_suitable) && (
+                        <span className="min-w-0 flex-1 truncate text-[11px] text-ink-variant">
+                          {item.recommendation.why_not_suitable ||
+                            item.recommendation.why_suitable}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {summary && (
                     <p className="mb-0 line-clamp-2 text-[13px] leading-5 text-ink-variant">
@@ -555,7 +690,7 @@ export function GuestMenuSelectionPage() {
                 </Card>
               )
             })}
-          </div>
+          </main>
             )}
 
             {totalPages > 1 && (
@@ -589,7 +724,7 @@ export function GuestMenuSelectionPage() {
 
       {menuReady && (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-panel px-4 py-4 shadow-3 sm:px-6">
-          <div className="mx-auto flex max-w-[720px] items-center justify-between gap-3">
+          <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3">
             <div className="flex flex-col text-[13px] text-ink-variant">
               {saved ? (
                 <span className="flex items-center gap-1.5 font-semibold text-success">

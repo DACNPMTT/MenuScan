@@ -293,7 +293,8 @@
       "shared": "Dùng chung",
       "hostPays": "Bạn trả",
       "hostPayer": "Bạn (Host)",
-      "assignTitle": "Món bạn tự thêm — gán cho ai?",
+      "assignTitle": "Món bạn tự thêm — ai chia?",
+      "assignHint": "Chạm để chọn người chia món (chia đều phần được chọn)",
       "feeShare": "Phí (chia đều)",
       "noItems": "Chưa chọn món nào",
       "fromGuests_other": "Trong đó {{count}} phần do khách chọn"
@@ -482,6 +483,7 @@
     "splitAmong": "Chia cho",
     "people_other": "{{count}} người",
     "perPersonPays": "Mỗi người trả",
+    "splitByPerson": "Chia theo người",
     "finalizing": "Đang chốt…",
     "finalize": "Xuất hóa đơn",
     "backToEdit": "Quay lại chỉnh bill",

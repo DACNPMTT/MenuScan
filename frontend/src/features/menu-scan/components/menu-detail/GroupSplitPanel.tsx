@@ -17,8 +17,10 @@ interface GroupSplitPanelProps {
   /** The host's own ticked dishes, needing an owner when splitting per person. */
   hostOwnItems: { id: string; name: string; quantity: number; amount: number }[]
   guestParticipants: { id: string; name: string }[]
-  assignments: Record<string, string>
-  onAssign: (itemId: string, value: string) => void
+  /** Who splits each host dish, as a list of payer keys. Empty/absent = everyone. */
+  assignments: Record<string, string[]>
+  hostPayerKey: string
+  onAssign: (itemId: string, keys: string[]) => void
   currency: string
   displayCurrency: string
   rates: ExchangeRates | null
@@ -32,6 +34,7 @@ export function GroupSplitPanel({
   hostOwnItems,
   guestParticipants,
   assignments,
+  hostPayerKey,
   onAssign,
   currency,
   displayCurrency,
@@ -41,41 +44,83 @@ export function GroupSplitPanel({
   const money = (amount: number) =>
     formatConvertedAmount(amount, currency, displayCurrency, rates)
 
+  // Every possible sharer for a host dish: the host, then each guest. This is
+  // the "everyone" default an unassigned dish is split across.
+  const sharerOptions: { key: string; name: string }[] = [
+    { key: hostPayerKey, name: t('menuDetail.split.hostPayer') },
+    ...guestParticipants.map((guest) => ({ key: guest.id, name: guest.name })),
+  ]
+  const allKeys = sharerOptions.map((option) => option.key)
+
+  // Toggle a person in/out of the set splitting this dish. A dish must keep at
+  // least one sharer, so removing the last one is a no-op.
+  const toggleSharer = (itemId: string, key: string) => {
+    const current = assignments[itemId]?.length ? assignments[itemId] : allKeys
+    const selected = new Set(current)
+    if (selected.has(key)) {
+      if (selected.size <= 1) return
+      selected.delete(key)
+    } else {
+      selected.add(key)
+    }
+    onAssign(itemId, allKeys.filter((candidate) => selected.has(candidate)))
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {hostOwnItems.length > 0 && (
         <div className="rounded-2xl border border-border bg-panel/60 p-3">
-          <p className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-ink">
+          <p className="mb-1 flex items-center gap-1.5 text-[13px] font-bold text-ink">
             <Receipt className="size-4 text-primary-dark" aria-hidden />
             {t('menuDetail.split.assignTitle')}
           </p>
+          <p className="mb-2 text-[11px] text-ink-variant">
+            {t('menuDetail.split.assignHint')}
+          </p>
           <div className="flex flex-col gap-2">
-            {hostOwnItems.map((item) => (
-              <div
-                key={item.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2"
-              >
-                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">
-                  {item.quantity} x {item.name}
-                  <span className="ml-1 text-[12px] font-normal text-ink-variant">
-                    ({money(item.amount)})
-                  </span>
-                </span>
-                <select
-                  value={assignments[item.id] ?? 'SPLIT'}
-                  onChange={(event) => onAssign(item.id, event.target.value)}
-                  className="h-8 shrink-0 rounded-lg border border-border bg-canvas px-2 text-[12px] font-semibold text-ink outline-none focus:border-primary"
+            {hostOwnItems.map((item) => {
+              const selected = new Set(
+                assignments[item.id]?.length ? assignments[item.id] : allKeys,
+              )
+              return (
+                <div
+                  key={item.id}
+                  className="flex flex-col gap-2 rounded-xl bg-surface px-3 py-2"
                 >
-                  <option value="SPLIT">{t('menuDetail.split.shared')}</option>
-                  <option value="HOST">{t('menuDetail.split.hostPays')}</option>
-                  {guestParticipants.map((guest) => (
-                    <option key={guest.id} value={guest.id}>
-                      {guest.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
+                  <span className="min-w-0 text-[13px] font-medium text-ink">
+                    {item.quantity} x {item.name}
+                    <span className="ml-1 text-[12px] font-normal text-ink-variant">
+                      ({money(item.amount)})
+                    </span>
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {sharerOptions.map((option) => {
+                      const on = selected.has(option.key)
+                      return (
+                        <button
+                          key={option.key}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => toggleSharer(item.id, option.key)}
+                          className={`rounded-full border px-2.5 py-1 text-[12px] font-semibold transition-colors ${
+                            on
+                              ? 'border-primary bg-primary text-white'
+                              : 'border-border bg-canvas text-ink-variant hover:bg-surface-muted'
+                          }`}
+                        >
+                          {option.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {selected.size > 1 && (
+                    <span className="text-[11px] text-ink-variant">
+                      {t('menuDetail.split.shared')} · {money(item.amount / selected.size)}/{t('receipt.people', { count: selected.size })}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
