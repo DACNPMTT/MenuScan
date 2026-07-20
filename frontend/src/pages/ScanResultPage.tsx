@@ -20,7 +20,8 @@ import { useTranslation } from 'react-i18next'
 import { motion } from 'motion/react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
-import { apiRequest, apiRequestWithMeta, ApiError } from '@/shared/lib/api'
+import { apiRequest, apiRequestWithMeta } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { useExchangeRates } from '@/shared/hooks/useExchangeRates'
 import { CurrencySelect } from '@/shared/components/CurrencySelect'
@@ -135,11 +136,7 @@ export function ScanResultPage() {
             }
           } catch (err) {
             if (!cancelled) {
-              setError(
-                err instanceof ApiError
-                  ? err.message
-                  : t('scanResult.errors.resultLoadFailed'),
-              )
+              setError(describeError(err, t, 'scanResult.errors.resultLoadFailed'))
             }
           }
           return
@@ -166,9 +163,7 @@ export function ScanResultPage() {
         }
       } catch (err) {
         if (cancelled) return
-        setError(
-          err instanceof ApiError ? err.message : t('scanResult.errors.statusFailed'),
-        )
+        setError(describeError(err, t, 'scanResult.errors.statusFailed'))
       }
     }
 
@@ -334,7 +329,7 @@ function ResultView({
     try {
       await onItemsPageChange(page)
     } catch (err) {
-      const description = err instanceof ApiError ? err.message : undefined
+      const description = describeError(err, t, 'errors.generic')
       toast.show({
         variant: 'error',
         title: t('scanResult.errors.resultLoadFailed'),
@@ -365,11 +360,7 @@ function ResultView({
         title: nextSaved ? t('scanResult.toast.saved') : t('scanResult.toast.unsaved'),
       })
     } catch (err) {
-      setSaveError(
-        err instanceof ApiError
-          ? err.message
-          : t('scanResult.errors.saveFailed'),
-      )
+      setSaveError(describeError(err, t, 'scanResult.errors.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -390,11 +381,7 @@ function ResultView({
       onConfirmed(confirmed)
       toast.show({ variant: 'success', title: t('scanResult.toast.confirmed') })
     } catch (err) {
-      setConfirmError(
-        err instanceof ApiError
-          ? err.message
-          : t('scanResult.errors.confirmFailed'),
-      )
+      setConfirmError(describeError(err, t, 'scanResult.errors.confirmFailed'))
     } finally {
       setConfirming(false)
     }

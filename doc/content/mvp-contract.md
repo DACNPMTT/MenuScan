@@ -102,10 +102,21 @@ Luồng chính:
 - Lần xác minh Magic Link đầu tiên tự động tạo user ở trạng thái `ACTIVE`.
 - Access token (JWT) có hiệu lực 15 phút.
 - Refresh token rotate sau mỗi lần refresh, lưu trong cookie `HttpOnly`,
-  `Secure` (tắt ở môi trường dev/test), `SameSite=Lax`. Thời hạn session theo
-  hằng số `SESSION_TTL` trong code (hiện `15 phút`).
+  `Secure` (tắt ở môi trường dev/test). Thuộc tính `SameSite` theo env
+  `SESSION_COOKIE_SAMESITE` (default `lax` — an toàn cho same-origin và tự
+  chặn CSRF; đặt `none` cho cross-origin production, khi đó CSRF defense
+  chuyển sang check `Origin` whitelist ở `/auth/refresh`). Thời hạn session
+  theo hằng số `SESSION_TTL` trong code (hiện `30 ngày`); mỗi lần refresh
+  gia hạn thêm `SESSION_TTL` (sliding window), chặn bởi absolute cap
+  `SESSION_ABSOLUTE_TIMEOUT = 90 ngày` kể từ lúc tạo session.
 - Logout xác minh secret của refresh token khớp với session trước khi thu hồi.
-- Nếu phát hiện refresh token cũ bị tái sử dụng, session tương ứng bị thu hồi.
+- Phát hiện refresh token cũ bị tái sử dụng: trong `REFRESH_GRACE_WINDOW`
+  (hiện `30 giây`) sau lần rotate gần nhất, request bị từ chối với
+  `SESSION_EXPIRED` và **không** thu hồi session — đây là tín hiệu race từ
+  tab khác cùng refresh, không phải replay attack. Ngoài grace window, đây là
+  replay thật và session bị thu hồi (`SESSION_REVOKED`).
+- User đang ở trạng thái `DISABLED` hoặc đã soft-delete không thể đăng nhập lại
+  qua Magic Link — account chỉ mở lại khi admin khôi phục.
 
 ### 5.2 Auth endpoints
 

@@ -22,7 +22,8 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth, type FoodProfile, type User } from '@/app/providers/AuthProvider'
-import { ApiError, apiRequest } from '@/shared/lib/api'
+import { apiRequest } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { LanguageSwitcher } from '@/shared/components/LanguageSwitcher'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { FoodProfilePreferencePicker } from '@/features/food-profile/components/FoodProfilePreferencePicker'
@@ -124,11 +125,7 @@ export function ProfilePage() {
       setFullProfile(data)
       setFoodProfiles(profiles)
     } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : t('profile.errors.loadFailed'),
-      )
+      setError(describeError(err, t, 'profile.errors.loadFailed'))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -182,11 +179,7 @@ export function ProfilePage() {
       setFullProfile(updated)
       setEditing(false)
     } catch (err) {
-      setSaveError(
-        err instanceof ApiError
-          ? err.message
-          : t('profile.errors.updateFailed'),
-      )
+      setSaveError(describeError(err, t, 'profile.errors.updateFailed'))
     } finally {
       setSaving(false)
     }
@@ -250,11 +243,7 @@ export function ProfilePage() {
         setFullProfile(data)
       }
     } catch (err) {
-      setFoodProfileError(
-        err instanceof ApiError
-          ? err.message
-          : t('foodProfile.errors.saveFailed'),
-      )
+      setFoodProfileError(describeError(err, t, 'foodProfile.errors.saveFailed'))
     } finally {
       setFoodProfileSaving(false)
     }
@@ -279,11 +268,7 @@ export function ProfilePage() {
         setProfileEditorOpen(false)
       }
     } catch (err) {
-      setFoodProfileError(
-        err instanceof ApiError
-          ? err.message
-          : t('foodProfile.errors.deleteFailed'),
-      )
+      setFoodProfileError(describeError(err, t, 'foodProfile.errors.deleteFailed'))
     } finally {
       setFoodProfileSaving(false)
     }
@@ -303,9 +288,7 @@ export function ProfilePage() {
       setDeleteSuccessMsg(res.message)
       setDeleteEmailInput('')
     } catch (err) {
-      setDeleteError(
-        err instanceof Error ? err.message : t('deleteAccount.errors.requestFailed'),
-      )
+      setDeleteError(describeError(err, t, 'deleteAccount.errors.requestFailed'))
     } finally {
       setDeleteRequesting(false)
     }

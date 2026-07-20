@@ -33,7 +33,7 @@ from src.modules.identity.models import (
     UserSession,
     UserStatus,
 )
-from src.modules.identity.service import hash_token, MagicLinkService
+from src.modules.identity.service import hash_token, MagicLinkService, SESSION_TTL
 from src.modules.identity.repository import (
     MagicLinkTokenRepository,
     UserRepository,
@@ -138,7 +138,7 @@ def _insert_active_session(
         id=session_id,
         user_id=user.id,
         refresh_token_hash=hash_token(raw_secret),
-        expires_at=clock() + timedelta(days=30),
+        expires_at=clock() + SESSION_TTL,
         created_at=clock(),
         last_rotated_at=clock(),
     )
@@ -342,7 +342,7 @@ class TestVerifyMagicLink:
         assert count == 1
 
     def test_cookie_httponly_and_samesite_set(self, client, db_session, clock):
-        """Cookie phải có HttpOnly và SameSite=Lax."""
+        """Cookie phải có HttpOnly và SameSite=Lax (theo default config)."""
         raw_token = "cookie-check-token"
         _insert_valid_token(db_session, clock, "cookie@example.com", raw_token)
 
@@ -351,9 +351,11 @@ class TestVerifyMagicLink:
 
         set_cookie = res.headers.get("set-cookie", "")
         assert "refresh_token" in set_cookie
-        assert "HttpOnly" in set_cookie or "httponly" in set_cookie.lower()
-        assert "samesite=none" in set_cookie.lower()
-        assert "secure" in set_cookie.lower()
+        assert "httponly" in set_cookie.lower()
+        assert "samesite=lax" in set_cookie.lower()
+        # APP_ENV=test → _cookie_secure() returns False, so no Secure attribute
+        # in the test cookie. Production (non-dev/test) would add Secure.
+        assert "secure" not in set_cookie.lower()
 
     def test_cookie_value_contains_session_id_dot_secret(
         self, client, db_session, clock
@@ -481,6 +483,12 @@ class TestRefreshSession:
         r1 = client.post("/api/v1/auth/refresh")
         assert r1.status_code == 200
 
+        # Advance past REFRESH_GRACE_WINDOW so the replay isn't mistaken for a
+        # concurrent refresh from another tab. Inside the window the backend
+        # returns SESSION_EXPIRED without revoking (multi-tab safety net).
+        clock.advance(seconds=31)
+        assert r1.status_code == 200
+
         # Dùng lại token cũ → replay attack
         db_session.expire_all()
         client.cookies.clear()
@@ -497,6 +505,11 @@ class TestRefreshSession:
 
         client.cookies.set("refresh_token", f"{session_id}.{raw_secret}")
         client.post("/api/v1/auth/refresh")  # rotate thành công
+
+        # Advance past REFRESH_GRACE_WINDOW so the replay isn't mistaken for a
+        # concurrent refresh from another tab. Inside the window the backend
+        # returns SESSION_EXPIRED without revoking (multi-tab safety net).
+        clock.advance(seconds=31)
 
         # Replay
         client.cookies.clear()

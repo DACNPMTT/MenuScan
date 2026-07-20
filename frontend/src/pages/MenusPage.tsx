@@ -13,7 +13,8 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useToast } from '@/app/providers/ToastProvider'
-import { ApiError, apiRequest, apiRequestWithMeta } from '@/shared/lib/api'
+import { apiRequest, apiRequestWithMeta } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { getAccessToken, refreshAccessToken } from '@/shared/lib/auth-token'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import { Button } from '@/shared/components/ui/button'
@@ -64,9 +65,7 @@ export function MenusPage() {
         setMenus(result.data)
         setMeta(result.meta)
       } catch (err) {
-        setError(
-          err instanceof ApiError ? err.message : t('menus.errors.loadFailed'),
-        )
+        setError(describeError(err, t, 'menus.errors.loadFailed'))
       } finally {
         setLoading(false)
       }
@@ -93,7 +92,7 @@ export function MenusPage() {
       )
       toast.show({ variant: 'success', title: t('menus.toast.deleted') })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('menus.errors.deleteFailed'))
+      setError(describeError(err, t, 'menus.errors.deleteFailed'))
     } finally {
       setDeletingId(null)
     }

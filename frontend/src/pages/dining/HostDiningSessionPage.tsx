@@ -24,7 +24,8 @@ import {
   Check,
 } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
-import { apiRequest, ApiError } from '@/shared/lib/api'
+import { apiRequest } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { Button } from '@/shared/components/ui/button'
 import { Badge } from '@/shared/components/ui/badge'
 import { Card } from '@/shared/components/ui/card'
@@ -118,7 +119,7 @@ export function HostDiningSessionPage() {
         // ignore — meals list is supplementary
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không thể tải chi tiết phiên ăn.')
+      setError(describeError(err, t, 'errors.generic'))
     } finally {
       if (showLoading) setLoading(false)
     }
@@ -147,11 +148,7 @@ export function HostDiningSessionPage() {
       )
       await fetchSession(false)
     } catch (err) {
-      alert(
-        err instanceof ApiError
-          ? err.message
-          : 'Không đổi được trạng thái phiên ăn.',
-      )
+      alert(describeError(err, t, 'errors.generic'))
     } finally {
       setTogglingStatus(false)
     }
@@ -168,7 +165,7 @@ export function HostDiningSessionPage() {
       })
       await fetchSession(false)
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : 'Không thể xóa người tham gia.')
+      alert(describeError(err, t, 'errors.generic'))
     }
   }
 

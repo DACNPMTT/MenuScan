@@ -8,7 +8,8 @@ import {
   X,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { apiRequest, ApiError } from '@/shared/lib/api'
+import { apiRequest } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import type { ScanData } from '@/features/menu-scan/types'
@@ -152,11 +153,7 @@ export function CameraScanPage() {
       navigate(`/app/scans/${scan.id}`)
     } catch (error) {
       setState('live')
-      setErrorMessage(
-        error instanceof ApiError
-          ? error.message
-          : t('camera.errors.uploadFailed'),
-      )
+      setErrorMessage(describeError(error, t, 'camera.errors.uploadFailed'))
     }
   }
 

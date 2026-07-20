@@ -13,7 +13,8 @@ import {
 } from 'lucide-react'
 import { Spinner } from '@/shared/components/Spinner'
 import { useAuth } from '@/app/providers/AuthProvider'
-import { apiRequest, ApiError } from '@/shared/lib/api'
+import { apiRequest } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { Button } from '@/shared/components/ui/button'
 import { Badge } from '@/shared/components/ui/badge'
 import { Card } from '@/shared/components/ui/card'
@@ -64,9 +65,7 @@ export function DiningSessionsPage() {
       })
       setSessions(data)
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : t('common.error') || 'Failed to load sessions',
-      )
+      setError(describeError(err, t, 'errors.generic'))
     } finally {
       setLoading(false)
     }
@@ -110,9 +109,7 @@ export function DiningSessionsPage() {
         state: { inviteToken: result.invite_token },
       })
     } catch (err) {
-      setCreateError(
-        err instanceof ApiError ? err.message : t('common.error') || 'Failed to create session',
-      )
+      setCreateError(describeError(err, t, 'errors.generic'))
     } finally {
       setCreating(false)
     }
@@ -130,7 +127,7 @@ export function DiningSessionsPage() {
       })
       await loadSessions()
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Không thể xóa phiên ăn.")
+      alert(describeError(err, t, 'errors.generic'))
     }
   }
 

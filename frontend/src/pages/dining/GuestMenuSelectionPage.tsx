@@ -16,7 +16,9 @@ import {
   UtensilsCrossed,
   XCircle,
 } from 'lucide-react'
-import { apiRequest, ApiError } from '@/shared/lib/api'
+import { useTranslation } from 'react-i18next'
+import { apiRequest } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { rankByVerdict, type VerdictLevel } from '@/features/menu-scan/ranking'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card'
@@ -132,6 +134,7 @@ function formatPrice(
 }
 
 export function GuestMenuSelectionPage() {
+  const { t } = useTranslation()
   useDocumentTitle('Chọn món | MenuScan')
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token') ?? ''
@@ -188,11 +191,7 @@ export function GuestMenuSelectionPage() {
       window.setTimeout(() => setPrefsSaved(false), 2000)
       setShowPrefs(false)
     } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : 'Không cập nhật được sở thích. Thử lại nhé.',
-      )
+      setError(describeError(err, t, 'errors.generic'))
     } finally {
       setSavingPrefs(false)
     }
@@ -212,16 +211,12 @@ export function GuestMenuSelectionPage() {
         )
         setMenu(data)
       } catch (err) {
-        setError(
-          err instanceof ApiError
-            ? err.message
-            : 'Không tải được thực đơn của phiên ăn.',
-        )
+        setError(describeError(err, t, 'errors.generic'))
       } finally {
         if (showLoading) setLoading(false)
       }
     },
-    [guest, token],
+    [guest, token, t],
   )
 
   useEffect(() => {
@@ -332,11 +327,7 @@ export function GuestMenuSelectionPage() {
       )
       setSaved(true)
     } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : 'Không gửi được lựa chọn. Thử lại nhé.',
-      )
+      setError(describeError(err, t, 'errors.generic'))
     } finally {
       setSaving(false)
     }

@@ -20,6 +20,20 @@
     "backToDashboard": "Back to Dashboard",
     "backToHome": "Back to home"
   },
+  "errors": {
+    "network": "Couldn't reach the server. Please check your internet connection and try again.",
+    "badRequest": "The information you entered isn't valid. Please check and try again.",
+    "sessionExpired": "Your session has expired. Please log in again.",
+    "forbidden": "You don't have permission to do this.",
+    "notFound": "We couldn't find what you were looking for.",
+    "timeout": "The request took too long. Please try again.",
+    "fileTooLarge": "The file is too large. The maximum size is 10 MB.",
+    "unsupportedType": "Unsupported format. Only JPG, PNG, WEBP, PDF are accepted.",
+    "unprocessable": "We couldn't process this file. Please try a different one.",
+    "rateLimited": "You're going too fast. Please wait a few seconds and try again.",
+    "serverError": "Our service is having trouble. Please try again in a moment.",
+    "generic": "Something went wrong. Please try again."
+  },
   "scan": {
     "title": "Add menu",
     "uploadCard": { "title": "Upload image / PDF", "desc": "Drag & drop or choose a file" },
@@ -45,8 +59,7 @@
     "errors": {
       "fileTooLarge": "File is too large. The maximum size is 10 MB.",
       "unsupportedType": "Unsupported format. Only JPG, PNG, WEBP, PDF are accepted.",
-      "rateLimited": "You're going too fast. Please wait a few seconds and try again.",
-      "genericPrefix": "Error: "
+      "rateLimited": "You're going too fast. Please wait a few seconds and try again."
     }
   },
   "nav": {

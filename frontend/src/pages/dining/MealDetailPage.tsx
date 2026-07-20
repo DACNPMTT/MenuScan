@@ -8,7 +8,9 @@ import {
   UtensilsCrossed,
 } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
-import { apiRequest, ApiError } from '@/shared/lib/api'
+import { useTranslation } from 'react-i18next'
+import { apiRequest } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card'
 import { EmptyState } from '@/shared/components/EmptyState'
@@ -76,6 +78,7 @@ function formatDateTime(iso: string): string {
  *   2. the exported bill(s).
  */
 export function MealDetailPage() {
+  const { t } = useTranslation()
   const { sessionId, menuId } = useParams<{ sessionId: string; menuId: string }>()
   const { accessToken } = useAuth()
   const [menu, setMenu] = useState<MenuFull | null>(null)
@@ -135,14 +138,12 @@ export function MealDetailPage() {
           // ignore
         }
       } catch (err) {
-        setError(
-          err instanceof ApiError ? err.message : 'Không tải được bữa ăn này.',
-        )
+        setError(describeError(err, t, 'errors.generic'))
       } finally {
         if (showLoading) setLoading(false)
       }
     },
-    [menuId, sessionId, accessToken],
+    [menuId, sessionId, accessToken, t],
   )
 
   useEffect(() => {

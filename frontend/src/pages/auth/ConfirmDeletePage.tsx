@@ -8,6 +8,7 @@ import { PageTransition } from '@/shared/components/motion/PageTransition'
 import { motion } from 'motion/react'
 import { Button } from '@/shared/components/ui/button'
 import { CryingMascot } from '@/shared/components/mascot/CryingMascot'
+import { describeError } from '@/shared/lib/errors'
 
 export function ConfirmDeletePage() {
   const { t } = useTranslation()
@@ -41,9 +42,7 @@ export function ConfirmDeletePage() {
       })
       .catch((error) => {
         setStatus('error')
-        setErrorMessage(
-          error instanceof Error ? error.message : t('deleteAccount.errors.unknown')
-        )
+        setErrorMessage(describeError(error, t, 'deleteAccount.errors.confirmFailed'))
       })
   }
 
