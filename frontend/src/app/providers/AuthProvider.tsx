@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 import { api, apiRequest } from '@/shared/lib/api'
 import {
   getAccessToken,
+  getAccessToken as getStoredAccessToken,
   setAccessToken as setStoredAccessToken,
   clearAccessToken as clearStoredAccessToken,
   refreshAccessToken,
@@ -16,6 +17,7 @@ export interface User {
   preferred_language: string
   allergies: string[]
   dietary_preferences: string[]
+  price_band_cents?: number | null
   role: string
   status?: string
   created_at?: string
@@ -314,13 +316,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
     const isVerifyRoute = window.location.pathname.startsWith('/auth/verify')
-    // Deferred to a microtask so setLoading runs outside the effect body
-    // (synchronous setState in an effect is flagged by react-hooks rules).
     void Promise.resolve().then(async () => {
       if (isVerifyRoute) {
         setLoading(false)
         return
       }
+      // Prefer the existing access token (now persisted in localStorage) —
+      // avoids bouncing through /auth/refresh on every page reload, which was
+      // the root cause of the "5-minute logout" symptom. apiRequest's
+      // built-in 401 → refresh handles token expiry transparently.
+      const existingToken = getStoredAccessToken()
+      if (existingToken) {
+        setAccessToken(existingToken)
+        await fetchCurrentUser(existingToken)
+        setLoading(false)
+        return
+      }
+      // No cached token → try the silent refresh path (cookie-based).
       const token = await refreshAccessToken()
       if (token) {
         setAccessToken(token)

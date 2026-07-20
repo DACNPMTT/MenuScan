@@ -28,6 +28,9 @@ import { MealDetailPage } from '@/pages/dining/MealDetailPage'
 import { JoinDiningSessionPage } from '@/pages/dining/JoinDiningSessionPage'
 import { GuestMenuSelectionPage } from '@/pages/dining/GuestMenuSelectionPage'
 import { GuestBillPage } from '@/pages/dining/GuestBillPage'
+import { FeedPage } from '@/pages/FeedPage'
+import { SavedPage } from '@/pages/SavedPage'
+import { RestaurantDetailPage } from '@/pages/RestaurantDetailPage'
 
 /**
  * Route tree wrapped in an AnimatePresence keyed by the FIRST path segment
@@ -71,6 +74,9 @@ export function AnimatedRoutes() {
           <Route path="dining" element={<RequireAuth><DiningSessionsPage /></RequireAuth>} />
           <Route path="dining/sessions/:sessionId" element={<RequireAuth><HostDiningSessionPage /></RequireAuth>} />
           <Route path="dining/sessions/:sessionId/meals/:menuId" element={<RequireAuth><MealDetailPage /></RequireAuth>} />
+          <Route path="feed" element={<RequireAuth><FeedPage /></RequireAuth>} />
+          <Route path="feed/saved" element={<RequireAuth><SavedPage /></RequireAuth>} />
+          <Route path="feed/r/:restaurantSourceId" element={<RequireAuth><RestaurantDetailPage /></RequireAuth>} />
         </Route>
         <Route path="dining/join" element={<JoinDiningSessionPage />} />
         <Route path="dining/select" element={<GuestMenuSelectionPage />} />

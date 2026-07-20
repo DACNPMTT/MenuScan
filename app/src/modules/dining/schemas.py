@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from src.modules.feed_recommend.schemas import RestaurantSummaryResponse
 
 
 class ParticipantBreakdownResponse(BaseModel):
@@ -79,6 +80,7 @@ class CreateDiningSessionRequest(BaseModel):
     mode: Literal["GROUP", "PERSONAL"] = "GROUP"
     invite_expires_in_hours: int | None = Field(default=12, ge=1, le=168)
     name: str | None = Field(default=None, max_length=255)
+    restaurant_source_id: int | None = None
 
 
 class JoinDiningSessionRequest(BaseModel):
@@ -133,6 +135,12 @@ class DiningSessionResponse(BaseModel):
     updated_at: datetime
     completed_at: datetime | None
     closed_at: datetime | None
+    # Group-bridge: the restaurant the group agreed on (Discovery feed).
+    # ``restaurant_source_id`` is auto-populated via from_attributes; the
+    # ``restaurant`` summary is filled by the caller when building the response
+    # because it requires an in-memory cache lookup, not a model attribute.
+    restaurant_source_id: int | None = None
+    restaurant: RestaurantSummaryResponse | None = None
 
     @model_validator(mode="after")
     def _set_participant_count(self) -> DiningSessionResponse:

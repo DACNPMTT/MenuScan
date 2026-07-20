@@ -73,6 +73,7 @@ The agreed MVP scope and business rules are documented in
 | ✨ | **Personalized Advice** | Each dish gets a per-user verdict — *recommended* / *maybe* / *avoid* — with a short reason plus allergy & preference flags. Matches rank to the top. |
 | 👥 | **Group Dining** *(planned)* | Create a dining group, share by QR, let members fill their own profile without login, and split the bill by headcount. |
 | 🔌 | **API-Ready Output** | Structured JSON suitable for backend storage, integrations, and frontend rendering. |
+| 🧭 | **Discovery Feed** | Rule-based restaurant feed ranked by distance + price + your food profile; save / skip cards; bridge to group dining sessions. |
 
 ---
 

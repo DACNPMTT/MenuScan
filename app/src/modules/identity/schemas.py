@@ -92,6 +92,7 @@ class UpdateUserProfileRequest(BaseModel):
     preferred_language: Literal["vi", "en"] | None = None
     allergies: list[str] | None = None
     dietary_preferences: list[str] | None = None
+    price_band_cents: int | None = Field(default=None, ge=0)
 
     @field_validator("allergies", "dietary_preferences", mode="after")
     @classmethod
@@ -329,8 +330,8 @@ class UserMeResponse(BaseModel):
     preferred_language: str
     allergies: list[str] = Field(default_factory=list)
     dietary_preferences: list[str] = Field(default_factory=list)
+    price_band_cents: int | None = None
     role: str
     status: str
-    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

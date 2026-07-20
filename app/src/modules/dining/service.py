@@ -321,7 +321,23 @@ class DiningSessionService:
         mode: str,
         invite_expires_in_hours: int | None,
         name: str | None = None,
+        restaurant_source_id: int | None = None,
     ) -> DiningSessionInviteBundle:
+        # Group-bridge: validate the restaurant_source_id against the
+        # in-memory dataset cache. Empty (None) is fine — the session just
+        # isn't tied to a Discovery feed card. Validated BEFORE touching the
+        # clock so an invalid id raises without mutating any state.
+        if restaurant_source_id is not None:
+            from src.modules.feed_recommend.data_loader import (
+                get_restaurant_by_source_id,
+            )
+            from src.modules.feed_recommend.exceptions import (
+                RestaurantNotFoundError,
+            )
+
+            if get_restaurant_by_source_id(restaurant_source_id) is None:
+                raise RestaurantNotFoundError(source_id=restaurant_source_id)
+
         now = self._clock()
         invite_token = self._create_invite_token()
         dining_session = DiningSession(
@@ -329,6 +345,7 @@ class DiningSessionService:
             created_by_user_id=user.id,
             mode=DiningSessionMode(mode),
             status=DiningSessionStatus.COLLECTING,
+            restaurant_source_id=restaurant_source_id,
             created_at=now,
             updated_at=now,
         )

@@ -90,6 +90,7 @@ class StubDiningSessionService:
         mode: str,
         invite_expires_in_hours: int | None,
         name: str | None = None,
+        restaurant_source_id: int | None = None,
     ) -> DiningSessionInviteBundle:
         self.create_calls.append(
             {
@@ -97,6 +98,7 @@ class StubDiningSessionService:
                 "mode": mode,
                 "invite_expires_in_hours": invite_expires_in_hours,
                 "name": name,
+                "restaurant_source_id": restaurant_source_id,
             }
         )
         if self.effect:
@@ -538,6 +540,7 @@ def test_create_session_success():
             "mode": "GROUP",
             "invite_expires_in_hours": 24,
             "name": None,
+            "restaurant_source_id": None,
         }
     ]
 

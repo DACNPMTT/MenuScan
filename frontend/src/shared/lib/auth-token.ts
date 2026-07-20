@@ -58,18 +58,50 @@ let accessToken: string | null = null
 let refreshPromise: Promise<string | null> | null = null
 let authFailureHandler: (() => void) | null = null
 
+// localStorage key for the access_token. The token is also kept in-memory
+// for synchronous reads; this mirror lets the session survive a full page
+// reload (F5) without bouncing through /auth/refresh — the previous design
+// lost the token on every navigation, which surfaced as a 5-min-feeling
+// logout. The httpOnly refresh_token cookie remains the authoritative
+// session bound; this is purely a UX cache that expires with the JWT.
+const ACCESS_TOKEN_STORAGE_KEY = 'menuscan.access_token'
+
+function readStoredToken(): string | null {
+  try {
+    return window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)
+  } catch {
+    // localStorage may be unavailable (private mode, quota, sandbox) — fall
+    // back to pure in-memory behavior.
+    return null
+  }
+}
+
+function writeStoredToken(token: string | null): void {
+  try {
+    if (token) window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token)
+    else window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY)
+  } catch {
+    // Swallow — see readStoredToken.
+  }
+}
+
+// Restore on module load so a page refresh doesn't blank the session.
+accessToken = readStoredToken()
+
 export function getAccessToken(): string | null {
   return accessToken
 }
 
 export function setAccessToken(token: string | null): void {
   accessToken = token
+  writeStoredToken(token)
   if (token) broadcast({ type: 'token', token })
   else broadcast({ type: 'cleared' })
 }
 
 export function clearAccessToken(): void {
   accessToken = null
+  writeStoredToken(null)
   broadcast({ type: 'cleared' })
 }
 

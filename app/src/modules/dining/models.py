@@ -111,6 +111,11 @@ class DiningSession(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Optional metadata for the Discovery feed's group-bridge: the source_id
+    # of the restaurant the group agreed on. No FK — the restaurant dataset
+    # lives in data/restaurants.json and is loaded into an in-memory cache by
+    # feed_recommend.data_loader; the service validates existence there.
+    restaurant_source_id: Mapped[int | None] = mapped_column(Integer)
 
     scan_session: Mapped["ScanSession | None"] = relationship()
     # Disambiguate: there are two FK paths between dining_sessions and menus now

@@ -34,11 +34,42 @@ from src.modules.dining.schemas import (
     SetParticipantPreferencesRequest,
     SetParticipantSelectionsRequest,
 )
+from src.modules.dining.models import DiningSession
 from src.modules.dining.service import DiningSessionService, SelectionItem
 from src.modules.identity.dependencies import get_current_user
 from src.modules.identity.models import User
 
 router = APIRouter(prefix="/dining", tags=["dining"])
+def _session_response(session: DiningSession) -> DiningSessionResponse:
+    """Build a DiningSessionResponse with the optional restaurant summary populated.
+
+    The summary needs an in-memory cache lookup (restaurants live in JSON), so
+    it cannot be filled by ``from_attributes`` alone. Every endpoint that
+    returns a session goes through this helper.
+    """
+    response = DiningSessionResponse.model_validate(session)
+    if response.restaurant_source_id is not None:
+        from src.modules.feed_recommend.data_loader import (
+            get_restaurant_by_source_id,
+        )
+        from src.modules.feed_recommend.schemas import (
+            RestaurantSummaryResponse,
+            google_maps_url,
+        )
+
+        restaurant = get_restaurant_by_source_id(response.restaurant_source_id)
+        if restaurant is not None:
+            response.restaurant = RestaurantSummaryResponse(
+                source_id=restaurant.source_id,
+                name=restaurant.name,
+                address=restaurant.address,
+                lat=restaurant.lat,
+                lng=restaurant.lng,
+                maps_url=google_maps_url(restaurant.lat, restaurant.lng),
+            )
+    return response
+
+
 
 
 @router.post("/sessions", status_code=status.HTTP_201_CREATED)
@@ -53,9 +84,11 @@ def create_session(
         mode=payload.mode,
         invite_expires_in_hours=payload.invite_expires_in_hours,
         name=payload.name,
+        restaurant_source_id=payload.restaurant_source_id,
     )
+    session_response = _session_response(bundle.dining_session)
     response_data = CreateDiningSessionResponse(
-        session=DiningSessionResponse.model_validate(bundle.dining_session),
+        session=session_response,
         invite=bundle.invite,
         invite_token=bundle.invite_token,
     )
@@ -69,10 +102,7 @@ def list_sessions(
 ) -> dict[str, object]:
     """List dining sessions created by the current user."""
     sessions = service.list_sessions(current_user)
-    data = [
-        DiningSessionResponse.model_validate(s).model_dump(mode="json")
-        for s in sessions
-    ]
+    data = [_session_response(s).model_dump(mode="json") for s in sessions]
     return success_response(data=data)
 
 
@@ -84,7 +114,7 @@ def get_session(
 ) -> dict[str, object]:
     """Retrieve session details (including participants)."""
     session = service.get_session(current_user, session_id=session_id)
-    data = DiningSessionResponse.model_validate(session).model_dump(mode="json")
+    data = _session_response(session).model_dump(mode="json")
     return success_response(data=data)
 
 
@@ -126,7 +156,7 @@ def close_session(
     session = service.set_session_closed(
         current_user, session_id=session_id, closed=True
     )
-    data = DiningSessionResponse.model_validate(session).model_dump(mode="json")
+    data = _session_response(session).model_dump(mode="json")
     return success_response(data=data)
 
 
@@ -140,7 +170,7 @@ def open_session(
     session = service.set_session_closed(
         current_user, session_id=session_id, closed=False
     )
-    data = DiningSessionResponse.model_validate(session).model_dump(mode="json")
+    data = _session_response(session).model_dump(mode="json")
     return success_response(data=data)
 
 

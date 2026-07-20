@@ -4,9 +4,9 @@
 > Schema thực thi hiện hành là toàn bộ Alembic history trong
 > `app/alembic/versions/`. Migration là nguồn sự thật duy nhất; không duy trì
 > schema SQL thủ công song song.
-> Tài liệu này mô tả schema tại migration head `e8b5d3f07a24` — **19 bảng nghiệp
-> vụ + 1 bảng hạ tầng (`ai_throttle`)**. Toàn bộ bảng ở đây đã được triển khai
-> bằng migration, kể cả nhóm dining/recommendation.
+> Tài liệu này môtả schema tại migration head `b2c3d4e5f6a7` — **22 bảng nghiệp
+vụ + 1 bảng hạ tầng (`ai_throttle`)**. Toàn bộ bảng ở đây đã được triển khai
+bằng migration, kể cả nhóm dining/recommendation và feed_recommend.
 
 ## 1. Quy ước
 
@@ -526,3 +526,70 @@ cơ chế với cooldown magic-link. Đây là lý do hệ thống **không cầ
 Dashboard analytics, order, thanh toán online và các tính năng ngoài bảng hiện
 tại phải được thiết kế bằng migration mới và cập nhật contract/auth/scan nếu làm
 đổi hành vi.
+
+## 7. Bảng feed_recommend (mới — `b2c3d4e5f6a7`)
+
+Module `feed_recommend` (rule-based restaurant discovery) thêm 3 bảng và 2
+cột. Dataset nhà hàng **không** nằm trong database — nó được load từ
+`data/restaurants.json` vào cache in-memory; các bảng per-user reference nhà
+hàng qua `restaurant_source_id` (INTEGER, không có FK).
+
+### 7.1 `user_locations`
+
+| Cột | Kiểu | Ràng buộc |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `user_id` | UUID | FK `users.id`, NOT NULL, UNIQUE, cascade |
+| `lat` | DOUBLE PRECISION | NOT NULL |
+| `lng` | DOUBLE PRECISION | NOT NULL |
+| `address_text` | TEXT | NULL |
+| `source` | VARCHAR(20) | NOT NULL, check `IN ('geolocation','manual')` |
+| `updated_at` | TIMESTAMPTZ | NOT NULL, default `now()` |
+
+1:1 với `users` qua UNIQUE trên `user_id`. Cache lat/lng của diner để tính
+distance decay trong feed scoring. `source` cho phép UI gợi ý đổi khi user
+từ chối geolocation.
+
+### 7.2 `user_restaurant_saves`
+
+| Cột | Kiểu | Ràng buộc |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `user_id` | UUID | FK `users.id`, NOT NULL, cascade |
+| `restaurant_source_id` | INTEGER | NOT NULL |
+| `note` | TEXT | NULL (dành cho folder tương lai) |
+| `saved_at` | TIMESTAMPTZ | NOT NULL, default `now()` |
+
+Unique `(user_id, restaurant_source_id)`. Không có FK đến bảng restaurants
+(vì dataset trong JSON). Service validate `restaurant_source_id` tồn tại
+trong cache in-memory trước khi insert.
+
+### 7.3 `user_restaurant_seen`
+
+| Cột | Kiểu | Ràng buộc |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `user_id` | UUID | FK `users.id`, NOT NULL, cascade |
+| `restaurant_source_id` | INTEGER | NOT NULL |
+| `action` | VARCHAR(10) | NOT NULL, check `IN ('skip','view')` |
+| `seen_at` | TIMESTAMPTZ | NOT NULL, default `now()` |
+
+Unique `(user_id, restaurant_source_id)` — interaction đầu tiên thắng.
+Restaurant đã `seen` không xuất hiện lại trong feed (trừ khi user unsave).
+
+### 7.4 Cột bổ sung
+
+- `users.price_band_cents` (INTEGER NULL) — mức giá trung bình thoải mái của
+  user (VND). NULL tắt số price_fit trong scoring.
+- `dining_sessions.restaurant_source_id` (INTEGER NULL) — metadata tùy chọn
+  cho group-bridge: nhà hàng mà nhóm đã chốt qua Discovery feed. Không có FK.
+
+### 7.5 Quy tắc toàn vẹn bổ sung
+
+16. Dataset nhà hàng là JSON in-memory; mọi reference per-user dùng
+    `restaurant_source_id` INTEGER không FK.
+17. Khi một nhà hàng bị xoá khỏi JSON, các row `user_restaurant_saves` và
+    `user_restaurant_seen` thành orphan — service / UI phải xử lý 404 khi
+    fetch detail.
+18. `dining_sessions.restaurant_source_id` chỉ là metadata; luồng dining
+    session vẫn yêu cầu scan menu thật sau khi nhóm ngồi quán.
