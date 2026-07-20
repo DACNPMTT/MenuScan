@@ -6,6 +6,11 @@ from sqlalchemy import engine_from_config, pool
 from src.core.config import settings
 from src.core.database import Base
 from src.core.rate_limit import AiThrottle  # noqa: F401
+from src.modules.feed_recommend.models import (  # noqa: F401
+    UserLocation,
+    UserRestaurantSave,
+    UserRestaurantSeen,
+)
 from src.modules.identity.models import MagicLinkToken, User, UserSession  # noqa: F401
 from src.modules.menu.models import FoodItem, Menu  # noqa: F401
 from src.modules.menu_scan.models import OcrResult, ScanSession  # noqa: F401
