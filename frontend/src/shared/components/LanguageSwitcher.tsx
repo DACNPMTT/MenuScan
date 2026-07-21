@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { motion, useReducedMotion } from 'motion/react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { SUPPORTED_LANGUAGES, isSupportedLanguage } from '@/shared/i18n/languages'
 import { cn } from '@/shared/lib/cn'
@@ -10,8 +11,10 @@ interface LanguageSwitcherProps {
 /**
  * UI-language segmented pill. With only two languages (vi/en), showing both
  * options side-by-side is clearer than a toggle (no surprise about what the
- * "other" choice is) and matches the existing pill nav style. Active language
- * gets the primary fill; the other is a muted ghost.
+ * "other" choice is) and matches the existing pill nav style. The active fill
+ * is a shared-layout element that slides between options; text cross-fades to
+ * white. Honors `prefers-reduced-motion` (the slide collapses to an instant
+ * swap).
  *
  * Choice is a client-side preference (persisted by the i18next detector); for
  * logged-in users we also mirror vi/en into `preferred_language` so the
@@ -20,6 +23,7 @@ interface LanguageSwitcherProps {
 export function LanguageSwitcher({ className }: LanguageSwitcherProps) {
   const { i18n, t } = useTranslation()
   const { user, updateProfile } = useAuth()
+  const reduce = useReducedMotion()
 
   const current = isSupportedLanguage(i18n.resolvedLanguage) ? i18n.resolvedLanguage : 'vi'
 
@@ -38,29 +42,40 @@ export function LanguageSwitcher({ className }: LanguageSwitcherProps) {
       role="group"
       aria-label={t('language.label')}
       className={cn(
-        'inline-flex items-center gap-0.5 rounded-full bg-panel/80 p-0.5',
+        'relative inline-flex items-center gap-0.5 rounded-full bg-panel/80 p-0.5',
         className,
       )}
     >
       {SUPPORTED_LANGUAGES.map((lang) => {
         const isActive = lang.code === current
         return (
-          <button
+          <motion.button
             key={lang.code}
             type="button"
             onClick={() => handleChange(lang.code)}
             aria-pressed={isActive}
             title={lang.label}
+            whileTap={reduce ? undefined : { scale: 0.94 }}
             className={cn(
-              'flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-extrabold uppercase tracking-wide transition-colors',
-              isActive
-                ? 'bg-primary text-white shadow-2 shadow-primary/30'
-                : 'text-ink-variant hover:text-primary',
+              'relative flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-extrabold uppercase tracking-wide transition-colors',
+              isActive ? 'text-white' : 'text-ink-variant hover:text-primary',
             )}
           >
-            <span className="text-[13px] leading-none">{lang.flag}</span>
-            <span>{lang.code}</span>
-          </button>
+            {isActive && (
+              <motion.span
+                layoutId="language-switcher-active"
+                aria-hidden
+                className="absolute inset-0 rounded-full bg-primary shadow-2 shadow-primary/30"
+                transition={
+                  reduce
+                    ? { duration: 0 }
+                    : { type: 'spring', stiffness: 520, damping: 36 }
+                }
+              />
+            )}
+            <span className="relative z-10 text-[13px] leading-none">{lang.flag}</span>
+            <span className="relative z-10">{lang.code}</span>
+          </motion.button>
         )
       })}
     </div>
