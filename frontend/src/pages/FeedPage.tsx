@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bookmark, MapPin, RefreshCw } from 'lucide-react'
+import { Bookmark, Expand, MapPin, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/shared/components/ui/button'
 import { PageTransition } from '@/shared/components/motion/PageTransition'
@@ -130,30 +130,44 @@ export function FeedPage() {
               </p>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => setPromptOpen(true)}
               disabled={!locationLoaded}
+              aria-label={t('feed.changeLocation')}
             >
-              {t('feed.changeLocation')}
+              <MapPin className="size-4 text-primary" aria-hidden />
+              <span className="hidden sm:inline">{t('feed.changeLocation')}</span>
             </Button>
             <Button
-              variant="ghost"
+              variant="outline"
+              size="sm"
+              onClick={widenRadius}
+              disabled={loading || radius >= MAX_RADIUS_KM}
+              aria-label={t('feed.expandRadius')}
+              title={t('feed.radiusLabel', { km: radius })}
+            >
+              <Expand className="size-4 text-primary" aria-hidden />
+              <span className="hidden sm:inline">{t('feed.expandRadius')}</span>
+            </Button>
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => loadFeed(radius)}
               disabled={loading}
+              aria-label={t('feed.refresh')}
             >
-              <RefreshCw className="size-4" aria-hidden />
+              <RefreshCw className="size-4 text-primary" aria-hidden />
+              <span className="hidden sm:inline">{t('feed.refresh')}</span>
             </Button>
-            <Link
-              to="/app/feed/saved"
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-[13px] font-bold text-ink-variant hover:bg-panel"
-            >
-              <Bookmark className="size-3.5" aria-hidden />
-              {t('feed.savedTitle')}
-            </Link>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/app/feed/saved" aria-label={t('feed.savedTitle')}>
+                <Bookmark className="size-4 text-primary" aria-hidden />
+                <span className="hidden sm:inline">{t('feed.savedTitle')}</span>
+              </Link>
+            </Button>
           </div>
         </header>
 

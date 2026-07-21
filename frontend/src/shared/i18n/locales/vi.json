@@ -745,6 +745,7 @@
   "radiusLabel": "Bán kính {{km}} km",
   "changeLocation": "Đổi vị trí",
   "expandRadius": "Tăng bán kính",
+  "refresh": "Làm mới",
   "locationPrompt": {
     "title": "Bạn đang ở đâu?",
     "subtitle": "Feed cần vị trí để tìm quán gần bạn.",
