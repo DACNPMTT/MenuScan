@@ -70,7 +70,7 @@ function TopNav() {
         </a>
       </nav>
       <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-3">
-        <LanguageSwitcher className="size-9 shrink-0" />
+        <LanguageSwitcher className="shrink-0" />
         {user ? (
           <Magnetic className="shrink-0">
             <Button asChild variant="duo" className="h-9 px-3 text-[12px] sm:h-10 sm:px-5 sm:text-sm">
