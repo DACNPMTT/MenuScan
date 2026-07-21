@@ -14,6 +14,11 @@ export interface User {
   id: string
   email: string
   display_name: string | null
+  /**
+   * Optional avatar image URL. Currently unused (no backend field yet); kept
+   * here so the avatar component can light up as soon as the field is wired.
+   */
+  image_url?: string | null
   preferred_language: string
   allergies: string[]
   dietary_preferences: string[]
