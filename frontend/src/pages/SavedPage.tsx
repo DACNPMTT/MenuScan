@@ -22,6 +22,7 @@ import { RestaurantCardView } from '@/features/feed/components/RestaurantCard'
 
 type SortKey = 'recent' | 'name' | 'distance' | 'rating'
 
+  
 /** Vertical list of saved restaurants with search + sort. */
 export function SavedPage() {
   const { t } = useTranslation()
