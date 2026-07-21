@@ -17,8 +17,9 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Resolve ``<repo_root>/data/restaurants.json`` regardless of CWD.
-_DATASET_PATH = Path(__file__).resolve().parents[4] / "data" / "restaurants.json"
+# Resolve ``app/data/restaurants.json`` regardless of CWD. The file lives inside
+# ``app/`` so the Docker build (context ``./app``) ships it in the image.
+_DATASET_PATH = Path(__file__).resolve().parents[3] / "data" / "restaurants.json"
 
 @dataclass(frozen=True)
 class RestaurantData:
