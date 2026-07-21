@@ -759,6 +759,7 @@
   "radiusLabel": "Radius {{km}} km",
   "changeLocation": "Change location",
   "expandRadius": "Widen radius",
+  "refresh": "Refresh",
   "locationPrompt": {
     "title": "Where are you?",
     "subtitle": "The feed needs your location to find nearby restaurants.",
