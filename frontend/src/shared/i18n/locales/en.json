@@ -386,6 +386,10 @@
     "scanQrPrompt": "Scan QR to join",
     "scanQrDesc": "Scan this code to quickly input your food preferences without an account.",
     "fullscreenQr": "Click to view fullscreen",
+    "qrUnavailable": "QR code temporarily unavailable",
+    "qrUnavailableHint": "You can still invite friends with the direct link below.",
+    "copyLink": "Copy link",
+    "copied": "Copied",
     "participants": "Participants ({{count}})",
     "noParticipants": "No one has joined yet. Share the QR code above to start!",
     "status": {
@@ -787,6 +791,20 @@
   "noSaved": {
     "title": "No saved restaurants yet",
     "subtitle": "Save favorites from the feed to revisit them here."
+  },
+  "savedCount": "{{count}} saved",
+  "savedSearchPlaceholder": "Search by name, address, cuisine…",
+  "savedSearchClear": "Clear search",
+  "savedSortLabel": "Sort",
+  "savedSort": {
+    "recent": "Recently saved",
+    "name": "Name (A-Z)",
+    "distance": "Nearest",
+    "rating": "Top rated"
+  },
+  "savedNoMatch": {
+    "title": "No matching restaurants",
+    "subtitle": "Try a different keyword or clear the filter."
   },
   "toast": {
     "saved": "Saved to your list",

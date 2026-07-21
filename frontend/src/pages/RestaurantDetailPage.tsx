@@ -12,7 +12,6 @@ import { formatCurrency } from '@/shared/lib/currency'
 import { fetchRestaurantDetail, saveRestaurant, unsaveRestaurant } from '@/features/feed/api'
 import { googleMapsUrl } from '@/features/feed/types'
 import type { RestaurantCard } from '@/features/feed/types'
-import { InviteFriendsHere } from '@/features/feed/components/InviteFriendsHere'
 
 /** Full detail page for one restaurant. */
 export function RestaurantDetailPage() {
@@ -247,19 +246,33 @@ export function RestaurantDetailPage() {
                   </a>
                 )}
               </div>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <a
-                  href={googleMapsUrl(restaurant.lat, restaurant.lng)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-border bg-surface px-4 py-2.5 text-[13px] font-bold text-ink hover:bg-panel"
-                >
-                  <MapPin className="size-4" aria-hidden />
-                  {t('feed.detail.openMaps')}
-                </a>
-                <InviteFriendsHere restaurantSourceId={restaurant.source_id} />
-              </div>
+              <a
+                href={googleMapsUrl(restaurant.lat, restaurant.lng)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-border bg-surface px-4 py-2.5 text-[13px] font-bold text-ink hover:bg-panel"
+              >
+                <MapPin className="size-4" aria-hidden />
+                {t('feed.detail.openMaps')}
+              </a>
             </div>
+
+            {/* Inline map embed — Google Maps Embed API via iframe. Hidden if
+                the env key isn't configured (e.g., local dev without .env.local). */}
+            {import.meta.env.VITE_GOOGLE_MAPS_EMBED_KEY && (
+              <div className="overflow-hidden rounded-2xl border border-border shadow-1">
+                <iframe
+                  title={t('feed.detail.openMaps')}
+                  src={`https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_MAPS_EMBED_KEY}&q=${restaurant.lat},${restaurant.lng}&zoom=15`}
+                  width="100%"
+                  height="280"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  allowFullScreen
+                />
+              </div>
+            )}
           </div>
         </article>
       </div>

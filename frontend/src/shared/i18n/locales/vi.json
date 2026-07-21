@@ -374,6 +374,10 @@
     "scanQrPrompt": "Quét mã để tham gia",
     "scanQrDesc": "Mọi người quét mã này để nhập sở thích ăn uống nhanh chóng mà không cần tài khoản.",
     "fullscreenQr": "Nhấp để xem toàn màn hình",
+    "qrUnavailable": "Mã QR tạm không khả dụng",
+    "qrUnavailableHint": "Bạn vẫn có thể mời bạn bè bằng link trực tiếp bên dưới.",
+    "copyLink": "Sao chép link",
+    "copied": "Đã sao chép",
     "participants": "Danh sách tham gia ({{count}} người)",
     "noParticipants": "Chưa có ai tham gia. Hãy chia sẻ mã QR ở trên để mọi người quét!",
     "status": {
@@ -773,6 +777,20 @@
   "noSaved": {
     "title": "Chưa có quán nào được lưu",
     "subtitle": "Lưu quán yêu thích từ feed để xem lại ở đây."
+  },
+  "savedCount": "{{count}} quán đã lưu",
+  "savedSearchPlaceholder": "Tìm theo tên, địa chỉ, loại ẩm thực…",
+  "savedSearchClear": "Xóa tìm kiếm",
+  "savedSortLabel": "Sắp xếp",
+  "savedSort": {
+    "recent": "Lưu gần đây",
+    "name": "Tên (A-Z)",
+    "distance": "Gần nhất",
+    "rating": "Đánh giá cao"
+  },
+  "savedNoMatch": {
+    "title": "Không tìm thấy quán phù hợp",
+    "subtitle": "Thử từ khóa khác hoặc xóa bộ lọc."
   },
   "toast": {
     "saved": "Đã lưu vào danh sách của bạn",

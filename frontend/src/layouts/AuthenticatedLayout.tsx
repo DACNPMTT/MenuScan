@@ -3,6 +3,7 @@ import {
   ChevronDown,
   LayoutDashboard,
   LogOut,
+  Plus,
   ReceiptText,
   ScanLine,
   UserCircle,
@@ -25,6 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/shared/components/ui/dropdown-menu'
+import { Avatar, AvatarBadge, AvatarFallback } from '@/shared/components/ui/avatar'
 
 // Authenticated app shell: a sticky glass header (logo badge + pill nav with a
 // motion active indicator + account actions), a segmented mobile tab bar, and
@@ -46,6 +48,9 @@ export function AuthenticatedLayout() {
   const location = useLocation()
   const outlet = useOutlet()
   const accountLabel = user?.display_name || user?.email?.split('@')[0] || t('nav.profile')
+  // Avatar fallback: just the first letter of display_name (or email local-part).
+  const initial =
+    (user?.display_name?.trim()?.[0] || user?.email?.[0] || '?').toUpperCase()
   // The app shell renders for guests too — they can scan without an account.
   // Auth-only nav/actions are hidden for guests, and protected pages guard
   // themselves via RequireAuth.
@@ -128,7 +133,13 @@ export function AuthenticatedLayout() {
                 >
                   <span className="hidden truncate md:inline-block">{accountLabel}</span>
                   <ChevronDown className="hidden size-4 shrink-0 md:inline-block" aria-hidden />
-                  <UserCircle className="size-6 shrink-0 md:hidden" aria-hidden />
+                  {/* Avatar with PlusIcon badge (no image — just first-letter fallback). */}
+                  <Avatar>
+                    <AvatarFallback>{initial}</AvatarFallback>
+                    <AvatarBadge>
+                      <Plus aria-hidden />
+                    </AvatarBadge>
+                  </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
