@@ -12,6 +12,7 @@ import {
   Minimize2,
   ArrowLeft,
   CheckCircle,
+  Link as LinkIcon,
   HelpCircle,
   ScanLine,
   Trash2,
@@ -24,7 +25,8 @@ import {
   Check,
 } from 'lucide-react'
 import { useAuth } from '@/app/providers/AuthProvider'
-import { apiRequest, ApiError } from '@/shared/lib/api'
+import { apiRequest } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { Button } from '@/shared/components/ui/button'
 import { Badge } from '@/shared/components/ui/badge'
 import { Card } from '@/shared/components/ui/card'
@@ -118,7 +120,7 @@ export function HostDiningSessionPage() {
         // ignore — meals list is supplementary
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không thể tải chi tiết phiên ăn.')
+      setError(describeError(err, t, 'errors.generic'))
     } finally {
       if (showLoading) setLoading(false)
     }
@@ -147,11 +149,7 @@ export function HostDiningSessionPage() {
       )
       await fetchSession(false)
     } catch (err) {
-      alert(
-        err instanceof ApiError
-          ? err.message
-          : 'Không đổi được trạng thái phiên ăn.',
-      )
+      alert(describeError(err, t, 'errors.generic'))
     } finally {
       setTogglingStatus(false)
     }
@@ -168,7 +166,7 @@ export function HostDiningSessionPage() {
       })
       await fetchSession(false)
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : 'Không thể xóa người tham gia.')
+      alert(describeError(err, t, 'errors.generic'))
     }
   }
 
@@ -381,15 +379,39 @@ export function HostDiningSessionPage() {
               </div>
             </div>
           ) : (
-            <div className="flex w-full flex-col items-center justify-center rounded-2xl border border-dashed border-destructive/30 bg-destructive/5 p-4 text-center">
-              <AlertCircle className="mb-2 size-8 text-destructive" aria-hidden />
-              <p className="mb-1 text-[13px] font-semibold text-destructive">
-                Không thể hiển thị QR code
+            // No QR available — link still works, so this is informational,
+            // not an error. Calmer palette + shareable link front-and-center.
+            <div className="flex w-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-panel/60 p-4 text-center">
+              <LinkIcon className="size-9 text-ink-variant" aria-hidden />
+              <p className="text-[13px] font-semibold text-ink">
+                {t('dining.qrUnavailable')}
               </p>
-              <p className="max-w-[260px] text-[12px] text-ink-variant">
-                Token mời đã bị thiếu do tải lại trang trên thiết bị khác. Mọi người vẫn có thể tham
-                gia nếu bạn chia sẻ link trực tiếp.
+              <p className="max-w-[280px] text-[12px] text-ink-variant">
+                {t('dining.qrUnavailableHint')}
               </p>
+              <a
+                href={joinUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 min-w-0 max-w-full truncate rounded-xl border border-primary/20 bg-surface px-3 py-2 text-center text-[12px] font-semibold text-primary-dark transition-colors hover:bg-border"
+                title={joinUrl}
+              >
+                {joinUrl}
+              </a>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void copyJoinLink()}
+                className="shrink-0"
+              >
+                {copied ? (
+                  <Check className="size-4 text-success" aria-hidden />
+                ) : (
+                  <Copy className="size-4" aria-hidden />
+                )}
+                {copied ? t('dining.copied') : t('dining.copyLink')}
+              </Button>
             </div>
           )}
 

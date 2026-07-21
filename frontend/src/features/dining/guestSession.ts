@@ -17,11 +17,21 @@ export interface GuestSession {
   displayName: string
 }
 
+export interface GuestSelectionDraftLine {
+  quantity: number
+  note: string
+}
+
 const KEY_PREFIX = 'dining_guest_'
 const PREFS_KEY_PREFIX = 'dining_guest_prefs_'
+const SELECTIONS_KEY_PREFIX = 'dining_guest_selections_'
 
 function keyFor(token: string): string {
   return `${KEY_PREFIX}${token}`
+}
+
+function selectionsKeyFor(token: string, menuId: string): string {
+  return `${SELECTIONS_KEY_PREFIX}${token}_${menuId}`
 }
 
 /** The guest's declared preferences, kept alongside their identity so the "edit
@@ -74,6 +84,50 @@ export function loadGuestSession(token: string): GuestSession | null {
       }
     }
     return null
+  } catch {
+    return null
+  }
+}
+
+/** Keep an in-progress dish basket on this device. The server remains the
+ * source of truth once the guest confirms their selection. */
+export function saveGuestSelectionDraft(
+  token: string,
+  menuId: string,
+  lines: Record<string, GuestSelectionDraftLine>,
+): void {
+  try {
+    localStorage.setItem(selectionsKeyFor(token, menuId), JSON.stringify(lines))
+  } catch {
+    // Non-fatal: a guest can still select and confirm dishes normally.
+  }
+}
+
+export function loadGuestSelectionDraft(
+  token: string,
+  menuId: string,
+): Record<string, GuestSelectionDraftLine> | null {
+  try {
+    const raw = localStorage.getItem(selectionsKeyFor(token, menuId))
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as Record<string, Partial<GuestSelectionDraftLine>>
+    const lines = Object.entries(parsed).reduce<Record<string, GuestSelectionDraftLine>>(
+      (validLines, [itemId, line]) => {
+        if (
+          typeof line.quantity === 'number' &&
+          Number.isInteger(line.quantity) &&
+          line.quantity >= 0 &&
+          line.quantity <= 99 &&
+          typeof line.note === 'string'
+        ) {
+          validLines[itemId] = { quantity: line.quantity, note: line.note }
+        }
+        return validLines
+      },
+      {},
+    )
+    return lines
   } catch {
     return null
   }

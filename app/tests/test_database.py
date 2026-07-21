@@ -29,6 +29,11 @@ from src.modules.dining.models import (  # noqa: F401
     FoodItemRecommendation,
     FoodItemRecommendationParticipantBreakdown,
 )
+from src.modules.feed_recommend.models import (  # noqa: F401
+    UserLocation,
+    UserRestaurantSave,
+    UserRestaurantSeen,
+)
 
 EXPECTED_TABLES = {
     "users",
@@ -53,6 +58,9 @@ EXPECTED_TABLES = {
     "bill_adjustments",
     "bill_items",
     "ai_throttle",
+    "user_locations",
+    "user_restaurant_saves",
+    "user_restaurant_seen",
 }
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]

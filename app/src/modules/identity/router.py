@@ -1,13 +1,17 @@
+import logging
 import uuid
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Cookie, Depends, Request, Response, status
 
+from src.core.config import settings
 from src.core.responses import success_response
 from src.modules.identity.cookies import (
     clear_refresh_token_cookie,
     set_refresh_token_cookie,
 )
 from src.modules.identity.dependencies import get_current_user, get_magic_link_service
+from src.modules.identity.exceptions import UnauthorizedError
 from src.modules.identity.models import User
 from src.modules.identity.schemas import (
     ConfirmDeleteRequest,
@@ -22,7 +26,31 @@ from src.modules.identity.schemas import (
 )
 from src.modules.identity.service import MagicLinkService
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def verify_origin(request: Request) -> None:
+    """CSRF defense for cookie-only endpoints (notably /auth/refresh).
+
+    SameSite=Lax/Strict already blocks cross-site POST cookie submission, so
+    this is a no-op unless SESSION_COOKIE_SAMESITE=none (cross-origin prod).
+    In that mode we require the browser-controlled Origin (or Referer) header
+    to match the CORS allowlist — an attacker page can submit a form but cannot
+    forge Origin. A missing Origin (non-browser client) is allowed: there is no
+    cookie-submitting browser in the loop, hence no CSRF surface.
+    """
+    if settings.session_cookie_samesite != "none":
+        return
+    raw = request.headers.get("origin") or request.headers.get("referer")
+    if not raw:
+        return
+    parsed = urlparse(raw)
+    candidate = f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+    if candidate not in settings.cors_origins:
+        logger.debug("origin_rejected origin=%s", raw)
+        raise UnauthorizedError()
 
 
 def _user_response_data(
@@ -35,6 +63,7 @@ def _user_response_data(
         "preferred_language": user.preferred_language,
         "allergies": list(user.allergies or []),
         "dietary_preferences": list(user.dietary_preferences or []),
+        "price_band_cents": user.price_band_cents,
         "role": user.role.value if hasattr(user.role, "value") else str(user.role),
     }
     if include_profile_details:
@@ -140,6 +169,7 @@ def refresh_session(
     request: Request,
     refresh_token: str | None = Cookie(default=None),
     service: MagicLinkService = Depends(get_magic_link_service),
+    _: None = Depends(verify_origin),
 ) -> dict[str, object]:
     """Rotate the refresh token cookie and issue a new access token."""
     user_agent = request.headers.get("user-agent")

@@ -60,8 +60,21 @@ MAGIC_LINK_TTL = timedelta(minutes=15)
 RESEND_COOLDOWN = timedelta(seconds=RESEND_COOLDOWN_SECONDS)
 MAGIC_LINK_TOKEN_BYTES = 32  # 256 bits of entropy
 MAGIC_LINK_SUCCESS_MESSAGE = "Nếu email hợp lệ, liên kết đăng nhập sẽ được gửi."
-SESSION_TTL = timedelta(minutes=15)
+SESSION_TTL = timedelta(days=30)
 ACCESS_TOKEN_TTL = timedelta(minutes=15)
+# Absolute cap on sliding renewal: no matter how often the user refreshes, a
+# session cannot live longer than this from creation. Prevents an exfiltrated
+# refresh cookie from minting tokens forever. Spec: 30-day sliding window with
+# a 90-day absolute ceiling.
+SESSION_ABSOLUTE_TIMEOUT = timedelta(days=90)
+# Window in which a stale refresh cookie is tolerated as a concurrent refresh
+# from another tab/device rather than a replay attack. Two tabs firing
+# /auth/refresh near-simultaneously race: the first rotates the cookie, the
+# second arrives with the now-stale cookie. Without this grace, reuse
+# detection revokes the whole session and the user is logged out everywhere.
+# Inside the window we treat it as benign (no revoke) and let the second tab
+# retry with the rotated cookie; outside it's a real replay → revoke.
+REFRESH_GRACE_WINDOW = timedelta(seconds=30)
 _UNSET = object()
 
 
@@ -252,6 +265,15 @@ class MagicLinkService:
                 updated_at=now,
             )
             self._user_repository.create(self._session, user)
+        elif user.status != UserStatus.ACTIVE or user.deleted_at is not None:
+            # A previously-disabled/deleted user must not be silently
+            # re-activated by clicking a magic link. The account stays closed
+            # until an admin restores it; magic-link login is refused.
+            logger.warning(
+                "magic_link_login_refused reason=inactive_user user_id=%s",
+                user.id,
+            )
+            raise UnauthorizedError()
 
         # Mark token as consumed and link to user
         token_record.consumed_at = now
@@ -295,6 +317,7 @@ class MagicLinkService:
         preferred_language: str | object = _UNSET,
         allergies: list[str] | object = _UNSET,
         dietary_preferences: list[str] | object = _UNSET,
+        price_band_cents: int | None | object = _UNSET,
     ) -> User:
         """Update editable profile fields for the currently authenticated user."""
         now = self._clock()
@@ -306,6 +329,12 @@ class MagicLinkService:
             user.allergies = allergies
         if dietary_preferences is not _UNSET and isinstance(dietary_preferences, list):
             user.dietary_preferences = dietary_preferences
+        if price_band_cents is not _UNSET:
+            user.price_band_cents = (
+                price_band_cents
+                if isinstance(price_band_cents, int) and price_band_cents >= 0
+                else None
+            )
         user.updated_at = now
         self._session.commit()
         return user
@@ -582,7 +611,26 @@ class MagicLinkService:
 
         incoming_hash = hash_token(raw_token_secret)
         if not hmac.compare_digest(incoming_hash, user_session.refresh_token_hash):
-            # REPLAY ATTACK: Revoke entire session chain
+            # Two paths here:
+            #   (a) Within REFRESH_GRACE_WINDOW of last_rotated_at: a second
+            #       tab raced with a refresh that just rotated the cookie. The
+            #       stale cookie in this request is the pre-rotation one. Do
+            #       NOT revoke — return SessionExpiredError so the caller
+            #       retries with the freshly-rotated cookie the browser has
+            #       already stored. (Frontend pairs this with BroadcastChannel
+            #       so retrying tabs pick up the broadcast token.)
+            #   (b) Outside the grace window: a genuinely stale or exfiltrated
+            #       token being replayed. Revoke the entire session.
+            rotated_recently = (
+                user_session.last_rotated_at + REFRESH_GRACE_WINDOW > now
+            )
+            if rotated_recently:
+                logger.debug(
+                    "refresh_skipped reason=concurrent_rotation_grace "
+                    "session_id=%s",
+                    session_id,
+                )
+                raise SessionExpiredError()
             logger.warning(
                 "refresh_token_reuse_detected session_id=%s",
                 session_id,
@@ -591,11 +639,16 @@ class MagicLinkService:
             self._session.commit()
             raise SessionRevokedError()
 
-        # Normal Rotation: Issue new secret, update last_rotated_at
+        # Normal rotation: issue a new secret, slide the session window, and
+        # bump last_rotated_at. Sliding is capped at SESSION_ABSOLUTE_TIMEOUT
+        # from creation so a stolen cookie cannot keep a session alive forever.
         new_raw_token_secret = secrets.token_urlsafe(32)
         new_hash = hash_token(new_raw_token_secret)
 
+        sliding_expiry = now + SESSION_TTL
+        absolute_expiry = user_session.created_at + SESSION_ABSOLUTE_TIMEOUT
         user_session.refresh_token_hash = new_hash
+        user_session.expires_at = min(sliding_expiry, absolute_expiry)
         user_session.last_rotated_at = now
         if user_agent:
             user_session.user_agent = user_agent

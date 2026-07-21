@@ -14,13 +14,15 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/providers/AuthProvider'
-import { ApiError, apiRequestWithMeta } from '@/shared/lib/api'
+import { apiRequestWithMeta } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
 import type {
   PaginationMeta,
   ScanHistoryItem,
   ScanStatus,
 } from '@/features/menu-scan/types'
+import { DiscoveryTeaser } from '@/features/feed/components/DiscoveryTeaser'
 import { PageTransition } from '@/shared/components/motion/PageTransition'
 import { Reveal } from '@/shared/components/motion/Reveal'
 import { Spinner } from '@/shared/components/Spinner'
@@ -83,11 +85,7 @@ export function DashboardPage() {
       setScans(result.data)
       setMeta(result.meta)
     } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : t('dashboard.historyError'),
-      )
+      setError(describeError(err, t, 'dashboard.historyError'))
     } finally {
       setLoading(false)
     }
@@ -117,6 +115,8 @@ export function DashboardPage() {
             {t('dashboard.systemStatus')}
           </p>
         </div>
+        {/* Discovery CardSwap teaser — compact 3-card stack that opens the feed. */}
+        <DiscoveryTeaser />
 
         {/* Primary CTAs — bento, tilt on hover. */}
         <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2">

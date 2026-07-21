@@ -20,6 +20,20 @@
     "backToDashboard": "Back to Dashboard",
     "backToHome": "Back to home"
   },
+  "errors": {
+    "network": "Couldn't reach the server. Please check your internet connection and try again.",
+    "badRequest": "The information you entered isn't valid. Please check and try again.",
+    "sessionExpired": "Your session has expired. Please log in again.",
+    "forbidden": "You don't have permission to do this.",
+    "notFound": "We couldn't find what you were looking for.",
+    "timeout": "The request took too long. Please try again.",
+    "fileTooLarge": "The file is too large. The maximum size is 10 MB.",
+    "unsupportedType": "Unsupported format. Only JPG, PNG, WEBP, PDF are accepted.",
+    "unprocessable": "We couldn't process this file. Please try a different one.",
+    "rateLimited": "You're going too fast. Please wait a few seconds and try again.",
+    "serverError": "Our service is having trouble. Please try again in a moment.",
+    "generic": "Something went wrong. Please try again."
+  },
   "scan": {
     "title": "Add menu",
     "uploadCard": { "title": "Upload image / PDF", "desc": "Drag & drop or choose a file" },
@@ -45,8 +59,7 @@
     "errors": {
       "fileTooLarge": "File is too large. The maximum size is 10 MB.",
       "unsupportedType": "Unsupported format. Only JPG, PNG, WEBP, PDF are accepted.",
-      "rateLimited": "You're going too fast. Please wait a few seconds and try again.",
-      "genericPrefix": "Error: "
+      "rateLimited": "You're going too fast. Please wait a few seconds and try again."
     }
   },
   "nav": {
@@ -62,7 +75,8 @@
   },
   "language": {
     "label": "Language",
-    "select": "Select language"
+    "select": "Select language",
+    "switchTo": "Switch to {{name}}"
   },
   "currencySelect": {
     "label": "Currency",
@@ -373,6 +387,10 @@
     "scanQrPrompt": "Scan QR to join",
     "scanQrDesc": "Scan this code to quickly input your food preferences without an account.",
     "fullscreenQr": "Click to view fullscreen",
+    "qrUnavailable": "QR code temporarily unavailable",
+    "qrUnavailableHint": "You can still invite friends with the direct link below.",
+    "copyLink": "Copy link",
+    "copied": "Copied",
     "participants": "Participants ({{count}})",
     "noParticipants": "No one has joined yet. Share the QR code above to start!",
     "status": {
@@ -726,5 +744,80 @@
     "missingToken": "Invalid link. Please check your email again.",
     "title": "Confirmation Error"
   }
+},
+"feed": {
+  "heroTitle": "Discover",
+  "heroSubtitle": "Find restaurants that match your taste nearby",
+  "teaser": {
+    "title": "Hungry? Swipe through spots near you.",
+    "cta": "Discover Feed",
+    "openFeed": "Open discovery feed"
+  },
+  "pageTitle": "Discover restaurants",
+  "savedTitle": "Saved restaurants",
+  "detailTitle": "Restaurant detail",
+  "radiusLabel": "Radius {{km}} km",
+  "changeLocation": "Change location",
+  "expandRadius": "Widen radius",
+  "locationPrompt": {
+    "title": "Where are you?",
+    "subtitle": "The feed needs your location to find nearby restaurants.",
+    "useLocation": "Use my location",
+    "pickCity": "Pick a city",
+    "locationDenied": "Couldn't get your location. Pick a city or try again."
+  },
+  "card": {
+    "distance": "{{km}} km",
+    "noPrice": "No price info",
+    "matchLabel": "Matches your taste",
+    "cautionLabel": "Heads up",
+    "save": "Save",
+    "unsave": "Unsave",
+    "skip": "Skip",
+    "viewMenu": "View menu",
+    "like": "Like",
+    "nope": "Nope"
+  },
+  "detail": {
+    "address": "Address",
+    "phone": "Phone",
+    "openMaps": "Open in Google Maps",
+    "inviteFriends": "Invite friends to join",
+    "meals": "Menu",
+    "about": "About"
+  },
+  "emptyFeed": {
+    "title": "You've seen every restaurant in this radius",
+    "subtitle": "Widen the radius or change your location to see more."
+  },
+  "maxRadiusReached": "You're at the max radius of 100 km — try changing your location to find nearby restaurants.",
+  "errors": {
+    "radiusTooLarge": "Radius is too large. Pick a location closer to the restaurants."
+  },
+  "noSaved": {
+    "title": "No saved restaurants yet",
+    "subtitle": "Save favorites from the feed to revisit them here."
+  },
+  "savedCount": "{{count}} saved",
+  "savedSearchPlaceholder": "Search by name, address, cuisine…",
+  "savedSearchClear": "Clear search",
+  "savedSortLabel": "Sort",
+  "savedSort": {
+    "recent": "Recently saved",
+    "name": "Name (A-Z)",
+    "distance": "Nearest",
+    "rating": "Top rated"
+  },
+  "savedNoMatch": {
+    "title": "No matching restaurants",
+    "subtitle": "Try a different keyword or clear the filter."
+  },
+  "toast": {
+    "saved": "Saved to your list",
+    "unsaved": "Unsaved",
+    "seen": "Skipped",
+    "sessionCreated": "Dining session created — invite your friends",
+    "batchFailed": "{{count}} actions didn't sync — please retry later."
+  }
 }
-}
+ }

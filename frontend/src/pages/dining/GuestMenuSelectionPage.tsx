@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   AlertCircle,
@@ -16,14 +16,22 @@ import {
   UtensilsCrossed,
   XCircle,
 } from 'lucide-react'
-import { apiRequest, ApiError } from '@/shared/lib/api'
+import { useTranslation } from 'react-i18next'
+import { apiRequest } from '@/shared/lib/api'
+import { describeError } from '@/shared/lib/errors'
 import { rankByVerdict, type VerdictLevel } from '@/features/menu-scan/ranking'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card'
+import { CurrencySelect } from '@/shared/components/CurrencySelect'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { Spinner } from '@/shared/components/Spinner'
 import { PageTransition } from '@/shared/components/motion/PageTransition'
 import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
+import { useExchangeRates } from '@/shared/hooks/useExchangeRates'
+import {
+  formatConvertedAmount,
+  type ExchangeRates,
+} from '@/shared/lib/currency'
 import { FoodProfilePreferencePicker } from '@/features/food-profile/components/FoodProfilePreferencePicker'
 import {
   createEmptyFoodProfileDraft,
@@ -33,7 +41,9 @@ import {
 import {
   loadGuestSession,
   loadGuestPrefsDraft,
+  loadGuestSelectionDraft,
   saveGuestPrefsDraft,
+  saveGuestSelectionDraft,
 } from '@/features/dining/guestSession'
 
 interface GuestRecommendation {
@@ -113,14 +123,20 @@ interface LineState {
 const ALL_CATEGORY = 'Tất cả'
 const PAGE_SIZE = 8
 
-function formatPrice(price: string | null, currency: string | null): string {
+function formatPrice(
+  price: string | null,
+  sourceCurrency: string | null,
+  displayCurrency: string,
+  rates: ExchangeRates | null,
+): string {
   if (!price) return ''
   const amount = Number(price)
-  if (!Number.isFinite(amount)) return `${price} ${currency ?? ''}`.trim()
-  return `${amount.toLocaleString('vi-VN')} ${currency ?? ''}`.trim()
+  if (!Number.isFinite(amount)) return `${price} ${sourceCurrency ?? ''}`.trim()
+  return formatConvertedAmount(amount, sourceCurrency, displayCurrency, rates)
 }
 
 export function GuestMenuSelectionPage() {
+  const { t } = useTranslation()
   useDocumentTitle('Chọn món | MenuScan')
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token') ?? ''
@@ -130,8 +146,10 @@ export function GuestMenuSelectionPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lines, setLines] = useState<Record<string, LineState>>({})
+  const restoredMenuIdRef = useRef<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [pickedCurrency, setPickedCurrency] = useState<string | null>(null)
   // Enables "Chốt" even at zero items, so a guest can clear a previous basket.
   const [touched, setTouched] = useState(false)
 
@@ -142,6 +160,17 @@ export function GuestMenuSelectionPage() {
   )
   const [savingPrefs, setSavingPrefs] = useState(false)
   const [prefsSaved, setPrefsSaved] = useState(false)
+
+  const currency =
+    menu?.default_currency ?? menu?.items.find((item) => item.currency)?.currency ?? 'VND'
+  const displayCurrency = pickedCurrency ?? currency
+  const needsConversion = Boolean(
+    menu?.items.some((item) => (item.currency ?? currency) !== displayCurrency),
+  )
+  const { rates: exchangeRates, error: ratesError } = useExchangeRates(
+    currency,
+    needsConversion,
+  )
 
   const handleSavePreferences = async () => {
     if (!guest || savingPrefs) return
@@ -165,11 +194,7 @@ export function GuestMenuSelectionPage() {
       window.setTimeout(() => setPrefsSaved(false), 2000)
       setShowPrefs(false)
     } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : 'Không cập nhật được sở thích. Thử lại nhé.',
-      )
+      setError(describeError(err, t, 'errors.generic'))
     } finally {
       setSavingPrefs(false)
     }
@@ -188,17 +213,17 @@ export function GuestMenuSelectionPage() {
           { method: 'GET' },
         )
         setMenu(data)
+        if (data.menu_id && restoredMenuIdRef.current !== data.menu_id) {
+          restoredMenuIdRef.current = data.menu_id
+          setLines(loadGuestSelectionDraft(token, data.menu_id) ?? {})
+        }
       } catch (err) {
-        setError(
-          err instanceof ApiError
-            ? err.message
-            : 'Không tải được thực đơn của phiên ăn.',
-        )
+        setError(describeError(err, t, 'errors.generic'))
       } finally {
         if (showLoading) setLoading(false)
       }
     },
-    [guest, token],
+    [guest, token, t],
   )
 
   useEffect(() => {
@@ -217,6 +242,11 @@ export function GuestMenuSelectionPage() {
       active = false
     }
   }, [guest, loadMenu])
+
+  useEffect(() => {
+    if (!menu?.menu_id) return
+    saveGuestSelectionDraft(token, menu.menu_id, lines)
+  }, [lines, menu?.menu_id, token])
 
   // Auto-poll while the menu is not ready yet, so a guest who joined before the
   // host scanned never has to hit "Làm mới" — it just appears.
@@ -309,11 +339,7 @@ export function GuestMenuSelectionPage() {
       )
       setSaved(true)
     } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : 'Không gửi được lựa chọn. Thử lại nhé.',
-      )
+      setError(describeError(err, t, 'errors.generic'))
     } finally {
       setSaving(false)
     }
@@ -355,7 +381,7 @@ export function GuestMenuSelectionPage() {
 
   return (
     <PageTransition className="min-h-dvh bg-app-bg">
-      <div className="mx-auto w-full max-w-[720px] px-4 py-8 pb-[130px] sm:px-6">
+      <div className="mx-auto w-full max-w-[1200px] px-4 py-8 pb-[130px] sm:px-6">
         <header className="mb-6 flex flex-col gap-1">
           <span className="flex items-center gap-2 text-[13px] font-semibold text-primary">
             <UtensilsCrossed className="size-4" aria-hidden />
@@ -368,7 +394,7 @@ export function GuestMenuSelectionPage() {
             Chọn số lượng và ghi chú cho từng món. Host sẽ thấy lựa chọn của bạn để gộp
             hóa đơn.
           </p>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="outline"
@@ -385,6 +411,12 @@ export function GuestMenuSelectionPage() {
                 Xem hóa đơn
               </Link>
             </Button>
+            {menuReady && (
+              <CurrencySelect
+                value={displayCurrency}
+                onChange={setPickedCurrency}
+              />
+            )}
             {prefsSaved && (
               <span className="flex items-center gap-1 text-[12px] font-semibold text-success">
                 <CheckCircle2 className="size-3.5" aria-hidden />
@@ -392,6 +424,20 @@ export function GuestMenuSelectionPage() {
               </span>
             )}
           </div>
+          {needsConversion && !exchangeRates && !ratesError && (
+            <p
+              className="mt-1 flex items-center gap-1.5 text-[12px] text-ink-variant"
+              role="status"
+            >
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              Đang cập nhật tỷ giá…
+            </p>
+          )}
+          {ratesError && (
+            <p className="mt-1 text-[12px] text-amber" role="status">
+              Chưa tải được tỷ giá. Giá đang hiển thị theo đơn vị gốc.
+            </p>
+          )}
         </header>
 
         {showPrefs && (
@@ -533,7 +579,7 @@ export function GuestMenuSelectionPage() {
                 description="Thử từ khóa khác hoặc bỏ bộ lọc."
               />
             ) : (
-          <div className="flex flex-col gap-3">
+          <main className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             {pagedItems.map((item) => {
               const line = lines[item.id] ?? { quantity: 0, note: '' }
               const name = item.translated_name || item.original_name
@@ -559,9 +605,19 @@ export function GuestMenuSelectionPage() {
                           {item.original_name}
                         </p>
                       )}
+                      {item.category && (
+                        <span className="mt-2 inline-flex rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary-dark">
+                          {item.category}
+                        </span>
+                      )}
                     </div>
                     <strong className="shrink-0 text-[15px] text-primary-dark">
-                      {formatPrice(item.price, item.currency ?? menu.default_currency)}
+                      {formatPrice(
+                        item.price,
+                        item.currency ?? currency,
+                        displayCurrency,
+                        exchangeRates,
+                      )}
                     </strong>
                   </div>
 
@@ -647,7 +703,7 @@ export function GuestMenuSelectionPage() {
                 </Card>
               )
             })}
-          </div>
+          </main>
             )}
 
             {totalPages > 1 && (
@@ -681,7 +737,7 @@ export function GuestMenuSelectionPage() {
 
       {menuReady && (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-panel px-4 py-4 shadow-3 sm:px-6">
-          <div className="mx-auto flex max-w-[720px] items-center justify-between gap-3">
+          <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3">
             <div className="flex flex-col text-[13px] text-ink-variant">
               {saved ? (
                 <span className="flex items-center gap-1.5 font-semibold text-success">

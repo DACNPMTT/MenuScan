@@ -7,6 +7,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { AuthShell } from '@/features/auth/components/AuthShell'
 import { SplitText } from '@/shared/components/rb/SplitText'
+import { describeError } from '@/shared/lib/errors'
 
 interface LocationState {
   from?: {
@@ -51,9 +52,9 @@ export function LoginPage() {
       await login(email, password)
     } catch (error) {
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : t('auth.invalidCredentials'),
+        describeError(error, t, 'auth.invalidCredentials', {
+          statusOverrides: { 401: 'auth.invalidCredentials' },
+        }),
       )
     } finally {
       setIsSubmitting(false)
