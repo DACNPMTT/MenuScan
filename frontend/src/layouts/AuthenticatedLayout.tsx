@@ -1,9 +1,7 @@
 import { NavLink, Link, useLocation, useOutlet } from 'react-router-dom'
 import {
-  ChevronDown,
   LayoutDashboard,
   LogOut,
-  Plus,
   ReceiptText,
   ScanLine,
   UserCircle,
@@ -24,9 +22,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/shared/components/ui/dropdown-menu'
-import { Avatar, AvatarBadge, AvatarFallback } from '@/shared/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/shared/components/ui/avatar'
 
 // Authenticated app shell: a sticky glass header (logo badge + pill nav with a
 // motion active indicator + account actions), a segmented mobile tab bar, and
@@ -122,27 +122,32 @@ export function AuthenticatedLayout() {
           ))}
         </nav>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <LanguageSwitcher className="hidden sm:inline-flex" />
+          <LanguageSwitcher />
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="flex max-w-[220px] items-center gap-1.5 px-2 text-[14px] font-medium text-ink-variant"
-                  title={user.email}
+                  size="icon"
+                  className="rounded-full p-0 hover:bg-panel"
+                  title={accountLabel}
+                  aria-label={accountLabel}
                 >
-                  <span className="hidden truncate md:inline-block">{accountLabel}</span>
-                  <ChevronDown className="hidden size-4 shrink-0 md:inline-block" aria-hidden />
-                  {/* Avatar with PlusIcon badge (no image — just first-letter fallback). */}
                   <Avatar>
                     <AvatarFallback>{initial}</AvatarFallback>
-                    <AvatarBadge>
-                      <Plus aria-hidden />
-                    </AvatarBadge>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-60">
+                <DropdownMenuLabel className="flex flex-col gap-0.5 py-2">
+                  <span className="truncate text-[14px] font-semibold text-ink">
+                    {accountLabel}
+                  </span>
+                  <span className="truncate text-[12px] font-normal text-ink-variant">
+                    {user.email}
+                  </span>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link to="/app/profile">
                     <UserCircle className="size-4" aria-hidden />
@@ -214,9 +219,6 @@ export function AuthenticatedLayout() {
               </NavLink>
             )
           })}
-        </div>
-        <div className="mt-2 flex justify-center">
-          <LanguageSwitcher />
         </div>
       </nav>
       <main className="min-w-0 flex-1">

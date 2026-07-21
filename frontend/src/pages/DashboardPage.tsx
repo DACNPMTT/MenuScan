@@ -8,7 +8,6 @@ import {
   FileText,
   FileUp,
   Loader2,
-  MapPinned,
   RefreshCw,
   ScanLine,
   Sparkles,
@@ -23,6 +22,7 @@ import type {
   ScanHistoryItem,
   ScanStatus,
 } from '@/features/menu-scan/types'
+import { DiscoveryTeaser } from '@/features/feed/components/DiscoveryTeaser'
 import { PageTransition } from '@/shared/components/motion/PageTransition'
 import { Reveal } from '@/shared/components/motion/Reveal'
 import { Spinner } from '@/shared/components/Spinner'
@@ -115,31 +115,8 @@ export function DashboardPage() {
             {t('dashboard.systemStatus')}
           </p>
         </div>
-        {/* Discovery hero — entry point for the rule-based restaurant feed. */}
-        <TiltCard className="mt-7">
-          <Link to="/app/feed" className="block">
-            <Card className="relative overflow-hidden border-transparent bg-gradient-to-br from-primary-dark via-primary to-primary px-6 py-7 text-white shadow-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-pop sm:px-8">
-              {/* Stylised Vietnam-map placeholder. When the real SVG asset
-                  lands, swap this block for <img src="/vietnam-map.svg" />. */}
-              <MapPinned
-                className="pointer-events-none absolute -right-6 -top-6 size-44 rotate-12 text-white/15"
-                strokeWidth={1.2}
-                aria-hidden
-              />
-              <div className="relative flex flex-col items-start gap-2">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white/90">
-                  {t('feed.heroTitle')}
-                </span>
-                <span className="text-[28px] font-extrabold leading-tight sm:text-[34px]">
-                  {t('feed.heroTitle')}
-                </span>
-                <span className="max-w-[480px] text-[14px] text-white/80">
-                  {t('feed.heroSubtitle')}
-                </span>
-              </div>
-            </Card>
-          </Link>
-        </TiltCard>
+        {/* Discovery CardSwap teaser — compact 3-card stack that opens the feed. */}
+        <DiscoveryTeaser />
 
         {/* Primary CTAs — bento, tilt on hover. */}
         <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2">

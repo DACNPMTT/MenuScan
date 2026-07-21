@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bookmark, MapPin, Star, X } from 'lucide-react'
+import { Bookmark, MapPin, Star, TriangleAlert, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import {
@@ -146,7 +146,9 @@ export function RestaurantCardView({
       animate={stackAnimate}
       transition={{ type: 'spring', stiffness: 320, damping: 30, mass: 0.7 }}
       className={cn(
-        'relative overflow-hidden rounded-3xl border border-border bg-canvas shadow-2 will-change-transform',
+        // Duolingo dialect: 2px hairline border + flat 4px gray lip
+        // (shadow-as-lip, not diffuse blur). No gradients anywhere.
+        'relative overflow-hidden rounded-3xl border-2 border-border bg-canvas shadow-[0_4px_0_var(--border)] will-change-transform',
         peek && 'absolute inset-x-0 top-0 pointer-events-none',
         // touch-pan-y lets the page scroll vertically while we capture the
         // horizontal pan for swipe — critical for mobile.
@@ -164,8 +166,9 @@ export function RestaurantCardView({
           if (Math.abs(x.get()) > 4) e.preventDefault()
         }}
       >
-        {/* Image with name + distance overlay */}
-        <div className="relative aspect-[4/3] w-full overflow-hidden bg-panel">
+        {/* Image — solid owl-green-soft placeholder (NO gradient). Name +
+            distance sit on a flat navy ink band (NO gradient). */}
+        <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#d7ffb8]">
           {restaurant.image_url ? (
             <img
               src={restaurant.image_url}
@@ -174,16 +177,16 @@ export function RestaurantCardView({
               className="size-full object-cover object-center"
             />
           ) : (
-            <div className="flex size-full items-center justify-center bg-gradient-to-br from-primary/15 to-accent/30">
-              <MapPin className="size-12 text-primary/50" aria-hidden />
+            <div className="flex size-full items-center justify-center">
+              <MapPin className="size-16 text-primary" aria-hidden />
             </div>
           )}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/80 via-ink/40 to-transparent p-4">
-            <h3 className="text-[22px] font-extrabold leading-tight text-white">
+          <div className="absolute inset-x-0 bottom-0 bg-ink/92 px-4 py-3">
+            <h3 className="text-[20px] font-extrabold leading-tight text-canvas">
               {restaurant.name}
             </h3>
             {restaurant.distance_km != null && (
-              <p className="mt-1 flex items-center gap-1 text-[13px] text-white/85">
+              <p className="mt-0.5 flex items-center gap-1 text-[12px] font-semibold text-white/75">
                 <MapPin className="size-3.5" aria-hidden />
                 {t('feed.card.distance', { km: restaurant.distance_km.toFixed(1) })}
               </p>
@@ -193,44 +196,45 @@ export function RestaurantCardView({
       </Link>
 
       {/* Swipe hint badges — visible only on the interactive front card,
-          opacity tracks the drag so they fade in as the user commits. */}
+          opacity tracks the drag so they fade in as the user commits.
+          White pill + colored border + colored uppercase label, matching
+          the design doc's badge-pill pattern. */}
       {interactive && (
         <>
           <motion.div
             style={{ opacity: likeOpacity }}
             aria-hidden
-            className="pointer-events-none absolute left-5 top-5 z-20 -rotate-12 rounded-2xl border-4 border-success px-3 py-1 text-[18px] font-extrabold uppercase tracking-wide text-success"
+            className="pointer-events-none absolute left-5 top-5 z-20 -rotate-12 rounded-full border-2 border-primary bg-canvas px-4 py-1.5 text-[15px] font-extrabold uppercase tracking-[0.1em] text-primary shadow-[0_3px_0_var(--primary-dark)]"
           >
             {t('feed.card.like')}
           </motion.div>
           <motion.div
             style={{ opacity: nopeOpacity }}
             aria-hidden
-            className="pointer-events-none absolute right-5 top-5 z-20 rotate-12 rounded-2xl border-4 border-destructive px-3 py-1 text-[18px] font-extrabold uppercase tracking-wide text-destructive"
+            className="pointer-events-none absolute right-5 top-5 z-20 rotate-12 rounded-full border-2 border-destructive bg-canvas px-4 py-1.5 text-[15px] font-extrabold uppercase tracking-[0.1em] text-destructive shadow-[0_3px_0_#be123c]"
           >
             {t('feed.card.nope')}
           </motion.div>
         </>
       )}
 
-      {/* Meta row */}
+      {/* Meta + actions */}
       <div className="flex flex-col gap-3 px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-3 text-[13px] text-ink-variant">
-            {restaurant.star != null && (
-              <span className="flex items-center gap-1 font-bold text-ink">
-                <Star className="size-4 fill-amber text-amber" aria-hidden />
-                {restaurant.star.toFixed(1)}
-              </span>
-            )}
-            <span className="font-bold text-ink">{price}</span>
-          </div>
+        {/* Star + price + cuisines. Bee-gold star, owl-green-soft chips. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px]">
+          {restaurant.star != null && (
+            <span className="flex items-center gap-1 font-extrabold text-ink">
+              <Star className="size-4 fill-[#ffc800] text-[#ffc800]" aria-hidden />
+              {restaurant.star.toFixed(1)}
+            </span>
+          )}
+          <span className="font-extrabold text-ink">{price}</span>
           {restaurant.type.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="ml-auto flex flex-wrap gap-1.5">
               {restaurant.type.slice(0, 3).map((cuisine) => (
                 <span
                   key={cuisine}
-                  className="rounded-full bg-panel px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-ink-variant"
+                  className="rounded-full bg-[#d7ffb8] px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-[0.04em] text-[#3c8a02]"
                 >
                   {cuisine}
                 </span>
@@ -239,13 +243,15 @@ export function RestaurantCardView({
           )}
         </div>
 
+        {/* Match + caution reasons. Match uses owl-green-soft; caution uses
+            destructive tint with an icon (no emoji per design policy). */}
         {(restaurant.match_reasons.length > 0 ||
           restaurant.caution_reasons.length > 0) && (
           <div className="flex flex-wrap gap-1.5">
             {restaurant.match_reasons.map((reason) => (
               <span
                 key={`m-${reason}`}
-                className="rounded-full bg-success/15 px-2.5 py-1 text-[11px] font-bold text-success"
+                className="rounded-full bg-[#d7ffb8] px-2.5 py-1 text-[11px] font-bold text-[#3c8a02]"
               >
                 {reason}
               </span>
@@ -253,18 +259,21 @@ export function RestaurantCardView({
             {restaurant.caution_reasons.map((reason) => (
               <span
                 key={`c-${reason}`}
-                className="rounded-full bg-destructive/15 px-2.5 py-1 text-[11px] font-bold text-destructive"
+                className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-1 text-[11px] font-bold text-destructive"
               >
-                ⚠ {reason}
+                <TriangleAlert className="size-3" aria-hidden />
+                {reason}
               </span>
             ))}
           </div>
         )}
 
-        {/* Action buttons — front card only. Tap routes through the same
-            flyOff as a drag so the animation is identical either way. */}
+        {/* Action buttons — front card only. Save = button-duo (owl-green
+            fill + 4px pressed lip + uppercase label). Skip = white circle
+            with X icon, hairline border + gray lip. Both collapse on
+            :active to simulate a physical press. */}
         {!peek && (onSaveToggle || onSkip) && (
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-1 flex items-center gap-3">
             {onSaveToggle && (
               <button
                 type="button"
@@ -273,11 +282,11 @@ export function RestaurantCardView({
                 }
                 disabled={flying || busy}
                 className={cn(
-                  'flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-[14px] font-bold transition-colors',
+                  'flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-[14px] font-extrabold uppercase tracking-[0.08em] transition-all active:translate-y-[2px]',
                   saved
-                    ? 'bg-success text-white hover:bg-success/90'
-                    : 'bg-primary text-white hover:bg-primary-dark',
-                  flying && 'cursor-not-allowed opacity-60',
+                    ? 'bg-success text-white shadow-[0_4px_0_#15843d] active:shadow-[0_2px_0_#15843d]'
+                    : 'bg-primary text-white shadow-[0_4px_0_var(--primary-dark)] active:shadow-[0_2px_0_var(--primary-dark)]',
+                  (flying || busy) && 'cursor-not-allowed opacity-60',
                 )}
               >
                 <Bookmark className={cn('size-4', saved && 'fill-white')} aria-hidden />
@@ -289,9 +298,10 @@ export function RestaurantCardView({
                 type="button"
                 onClick={() => (interactive ? flyOff(-1, onSkip) : onSkip())}
                 disabled={flying || busy}
+                aria-label={t('feed.card.skip')}
                 className={cn(
-                  'flex size-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface text-ink-variant transition-colors hover:bg-panel',
-                  flying && 'cursor-not-allowed opacity-60',
+                  'flex size-12 shrink-0 items-center justify-center rounded-full border-2 border-border bg-canvas text-ink-variant transition-all shadow-[0_4px_0_var(--border)] active:translate-y-[2px] active:shadow-[0_2px_0_var(--border)]',
+                  (flying || busy) && 'cursor-not-allowed opacity-60',
                 )}
               >
                 <X className="size-5" aria-hidden />

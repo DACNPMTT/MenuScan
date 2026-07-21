@@ -75,7 +75,8 @@
   },
   "language": {
     "label": "Language",
-    "select": "Select language"
+    "select": "Select language",
+    "switchTo": "Switch to {{name}}"
   },
   "currencySelect": {
     "label": "Currency",
@@ -747,6 +748,11 @@
 "feed": {
   "heroTitle": "Discover",
   "heroSubtitle": "Find restaurants that match your taste nearby",
+  "teaser": {
+    "title": "Hungry? Swipe through spots near you.",
+    "cta": "Discover Feed",
+    "openFeed": "Open discovery feed"
+  },
   "pageTitle": "Discover restaurants",
   "savedTitle": "Saved restaurants",
   "detailTitle": "Restaurant detail",

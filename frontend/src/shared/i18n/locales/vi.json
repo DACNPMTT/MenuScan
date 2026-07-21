@@ -75,7 +75,8 @@
   },
   "language": {
     "label": "Ngôn ngữ",
-    "select": "Chọn ngôn ngữ"
+    "select": "Chọn ngôn ngữ",
+    "switchTo": "Chuyển sang {{name}}"
   },
   "currencySelect": {
     "label": "Tiền tệ",
@@ -733,6 +734,11 @@
 "feed": {
   "heroTitle": "Khám phá",
   "heroSubtitle": "Tìm quán hợp khẩu vị bạn quanh đây",
+  "teaser": {
+    "title": "Đói rồi à? Lướt xem các quán quanh bạn.",
+    "cta": "Khám phá Feed",
+    "openFeed": "Mở feed khám phá"
+  },
   "pageTitle": "Khám phá quán ăn",
   "savedTitle": "Quán đã lưu",
   "detailTitle": "Chi tiết quán",
